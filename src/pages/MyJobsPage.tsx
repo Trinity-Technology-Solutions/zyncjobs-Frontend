@@ -12,6 +12,7 @@ import BulkJobRefresh from '../components/BulkJobRefresh';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 function useRefresh(fn: () => Promise<void>) {
   const [refreshing, setRefreshing] = React.useState(false);
@@ -185,6 +186,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPostedJobs(sorted);
         setPostedJobsPage(1);
+        fetchCompanyLogos(sorted);
         
         console.log('Posted jobs updated in state:', sorted.length);
       } else {
@@ -263,9 +265,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       // Then get applications for those jobs
       const applicationsPromises = employerJobIds.map((jobId: any) => 
-        fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`)
+        apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`)
       );
-      
+
       const applicationsResponses = await Promise.all(applicationsPromises);
       const allApplications = [];
       
@@ -806,21 +808,21 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <div className="mb-8 p-6 bg-gray-50 rounded-lg">
               <div className="flex flex-col lg:flex-row gap-4 mb-4">
                 <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Job title, skill, company, keyword"
+                  <AutocompleteCombobox
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={setSearchQuery}
+                    options={allJobs.map((j: any) => ({ value: j.title || j.jobTitle || '', label: j.title || j.jobTitle || '' })).filter(o => o.value)}
+                    allowCustom
+                    placeholder="Job title, skill, company, keyword"
                   />
                 </div>
                 <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Location (ex. Denver, remote)"
+                  <AutocompleteCombobox
                     value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={setLocationQuery}
+                    options={[...new Set(allJobs.map((j: any) => j.location).filter(Boolean))].map((l: any) => ({ value: l, label: l }))}
+                    allowCustom
+                    placeholder="Location (ex. Denver, remote)"
                   />
                 </div>
                 <button
@@ -1002,22 +1004,32 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         </div>
                       )}
                     </>
-                  ) : (
-                    <div className="text-center py-16">
-                      <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Posted Jobs Yet</h3>
-                      <p className="text-gray-500 mb-6">
-                        Start posting jobs to attract top talent to your company.
-                      </p>
-                      <button
-                        onClick={() => onNavigate('job-posting-selection')}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 mx-auto transition-colors"
-                      >
-                        <span>Post Your First Job</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+                    ) : (
+                      user?.teamRole === 'Viewer' ? (
+                        <div className="text-center py-16">
+                          <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Posted Jobs</h3>
+                          <p className="text-gray-500 mb-6">
+                            You have view-only access. Only recruiters with posting permissions can create and manage jobs.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-16">
+                          <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Posted Jobs Yet</h3>
+                          <p className="text-gray-500 mb-6">
+                            Start posting jobs to attract top talent to your company.
+                          </p>
+                          <button
+                            onClick={() => onNavigate('job-posting-selection')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 mx-auto transition-colors"
+                          >
+                            <span>Post Your First Job</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )
+                    )}
                 </>
               )}
 
@@ -1092,13 +1104,23 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     )}
                     </>
                   ) : (
-                    <div className="text-center py-16">
-                      <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications Yet</h3>
-                      <p className="text-gray-500 mb-6">
-                        Applications will appear here when candidates apply to your jobs.
-                      </p>
-                    </div>
+                    user?.teamRole === 'Viewer' ? (
+                      <div className="text-center py-16">
+                        <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications</h3>
+                        <p className="text-gray-500 mb-6">
+                          You have view-only access. Applications will appear only for jobs you are authorized to manage.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center py-16">
+                        <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications Yet</h3>
+                        <p className="text-gray-500 mb-6">
+                          Applications will appear here when candidates apply to your jobs.
+                        </p>
+                      </div>
+                    )
                   )}
                 </div>
               )}

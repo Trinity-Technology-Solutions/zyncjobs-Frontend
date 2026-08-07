@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Briefcase, FileText, Target, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react';
 import { comprehensiveAnalyticsSystem, AnalyticsDashboardData, PlatformAnalytics } from '../services/comprehensiveAnalyticsSystem';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface AnalyticsDashboardProps {
   userRole: 'admin' | 'employer' | 'candidate';
@@ -215,16 +216,19 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ userRole, userI
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               Live Data
             </div>
-            <select
+            <AutocompleteCombobox
+              label="Time Range"
               value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as any)}
+              onChange={(val) => setTimeRange(val as any)}
+              options={[
+                { value: '24h', label: 'Last 24 Hours' },
+                { value: '7d', label: 'Last 7 Days' },
+                { value: '30d', label: 'Last 30 Days' },
+                { value: '90d', label: 'Last 90 Days' },
+              ]}
+              placeholder="Select time range"
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              <option value="24h">Last 24 Hours</option>
-              <option value="7d">Last 7 Days</option>
-              <option value="30d">Last 30 Days</option>
-              <option value="90d">Last 90 Days</option>
-            </select>
+            />
           </div>
         </div>
       </div>

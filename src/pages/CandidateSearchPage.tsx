@@ -16,11 +16,13 @@ import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { searchAccuracy } from '../utils/searchAccuracy';
+import { skillsMatch, normalizeSkill } from '../utils/matchScore';
 
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CandidateProfileView from './CandidateProfileView';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -238,19 +240,33 @@ interface ScoreResult {
   bestJob: Job | null;
 }
 
+/** Deduplicate skills by normalized key, preserving first-seen original casing and ignoring empties. */
+function dedupeSkills(list: any): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  (Array.isArray(list) ? list : []).forEach(s => {
+    const key = normalizeSkill(String(s || ''));
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(String(s).trim());
+  });
+  return out;
+}
+
 function scoreAgainstJob(candSkills: string[], job: Job): { score: number; matched: string[]; missing: string[] } {
-  const jobSkills: string[] = Array.isArray(job.skills) ? job.skills : [];
+  // Normalize both sides (trim, lowercase, de-dupe, drop empty values) before comparing.
+  const jobSkills = dedupeSkills(job.skills);
+  const candSkillSet = dedupeSkills(candSkills);
   const matched: string[] = [];
   const missing: string[] = [];
 
   for (const js of jobSkills) {
-    const lower = js.toLowerCase().trim();
-    if (!lower) continue;
-    const hit = candSkills.some(cs => cs.includes(lower) || lower.includes(cs));
+    // Shared boundary-safe matcher (no substring false positives like "java"→"javascript")
+    const hit = candSkillSet.some(cs => skillsMatch(cs, js));
     (hit ? matched : missing).push(js);
   }
 
-  const skillPct = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 70 : 0;
+  const skillPct = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 100 : 0;
   return { score: Math.round(skillPct), matched, missing };
 }
 
@@ -261,22 +277,14 @@ function fitLabelFor(score: number): Candidate['fitLabel'] {
 function computeAIScore(candidate: Candidate, selectedJob: Job | null, allJobs: Job[]): ScoreResult {
   const candSkills = (candidate.skills ?? []).map(s => s.toLowerCase().trim()).filter(Boolean);
 
-  // Profile completeness bonus (up to 30 pts)
-  const profileFields = ['experience', 'location', 'profileSummary', 'education'] as const;
-  const completeness = profileFields.filter(f => {
-    const v = candidate[f];
-    return v && (Array.isArray(v) ? v.length > 0 : String(v).trim().length > 0);
-  }).length / profileFields.length * 30;
-
   // Score against a specific job
   if (selectedJob) {
     const { score, matched, missing } = scoreAgainstJob(candSkills, selectedJob);
-    const total = Math.round(score + completeness);
     return {
-      aiScore: total,
+      aiScore: score,
       matchedSkills: matched,
       missingSkills: missing,
-      fitLabel: fitLabelFor(total),
+      fitLabel: fitLabelFor(score),
       bestJob: selectedJob,
     };
   }
@@ -288,13 +296,11 @@ function computeAIScore(candidate: Candidate, selectedJob: Job | null, allJobs: 
       const { score, matched, missing } = scoreAgainstJob(candSkills, j);
       if (score > best.score) best = { score, matched, missing, job: j };
     }
-    const total = Math.round(best.score + completeness);
-    return { aiScore: total, matchedSkills: best.matched, missingSkills: best.missing, fitLabel: fitLabelFor(total), bestJob: best.job };
+    return { aiScore: best.score, matchedSkills: best.matched, missingSkills: best.missing, fitLabel: fitLabelFor(best.score), bestJob: best.job };
   }
 
-  // Absolute fallback: profile completeness only
-  const total = Math.round(completeness * (100 / 30)); // rescale to 0-100
-  return { aiScore: total, matchedSkills: [], missingSkills: [], fitLabel: fitLabelFor(total), bestJob: null };
+  // No jobs to match against — no skill overlap to measure
+  return { aiScore: 0, matchedSkills: [], missingSkills: [], fitLabel: 'Low', bestJob: null };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -550,7 +556,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             const mapped: Candidate[] = arr
               .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
               .map((c: any) => {
-                const rawPhoto = c.profilePhoto || c.photo || c.avatar || c.image || '';
+                const rawPhoto = c.profilePhoto || c.profilePicture || c.photo || c.avatar || c.image || '';
                 const profilePhoto = rawPhoto
                   ? (rawPhoto.startsWith('http') || rawPhoto.startsWith('data:') ? rawPhoto : `${BASE}${rawPhoto.startsWith('/') ? rawPhoto : '/' + rawPhoto}`)
                   : '';
@@ -982,29 +988,28 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                     <div className="flex flex-col gap-3">
                       {/* Boolean search bar */}
                       <div className="relative">
-                        <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400 w-4 h-4" />
+                        <Bot className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400 w-4 h-4 z-10" />
                         <input
                           type="text"
-                          placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
                           value={booleanQuery}
-                          onChange={(e) => setBooleanQuery(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 border border-purple-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm bg-purple-50/50"
+                          onChange={e => setBooleanQuery(e.target.value)}
+                          placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
+                          className="w-full pl-9 pr-16 py-2.5 border border-purple-200 bg-purple-50/50 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-300"
                         />
                         {booleanQuery && (
-                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'
-                            }`}>
+                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded z-10 ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
                             {parseBooleanQuery(booleanQuery) ? 'valid' : 'syntax'}
                           </span>
                         )}
                       </div>
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
                         <input
                           type="text"
-                          placeholder="Search candidates by name, title, email…"
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm"
+                          onChange={e => setSearchTerm(e.target.value)}
+                          placeholder="Search candidates by name, title, email…"
+                          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 bg-white"
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1232,51 +1237,41 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                         </div>
 
                         {/* Designation */}
-                        <div className="relative">
+                        <div className="relative pt-2">
                           <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Designation</label>
-                          <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-400">
-                            <Briefcase className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
-                            <input
-                              type="text" placeholder="e.g. Engineer"
-                              value={designationInput}
-                              onChange={e => setDesignationInput(e.target.value)}
-                              onKeyDown={e => {
-                                if ((e.key === 'Enter' || e.key === ',') && designationInput.trim()) {
-                                  e.preventDefault();
-                                  if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]);
-                                  setDesignationInput('');
-                                }
-                              }}
-                              className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
-                            />
-                            {designationInput && (
-                              <button onMouseDown={() => { if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]); setDesignationInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
-                            )}
-                          </div>
+                          <input
+                            type="text"
+                            value={designationInput}
+                            onChange={e => setDesignationInput(e.target.value)}
+                            onKeyDown={e => {
+                              if ((e.key === 'Enter' || e.key === ',') && designationInput.trim()) {
+                                e.preventDefault();
+                                if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]);
+                                setDesignationInput('');
+                              }
+                            }}
+                            placeholder="e.g. Engineer"
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                          />
                         </div>
 
                         {/* Ex-Company */}
-                        <div className="relative">
+                        <div className="relative pt-2">
                           <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Ex-Company</label>
-                          <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-400">
-                            <Building2 className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
-                            <input
-                              type="text" placeholder="e.g. Infosys"
-                              value={companyInput}
-                              onChange={e => setCompanyInput(e.target.value)}
-                              onKeyDown={e => {
-                                if ((e.key === 'Enter' || e.key === ',') && companyInput.trim()) {
-                                  e.preventDefault();
-                                  if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]);
-                                  setCompanyInput('');
-                                }
-                              }}
-                              className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
-                            />
-                            {companyInput && (
-                              <button onMouseDown={() => { if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]); setCompanyInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
-                            )}
-                          </div>
+                          <input
+                            type="text"
+                            value={companyInput}
+                            onChange={e => setCompanyInput(e.target.value)}
+                            onKeyDown={e => {
+                              if ((e.key === 'Enter' || e.key === ',') && companyInput.trim()) {
+                                e.preventDefault();
+                                if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]);
+                                setCompanyInput('');
+                              }
+                            }}
+                            placeholder="e.g. Infosys"
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                          />
                         </div>
                       </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { useResumeStore, LanguageItem } from '../../store/useResumeStore';
+import AutocompleteCombobox from '../AutocompleteCombobox';
 
 const LEVELS: LanguageItem['proficiency'][] = ['Native', 'Fluent', 'Advanced', 'Intermediate', 'Basic'];
 const COMMON_LANGUAGES = ['English', 'Tamil', 'Hindi', 'Malayalam', 'Telugu', 'Kannada', 'French', 'German', 'Spanish', 'Arabic', 'Japanese', 'Mandarin'];
@@ -31,7 +32,7 @@ export default function LanguagesStep() {
         <div>
           <h2 className="text-xl font-bold text-gray-900">Languages</h2>
           <p className="text-sm text-gray-500 mt-0.5">Add languages you speak</p>
-          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-blue-400">💡</span> Only list languages relevant to the job — bilingual roles value this more than technical ones</p>
+          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Only list languages relevant to the job — bilingual roles value this more than technical ones</p>
         </div>
         <div className="flex items-center gap-2">
           {languages.length === 0 && (
@@ -62,12 +63,16 @@ export default function LanguagesStep() {
           {languages.map((lang) => (
             <div key={lang.id} className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl">
               <input type="text" value={lang.language} onChange={e => updateLanguage(lang.id, 'language', e.target.value)}
-                placeholder="e.g. Tamil"
+                placeholder="Enter a language"
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
-              <select value={lang.proficiency} onChange={e => updateLanguage(lang.id, 'proficiency', e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
-                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
+              <AutocompleteCombobox
+                label="Proficiency"
+                value={lang.proficiency}
+                onChange={(val) => updateLanguage(lang.id, 'proficiency', val)}
+                options={LEVELS.map(l => ({ value: l, label: l }))}
+                placeholder="Select level"
+                className="w-40"
+              />
               <button onClick={() => removeLanguage(lang.id)} className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>

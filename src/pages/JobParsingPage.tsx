@@ -18,8 +18,23 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     isVisible: boolean;
   }>({ type: 'success', message: '', isVisible: false });
 
-  const stripHtml = (html: string): string =>
-    html.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim();
+  // Strip HTML tags + markdown, but PRESERVE line breaks (needed for
+  // line-based extraction). `**bold**`, `# headings` and `---` rules are
+  // formatting inside a JD, not content.
+  const cleanText = (text: string): string =>
+    text
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+      .replace(/&nbsp;/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .split('\n')
+      .map(l => l.replace(/\s+/g, ' ').trim())
+      .map(l => (/^\s*(?:-{3,}|={3,}|\*{3,}|~{3,}|_{3,}|…{3,})\s*$/.test(l) ? '' : l))
+      .join('\n')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/^#+\s*/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
   const handleStartParsing = async () => {
     if (!jobDescription.trim()) {
@@ -33,7 +48,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
     setIsParsing(true);
     try {
-      const cleanDescription = stripHtml(jobDescription);
+      const cleanDescription = cleanText(jobDescription);
       // Parse job description using AI
       const parsedData = await parseJobDescription(cleanDescription);
       
@@ -80,9 +95,15 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         const result = await res.json();
         const d = result.data || result;
         // Strip markdown, metadata prefixes from jobTitle
-        const rawTitle = (d.jobTitle || '').replace(/\*+/g, '').trim();
-        const metaTitlePat = /^(experience|exp|salary|location|skills?|department|employment|job type|work type|notice|joining|ctc|lpa|\d)/i;
-        const cleanTitle = metaTitlePat.test(rawTitle) ? '' : rawTitle;
+        const rawTitle = (d.jobTitle || '').replace(/^#+\s*/, '').replace(/\*+/g, '').split(/[|—–]/)[0].trim();
+        const metaTitlePat = /^(experience|exp|salary|location|skills?|department|employment|job type|work type|notice|joining|ctc|lpa|overview|responsibilit|qualification|requirement|zyncjobs|\d)/i;
+        const titleWords = rawTitle.split(/\s+/).filter(Boolean).length;
+        // Reject sentence/responsibility-like titles ("Design, develop, test and maintain...")
+        const titleLooksLikeSentence =
+          titleWords > 6 || rawTitle.length > 60 || /,/.test(rawTitle)
+          || /\b(and|the|for|with|using|that|this|which|to|of)\b/i.test(rawTitle)
+          || (titleWords >= 3 && /\b(design|develop|test|maintain|build|lead|manage|create|implement|write|support|monitor|ensure|analyze|collaborate|deliver|prepare|responsible)\w*\b/i.test(rawTitle));
+        const cleanTitle = metaTitlePat.test(rawTitle) || titleLooksLikeSentence ? '' : rawTitle;
         ai = {
           jobTitle:         cleanTitle,
           jobLocation:      d.location        || '',
@@ -127,32 +148,90 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       };
     } catch { /* ignore */ }
 
-    // Step 3: merge â€” AI first, regex fills gaps, helper functions as final fallback
+    // Step 3: merge - AI first, regex fills gaps, helper functions as final fallback
     const salary = extractSalaryIfNumeric(description);
     const jobLocation =
       ai.jobLocation || regex.jobLocation || extractLocation(description);
     const country = await inferCountryFromCity(base, jobLocation);
 
+    // Strict fill: every detail must pass its field's pattern before being
+    // placed, so parsed data can never land in the wrong placeholder.
+    const strictTitle = (v: string): string => {
+      const t = (v || '').trim().replace(/\s+/g, ' ');
+      if (!t || t.length > 60) return '';
+      const words = t.split(/\s+/).length;
+      if (words < 2 || words > 6) return '';
+      if (/[|—–_]/.test(t) || /,(?!\s?\d)/.test(t) || /\.$/.test(t) || /@/.test(t) || /^\d/.test(t)) return '';
+      if (words >= 3 && /\b(design|develop|test|maintain|build|lead|manage|create|implement|write|support|monitor|ensure|analyze|collaborate|deliver|prepare)\w*\b/i.test(t)) return '';
+      if (/^(immediate|urgent|apply|hiring|zyncjobs|connecting|overview|responsibilit|requirement|qualification|experience|location|salary|description|about|summary|benefits)/i.test(t)) return '';
+      return t;
+    };
+    const strictCompany = (v: string): string => {
+      const t = (v || '').trim().replace(/\s+/g, ' ');
+      if (!t || t.length > 40) return '';
+      if (/[|—–,]/.test(t) || /\b(hiring|looking|seeking|invites?|about us|job description)\b/i.test(t)) return '';
+      if (/\b(developer|engineer|analyst|manager|executive|officer|specialist|consultant|tester|designer|role|position)\b/i.test(t)) return '';
+      return t;
+    };
+    const strictLocation = (v: string): string => {
+      const t = (v || '').trim();
+      if (!t || t.length > 40) return '';
+      if (/^(remote|hybrid|on\s*-?\s*site|onsite)$/i.test(t)) return t;
+      if (/^[A-Za-z][A-Za-z\s,'.\-]*$/.test(t)
+        && !/\b(developer|engineer|analyst|manager|executive|officer|specialist|consultant|hiring|apply|salary|experience|full\s*-?\s*time|part\s*-?\s*time|internship|contract|senior|lead|junior|design|develop|test)\b/i.test(t)
+        && !/\d/.test(t)) return t;
+      return '';
+    };
+    const strictExp = (v: string): string => {
+      const s = (v || '').trim();
+      if (!s) return '';
+      if (/^\d+\s*(?:years?|yrs?)?\s*(?:-|–|—|to)\s*\d+\s*(?:years?|yrs?)?\s*$/i.test(s)
+        || /^\d+\+\s*(?:years?|yrs?)/i.test(s)) return normalizeExperienceRange(s) || s;
+      return '';
+    };
+    const strictAmount = (v: any): string => {
+      const s = String(v || '').trim();
+      return /^\d{1,12}$/.test(s) ? s : '';
+    };
+    const strictShort = (v: any, max = 40): string => {
+      const s = String(v || '').trim().replace(/\s+/g, ' ');
+      return s && s.length <= max && !/[|—–]/.test(s) ? s : '';
+    };
+    const strictList = (arr: any, maxLen = 30, maxItems = 15): string[] =>
+      (Array.isArray(arr) ? arr : [])
+        .map((s: any) => String(s).trim().replace(/\s+/g, ' '))
+        .filter((s: string) => s && s.length <= maxLen && !/[|—–]/.test(s) && !/,\s|^(and|the|for|with|to|of)\b/i.test(s))
+        .slice(0, maxItems);
+    const strictEnum = <T,>(v: any, list: readonly T[]): T | '' =>
+      list.includes(v as T) ? (v as T) : '';
+
+    const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+    const CURRENCIES = ['INR', 'USD', 'AED', 'OMR', 'QAR', 'SAR', 'KWD', 'EUR', 'GBP'];
+    const JOB_CATEGORIES = ['Information Technology', 'Software Development', 'Data Science & Analytics', 'Sales & Marketing', 'Finance & Accounting', 'Human Resources', 'Operations', 'Customer Service', 'Healthcare', 'Engineering', 'Education', 'Legal', 'Manufacturing', 'Retail', 'Construction', 'Hospitality & Tourism', 'Media & Communications', 'Logistics & Supply Chain', 'Real Estate', 'Oil & Gas', 'Telecommunications', 'Banking & Insurance', 'Other'];
+
+    const rawJobType = ai.jobType ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description);
+    const jobType = (Array.isArray(rawJobType) ? rawJobType : [rawJobType]).filter(t => JOB_TYPES.includes(t));
+
     return {
-      jobTitle:         ai.jobTitle         || regex.jobTitle         || extractJobTitle(description),
-      companyName:      ai.companyName      || '',
-      jobLocation,
+      jobTitle:         strictTitle(ai.jobTitle       || regex.jobTitle       || extractJobTitle(description)),
+      companyName:      strictCompany(ai.companyName  || extractCompanyName(description)),
+      jobLocation:      strictLocation(jobLocation),
       country,
-      jobType:          ai.jobType          ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description),
-      experienceRange:  regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description),
-      skills:           (Array.isArray(ai.skills) && ai.skills.length)   ? ai.skills   : (regex.skills?.length ? regex.skills : extractSkills(description)),
-      minSalary:        ai.minSalary        || regex.minSalary        || salary.min,
-      maxSalary:        ai.maxSalary        || regex.maxSalary        || salary.max,
-      currency:         ai.currency         || regex.currency         || salary.currency,
+      jobType,
+      experienceRange:  strictExp(regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description)),
+      skills:           strictList((Array.isArray(ai.skills) && ai.skills.length) ? ai.skills : (regex.skills?.length ? regex.skills : extractSkills(description))),
+      minSalary:        strictAmount(ai.minSalary    || regex.minSalary    || salary.min),
+      maxSalary:        strictAmount(ai.maxSalary    || regex.maxSalary    || salary.max),
+      currency:         strictEnum(ai.currency       || regex.currency     || salary.currency, CURRENCIES),
       payRate:          salary.payRate,
       payType:          (salary as any).payType,
-      benefits:         (Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description),
-      educationLevel:   ai.educationLevel   || extractEducation(description),
+      benefits:         strictList((Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description), 40, 10),
+      educationLevel:   strictShort(ai.educationLevel || extractEducation(description)),
       jobDescription:   description,
       responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
       requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),
-      goodToHaveSkills: (Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description)),
-      jobCategory:      ai.jobCategory      || extractJobCategory(description),
+      goodToHaveSkills: strictList((Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description))),
+      jobCategory:      strictEnum(ai.jobCategory    || extractJobCategory(description), JOB_CATEGORIES),
       nationality:      ai.nationality      || '',
       priority:         extractPriority(description),
       clientName:       extractClientName(description),
@@ -249,7 +328,15 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   // Extract salary from JD text only if actual numbers found â€” no defaults
   const extractSalaryIfNumeric = (text: string) => {
     const empty = { min: '', max: '', currency: 'INR', payRate: 'per year' };
-    const currency = /â‚¹|INR|lakh/i.test(text) ? 'INR' : /â‚¬|EUR/i.test(text) ? 'EUR' : /Â£|GBP/i.test(text) ? 'GBP' : 'USD';
+    const currency = /â‚¹|INR|lakh|LPA/i.test(text) ? 'INR'
+      : /AED|dirham|Dhs?\.?\s/i.test(text) ? 'AED'
+      : /OMR|rial\s+oman|Omani/i.test(text) ? 'OMR'
+      : /QAR|Qatari/i.test(text) ? 'QAR'
+      : /SAR|Saudi|SR\s/i.test(text) ? 'SAR'
+      : /KWD|Kuwaiti/i.test(text) ? 'KWD'
+      : /â‚¬|EUR/i.test(text) ? 'EUR'
+      : /Â£|GBP/i.test(text) ? 'GBP'
+      : /\$|USD/i.test(text) ? 'USD' : 'USD';
     const payRate = /per\s+month|monthly/i.test(text) ? 'per month' : /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
 
     // Range patterns (25-35 lakhs, 25 to 35 LPA, 25-35 lks, etc.)
@@ -362,7 +449,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     const metaWords = /^(experience|location|salary|employment|nationality|skills|requirements|responsibilities|about|dear|hi |hello|zyncjobs|connecting)/i;
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     for (let i = 0; i < Math.min(10, lines.length); i++) {
-      const line = lines[i].replace(/^[-*\d+.)\s]+/, '').replace(/[-|].+$/, '').trim();
+      const line = lines[i].replace(/^[-*\d+.)\s]+/, '').replace(/[—–|].+$/, '').trim();
       if (line.length > 3 && line.length < 80 && !metaWords.test(line) && !line.includes('@') && !/^\d+$/.test(line) && !invalidKw.some(k => line.toLowerCase().includes(k))) {
         return line;
       }
@@ -427,7 +514,22 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       if (withLabel || aloneLine) return city;
     }
 
-    // --- No confident location found â€” return empty string ---
+    // --- No confident location found — return empty string ---
+    return '';
+  };
+
+  const extractCompanyName = (text: string): string => {
+    const label = text.match(/(?:company\s*name|hiring\s+company|company|organization|organisation|employer)\s*[:\-]\s*([^\n\r,]{2,60})/i);
+    if (label?.[1]) {
+      const t = label[1].trim().replace(/[*#_]/g, '');
+      if (t.length > 2 && t.length < 80 && !/http|www|email|apply|preferred|not\s+mandatory/i.test(t)) return t;
+    }
+    const subject = text.match(/^([A-Z][\w&'.\- ]{2,50}?)\s+(?:is|are)\s+(?:hiring|seeking|recruiting|looking\s+for)/im);
+    if (subject?.[1] && !/^(we|our|us|i)\b/i.test(subject[1])) return subject[1].trim();
+    const tagline = text.match(/^([A-Z][\w&'.\- ]{2,40}?)\s*[—–|]\s*[A-Z][^-\n]{2,40}$/m);
+    if (tagline?.[1] && !/developer|engineer|manager|architect|analyst|designer|specialist|consultant|executive|recruiter|agent|officer|accountant|technician/i.test(tagline[1])) return tagline[1].trim();
+    const at = text.match(/(?:at|for)\s+([A-Z][A-Za-z0-9&'.\- ]{2,45}?)(?:[,.;]|\n|$)/);
+    if (at?.[1] && !/^(inc|llc|ltd|pvt|the|a|an)\b/i.test(at[1])) return at[1].trim();
     return '';
   };
 
@@ -539,7 +641,31 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       // HR & Recruitment
       'Human Resources', 'Talent Acquisition', 'Recruitment', 'Employee Relations', 'Performance Management', 'Training and Development', 'Compensation and Benefits', 'HR Analytics', 'HRIS', 'Workday', 'BambooHR',
       // Operations
-      'Operations Management', 'Supply Chain Management', 'Logistics', 'Inventory Management', 'Quality Assurance', 'Process Improvement', 'Lean Manufacturing', 'Six Sigma', 'ERP', 'SAP', 'Oracle ERP'
+      'Operations Management', 'Supply Chain Management', 'Logistics', 'Inventory Management', 'Quality Assurance', 'Process Improvement', 'Lean Manufacturing', 'Six Sigma', 'ERP', 'SAP', 'Oracle ERP',
+      // HSE & Oil & Gas
+      'NEBOSH', 'OSHA', 'HSE', 'Fire Safety', 'Risk Assessment', 'Hazard Analysis', 'First Aid', 'Confined Space', 'Permit to Work', 'ISO 45001', 'ISO 14001', 'Process Safety', 'Drilling', 'Offshore', 'Pipeline', 'Petrochemical', 'Safety Management', 'Incident Investigation',
+      // Construction & Engineering
+      'AutoCAD', 'Revit', 'Civil Engineering', 'Structural Engineering', 'Mechanical Engineering', 'Electrical Engineering', 'HVAC', 'Plumbing', 'Primavera', 'Quantity Surveying', 'Estimation', 'Site Supervision', 'QA/QC', 'Quality Control', 'Blueprint Reading', 'Construction Management',
+      // Healthcare
+      'Nursing', 'Patient Care', 'Pharmacology', 'Medical Records', 'Physiotherapy', 'Home Care', 'Emergency Care', 'Infection Control', 'First Aid Certification', 'CPR', 'Clinical Research', 'Radiology', 'Laboratory Testing', 'Blood Collection', 'Wound Care',
+      // Education & Training
+      'Teaching', 'Curriculum Development', 'Lesson Planning', 'IELTS', 'Classroom Management', 'Student Assessment', 'Training and Development', 'Instructional Design', 'Educational Technology', 'Special Education',
+      // Hospitality & Tourism
+      'Housekeeping', 'Food and Beverage', 'Catering', 'Front Office', 'Chef', 'Hotel Management', 'Guest Relations', 'Event Planning', 'Reservation Management', 'Menu Planning', 'Barista', 'Restaurant Management',
+      // Logistics & Transportation
+      'Warehouse Management', 'Forklift Operation', 'Driving License', 'Freight', 'Shipping', 'Customs Clearance', 'Procurement', 'Purchasing', 'Vendor Management', 'Route Planning', 'Cargo Handling', 'Dispatch',
+      // Legal & Compliance
+      'Contract Law', 'Legal Research', 'Compliance', 'Regulatory Compliance', 'Drafting', 'Litigation', 'Legal Documentation', 'Due Diligence', 'Intellectual Property', 'Labor Law',
+      // Banking & Insurance
+      'Banking', 'Insurance', 'Underwriting', 'Credit Analysis', 'Loan Processing', 'Financial Planning', 'Wealth Management', 'KYC', 'AML', 'Risk Management', 'Claims Processing',
+      // Retail & Sales Support
+      'Retail Management', 'Cash Handling', 'Merchandising', 'Point of Sale', 'Sales Funnel', 'Telemarketing', 'Key Account Management', 'Cold Calling', 'Channel Sales', 'B2B Sales',
+      // Media & Communications
+      'Content Writing', 'Copywriting', 'Video Editing', 'Photography', 'Journalism', 'Public Relations', 'Social Media Management', 'Advertising', 'Broadcast', 'Scriptwriting',
+      // Customer Service
+      'Customer Service', 'Call Center', 'Help Desk', 'Complaint Handling', 'Customer Retention', 'Live Chat Support', 'Technical Support', 'Conflict Resolution', 'Service Recovery',
+      // Soft skills common to global roles
+      'Communication', 'Team Leadership', 'Problem Solving', 'Time Management', 'Multitasking', 'Customer Relations', 'Negotiation', 'Presentation Skills', 'Report Writing', 'Data Entry', 'MS Office', 'Microsoft Excel', 'Microsoft Word', 'Outlook', 'Typing Speed'
     ];
 
     const foundSkills = new Set<string>();
@@ -718,38 +844,70 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   };
 
   const extractJobCategory = (text: string): string => {
-    
-    if (/software|developer|engineer|programming|coding|frontend|backend|fullstack/i.test(text)) {
-      return 'Software Development';
-    }
-    if (/data\s*scientist|data\s*analyst|machine\s*learning|ai|analytics/i.test(text)) {
-      return 'Data Science & Analytics';
-    }
-    if (/sales|marketing|business\s*development|account\s*manager/i.test(text)) {
-      return 'Sales & Marketing';
-    }
-    if (/finance|accounting|financial|accountant/i.test(text)) {
-      return 'Finance & Accounting';
-    }
-    if (/hr|human\s*resources|recruiter|talent/i.test(text)) {
-      return 'Human Resources';
-    }
-    if (/healthcare|medical|nurse|doctor|clinical/i.test(text)) {
+    // Domain-specific checks FIRST — "engineer" alone must not imply software
+    if (/nurse|nursing|medical|healthcare|clinical|physio|dentist|pharma|hospital\b|patient/i.test(text)) {
       return 'Healthcare';
     }
-    if (/customer\s*service|support|help\s*desk/i.test(text)) {
+    if (/nebosh|osha\b|hse\b|fire\s*safety|hazmat|drilling|offshore|onshore|petroleum|petrochemical|pipeline|oil\s*and\s*gas/i.test(text)) {
+      return 'Oil & Gas';
+    }
+    if (/civil\s*engineer|structural|construction|site\s*engineer|quantity\s*survey|architect|plumbing|mep\b/i.test(text)) {
+      return 'Construction';
+    }
+    if (/mechanical\s*engineer|electrical\s*engineer|electronics\s*engineer|maintenance\s*engineer|production\s*engineer|hvac|automotive|manufacturing|assembly|machin(?:ist|ing|ery)|cnc\b|lathe|welder|fabrication/i.test(text)) {
+      return 'Manufacturing';
+    }
+    if (/housekeeping|chef\b|cook\b|waiter|restaurant|hotel\b|catering|food\s*and\s*beverage|front\s*office|guest\s*relations|hospitality/i.test(text)) {
+      return 'Hospitality & Tourism';
+    }
+    if (/warehouse|forklift|truck\s*driver|delivery|shipping|freight|customs|seaport|harbou?r|logistics|supply\s*chain|inventory\s*manager/i.test(text)) {
+      return 'Logistics & Supply Chain';
+    }
+    if (/retail|cashier|store\s*manager|merchandis|sales\s*associate|showroom/i.test(text)) {
+      return 'Retail';
+    }
+    if (/real\s*estate|property|broker|leasing/i.test(text)) {
+      return 'Real Estate';
+    }
+    if (/bank|loan\s*officer|insurance|underwriting|financial\s*advisor|credit\s*analyst|teller/i.test(text)) {
+      return 'Banking & Insurance';
+    }
+    if (/telecom|telecommunication|network\s*engineer|rf\s*engineer|fiber|5g\b/i.test(text)) {
+      return 'Telecommunications';
+    }
+    if (/media|journalist|content\s*writer|video\s*editor|photographer|graphic\s*designer|advertising|public\s*relations/i.test(text)) {
+      return 'Media & Communications';
+    }
+    if (/data\s*scientist|data\s*analyst|machine\s*learning|artificial\s*intelligence|\bai\b|analytics/i.test(text)) {
+      return 'Data Science & Analytics';
+    }
+    if (/sales|marketing|business\s*development|account\s*manager|telecaller/i.test(text)) {
+      return 'Sales & Marketing';
+    }
+    if (/finance|accounting|financial|accountant|audit|tax\b/i.test(text)) {
+      return 'Finance & Accounting';
+    }
+    if (/hr\b|human\s*resources|recruiter|talent\s*acquisition|payroll/i.test(text)) {
+      return 'Human Resources';
+    }
+    if (/customer\s*service|customer\s*support|call\s*center|support\s*executive/i.test(text)) {
       return 'Customer Service';
     }
-    if (/operations|logistics|supply\s*chain/i.test(text)) {
-      return 'Operations';
-    }
-    if (/legal|lawyer|attorney|compliance/i.test(text)) {
+    if (/legal|lawyer|attorney|compliance\s*officer|paralegal/i.test(text)) {
       return 'Legal';
     }
-    if (/education|teacher|instructor|training/i.test(text)) {
+    if (/education|teacher|instructor|lecturer|trainer|curriculum/i.test(text)) {
       return 'Education';
     }
-    
+    if (/operations|project\s*manager|business\s*analyst|coordinator/i.test(text)) {
+      return 'Operations';
+    }
+    if (/software|developer|programming|coding|frontend|backend|fullstack|full\s*stack|qa\s*engineer|test\s*engineer|devops|it\s*support|help\s*desk|technical\s*support|software\s*engineer|web\s*(?:app|developer)|react|node\s*\.?js|javascript|typescript|angular|vue\s*\.?js|\.net\b|java\b|python\b|c#/i.test(text)) {
+      return 'Software Development';
+    }
+    if (/engineer|engineering/i.test(text)) {
+      return 'Engineering';
+    }
     return 'Information Technology';
   };
 

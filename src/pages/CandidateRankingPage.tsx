@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../api/apiFetch';
 import { API_ENDPOINTS as ENV_ENDPOINTS } from '../config/env';
+import { mergeCandidateSkills, scoreCandidate, extractSkillsFromText, tokenize, STOP } from '../utils/candidateScoring';
 import { 
   Trophy, 
   Award, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 function getEffectiveEmployerEmail(): string {
   try {
@@ -35,6 +37,8 @@ interface Job {
   jobTitle: string;
   title?: string;
   skills: string[];
+  jobCode?: string;
+  positionId?: string;
 }
 
 
@@ -52,6 +56,7 @@ interface RankedCandidate {
   rank: number;
   score: number;
   jobTitle: string;
+  jobCode: string;
   jobId: string;
   skills: string[];
   experience: string;
@@ -115,23 +120,11 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
       
       setJobs(allJobs);
 
-      // TECH_SKILLS keyword list for resume text extraction
-      const TECH_SKILLS_KW = ['JavaScript','TypeScript','Python','Java','C++','C#','PHP','Ruby','Go','Rust','Kotlin','Swift','React','Angular','Vue','Next.js','Node.js','Express','Django','Flask','Spring','Laravel','FastAPI','HTML','CSS','Tailwind','Bootstrap','SQL','MySQL','PostgreSQL','MongoDB','Redis','Firebase','AWS','Azure','GCP','Docker','Kubernetes','Git','Linux','Terraform','Jenkins','Machine Learning','Deep Learning','TensorFlow','PyTorch','Scikit-learn','Pandas','NumPy','Power BI','Tableau','Excel','MATLAB','R','Hadoop','Spark','Kafka','REST','GraphQL','Microservices','Agile','Scrum','Figma','Jira','Postman','React.js','Node.js','Vue.js','Nest.js','MERN Stack','Full Stack','Data Analysis','Data Science','NLP'];
-
-      const extractSkillsFromText = (text: string): string[] => {
-        if (!text) return [];
-        return TECH_SKILLS_KW.filter(k => {
-          const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
-        });
-      };
-
       const enriched = allApps.map((app: any) => {
         const profile = app.candidateProfile || {};
 
-        // Collect skills from ALL sources and merge
+        // Collect skills sources (for skillsSource label) + merged set
         const profileSkills: string[] = Array.isArray(profile.skills) ? profile.skills : [];
-        const appSkills: string[] = Array.isArray(app.skills) ? app.skills : [];
         const parsedSkills: string[] = (
           app.parsedResume?.skills?.featuredSkills?.map((s: any) => s.skill || s).filter(Boolean) ||
           app.resumeData?.skills?.featuredSkills?.map((s: any) => s.skill || s).filter(Boolean) ||
@@ -140,17 +133,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         const resumeTextSkills: string[] = extractSkillsFromText(
           app.resumeText || app.resumeContent || app.extractedText || ''
         );
-
-        // Merge all, deduplicate (case-insensitive)
-        const seen = new Set<string>();
-        const candidateSkills: string[] = [
-          ...profileSkills, ...appSkills, ...parsedSkills, ...resumeTextSkills
-        ].filter(s => {
-          const key = String(s).toLowerCase().trim();
-          if (!key || seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        const candidateSkills: string[] = mergeCandidateSkills(app);
 
         return {
           ...app,
@@ -168,104 +151,13 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         };
       });
 
-      // ── Scoring helpers ────────────────────────────────────────────
-      const STOP = new Set(['strong','experience','in','with','of','and','or','for','the','a','an','knowledge','hands','on','good','understanding','excellent','ability','working','using','familiarity','proficiency','expertise']);
-      const tokenize = (str: string): string[] => {
-        const out: string[] = [];
-        str.toLowerCase().split(/[\s\/\(\),&\.\-\+]+/).forEach(w => { if (w.length > 2 && !STOP.has(w)) out.push(w); });
-        return out;
-      };
-
-      const localScore = (app: any, skills: string[], jobDataForScore: any): number => {
-        const jobSkillsForScore: string[] = Array.isArray(jobDataForScore?.skills) ? jobDataForScore.skills : [];
-        const jobTitleForScore: string = jobDataForScore?.jobTitle || jobDataForScore?.title || '';
-        const jobDescForScore: string = jobDataForScore?.description || jobDataForScore?.jobDescription || '';
-
-        // 1. Skill match (50%) — against job skills + description keywords
-        const jobKw: string[] = [];
-        jobSkillsForScore.forEach(s => tokenize(s).forEach(k => { if (!jobKw.includes(k)) jobKw.push(k); }));
-        tokenize(jobDescForScore).forEach(k => { if (k.length > 3 && !jobKw.includes(k)) jobKw.push(k); });
-        const matchedSkills = skills.filter(cs =>
-          tokenize(cs).some(ct => jobKw.some(jk => ct === jk || ct.includes(jk) || jk.includes(ct)))
-        );
-        // Score based on matched/job-skills ratio (not candidate skills ratio — avoids penalising broad profiles)
-        const sScore = jobSkillsForScore.length > 0
-          ? Math.min(100, Math.round((matchedSkills.length / jobSkillsForScore.length) * 100))
-          : skills.length > 0 ? 40 : 10; // baseline if no job skills defined
-
-        // 2. Title match (25%)
-        const candTitleToks = tokenize(app.candidateJobTitle || app.jobTitle || '');
-        const jobTitleToks = tokenize(jobTitleForScore);
-        const titleHits = candTitleToks.filter(w => jobTitleToks.some(jw => w === jw || w.includes(jw) || jw.includes(w))).length;
-        const tScore = jobTitleToks.length > 0 && candTitleToks.length > 0
-          ? Math.min(100, Math.round((titleHits / jobTitleToks.length) * 100)) : 0;
-
-        // 3. Experience score (15%) — years + keyword relevance
-        const expText = (app.candidateExperience || app.experience || '').toLowerCase();
-        const expYears = parseInt(expText.match(/(\d+)/)?.[1] || '0');
-        const expHits = jobTitleToks.filter(w => expText.includes(w)).length;
-        const expRelevance = jobTitleToks.length > 0 ? Math.min(100, Math.round((expHits / jobTitleToks.length) * 100)) : 0;
-        const eScore = Math.round(expRelevance * 0.6 + Math.min(40, expYears * 8) * 0.4);
-
-        // 4. Profile completeness bonus (10%)
-        let completeness = 0;
-        if (app.resumeUrl && !['resume_from_quick_apply','resume_from_profile','resume_uploaded'].includes(app.resumeUrl)) completeness += 40;
-        if (skills.length >= 3) completeness += 30;
-        if (app.candidateEducation && app.candidateEducation !== 'Not specified') completeness += 15;
-        if (app.candidateJobTitle) completeness += 15;
-
-        return Math.min(99, Math.max(1, Math.round(
-          sScore * 0.50 + tScore * 0.25 + eScore * 0.15 + completeness * 0.10
-        )));
-      };
-
-      // Score each candidate — try AI hybrid-score, fall back to local
+      // Score each candidate — stored AI score → hybrid-score API → local fallback (shared util)
       const scorePromises = enriched.map(async (app: any) => {
         const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
         const rawJobId = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
         const jobData = typeof app.jobId === 'object' ? app.jobId : allJobs.find((j: Job) => String(j._id || j.id) === String(rawJobId));
 
-        // Use stored aiScore if already computed and non-zero
-        let score = app.aiAnalysis?.overallScore || app.aiScore || 0;
-
-        if (!score) {
-          try {
-            // Call backend hybrid-score with real candidate + job data
-            const res = await apiFetch(`${ENV_ENDPOINTS.BASE_URL}/ranking/hybrid-score`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                candidate: {
-                  skills,
-                  experience: app.candidateExperience || app.experience || '',
-                  education: app.candidateEducation || '',
-                  jobTitle: app.candidateJobTitle || '',
-                  location: app.candidateLocation || '',
-                  name: app.candidateName || '',
-                  email: app.candidateEmail || '',
-                },
-                job: {
-                  title: jobData?.jobTitle || jobData?.title || '',
-                  skills: jobData?.skills || [],
-                  description: jobData?.description || jobData?.jobDescription || '',
-                  location: jobData?.location || '',
-                  experienceRange: jobData?.experienceRange || '',
-                }
-              })
-            });
-            if (res.ok) {
-              const data = await res.json();
-              // API returns {matched, missing, match_percentage} — extract correctly
-              score = data.hybrid_score || data.score || data.overall_score ||
-                      data.hybridScore || data.overallScore ||
-                      data.match_percentage || 0;
-            }
-          } catch { /* fall through to local */ }
-        }
-
-        // Local fallback if AI returned 0 or failed
-        if (!score) score = localScore(app, skills, jobData);
-        score = Math.min(99, Math.max(1, Math.round(score)));
+        const score = await scoreCandidate(app, allJobs);
 
         // Build match reasons
         const jobSkills: string[] = Array.isArray(jobData?.skills) ? jobData.skills : [];
@@ -292,6 +184,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           rank: 0,
           score,
           jobTitle: app.jobTitle || jobData?.jobTitle || jobData?.title || 'Position',
+          jobCode: jobData?.jobCode || jobData?.positionId || '',
           jobId: String(jobData?._id || jobData?.id || rawJobId || ''),
           skills,
           experience: app.candidateExperience || 'Not specified',
@@ -440,7 +333,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                     <Avatar name={c.name} photo={c.profilePicture} size="md" />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm truncate">{c.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{c.jobTitle}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-xs text-gray-500 truncate">{c.jobTitle}</p>
+                        {c.jobCode && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded flex-shrink-0">{c.jobCode}</span>}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-2">
@@ -459,27 +355,48 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4 mb-4 space-y-3">
           <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <input type="text" placeholder="Search by name, email or job..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent text-sm outline-none w-full text-gray-700 placeholder-gray-400" />
+            <AutocompleteCombobox
+              value={searchTerm}
+              onChange={setSearchTerm}
+              options={[]}
+              allowCustom
+              placeholder="Search by name, email or job..."
+              className="border-none shadow-none"
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="all">All Jobs</option>
-              {/* FIX: `j.jobTitle || j.title` is now valid — `title?` is declared on Job */}
-              {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{j.jobTitle || j.title}</option>)}
-            </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="all">All Status</option>
-              <option value="not_scheduled">Pending</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="completed">Interviewed</option>
-              <option value="hired">Hired</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="score">Sort by Score</option>
-              <option value="rank">Sort by Rank</option>
-              <option value="name">Sort by Name</option>
-            </select>
+            <AutocompleteCombobox
+              label="Job"
+              value={selectedJob}
+              onChange={(val) => setSelectedJob(val)}
+              options={[{ value: 'all', label: 'All Jobs' }, ...jobs.map(j => ({ value: String(j._id || j.id), label: `${j.jobTitle || j.title}${j.jobCode || j.positionId ? ` — ${j.jobCode || j.positionId}` : ''}` }))]}
+              placeholder="Select job..."
+            />
+            <AutocompleteCombobox
+              label="Status"
+              value={filterStatus}
+              onChange={(val) => setFilterStatus(val)}
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'not_scheduled', label: 'Pending' },
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'completed', label: 'Interviewed' },
+                { value: 'hired', label: 'Hired' },
+                { value: 'rejected', label: 'Rejected' }
+              ]}
+              placeholder="Select status..."
+            />
+            <AutocompleteCombobox
+              label="Sort by"
+              value={sortBy}
+              onChange={(val) => setSortBy(val as 'rank' | 'score' | 'name')}
+              options={[
+                { value: 'score', label: 'Sort by Score' },
+                { value: 'rank', label: 'Sort by Rank' },
+                { value: 'name', label: 'Sort by Name' }
+              ]}
+              placeholder="Sort by..."
+            />
             <div className="flex items-center justify-center sm:justify-end">
               <span className="text-xs text-gray-400">{filtered.length} candidate{filtered.length !== 1 ? 's' : ''}</span>
             </div>
@@ -519,9 +436,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                         <div className="min-w-0">
                           <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{c.name}</h3>
                           <p className="text-xs sm:text-sm text-gray-400 truncate">{c.email}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1.5 mt-1 min-w-0">
                             <Briefcase className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-blue-400 flex-shrink-0" />
                             <span className="text-xs text-blue-600 font-medium truncate">{c.jobTitle}</span>
+                            {c.jobCode && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded flex-shrink-0">{c.jobCode}</span>}
                           </div>
                         </div>
                         <div className="hidden sm:flex items-center gap-3 flex-shrink-0">

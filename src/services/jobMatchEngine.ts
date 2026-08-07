@@ -9,37 +9,155 @@
 // ─── Skill Knowledge Graph ────────────────────────────────────────────────────
 // Maps a canonical skill to its aliases and related skills
 const SKILL_GRAPH: Record<string, string[]> = {
+  // ── Frontend ──
   javascript: ['js', 'es6', 'es2015', 'ecmascript', 'vanilla js', 'node', 'nodejs', 'typescript', 'ts'],
-  typescript: ['ts', 'javascript', 'js'],
-  react: ['reactjs', 'react.js', 'react native', 'next.js', 'nextjs', 'gatsby'],
-  angular: ['angularjs', 'angular2', 'angular4'],
-  vue: ['vuejs', 'vue.js', 'nuxt', 'nuxtjs'],
-  python: ['py', 'django', 'flask', 'fastapi', 'pandas', 'numpy', 'scipy'],
-  java: ['spring', 'springboot', 'spring boot', 'hibernate', 'maven', 'gradle'],
-  'c#': ['csharp', '.net', 'dotnet', 'asp.net', 'blazor'],
-  sql: ['mysql', 'postgresql', 'postgres', 'sqlite', 'mssql', 'oracle', 'database'],
-  nosql: ['mongodb', 'mongo', 'redis', 'cassandra', 'dynamodb', 'firebase'],
-  aws: ['amazon web services', 'ec2', 's3', 'lambda', 'cloudfront', 'rds'],
-  azure: ['microsoft azure', 'azure devops'],
+  typescript: ['ts', 'javascript', 'js', 'typed javascript'],
+  react: ['reactjs', 'react.js', 'react js', 'react native', 'next.js', 'nextjs', 'gatsby'],
+  angular: ['angularjs', 'angular2', 'angular4', 'angular js'],
+  vue: ['vuejs', 'vue.js', 'vue js', 'nuxt', 'nuxtjs'],
+  html: ['html5', 'html/css', 'markup', 'hypertext markup language'],
+  css: ['css3', 'sass', 'scss', 'less', 'tailwind', 'tailwindcss', 'bootstrap', 'stylesheets'],
+  redux: ['redux toolkit', 'react redux', 'state management', 'zustand', 'mobx'],
+  // ── Backend ──
+  'node.js': ['nodejs', 'node js', 'node', 'express', 'expressjs'],
+  python: ['py', 'python3', 'django', 'flask', 'fastapi', 'pandas', 'numpy', 'scipy'],
+  java: ['core java', 'java programming', 'spring', 'springboot', 'spring boot', 'hibernate', 'maven', 'gradle'],
+  'c#': ['csharp', '.net', 'dotnet', 'asp.net', 'blazor', 'dot net', 'c sharp'],
+  php: ['laravel', 'symfony', 'wordpress', 'codeigniter', 'php7', 'php8'],
+  ruby: ['rails', 'ruby on rails', 'ror'],
+  go: ['golang', 'go lang'],
+  rust: ['systems programming', 'rust lang'],
+  kotlin: ['android', 'android development', 'android studio'],
+  scala: ['akka', 'play framework'],
+  'c++': ['cpp', 'c plus plus', 'cplusplus'],
+  // ── Database ──
+  sql: ['mysql', 'postgresql', 'postgres', 'sqlite', 'mssql', 'oracle', 'database', 'rdbms', 'pl/sql', 'tsql'],
+  nosql: ['mongodb', 'mongo', 'redis', 'cassandra', 'dynamodb', 'firebase', 'document database'],
+  mongodb: ['mongo', 'mongo db'],
+  redis: ['redis cache', 'caching', 'in-memory database'],
+  elasticsearch: ['elastic search', 'elk stack', 'kibana', 'logstash'],
+  // ── Cloud / DevOps ──
+  aws: ['amazon web services', 'ec2', 's3', 'lambda', 'cloudfront', 'rds', 'aws cloud'],
+  azure: ['microsoft azure', 'azure devops', 'azure cloud'],
   gcp: ['google cloud', 'google cloud platform', 'bigquery'],
-  docker: ['containerization', 'containers', 'kubernetes', 'k8s'],
-  git: ['github', 'gitlab', 'bitbucket', 'version control'],
-  html: ['html5', 'html/css', 'markup'],
-  css: ['css3', 'sass', 'scss', 'less', 'tailwind', 'tailwindcss', 'bootstrap'],
-  'machine learning': ['ml', 'deep learning', 'ai', 'artificial intelligence', 'tensorflow', 'pytorch', 'keras'],
-  devops: ['ci/cd', 'jenkins', 'github actions', 'gitlab ci', 'terraform', 'ansible'],
-  agile: ['scrum', 'kanban', 'jira', 'sprint'],
-  'ui/ux': ['figma', 'sketch', 'adobe xd', 'user interface', 'user experience', 'design'],
-  php: ['laravel', 'symfony', 'wordpress'],
-  ruby: ['rails', 'ruby on rails'],
-  go: ['golang'],
-  rust: ['systems programming'],
-  swift: ['ios', 'xcode', 'objective-c'],
-  kotlin: ['android', 'android development'],
-  'data analysis': ['data analytics', 'tableau', 'power bi', 'excel', 'data visualization'],
-  sap: ['sap ewm', 'sap fico', 'sap mm', 'sap sd', 'sap hana', 'abap'],
+  docker: ['containerization', 'containers', 'kubernetes', 'k8s', 'dockerfile'],
+  devops: ['ci/cd', 'jenkins', 'github actions', 'gitlab ci', 'terraform', 'ansible', 'continuous integration', 'continuous deployment'],
+  git: ['github', 'gitlab', 'bitbucket', 'version control', 'source control', 'git flow'],
+  linux: ['unix', 'bash', 'shell scripting', 'shell script', 'bash scripting', 'command line'],
+  // ── AI / ML / Data ──
+  'machine learning': ['ml', 'deep learning', 'ai', 'artificial intelligence', 'tensorflow', 'pytorch', 'keras', 'neural networks'],
+  'data science': ['data scientist', 'data engineering', 'big data', 'data engineer'],
+  'data analysis': ['data analytics', 'tableau', 'power bi', 'excel', 'data visualization', 'reporting', 'business analytics'],
+  spark: ['apache spark', 'pyspark', 'spark streaming'],
+  hadoop: ['apache hadoop', 'hdfs', 'mapreduce', 'hive'],
+  // ── Mobile ──
+  swift: ['ios', 'xcode', 'objective-c', 'ios development'],
+  flutter: ['dart', 'flutter development', 'cross platform'],
+  // ── QA / Testing ──
+  'manual testing': ['manual test', 'functional testing', 'exploratory testing', 'black box testing', 'white box testing', 'regression testing', 'smoke testing', 'sanity testing', 'uat', 'user acceptance testing', 'system testing', 'integration testing'],
+  'automation testing': ['selenium', 'cypress', 'playwright', 'test automation', 'automated testing', 'appium', 'testng', 'junit', 'pytest', 'robot framework'],
+  sdlc: ['software development life cycle', 'software development lifecycle', 'development lifecycle'],
+  stlc: ['software testing life cycle', 'software testing lifecycle', 'testing lifecycle'],
+  'bug tracking': ['defect tracking', 'bug reporting', 'jira', 'bugzilla', 'mantis', 'defect management', 'issue tracking'],
+  'api testing': ['rest api testing', 'postman', 'soap testing', 'rest assured', 'api automation'],
+  'performance testing': ['load testing', 'stress testing', 'jmeter', 'gatling', 'k6'],
+  'test cases': ['test case writing', 'test case design', 'test planning', 'test plan', 'test scripts'],
+  'quality assurance': ['qa', 'qc', 'quality control', 'software quality', 'software testing', 'testing'],
+  // ── Design ──
+  'ui/ux': ['figma', 'sketch', 'adobe xd', 'user interface', 'user experience', 'design', 'ux design', 'ui design', 'wireframing', 'prototyping'],
+  // ── Project Management / Soft Skills ──
+  agile: ['scrum', 'kanban', 'jira', 'sprint', 'agile methodology', 'agile scrum'],
+  'project management': ['pmp', 'project planning', 'project coordination', 'project delivery'],
+  // ── SAP / ERP ──
+  sap: ['sap ewm', 'sap fico', 'sap mm', 'sap sd', 'sap hana', 'abap', 'sap erp', 'sap s/4hana'],
   salesforce: ['sfdc', 'apex', 'visualforce', 'lightning'],
   pega: ['pega cssa', 'pega bpm', 'pega platform'],
+  erp: ['enterprise resource planning', 'oracle erp', 'microsoft dynamics'],
+  // ── Networking / Security ──
+  networking: ['tcp/ip', 'dns', 'dhcp', 'network protocols', 'lan', 'wan', 'network administration'],
+  cybersecurity: ['information security', 'infosec', 'network security', 'ethical hacking', 'penetration testing', 'vapt'],
+  // ── Finance / Accounting ──
+  accounting: ['bookkeeping', 'accounts payable', 'accounts receivable', 'financial accounting', 'tally', 'tally erp', 'general ledger', 'ledger'],
+  tally: ['tally erp', 'tally prime', 'tally accounting', 'tally software'],
+  'financial analysis': ['financial modeling', 'financial reporting', 'budgeting', 'forecasting', 'mis reporting', 'mis', 'variance analysis'],
+  taxation: ['gst', 'income tax', 'tax filing', 'indirect tax', 'direct tax', 'tds', 'vat', 'tax compliance'],
+  auditing: ['internal audit', 'external audit', 'statutory audit', 'audit report', 'audit compliance'],
+  banking: ['retail banking', 'corporate banking', 'investment banking', 'trade finance', 'treasury', 'loans', 'credit analysis'],
+  insurance: ['life insurance', 'general insurance', 'underwriting', 'claims', 'actuarial'],
+  finance: ['financial management', 'corporate finance', 'working capital', 'cash flow', 'fund management'],
+  // ── Marketing / Sales ──
+  'digital marketing': ['seo', 'sem', 'social media marketing', 'content marketing', 'email marketing', 'online marketing', 'performance marketing'],
+  seo: ['search engine optimization', 'on-page seo', 'off-page seo', 'technical seo', 'keyword research', 'link building'],
+  'social media': ['social media management', 'instagram', 'facebook marketing', 'linkedin marketing', 'youtube marketing'],
+  'content writing': ['copywriting', 'blog writing', 'technical writing', 'content creation', 'article writing'],
+  sales: ['business development', 'lead generation', 'crm', 'b2b sales', 'b2c sales', 'inside sales', 'field sales', 'direct sales', 'retail sales', 'telesales', 'cold calling'],
+  marketing: ['brand management', 'product marketing', 'market research', 'campaign management', 'btl', 'atl'],
+  'customer service': ['customer support', 'client servicing', 'customer care', 'customer success', 'after sales service', 'helpdesk'],
+  retail: ['store management', 'merchandising', 'visual merchandising', 'inventory management', 'pos'],
+  // ── HR / Operations ──
+  'human resources': ['hr', 'recruitment', 'talent acquisition', 'payroll', 'hrms', 'hris', 'hr operations', 'hr generalist'],
+  recruitment: ['talent acquisition', 'sourcing', 'hiring', 'staffing', 'headhunting', 'campus recruitment'],
+  payroll: ['payroll processing', 'salary processing', 'payroll management', 'pf', 'esi', 'statutory compliance'],
+  operations: ['operations management', 'process improvement', 'supply chain', 'logistics', 'warehouse management', 'inventory control'],
+  'supply chain': ['logistics', 'procurement', 'vendor management', 'sourcing', 'import export', 'freight', 'shipping'],
+  logistics: ['freight forwarding', 'warehouse', 'dispatch', 'delivery management', 'fleet management', 'transportation'],
+  // ── Gulf / Middle East ──
+  'gulf experience': ['gcc experience', 'middle east experience', 'uae experience', 'saudi experience', 'qatar experience', 'kuwait experience', 'oman experience', 'bahrain experience'],
+  'driving license': ['uae driving license', 'gcc driving license', 'light motor vehicle', 'lmv', 'heavy vehicle license'],
+  // ── Civil / Construction ──
+  'civil engineering': ['structural engineering', 'construction management', 'site engineering', 'civil works', 'rcc'],
+  autocad: ['auto cad', 'cad design', 'drafting', '2d drafting', '3d modeling', 'revit', 'staad pro', 'etabs'],
+  construction: ['site supervision', 'project execution', 'building construction', 'infrastructure', 'road construction'],
+  'quantity surveying': ['qs', 'bill of quantities', 'boq', 'cost estimation', 'tendering', 'rate analysis'],
+  'project planning': ['primavera', 'ms project', 'project scheduling', 'gantt chart', 'wbs', 'project control'],
+  mep: ['mechanical electrical plumbing', 'hvac', 'electrical works', 'plumbing', 'fire fighting'],
+  surveying: ['land surveying', 'total station', 'gps survey', 'leveling', 'topographic survey'],
+  // ── Mechanical / Manufacturing ──
+  'mechanical engineering': ['machine design', 'product design', 'manufacturing engineering', 'industrial engineering'],
+  'cad design': ['solidworks', 'catia', 'pro-e', 'creo', 'nx cad', 'unigraphics', 'ansys'],
+  production: ['production planning', 'production management', 'manufacturing', 'shop floor', 'assembly line', 'lean manufacturing'],
+  'quality control': ['qc', 'quality inspection', 'incoming quality', 'in-process quality', 'final inspection', 'iqc'],
+  maintenance: ['preventive maintenance', 'predictive maintenance', 'breakdown maintenance', 'tpm', 'cmms'],
+  welding: ['tig welding', 'mig welding', 'arc welding', 'fabrication', 'structural fabrication'],
+  cnc: ['cnc machining', 'cnc programming', 'cnc operator', 'lathe', 'milling', 'turning'],
+  // ── Electrical / Electronics ──
+  'electrical engineering': ['power systems', 'electrical design', 'panel design', 'switchgear', 'hv', 'lv', 'mv'],
+  plc: ['plc programming', 'scada', 'dcs', 'automation', 'industrial automation', 'hmi'],
+  'embedded systems': ['embedded c', 'microcontroller', 'arduino', 'raspberry pi', 'rtos', 'firmware'],
+  vlsi: ['vhdl', 'verilog', 'fpga', 'asic', 'chip design', 'semiconductor'],
+  // ── Healthcare / Medical ──
+  nursing: ['staff nurse', 'registered nurse', 'rn', 'icu nursing', 'ot nursing', 'critical care nursing', 'patient care'],
+  doctor: ['mbbs', 'md', 'ms', 'physician', 'general practitioner', 'gp', 'specialist', 'consultant'],
+  pharmacy: ['pharmacist', 'clinical pharmacy', 'drug dispensing', 'pharmaceutical', 'pharma'],
+  'medical laboratory': ['lab technician', 'medical lab', 'pathology', 'microbiology', 'hematology', 'biochemistry'],
+  radiology: ['x-ray', 'mri', 'ct scan', 'ultrasound', 'radiographer', 'imaging'],
+  physiotherapy: ['physical therapy', 'physiotherapist', 'rehabilitation', 'sports therapy'],
+  'healthcare management': ['hospital administration', 'health informatics', 'clinical management', 'medical coding', 'icd coding'],
+  // ── Education / Teaching ──
+  teaching: ['teacher', 'faculty', 'lecturer', 'instructor', 'trainer', 'tutor', 'educator'],
+  'curriculum development': ['lesson planning', 'course design', 'instructional design', 'e-learning', 'lms'],
+  training: ['corporate training', 'soft skills training', 'technical training', 'learning and development', 'l&d'],
+  // ── Hospitality / Hotel ──
+  hospitality: ['hotel management', 'front office', 'housekeeping', 'food and beverage', 'f&b', 'banquet', 'concierge'],
+  'food service': ['restaurant management', 'kitchen management', 'chef', 'catering', 'barista', 'bartender'],
+  travel: ['travel management', 'ticketing', 'gds', 'amadeus', 'galileo', 'tour operations', 'travel consultant'],
+  // ── Media / Creative ──
+  'video editing': ['premiere pro', 'final cut pro', 'davinci resolve', 'after effects', 'motion graphics'],
+  'graphic design': ['photoshop', 'illustrator', 'indesign', 'canva', 'visual design', 'branding'],
+  photography: ['photo editing', 'lightroom', 'product photography', 'event photography'],
+  journalism: ['news writing', 'reporting', 'editing', 'media', 'broadcast', 'print media'],
+  // ── Legal ──
+  legal: ['lawyer', 'advocate', 'attorney', 'legal counsel', 'corporate law', 'litigation', 'contract drafting'],
+  compliance: ['regulatory compliance', 'legal compliance', 'risk management', 'governance', 'grc'],
+  // ── Real Estate ──
+  'real estate': ['property management', 'real estate sales', 'leasing', 'property valuation', 'facility management'],
+  // ── Soft Skills (universal) ──
+  communication: ['verbal communication', 'written communication', 'interpersonal skills', 'presentation skills', 'public speaking'],
+  leadership: ['team lead', 'team leadership', 'people management', 'mentoring', 'coaching'],
+  'problem solving': ['analytical thinking', 'critical thinking', 'troubleshooting', 'decision making'],
+  'microsoft office': ['ms office', 'word', 'powerpoint', 'outlook', 'office 365', 'ms word', 'ms excel'],
+  'time management': ['multitasking', 'prioritization', 'deadline management', 'organizational skills'],
+  teamwork: ['team player', 'collaboration', 'cross functional', 'coordination'],
 };
 
 // Build reverse lookup: alias → canonical
@@ -105,28 +223,68 @@ export function computeMatchScore(
   const jobLocation: string = (job.location || '').toLowerCase();
   const jobDesc: string = (job.description || '').toLowerCase();
 
-  // Normalize candidate skills with graph expansion
-  const candNormalized = candidateSkills.map(s => normalizeSkill(s));
-  const candExpanded = candidateSkills.flatMap(s => expandSkill(s));
-  const jobNormalized = jobSkills.map(s => normalizeSkill(s));
-  const jobExpanded = jobSkills.flatMap(s => expandSkill(s));
+    // Normalize candidate skills with graph expansion
+    const candNormalized = candidateSkills.map(s => normalizeSkill(s));
+    const candExpanded = candidateSkills.flatMap(s => expandSkill(s));
+    const jobNormalized = jobSkills.map(s => normalizeSkill(s));
+    const jobExpanded = jobSkills.flatMap(s => expandSkill(s));
 
-  // ── Skill Score (TF-IDF cosine) ──
-  const candTF = buildTermFreq(candExpanded);
-  const jobTF = buildTermFreq(jobExpanded);
-  const cosineSim = cosineSimilarity(candTF, jobTF);
-  const skillScore = Math.round(Math.min(100, cosineSim * 200)); // scale to 0-100
+    // ── Enhanced Skill Matching ──
+    const getSkillCategory = (skill: string): string => {
+      const normalized = skill.toLowerCase();
+      const categories = {
+        'manual testing': 'testing',
+        'sdlc': 'testing',
+        'stlc': 'testing',
+        'bug tracking': 'testing',
+        'quality assurance': 'testing',
+        'quality control': 'testing',
+        'automation testing': 'testing',
+        'performance testing': 'testing',
+        'test cases': 'testing',
+        'api testing': 'testing'
+      };
+      
+      if (categories[normalized]) return categories[normalized];
+      
+      return null;
+    };
 
-  // Matched / missing / bonus skills
-  const matchedSkills = jobNormalized.filter(js =>
-    candExpanded.some(cs => cs === js || cs.includes(js) || js.includes(cs))
-  );
-  const missingSkills = jobNormalized.filter(js =>
-    !candExpanded.some(cs => cs === js || cs.includes(js) || js.includes(cs))
-  );
-  const bonusSkills = candNormalized.filter(cs =>
-    !jobNormalized.some(js => js === cs || js.includes(cs) || cs.includes(js))
-  ).slice(0, 3);
+    const isSemanticallyRelated = (skill1: string, skill2: string): boolean => {
+      const cat1 = getSkillCategory(skill1);
+      const cat2 = getSkillCategory(skill2);
+      return cat1 && cat2 && cat1 === cat2;
+    };
+
+    // Matched / missing / bonus skills with enhanced semantic matching
+    const matchedSkills = jobNormalized.filter(js => {
+      const directMatch = candExpanded.some(cs => 
+        cs === js || cs.includes(js) || js.includes(cs)
+      );
+      if (directMatch) return true;
+      
+      const semanticMatch = candExpanded.some(cs => 
+        isSemanticallyRelated(cs, js)
+      );
+      if (semanticMatch) return true;
+      
+      return false;
+    });
+    
+    const missingSkills = jobNormalized.filter(js => {
+      if (matchedSkills.includes(js)) return false;
+      
+      const hasSemanticRelated = candExpanded.some(cs => 
+        isSemanticallyRelated(cs, js)
+      );
+      if (hasSemanticRelated) return false;
+      
+      return true;
+    });
+    
+    const bonusSkills = candNormalized.filter(cs =>
+      !jobNormalized.some(js => js === cs || js.includes(cs) || cs.includes(js) || isSemanticallyRelated(js, cs))
+    ).slice(0, 3);
 
   // ── Title Score ──
   const candTitleWords = candidateTitle.toLowerCase().split(/\s+/);
@@ -159,26 +317,26 @@ export function computeMatchScore(
   const explanation: string[] = [];
 
   if (matchedSkills.length > 0) {
-    explanation.push(`✅ You match ${matchedSkills.length} of ${jobNormalized.length} required skills: ${matchedSkills.slice(0, 3).join(', ')}${matchedSkills.length > 3 ? ` +${matchedSkills.length - 3} more` : ''}`);
+    explanation.push(`You match ${matchedSkills.length} of ${jobNormalized.length} required skills: ${matchedSkills.slice(0, 3).join(', ')}${matchedSkills.length > 3 ? ` +${matchedSkills.length - 3} more` : ''}`);
   }
   if (missingSkills.length > 0) {
-    explanation.push(`⚠️ ${missingSkills.length} skill gap${missingSkills.length > 1 ? 's' : ''}: ${missingSkills.slice(0, 3).join(', ')}`);
+    explanation.push(`${missingSkills.length} skill gap${missingSkills.length > 1 ? 's' : ''}: ${missingSkills.slice(0, 3).join(', ')}`);
   }
   if (bonusSkills.length > 0) {
-    explanation.push(`⭐ You bring extra value: ${bonusSkills.join(', ')}`);
+    explanation.push(`Extra value: ${bonusSkills.join(', ')}`);
   }
   if (titleScore > 50 || titleInDesc) {
-    explanation.push(`🎯 Your experience as "${candidateTitle}" aligns with this role`);
+    explanation.push(`Your experience as "${candidateTitle}" aligns with this role`);
   }
   if (locationScore >= 90) {
-    explanation.push(`📍 Location is a great fit (remote-friendly or matching)`);
+    explanation.push(`Location is a great fit (remote-friendly or matching)`);
   }
   if (overall >= 80) {
-    explanation.push(`🚀 Strong overall match — highly recommended to apply`);
+    explanation.push(`Strong overall match — highly recommended to apply`);
   } else if (overall >= 60) {
-    explanation.push(`👍 Good match — worth applying with a tailored resume`);
+    explanation.push(`Good match — worth applying with a tailored resume`);
   } else {
-    explanation.push(`📝 Partial match — consider upskilling in missing areas`);
+    explanation.push(`Partial match — consider upskilling in missing areas`);
   }
 
   return {

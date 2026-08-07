@@ -7,8 +7,8 @@ import { searchAccuracy } from '../utils/searchAccuracy';
 
 const COMPANIES = [
   { name: 'Birlasoft',   logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
-  { name: 'Persistent', logo: 'https://www.google.com/s2/favicons?domain=persistent.com&sz=64' },
-  { name: 'LTIMindtree',logo: 'https://www.google.com/s2/favicons?domain=lntinfotech.com&sz=64' },
+  { name: 'Persistent', logo: '/images/company-logos/persistent-favicon.svg' },
+  { name: 'LTIMindtree',logo: 'https://www.google.com/s2/favicons?domain=ltm.com&sz=64' },
   { name: 'L&T',        logo: '/images/company-logos/lt-logo.png' },
   { name: 'Cognizant',  logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
   { name: 'Accenture',  logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
@@ -575,7 +575,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   style={{ maxHeight: '580px', display: 'block' }}
                   width={580}
                   height={580}
-                  fetchPriority="high"
+                  fetchpriority="high"
                   decoding="sync"
                 />
               </div>

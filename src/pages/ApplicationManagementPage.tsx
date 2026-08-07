@@ -10,6 +10,7 @@ import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
 import { executeAI } from '../services/aiChatService';
+import { apiFetch } from '../api/apiFetch';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -178,7 +179,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       if (!resolvedJobId || resolvedJobId === 'undefined' || resolvedJobId === 'null') {
         setApplications([]); setError('No job selected.'); setLoading(false); return;
       }
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${resolvedJobId}`);
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${resolvedJobId}`);
       if (response.status === 404) { setApplications([]); setError(null); setLoading(false); return; }
       if (!response.ok) throw new Error('Failed to fetch applications');
       const fetched = await response.json();
@@ -507,10 +508,10 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <input
                 type="text"
-                placeholder="Search candidate..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="text-sm outline-none w-40 placeholder-gray-400"
+                placeholder="Search candidate..."
+                className="w-40 outline-none text-sm text-gray-900 placeholder:text-gray-400 bg-transparent"
               />
             </div>
             {applications.length > 0 && (
@@ -555,7 +556,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
             <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
-            <button onClick={fetchApplications} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
+            <button onClick={() => fetchApplications()} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
           </div>
         ) : (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

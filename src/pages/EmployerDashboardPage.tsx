@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw } from 'lucide-react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { API_ENDPOINTS } from '../config/constants';
+import config from '../config/env';
+import { io } from 'socket.io-client';
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import { apiFetch } from '../api/apiFetch';
@@ -20,11 +22,30 @@ import NotificationComponent from '../components/Notification';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
+import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
 const DISMISSED_NOTIFS_KEY = 'employer_dismissed_notif_ids';
 const CLEARED_ALL_KEY = 'employer_notif_cleared_at';
+
+// ── Match score for application cards — same chain as Candidate Ranking:
+//    stored AI score → backend hybrid-score → local fallback (shared util) ──
+const getApplicantMatchScore = (app: any, matchScores: Record<string, number | null>): number | null => {
+  const cached = matchScores[String(app._id || app.id)];
+  if (cached !== undefined) return cached;
+  const score = app.aiAnalysis?.overallScore || app.aiScore || 0;
+  return score > 0 ? Math.min(100, Math.round(score)) : null;
+};
+
+const matchScoreClasses = (score: number | null) => {
+  if (score === null) return 'bg-gray-100 text-gray-500 border-gray-200';
+  if (score >= 70) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (score >= 40) return 'bg-amber-50 text-amber-700 border-amber-200';
+  return 'bg-red-50 text-red-600 border-red-200';
+};
 
 interface EmployerDashboardPageProps {
   user?: any;
@@ -45,6 +66,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [employerName, setEmployerName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
+  // Authoritative company record from backend (same source Edit Profile uses) so profile
+  // completion reflects saved data immediately after login, not stale registration fields.
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
   // Role-based access: Owner = full, Recruiter = post+manage, Viewer = read-only
   const [teamRole, setTeamRole] = useState<'Owner' | 'Recruiter' | 'Viewer' | null>(null);
   // null = original owner (no teamRole set) = full access
@@ -67,6 +91,53 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
+
+  // Enriched applications with candidate skills for consistent scoring
+  const [enrichedApps, setEnrichedApps] = useState<any[]>([]);
+
+  // Match scores for application cards — same chain as Candidate Ranking:
+  const [matchScores, setMatchScores] = useState<Record<string, number | null>>({});
+  const matchScoreCache = React.useRef<Record<string, number | null>>({});
+
+  // Enrich applications with the same structure as Candidate Ranking
+  useEffect(() => {
+    if (!applications.length) return;
+    
+    const enriched = applications.map(app => ({
+      ...app,
+      candidateSkills: mergeCandidateSkills(app),
+      candidateExperience: app.candidateProfile?.experience || app.candidateProfile?.yearsExperience || app.experience || 'Not specified',
+      candidateEducation: app.candidateProfile?.education || 'Not specified',
+      candidateLocation: app.candidateProfile?.location || '',
+      candidateJobTitle: app.candidateProfile?.jobTitle || app.candidateProfile?.title || app.currentJobTitle || '',
+    }));
+    
+    setEnrichedApps(enriched);
+  }, [applications]);
+
+  // Calculate all scores immediately when enriched apps or jobs change
+  useEffect(() => {
+    if (!enrichedApps.length || !jobs.length) return;
+
+    const calculateScores = async () => {
+      const newScores: Record<string, number | null> = {};
+      const promises = enrichedApps.map(async (app) => {
+        const id = String(app._id || app.id);
+        try {
+          const s = await scoreCandidate(app, jobs);
+          newScores[id] = s;
+        } catch {
+          newScores[id] = null;
+        }
+      });
+
+      await Promise.all(promises);
+      matchScoreCache.current = { ...matchScoreCache.current, ...newScores };
+      setMatchScores({ ...matchScoreCache.current });
+    };
+
+    calculateScores();
+  }, [enrichedApps, jobs]);
   const [interviews, setInterviews] = useState<any[]>([]);
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -169,6 +240,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return () => window.removeEventListener('candidateSaved', handleCandidateSaved as EventListener);
   }, []);
 
+  // Deep-link from email: /dashboard#interviews opens Interviews tab
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['dashboard', 'applications', 'interviews', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'].includes(hash)) {
+      setActiveMenu(hash);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeMenu === 'saved-candidates') {
       const token = getToken();
@@ -211,9 +290,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     
     // Set up real-time updates - fetch every 30 seconds
     const notificationInterval = setInterval(fetchNotifications, 30000);
+
+    // Real-time: re-fetch when the backend pushes the existing notification event
+    let notificationSocket: any = null;
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        const userId = parsedUser.id || parsedUser._id || parsedUser.userId;
+        if (userId) {
+          notificationSocket = io(config.SOCKET_URL, {
+            transports: ['websocket', 'polling'],
+            reconnection: false,
+            timeout: 3000,
+          });
+          notificationSocket.on(`notification_update:${userId}`, fetchNotifications);
+          notificationSocket.on('connect_error', () => { notificationSocket?.disconnect(); });
+        }
+      }
+    } catch { /* socket optional — refresh still works via polling */ }
     
     return () => {
       clearInterval(notificationInterval);
+      if (notificationSocket) notificationSocket.disconnect();
     };
   }, []); // Run once on mount only
 
@@ -352,6 +451,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       setUser(sourceData);
       setEmployerName(sourceData.name || 'Employer');
+      fetchCompanyProfileData(sourceData);
       // Live fetch team role from backend on every load
       const _ue = sourceData.email;
       if (_ue) {
@@ -371,11 +471,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               localStorage.setItem('user', JSON.stringify(_s));
               // Pass ownerEmail so fetchDashboardData uses owner's data
               fetchDashboardData({ ...sourceData, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
+              fetchCompanyProfileData({ ...sourceData, ownerEmail: resolvedOwner });
             } else {
               setTeamRole('Owner');
               setOwnerEmailState(_ue);
               // Owner — fetch with own email
               fetchDashboardData({ ...sourceData, employerOwnerId: null, ownerEmail: _ue });
+              fetchCompanyProfileData({ ...sourceData, ownerEmail: _ue });
             }
           })
           .catch(() => {
@@ -446,6 +548,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const actualCompanyName = parsed.companyName || parsed.ownerCompanyName || parsed.company || parsed.organizationName || 'Company';
         setCompanyName(actualCompanyName);
         setCompanyLogo(parsed.companyLogo || '');
+        fetchCompanyProfileData(parsed);
       } catch { /* ignore */ }
     };
 
@@ -456,6 +559,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       window.removeEventListener('storage', syncUser);
     };
   }, []);
+
+  // Fetch the authoritative company record from the backend (same endpoint Edit Profile
+  // uses) so the dashboard shows the same up-to-date completion percentage immediately
+  // after login, without requiring a manual Save. Non-critical: falls back to user fields.
+  const fetchCompanyProfileData = async (userData: any) => {
+    try {
+      const ownerEmail = userData?.ownerEmail || userData?.employerOwnerId || userData?.employerEmail || userData?.email;
+      if (!ownerEmail) return;
+      const domain = ownerEmail.split('@')[1]?.toLowerCase();
+      if (!domain) return;
+      const res = await apiFetch(`${API_ENDPOINTS.COMPANIES}/by-domain/${encodeURIComponent(domain)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && (data.name || data.companyName)) {
+        setCompanyProfile(data);
+      }
+    } catch {
+      // non-critical: keep existing completion source
+    }
+  };
+
+  const profileCompletion = useMemo(() => {
+    if (!user) return 0;
+    return calculateEmployerProfileCompletion({ ...user, ...companyProfile });
+  }, [user, companyProfile]);
 
   // Add effect to refresh data when component becomes visible
   useEffect(() => {
@@ -1216,6 +1344,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                 )}
               </div>
+
+              {/* Profile Completion Top Alert (Only shown if completion < 100%) */}
+              {user && profileCompletion < 100 && (
+                <div className="mb-4 sm:mb-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/80 rounded-xl p-3.5 sm:p-4 text-amber-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className="p-2 bg-amber-100/80 rounded-lg text-amber-700 flex-shrink-0 mt-0.5 sm:mt-0">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-semibold text-amber-950 flex flex-wrap items-center gap-1.5">
+                        <span>Complete your company profile — {profileCompletion}% completed.</span>
+                      </p>
+                      <p className="text-xs text-amber-700/90 mt-0.5">
+                        Complete your profile to get the most out of ZyncJobs.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onNavigate('employer-complete-profile')}
+                    className="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-colors whitespace-nowrap self-start sm:self-center"
+                  >
+                    Complete Profile
+                  </button>
+                </div>
+              )}
               <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl shadow-md border-2 border-gray-200 p-3 sm:p-4 lg:p-6">
 
               {/* ── Stat Cards ── */}
@@ -1280,11 +1433,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 const visibleJobs = tabData[activeTab] || topPerforming;
 
                 const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
-                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', iconPath: '/images/fire-svgrepo-com.svg' };
-                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', iconPath: null };
-                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', iconPath: null };
-                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
-                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
+                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: Flame };
+                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', icon: null };
+                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', icon: null };
+                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', icon: AlertTriangle };
+                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', icon: AlertTriangle };
                 };
 
                 const tabs = [
@@ -1338,8 +1491,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     <div className="px-6 py-4">
                       {visibleJobs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                          <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
-                          <p className="text-xs">{activeTab === 'attention' ? '🎉 All jobs are getting applications!' : 'No data yet'}</p>
+                          {activeTab === 'attention' ? (
+                            <>
+                              <PartyPopper className="w-8 h-8 mb-2 text-emerald-300" />
+                              <p className="text-xs">All jobs are getting applications!</p>
+                            </>
+                          ) : (
+                            <>
+                              <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
+                              <p className="text-xs">No data yet</p>
+                            </>
+                          )}
                         </div>
                       ) : activeTab === 'attention' ? (
                         /* Needs Attention: special card layout */
@@ -1371,8 +1533,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div className="space-y-4">
                           {visibleJobs.map((job, idx) => {
                             const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
-                            const { bar, label, labelCls } = status;
-                            return (
+                            const { bar, label, labelCls } = status;                            return (
                               <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
                                 <div className="flex items-start justify-between gap-3 mb-2">
                                   <div className="min-w-0 flex-1">
@@ -1389,12 +1550,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                     {label && (
                                       <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>
-                                        {status.iconPath && (
-                                          <img
-                                            src={status.iconPath}
-                                            alt=""
-                                            className="w-3 h-3 mr-1 inline-block object-contain"
-                                          />
+                                        {status.icon && (
+                                          <status.icon className="w-3 h-3 mr-1" />
                                         )}
                                         {label}
                                       </span>
@@ -1533,7 +1690,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* ── Row 2: Bottom Cards ── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
                 {/* New Applicants */}
                 <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
@@ -1544,16 +1701,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {applications.slice(0,5).map((app,i) => (
+                      {enrichedApps.slice(0, 5).map((app, i) => (
                         <div key={i} className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-                            style={{background: PIE_COLORS[i % PIE_COLORS.length]}}>
-                            {(app.candidateName||'C').charAt(0).toUpperCase()}
+                            style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}>
+                            {(app.candidateName || 'C').charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName||'Candidate'}</p>
-                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle||'a position').substring(0,24)}</p>
+                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName || 'Candidate'}</p>
+                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle || 'a position').substring(0, 24)}</p>
                           </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${matchScoreClasses(getApplicantMatchScore(app, matchScores))}`}
+                            title="AI Match Score">
+                            {getApplicantMatchScore(app, matchScores) === null ? '—' : `${getApplicantMatchScore(app, matchScores)}%`}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1617,32 +1778,34 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   />
                 </div>
                 <div className="flex flex-row gap-2">
-                  <select
+                  <AutocompleteCombobox
                     value={appFilterJob}
-                    onChange={e => setAppFilterJob(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
-                  >
-                    <option value="all">All Jobs</option>
-                    {jobs.map(job => {
-                      const jobTitle = job.jobTitle || job.title;
-                      const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
-                      return (
-                        <option key={job._id || job.id} value={jobTitle}>{jobTitle} ({count})</option>
-                      );
-                    })}
-                  </select>
-                  <select
+                    onChange={(val) => setAppFilterJob(val)}
+                    options={[
+                      { value: 'all', label: 'All Jobs' },
+                      ...jobs.map(job => {
+                        const jobTitle = job.jobTitle || job.title;
+                        const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
+                        return { value: jobTitle, label: `${jobTitle} (${count})` };
+                      })
+                    ]}
+                    placeholder="All Jobs"
+                    className="text-sm flex-1 min-w-0"
+                  />
+                  <AutocompleteCombobox
                     value={appFilterStatus}
-                    onChange={e => setAppFilterStatus(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="reviewed">Reviewed</option>
-                    <option value="shortlisted">Shortlisted</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="hired">Hired</option>
-                  </select>
+                    onChange={(val) => setAppFilterStatus(val)}
+                    options={[
+                      { value: 'all', label: 'All Status' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'reviewed', label: 'Reviewed' },
+                      { value: 'shortlisted', label: 'Shortlisted' },
+                      { value: 'rejected', label: 'Rejected' },
+                      { value: 'hired', label: 'Hired' }
+                    ]}
+                    placeholder="All Status"
+                    className="text-sm flex-1 min-w-0"
+                  />
                   {(appFilterJob !== 'all' || appFilterStatus !== 'all' || appSearch) && (
                     <button
                       onClick={() => { setAppFilterJob('all'); setAppFilterStatus('all'); setAppSearch(''); }}
@@ -1693,7 +1856,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               <span className="text-gray-600 font-bold text-sm">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${matchScoreClasses(getApplicantMatchScore(application, matchScores))}`}
+                                  title="AI Match Score">
+                                  {getApplicantMatchScore(application, matchScores) === null ? '—' : `${getApplicantMatchScore(application, matchScores)}%`}
+                                </span>
+                              </div>
                               <p className="text-xs text-blue-700 font-semibold flex items-start gap-1 mt-0.5 leading-snug">
                                 <Briefcase className="w-3 h-3 flex-shrink-0 mt-0.5" />
                                 <span>Applied for: {application.jobTitle || 'Job Position'}</span>
@@ -1731,10 +1900,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         {/* Action buttons: on mobile - status full width on its own row, then 3 buttons in a row; on desktop - vertical column */}
                         <div className="flex flex-col gap-2 sm:flex-shrink-0 sm:items-stretch sm:min-w-[140px]">
                           {canManageApplications ? (
-                            <select
+                            <AutocompleteCombobox
                               value={application.status}
-                              onChange={async (e) => {
-                                const newStatus = e.target.value;
+                              onChange={async (newStatus) => {
                                 const appId = application._id || application.id;
                                 try {
                                   const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
@@ -1749,17 +1917,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   } else { throw new Error(); }
                                 } catch {
                                   showToast('Failed to update status. Please try again.', 'error');
-                                  e.target.value = application.status;
                                 }
                               }}
-                              className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white cursor-pointer"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="reviewed">Reviewed</option>
-                              <option value="shortlisted">Shortlisted</option>
-                              <option value="rejected">Rejected</option>
-                              <option value="hired">Hired</option>
-                            </select>
+                              options={[
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'reviewed', label: 'Reviewed' },
+                                { value: 'shortlisted', label: 'Shortlisted' },
+                                { value: 'rejected', label: 'Rejected' },
+                                { value: 'hired', label: 'Hired' }
+                              ]}
+                              placeholder="Select status"
+                              className="w-full"
+                            />
                           ) : (
                             <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
                           )}
@@ -1851,7 +2020,32 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium">
+                    {canManageApplications && (
+                      <select
+                        onChange={(e) => {
+                          const appId = e.target.value;
+                          if (appId) {
+                            const app = applications.find(a => (a._id || a.id) === appId);
+                            if (app) setSelectedApplication(app);
+                            setShowScheduleModal(true);
+                          }
+                          e.target.value = '';
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors appearance-none cursor-pointer"
+                        style={{ backgroundImage: 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Im02IDkgNiA2Ii8+PC9zdmc+")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', paddingRight: '2.5rem' }}
+                      >
+                        <option value="" disabled selected>Schedule Interview →</option>
+                        {applications
+                          .filter(app => app.status === 'pending' || app.status === 'shortlisted')
+                          .slice(0, 10)
+                          .map(app => (
+                            <option key={app._id || app.id} value={app._id || app.id}>
+                              {app.candidateName} — {app.jobTitle || app.jobId?.jobTitle || 'Job'}
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                    <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">
                       📅 Schedule Management
                     </span>
                   </div>
@@ -1892,6 +2086,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </div>
                               <span className={`flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                                 interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                interview.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                interview.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
                                 interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
                                 interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
                                 'bg-gray-50 text-gray-600 border border-gray-200'
@@ -1915,7 +2111,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {interview.meetingLink && (
                               <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                                 <a
-                                  href={interview.meetingLink}
+                                  href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
@@ -1925,7 +2121,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 </a>
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(interview.meetingLink);
+                                    navigator.clipboard.writeText(`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`);
                                     showToast('Meeting link copied!', 'success');
                                   }}
                                   className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1944,11 +2140,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
-                          {canManageApplications ? (<select
+                        <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-shrink-0 sm:min-w-[160px]">
+                          {canManageApplications ? (<AutocompleteCombobox
                             value={interview.status || 'scheduled'}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value;
+                            onChange={async (newStatus) => {
                               try {
                                 const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
                                   method: 'PUT',
@@ -1969,16 +2164,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               } catch (error) {
                                 console.error('Error updating interview status:', error);
                                 showToast('Failed to update interview status. Please try again.', 'error');
-                                e.target.value = interview.status || 'scheduled';
                               }
                             }}
-                            className="px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
-                            title="Update interview status"
-                          >
-                            <option value="scheduled">Scheduled</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
+                            options={[
+                              { value: 'scheduled', label: 'Scheduled' },
+                              { value: 'accepted', label: 'Accepted' },
+                              { value: 'rejected', label: 'Declined' },
+                              { value: 'completed', label: 'Completed' },
+                              { value: 'cancelled', label: 'Cancelled' }
+                            ]}
+                            placeholder="Select status"
+                            className="w-full px-3 py-2"
+                          />) : (<span className="w-full px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center block">{interview.status || 'scheduled'}</span>)}
                           {canDeleteRecords && (<button 
                             onClick={(e) => {
                               e.preventDefault();
@@ -2017,6 +2214,36 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   ))}
                 </div>
               )}
+
+              {/* Schedule Interview Modal */}
+              {showScheduleModal && selectedApplication && (
+                <ScheduleInterviewModal
+                  application={selectedApplication}
+                  existingRounds={
+                    interviews
+                      .filter(i => i.candidateEmail === selectedApplication.candidateEmail && i.jobTitle === selectedApplication.jobTitle)
+                      .map(i => i.round)
+                      .filter(Boolean)
+                  }
+                  onClose={() => {
+                    setShowScheduleModal(false);
+                    setSelectedApplication(null);
+                  }}
+                  onSuccess={() => {
+                    setShowScheduleModal(false);
+                    setSelectedApplication(null);
+                    // Refresh interviews after successful scheduling
+                    fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`)
+                      .then(res => res.json())
+                      .then(data => {
+                        const interviewsArray = Array.isArray(data) ? data : [];
+                        setInterviews(interviewsArray);
+                      })
+                      .catch(() => {});
+                  }}
+                />
+              )}
+
             </>
           ) : activeMenu === 'saved-candidates' ? (
             <>
@@ -2253,7 +2480,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   const candidateName = notification.data?.candidateName || notification.data?.candidateEmail || '';
                                   if (candidateName) setAppSearch(candidateName);
                                   setActiveMenu('applications');
-                                } else if (notification.type === 'interview') {
+                                } else if (notification.type === 'interview' || notification.type === 'interview_accepted' || notification.type === 'interview_declined') {
                                   setActiveMenu('interviews');
                                 } else if (notification.type === 'job') {
                                   onNavigate('my-jobs');
@@ -2431,7 +2658,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       onClick={() => {
                         setShowNotifications(false);
                         if (notification.type === 'application') setActiveMenu('applications');
-                        else if (notification.type === 'interview') setActiveMenu('interviews');
+                        else if (notification.type === 'interview' || notification.type === 'interview_accepted' || notification.type === 'interview_declined') setActiveMenu('interviews');
                         else if (notification.type === 'job') onNavigate('my-jobs');
                       }}
                     >
@@ -2542,7 +2769,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">🔒</span>
+                <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
               <p className="text-gray-500 text-sm mb-1">
@@ -2674,7 +2903,13 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
           if (res2.ok) setMembers(await res2.json());
           else setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
         } else {
-          setMembers(data);
+          setMembers(
+  [...data].sort((a, b) => {
+    if (a.role === 'Owner') return -1;
+    if (b.role === 'Owner') return 1;
+    return a.memberName.localeCompare(b.memberName);
+  })
+);
         }
       } else {
         console.error('Team API error:', res.status, res.statusText);
@@ -2854,12 +3089,15 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                 </span>
                 {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white min-w-[100px]">
-                      <option value="Recruiter">Recruiter</option>
-                      <option value="Viewer">Viewer</option>
-                      <option value="Owner">Owner</option>
-                    </select>
+                    <AutocompleteCombobox value={member.role} onChange={(val) => handleRoleChange(member.id, val as TeamRole)}
+                      options={[
+                        { value: 'Recruiter', label: 'Recruiter' },
+                        { value: 'Viewer', label: 'Viewer' },
+                        { value: 'Owner', label: 'Owner' }
+                      ]}
+                      placeholder="Select role"
+                      className="text-xs min-w-[100px]"
+                    />
                     <button onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -2970,12 +3208,15 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value as TeamRole)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                      <option value="Recruiter">Recruiter — Can post jobs & manage applications</option>
-                      <option value="Viewer">Viewer — View only access</option>
-                      <option value="Owner">Owner — Full access</option>
-                    </select>
+                    <AutocompleteCombobox value={inviteRole} onChange={(val) => setInviteRole(val as TeamRole)}
+                      options={[
+                        { value: 'Recruiter', label: 'Recruiter — Can post jobs & manage applications' },
+                        { value: 'Viewer', label: 'Viewer — View only access' },
+                        { value: 'Owner', label: 'Owner — Full access' }
+                      ]}
+                      placeholder="Select role"
+                      className="w-full"
+                    />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">

@@ -15,16 +15,16 @@ interface CompanyLogoProps {
 function getSources(companyName: string, website?: string, storedLogo?: string): string[] {
   const urls: string[] = [];
 
-  // 1. Local file (trinity, nambikkai, growthpulse, inypeople)
-  const local = getLocalCompanyLogo(companyName);
-  if (local) urls.push(local);
-
-  // 2. Stored logo from DB/S3 — works in all networks
-  if (storedLogo && storedLogo.startsWith('http') &&
+  // 1. Persisted logo from DB (canonical source) — works in all networks
+  if (storedLogo && (storedLogo.startsWith('http') || storedLogo.startsWith('/api/')) &&
       !storedLogo.includes('ui-avatars.com') &&
       !storedLogo.includes('google.com/s2/favicons')) {
     urls.push(storedLogo);
   }
+
+  // 2. Local file (trinity, nambikkai, growthpulse, inypeople)
+  const local = getLocalCompanyLogo(companyName);
+  if (local) urls.push(local);
 
   // 3. Backend proxy (server-side fetch, bypasses client DNS blocks)
   let domain = getCompanyDomain(companyName);

@@ -1,8 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { rankJobs, computeMatchScore, type MatchBreakdown } from '../services/jobMatchEngine';
-import { EnhancedAIRecommendationEngine, type EnhancedJobRecommendation } from '../services/enhancedAIRecommendationEngine';
-import { IntelligentSkillsService } from '../services/intelligentSkillsService';
+import { computeMatchBreakdown, getIncompleteProfileFields } from '../utils/matchScore';
+import type { EnhancedJobRecommendation } from '../services/enhancedAIRecommendationEngine';
+
+const icons = {
+  check: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  cross: "M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  star: "M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z",
+  chevronUp: "M4.5 15.75l7.5-7.5 7.5 7.5",
+  chevronDown: "M19.5 8.25l-7.5 7.5-7.5-7.5",
+  target: "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
+  robot: "M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v.75",
+  thumbsUp: "M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z",
+  note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
+  trendUp: "M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941",
+  warning: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
+  book: "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+};
+function SvgIcon({ name, className = "w-4 h-4" }: { name: keyof typeof icons; className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d={icons[name]} />
+    </svg>
+  );
+}
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -70,13 +91,13 @@ const EnhancedMatchCard: React.FC<{
       {skillMatch.matched.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {skillMatch.matched.slice(0, 4).map((s, i) => (
-            <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">✓ {s}</span>
+            <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-0.5"><SvgIcon name="check" className="w-3 h-3" />{s}</span>
           ))}
           {skillMatch.missing.slice(0, 2).map((s, i) => (
-            <span key={i} className="bg-red-50 text-red-500 px-2 py-0.5 rounded text-xs">✗ {s}</span>
+            <span key={i} className="bg-red-50 text-red-500 px-2 py-0.5 rounded text-xs inline-flex items-center gap-0.5"><SvgIcon name="cross" className="w-3 h-3" />{s}</span>
           ))}
           {skillMatch.bonus.slice(0, 2).map((s, i) => (
-            <span key={i} className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">⭐ {s}</span>
+            <span key={i} className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs inline-flex items-center gap-0.5"><SvgIcon name="star" className="w-3 h-3" />{s}</span>
           ))}
         </div>
       )}
@@ -85,7 +106,7 @@ const EnhancedMatchCard: React.FC<{
         onClick={() => setExpanded(!expanded)}
         className="text-xs text-blue-600 hover:text-blue-800 font-medium mb-2"
       >
-        {expanded ? '▲ Hide explanation' : '▼ Why this match?'}
+        {expanded ? <><SvgIcon name="chevronUp" className="w-3 h-3 inline" /> Hide explanation</> : <><SvgIcon name="chevronDown" className="w-3 h-3 inline" /> Why this match?</>}
       </button>
 
       {expanded && (
@@ -154,7 +175,7 @@ const EnhancedMatchCard: React.FC<{
               : 'border border-gray-400 text-gray-500 hover:bg-gray-50'
           }`}
         >
-          {rec.shouldApply ? '✓ Recommended' : 'Consider'}
+          {rec.shouldApply ? <><SvgIcon name="check" className="w-3 h-3 inline" /> Recommended</> : 'Consider'}
         </button>
       </div>
     </div>
@@ -172,16 +193,67 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
   const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [blockReason, setBlockReason] = useState<string[] | null>(null);
   const prevSkillsKey = useRef('');
 
   const skillsKey = resumeSkills.map(s => s.skill).join(',');
 
+  const buildCandidateProfile = () => ({
+    skills: resumeSkills.map(s => s.skill || s).filter(Boolean),
+    jobTitle: experience,
+    location,
+  });
+
+  const scoreJobs = (jobs: any[], limit: number): EnhancedJobRecommendation[] => {
+    const profile = buildCandidateProfile();
+    return jobs.slice(0, limit).map(job => {
+      const jobData = { ...job, title: job.jobTitle || job.title || '', skills: Array.isArray(job.skills) ? job.skills : [] };
+      const b = computeMatchBreakdown(jobData, profile);
+      const jobSkillsLower: string[] = jobData.skills.map((s: string) => String(s || '').toLowerCase());
+      const bonus = profile.skills.filter(s =>
+        !jobSkillsLower.some(js => s.toLowerCase().includes(js) || js.includes(s.toLowerCase()))
+      ).slice(0, 3);
+      const shouldApply = b.overall >= 60;
+      const confidenceLevel = b.overall >= 80 ? 'high' : b.overall >= 60 ? 'medium' : 'low';
+      const improvementSuggestions: string[] = [];
+      if (b.missing.length > 0) improvementSuggestions.push(`Learn ${b.missing.slice(0, 2).join(', ')} to strengthen your profile`);
+      if (b.experienceScore < 60) improvementSuggestions.push('Consider highlighting relevant experience in your resume');
+      const careerProgression: string[] = [];
+      if (b.overall >= 70) careerProgression.push('This role aligns well with your career trajectory');
+      if (bonus.length > 0) careerProgression.push(`Your ${bonus[0]} skills could be valuable here`);
+      const aiInsights: string[] = [];
+      if (b.matched.length >= 3) aiInsights.push(`Strong skill alignment with ${b.matched.length} matching competencies`);
+      if (b.experienceScore >= 70) aiInsights.push('Your experience profile fits well with this role');
+      if (b.locationScore >= 80) aiInsights.push('Excellent location match for this position');
+      if (b.missing.length > 0) aiInsights.push(`Consider developing ${b.missing[0]} to become a stronger candidate`);
+      return {
+        job,
+        matchScore: b.overall,
+        skillMatch: { matched: b.matched, missing: b.missing.slice(0, 5), bonus },
+        careerFit: { experienceAlignment: b.experienceScore, locationFit: b.locationScore, salaryAlignment: job.salary ? 80 : 60 },
+        recommendations: { shouldApply, confidenceLevel, improvementSuggestions, careerProgression },
+        aiInsights,
+      };
+    }).sort((a, b) => b.matchScore - a.matchScore);
+  };
+
   useEffect(() => {
-    if (!skillsKey) return; // no skills yet
     if (skillsKey === prevSkillsKey.current) return; // skills unchanged
     prevSkillsKey.current = skillsKey;
 
     const skillNames = skillsKey.split(',').filter(Boolean);
+    const gateProfile = { skills: skillNames, jobTitle: experience, location };
+    const essentialMissing = getIncompleteProfileFields(gateProfile).filter(f => f === 'skills' || f === 'jobTitle');
+
+    if (essentialMissing.length > 0) {
+      setBlockReason(essentialMissing);
+      setRankedJobs([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    setBlockReason(null);
+
     setLoading(true);
     setRankedJobs([]);
     setError(null);
@@ -201,13 +273,9 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
             const data = await res.json();
             const matched = Array.isArray(data.jobs) ? data.jobs : [];
             if (matched.length > 0) {
-              const enhancedRecommendations = await EnhancedAIRecommendationEngine.generateRecommendations(
-                { skills: skillNames, experience: exp, location: loc },
-                matched,
-                10
-              );
-              setRankedJobs(enhancedRecommendations);
-              setAiInsights(generateGlobalInsights(enhancedRecommendations));
+              const recommendations = scoreJobs(matched, 10);
+              setRankedJobs(recommendations);
+              setAiInsights(generateGlobalInsights(recommendations));
               return;
             }
           }
@@ -225,19 +293,15 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const data = await res.json();
           const matches = Array.isArray(data.matches) ? data.matches : [];
           if (matches.length > 0) {
-            const enhancedRecommendations = await EnhancedAIRecommendationEngine.generateRecommendations(
-              { skills: skillNames, experience: exp, location: loc },
-              matches,
-              10
-            );
-            setRankedJobs(enhancedRecommendations);
-            setAiInsights(generateGlobalInsights(enhancedRecommendations));
+            const recommendations = scoreJobs(matches, 10);
+            setRankedJobs(recommendations);
+            setAiInsights(generateGlobalInsights(recommendations));
             return;
           }
         }
       } catch (_) {}
 
-      // Step 3: Fetch all jobs and rank with enhanced AI — ALWAYS show results
+      // Step 3: Fetch all jobs and rank with consistent scoring — ALWAYS show results
       const res = await fetch(`${API_ENDPOINTS.JOBS}`);
       if (!res.ok) throw new Error(`Jobs API returned ${res.status}`);
 
@@ -247,15 +311,9 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
         return;
       }
 
-      // Use enhanced AI recommendation engine
-      const enhancedRecommendations = await EnhancedAIRecommendationEngine.generateRecommendations(
-        { skills: skillNames, experience: exp, location: loc },
-        allJobs,
-        8
-      );
-
-      setRankedJobs(enhancedRecommendations);
-      setAiInsights(generateGlobalInsights(enhancedRecommendations));
+      const recommendations = scoreJobs(allJobs, 8);
+      setRankedJobs(recommendations);
+      setAiInsights(generateGlobalInsights(recommendations));
     } catch (e: any) {
       console.error('Job matching error:', e);
       setError('Could not load job recommendations. Please try again.');
@@ -272,13 +330,13 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
     const avgMatchScore = Math.round(recommendations.reduce((sum, r) => sum + r.matchScore, 0) / recommendations.length);
     
     if (highConfidenceJobs >= 3) {
-      insights.push(`🎯 ${highConfidenceJobs} high-confidence matches found - you're well-positioned!`);
+      insights.push(`» ${highConfidenceJobs} high-confidence matches found - you're well-positioned!`);
     }
     
     if (avgMatchScore >= 75) {
-      insights.push(`⭐ Strong overall profile match (${avgMatchScore}% average)`);
+      insights.push(`» Strong overall profile match (${avgMatchScore}% average)`);
     } else if (avgMatchScore >= 60) {
-      insights.push(`📈 Good profile match with room for improvement (${avgMatchScore}% average)`);
+      insights.push(`» Good profile match with room for improvement (${avgMatchScore}% average)`);
     }
     
     // Skill insights
@@ -295,112 +353,10 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
       .map(([skill]) => skill);
     
     if (topMissingSkills.length > 0) {
-      insights.push(`📚 Focus on learning: ${topMissingSkills.join(', ')} to improve match rates`);
+      insights.push(`» Focus on learning: ${topMissingSkills.join(', ')} to improve match rates`);
     }
     
     return insights;
-  };
-
-  // Build match breakdowns merging backend scores with local computation
-  const buildBreakdowns = (jobs: any[], skillNames: string[], exp: string, loc: string) =>
-    jobs.map((j: any) => {
-      const local = computeMatchScore(skillNames, exp, loc, j);
-      const backendOverall = j.matchScore ?? j.matchPercentage ?? 0;
-      const breakdown: MatchBreakdown = {
-        overall: backendOverall > 0 ? backendOverall : local.overall,
-        skillScore: j.skillScore > 0 ? j.skillScore : local.skillScore,
-        titleScore: j.titleScore > 0 ? j.titleScore : local.titleScore,
-        locationScore: j.locationScore > 0 ? j.locationScore : local.locationScore,
-        matchedSkills: j.matchingSkills?.length ? j.matchingSkills : local.matchedSkills,
-        missingSkills: j.missingSkills?.length ? j.missingSkills : local.missingSkills,
-        bonusSkills: local.bonusSkills,
-        explanation: j.explanation?.length ? j.explanation : local.explanation,
-      };
-      return { ...j, matchBreakdown: breakdown };
-    });
-
-  // Local ranking: match candidate skills against job.skills array AND job description text
-  const rankJobsLocally = (jobs: any[], skillNames: string[], exp: string, loc: string) => {
-    const candSkillsLower = skillNames.map(s => s.toLowerCase().trim());
-
-    const scored = jobs.map(job => {
-      const jobSkills: string[] = (job.skills || []).map((s: string) => s.toLowerCase().trim());
-      const jobDesc = (job.description || '').toLowerCase();
-      const jobTitle = (job.jobTitle || job.title || '').toLowerCase();
-
-      // Count how many candidate skills appear in job skills list OR description
-      let matchCount = 0;
-      const matchedSkills: string[] = [];
-      const missingSkills: string[] = [];
-
-      for (const cs of candSkillsLower) {
-        const inJobSkills = jobSkills.some(js => js.includes(cs) || cs.includes(js));
-        const inDesc = jobDesc.includes(cs);
-        const inTitle = jobTitle.includes(cs);
-        if (inJobSkills || inDesc || inTitle) {
-          matchCount++;
-          matchedSkills.push(cs);
-        }
-      }
-
-      for (const js of jobSkills) {
-        if (!candSkillsLower.some(cs => cs.includes(js) || js.includes(cs))) {
-          missingSkills.push(js);
-        }
-      }
-
-      // Skill score: % of candidate skills found in job
-      const skillScore = candSkillsLower.length > 0
-        ? Math.round((matchCount / candSkillsLower.length) * 100)
-        : 0;
-
-      // Title score
-      const expWords = exp.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      const titleWords = jobTitle.split(/\s+/);
-      const titleMatches = expWords.filter(w => titleWords.some(tw => tw.includes(w) || w.includes(tw))).length;
-      const titleScore = expWords.length > 0 ? Math.min(100, Math.round((titleMatches / expWords.length) * 100)) : 30;
-
-      // Location score
-      let locationScore = 60;
-      if (!loc || jobTitle.includes('remote') || jobDesc.includes('remote')) {
-        locationScore = 85;
-      } else {
-        const locWords = loc.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
-        const jobLoc = (job.location || '').toLowerCase();
-        if (locWords.some(w => jobLoc.includes(w))) locationScore = 90;
-      }
-
-      // Weighted overall — give more weight to skill match
-      const overall = Math.round(skillScore * 0.60 + titleScore * 0.20 + locationScore * 0.20);
-
-      const explanation: string[] = [];
-      if (matchedSkills.length > 0)
-        explanation.push(`✅ ${matchedSkills.length} of your skills match this job: ${matchedSkills.slice(0, 3).join(', ')}`);
-      if (missingSkills.length > 0)
-        explanation.push(`⚠️ Skills gap: ${missingSkills.slice(0, 3).join(', ')}`);
-      if (titleScore > 40)
-        explanation.push(`🎯 Your experience as "${exp}" aligns with this role`);
-      if (overall >= 60)
-        explanation.push(`👍 Good match — worth applying`);
-      else
-        explanation.push(`📝 Partial match — consider applying anyway`);
-
-      const breakdown: MatchBreakdown = {
-        overall: Math.max(overall, matchedSkills.length > 0 ? 20 : 10),
-        skillScore,
-        titleScore,
-        locationScore,
-        matchedSkills,
-        missingSkills,
-        bonusSkills: candSkillsLower.filter(cs => !jobSkills.some(js => js.includes(cs) || cs.includes(js))).slice(0, 3),
-        explanation,
-      };
-
-      return { ...job, matchBreakdown: breakdown };
-    });
-
-    // Sort by overall score descending
-    return scored.sort((a, b) => b.matchBreakdown.overall - a.matchBreakdown.overall);
   };
 
   if (loading) {
@@ -427,6 +383,21 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
     return <p className="text-sm text-red-500 text-center py-4">{error}</p>;
   }
 
+  if (blockReason) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+        </div>
+        <p className="text-sm font-semibold text-amber-900 mb-2">Complete your profile to unlock AI job matches</p>
+        <p className="text-xs text-amber-700 mb-4">
+          Missing essential information: {blockReason.map(f => f === 'jobTitle' ? 'job title' : f).join(', ')}.
+          Add these to your resume or profile to get accurate match scores.
+        </p>
+      </div>
+    );
+  }
+
   if (!rankedJobs.length) {
     return (
       <div className="text-center py-6">
@@ -443,7 +414,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
     <div className="space-y-4">
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3">
         <p className="text-sm font-semibold text-blue-900">
-          🎯 Found {rankedJobs.length} matching jobs • {recommendedCount} recommended
+          <SvgIcon name="target" className="w-4 h-4 inline mr-1" />Found {rankedJobs.length} matching jobs • {recommendedCount} recommended
         </p>
         <p className="text-xs text-blue-700 mt-0.5">
           Best match: <strong>{topScore}%</strong> — AI-powered matching with career insights
@@ -452,7 +423,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
       {aiInsights.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
-          <p className="text-sm font-semibold text-blue-900 mb-2">🤖 AI Career Insights</p>
+          <p className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-1"><SvgIcon name="robot" className="w-4 h-4" /> AI Career Insights</p>
           {aiInsights.map((insight, i) => (
             <p key={i} className="text-xs text-blue-700 mb-1">{insight}</p>
           ))}
@@ -474,7 +445,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           onClick={() => setShowAll(!showAll)}
           className="w-full text-sm text-blue-600 hover:text-blue-800 font-medium py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
         >
-          {showAll ? '▲ Show less' : `▼ Show ${rankedJobs.length - 3} more jobs`}
+          {showAll ? <><SvgIcon name="chevronUp" className="w-3 h-3 inline" /> Show less</> : <><SvgIcon name="chevronDown" className="w-3 h-3 inline" /> Show {rankedJobs.length - 3} more jobs</>}
         </button>
       )}
     </div>

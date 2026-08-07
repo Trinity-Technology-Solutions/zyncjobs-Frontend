@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Save, Undo2, Redo2, Download, FileText, Briefcase, GraduationCap,
   User, Sparkles, Award, FolderOpen, Wrench, ChevronLeft, ChevronRight,
@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
-import { API_ENDPOINTS } from '../config/env';
 import TemplateSelection from '../components/resume-builder/TemplateSelection';
 import PersonalInfoStep from '../components/resume-builder/PersonalInfoStep';
 import SummaryStep from '../components/resume-builder/SummaryStep';
@@ -32,6 +31,7 @@ import AskAIWidget from '../components/resume-builder/AskAIWidget';
 import WelcomeWizard from '../components/resume-builder/WelcomeWizard';
 import RightPanel from '../components/resume-builder/RightPanel';
 import { useResumeStore, ResumeData } from '../store/useResumeStore';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Props {
   onNavigate?: (page: string) => void;
@@ -95,8 +95,37 @@ const ROLE_PRESETS: Record<string, { summary: string; skills: string[] }> = {
   'Systems Analyst': { summary: 'Systems Analyst skilled in evaluating and improving IT systems to meet business objectives. Experienced in system design, integration, and optimization.', skills: ['System Analysis', 'SQL', 'UML', 'Process Modeling', 'Jira', 'Testing', 'Documentation', 'Python'] },
 };
 
+const GOAL_PRESETS: Record<string, { summaryPrefix: string; skills: string[] }> = {
+  'first-job': {
+    summaryPrefix: 'Motivated and detail-oriented recent graduate',
+    skills: ['Team Collaboration', 'Communication', 'Problem Solving', 'Fast Learner', 'Time Management'],
+  },
+  'internship': {
+    summaryPrefix: 'Enthusiastic and eager to learn',
+    skills: ['Quick Learner', 'Teamwork', 'Communication', 'Adaptability', 'Problem Solving'],
+  },
+  'career-switch': {
+    summaryPrefix: 'Career-driven professional with transferable expertise',
+    skills: ['Adaptability', 'Transferable Skills', 'Cross-functional Collaboration', 'Problem Solving', 'Communication'],
+  },
+  'experienced': {
+    summaryPrefix: 'Seasoned professional with a proven track record',
+    skills: ['Leadership', 'Strategic Planning', 'Cross-functional Collaboration', 'Mentoring', 'Stakeholder Management'],
+  },
+  'executive': {
+    summaryPrefix: 'Visionary executive with extensive experience leading organizations',
+    skills: ['Executive Leadership', 'Strategic Vision', 'Board Governance', 'Organizational Development', 'C-suite Communication'],
+  },
+};
+
 export default function ResumeBuilderPage({ onNavigate, user }: Props) {
-  const [activeId, setActiveId] = useState('personal');
+  const [activeId, setActiveId] = useState(() => sessionStorage.getItem('rb_activeId') || 'personal');
+
+  // Persist active step across refresh
+  const setActiveIdPersisted = React.useCallback((id: string) => {
+    sessionStorage.setItem('rb_activeId', id);
+    setActiveId(id);
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -128,7 +157,39 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const { data, update, updatePersonalInfo, touchSave, toggleSection, undo, redo, canUndo, canRedo, pushHistory } = useResumeStore();
   const completeness = [!!data.summary, data.experience.length > 0, data.skills.length > 0, data.education.length > 0].filter(Boolean).length;
 
-  // Auto-advance Quick Apply steps
+  const { lastSaved: _ls, ...dataWithoutLastSaved } = data;
+  const dataHash = JSON.stringify(dataWithoutLastSaved);
+  const prevDataHash = useRef(dataHash);
+  
+  const profilePrefilledRef = useRef(false);
+  const processResumeFileRef = useRef<(file: File) => Promise<void>>();
+
+  useEffect(() => {
+    const handler = (e: any) => { if (e.detail?.file) processResumeFileRef.current?.(e.detail.file); };
+    window.addEventListener('zync:import-resume', handler);
+    return () => window.removeEventListener('zync:import-resume', handler);
+  }, []);
+
+  // Push history on section change
+  const prevActiveId = useRef(activeId);
+  useEffect(() => {
+    if (prevActiveId.current !== activeId) {
+      pushHistory();
+      prevActiveId.current = activeId;
+    }
+  }, [activeId]);
+
+  // Push history on data changes (debounced)
+  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevDataForHistory = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevDataForHistory.current === null) { prevDataForHistory.current = dataHash; return; }
+    if (dataHash === prevDataForHistory.current) return;
+    prevDataForHistory.current = dataHash;
+    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+    historyDebounceRef.current = setTimeout(() => { pushHistory(); }, 1500);
+    return () => { if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current); };
+  }, [dataHash]);
   useEffect(() => {
     if (selectedJob && qaStep === 0) {
       const t = setTimeout(() => setQaStep(1), 350);
@@ -188,60 +249,44 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   }, []);
 
   React.useEffect(() => {
-    // Only show saving state for longer operations, use longer debounce
+    if (dataHash === prevDataHash.current) return;
+    prevDataHash.current = dataHash;
+    const savingTimer = setTimeout(() => setSaveStatus('saving'), 300);
     const saveTimer = setTimeout(() => {
-      setSaveStatus('saving');
-      const persistTimer = setTimeout(() => {
+      clearTimeout(savingTimer);
+      try {
         touchSave();
-        pushHistory();
         persistCurrentVersion(activeVersion);
         setSaveStatus('saved');
-      }, 1000); // Longer debounce for actual persistence
-      return () => clearTimeout(persistTimer);
-    }, 1500); // Increased debounce to 1.5s to reduce flickering
-    return () => clearTimeout(saveTimer);
-  }, [data]);
-
-  React.useEffect(() => {
-    if (!user?.email) return;
-    let profile: any = user;
-    try { const s = localStorage.getItem('user'); if (s) profile = { ...user, ...JSON.parse(s) }; } catch {}
-    
-    if (!data.personalInfo.email) updatePersonalInfo('email', user.email);
-    if (profile?.name && !data.personalInfo.name) updatePersonalInfo('name', profile.name);
-    if (profile?.phone && !data.personalInfo.phone) updatePersonalInfo('phone', profile.phone);
-    if (profile?.location && !data.personalInfo.location) updatePersonalInfo('location', profile.location);
-    
-    // Sync versions from profile courses after initial load
-    const profileCourses = profile?.courses || [];
-    const courseVersions = profileCourses
-      .map((c: any) => (typeof c === 'string' ? c : c?.title))
-      .filter(Boolean);
-    if (courseVersions.length > 0) {
-      const savedVersions = getSavedVersions();
-      const merged = [...new Set([...savedVersions, ...courseVersions])];
-      const needsUpdate = merged.some(v => !versions.includes(v));
-      if (needsUpdate) {
-        setVersions(merged);
-        saveVersionList(merged);
+      } catch {
+        setSaveStatus('offline');
       }
-    }
-  }, [user?.email, versions, getSavedVersions, saveVersionList]);
+    }, 800);
+    return () => {
+      clearTimeout(savingTimer);
+      clearTimeout(saveTimer);
+    };
+  }, [dataHash]);
+
+  
 
   // Prefill resume from profile API (only once, when resume is still default)
   React.useEffect(() => {
     if (!user?.email) return;
+    if (profilePrefilledRef.current) return;
     const hasData = data.experience.length > 0 || data.education.length > 0 || data.skills.length > 0;
     if (hasData) return;
     const prefillKey = `resume_prefilled_${user.email}`;
     if (sessionStorage.getItem(prefillKey)) return;
     (async () => {
-      try {
-        const { apiFetch } = await import('../api/apiFetch');
-        const { API_ENDPOINTS } = await import('../config/env');
-        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
-        if (!res.ok) return;
-        const p: any = await res.json();
+      if (!profilePrefilledRef.current) {
+        profilePrefilledRef.current = true;
+        try {
+          const { apiFetch } = await import('../api/apiFetch');
+          const { API_ENDPOINTS } = await import('../config/env');
+          const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
+          if (!res.ok) return;
+          const p: any = await res.json();
 
         // Skills
         if (Array.isArray(p.skills) && p.skills.length > 0) {
@@ -368,6 +413,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
         sessionStorage.setItem(prefillKey, '1');
       } catch { /* silent */ }
+      profilePrefilledRef.current = true;
+      }
     })();
   }, [user?.email]);
 
@@ -476,11 +523,33 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     } finally { setApplying(false); }
   };
 
-  const active = NAV.find((n) => n.id === activeId) ?? NAV[0];
-  const ActiveComponent = active.component;
-  const activeIdx = NAV.findIndex((n) => n.id === activeId);
+  const GOAL_HIDDEN_SECTIONS: Record<string, string[]> = {
+    'first-job': ['certs', 'languages', 'custom'],
+    'internship': ['certs', 'languages', 'custom'],
+    'career-switch': ['languages'],
+    'experienced': ['languages'],
+    'executive': ['projects', 'languages'],
+  };
 
-  const sections = [...new Set(NAV.map(n => n.section))];
+  const GOAL_SECTION_ORDER: Record<string, string[]> = {
+    'first-job':    ['personal', 'education', 'projects', 'skills', 'summary', 'experience', 'certs', 'languages', 'achievements', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'internship':   ['personal', 'education', 'projects', 'skills', 'summary', 'experience', 'certs', 'languages', 'achievements', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'career-switch':['personal', 'summary', 'skills', 'projects', 'experience', 'education', 'certs', 'languages', 'achievements', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'experienced':  ['personal', 'experience', 'skills', 'achievements', 'summary', 'education', 'projects', 'certs', 'languages', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'executive':    ['personal', 'summary', 'experience', 'achievements', 'certs', 'skills', 'education', 'projects', 'languages', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+  };
+
+  const orderedNav = useMemo(() => {
+    const order = data.goal ? GOAL_SECTION_ORDER[data.goal] : undefined;
+    if (!order) return NAV;
+    const navMap = new Map(NAV.map(n => [n.id, n]));
+    return order.map(id => navMap.get(id)).filter(Boolean) as NavItem[];
+  }, [data.goal]);
+  const active = orderedNav.find((n) => n.id === activeId) ?? orderedNav[0];
+  const activeIdx = orderedNav.findIndex((n) => n.id === activeId);
+  const ActiveComponent = active?.component ?? (() => null);
+
+  const sections = [...new Set(orderedNav.map(n => n.section))];
   const sectionIcons: Record<string, any> = {
     Profile: UserCircle,
     Content: BookOpen,
@@ -500,79 +569,54 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     }
     const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
     if (isPdf) {
-      const header = await file.slice(0, 5).text();
-      if (header !== '%PDF-') {
+      const buf = await file.slice(0, 5).arrayBuffer();
+      const header = new Uint8Array(buf);
+      const isPdfHeader = header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46 && header[4] === 0x2D;
+      if (!isPdfHeader) {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Invalid or corrupted resume file. Please upload a valid PDF.' } }));
         return;
       }
     }
     setImportLoading(true);
     try {
-      let text = '';
-      if (isPdf) {
-        const { readPdf } = await import('../lib/parse-resume-from-pdf/read-pdf');
-        const url = URL.createObjectURL(file);
-        const textItems = await readPdf(url);
-        URL.revokeObjectURL(url);
-        text = textItems.map(t => t.text).join('\n');
-        if (!text.trim()) {
-          const formData = new FormData();
-          formData.append('resume', file);
-          const ocrRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/extract-text`, { method: 'POST', body: formData });
-          if (!ocrRes.ok) {
-            setImportLoading(false);
-            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
-            return;
-          }
-          const ocrData = await ocrRes.json();
-          text = ocrData.text || '';
-        }
-      } else {
-        const formData = new FormData();
-        formData.append('resume', file);
-        const extRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/extract-text`, { method: 'POST', body: formData });
-        if (!extRes.ok) {
-          setImportLoading(false);
-          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
-          return;
-        }
-        const extData = await extRes.json();
-        text = extData.text || '';
-      }
-      if (!text.trim()) {
-        setImportLoading(false);
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'The uploaded resume is empty. Please upload a valid resume.' } }));
-        return;
-      }
-
+      // Get AI token
       const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
       });
-      if (!tokenRes.ok) throw new Error('AI auth failed');
-      const { access_token } = await tokenRes.json();
-      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` };
+      let access_token: string | null = null;
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        access_token = tokenData.access_token;
+      }
 
-      const resumeRes = await fetch(`${AI_BASE}/ai/execute`, {
+      // Use parse-upload endpoint — backend handles OCR + LLM parsing, always fresh (no cache)
+      const formData = new FormData();
+      formData.append('file', file);
+      const headers: Record<string, string> = {};
+      if (access_token) headers['Authorization'] = `Bearer ${access_token}`;
+      const resumeRes = await fetch(`${AI_BASE}/ai/resume/parse-upload`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          query: 'Parse this resume and extract structured data',
-          user_role: 'candidate',
-          context: { section: 'resume', action: 'parse', content: text.slice(0, 8000) },
-        }),
+        body: formData,
       });
-      if (!resumeRes.ok) throw new Error('AI parse failed');
-      const resumeData = await resumeRes.json();
-      const parsed = resumeData?.result || {};
-
-      if (parsed.name || parsed.email || parsed.phone || parsed.location) {
-        if (parsed.name) updatePersonalInfo('name', parsed.name);
-        if (parsed.email) updatePersonalInfo('email', parsed.email);
-        if (parsed.phone) updatePersonalInfo('phone', parsed.phone);
-        if (parsed.location) updatePersonalInfo('location', parsed.location);
+      if (!resumeRes.ok) {
+        const errText = await resumeRes.text().catch(() => '');
+        let errMsg = `Parse failed (${resumeRes.status})`;
+        try { const j = JSON.parse(errText); errMsg = j.detail || j.error || errMsg; } catch {}
+        throw new Error(errMsg);
       }
+      const resumeData = await resumeRes.json();
+      if (!resumeData.success) throw new Error(resumeData.error || 'Parse failed');
+      const parsed = resumeData.parsed || {};
+      if (parsed?.error) throw new Error(parsed.error);
+
+      if (parsed.name) { updatePersonalInfo('name', parsed.name); update('resumeName', `${parsed.name}'s Resume`); }
+      if (parsed.email) updatePersonalInfo('email', parsed.email);
+      if (parsed.phone) updatePersonalInfo('phone', parsed.phone);
+      if (parsed.location) updatePersonalInfo('location', parsed.location);
+      if (parsed.linkedin) updatePersonalInfo('linkedin', parsed.linkedin);
       if (parsed.summary) update('summary', parsed.summary);
 
       const allSkills = [
@@ -581,71 +625,68 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         ...(Array.isArray(parsed.tools) ? parsed.tools : []),
       ];
       if (allSkills.length > 0) update('skills', allSkills);
-      else if (Array.isArray(parsed.skills) && parsed.skills.length > 0) update('skills', parsed.skills);
 
       if (Array.isArray(parsed.certifications) && parsed.certifications.length > 0) {
-        update('certifications', parsed.certifications);
+        update('certifications', parsed.certifications.map((c: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          name: c.name || c.title || '',
+          issuer: c.provider || c.issuer || c.organization || '',
+          year: c.date || c.year || '',
+        })));
+      }
+      if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
+        update('education', parsed.educations.map((e: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          degree: e.degree || e.qualification || '',
+          institution: e.school || e.institution || e.college || e.university || '',
+          location: e.location || '',
+          duration: e.date || e.duration || `${e.startYear || ''} – ${e.endYear || e.passingYear || ''}`.trim(),
+          grade: e.grade || e.percentage || e.cgpa || '',
+        })));
       }
       if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
         update('projects', parsed.projects.map((p: any) => ({
-          name: p.name || '',
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          name: p.name || p.title || '',
           role: p.role || '',
           duration: p.date || p.duration || '',
-          bullets: p.description ? [p.description] : (Array.isArray(p.bulletPoints) ? p.bulletPoints : []),
+          url: p.url || '',
+          bullets: Array.isArray(p.descriptions) ? p.descriptions
+            : Array.isArray(p.bullets) ? p.bullets
+            : p.description ? [p.description] : [],
         })));
       }
       if (Array.isArray(parsed.workExperiences) && parsed.workExperiences.length > 0) {
         update('experience', parsed.workExperiences.map((w: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          title: w.jobTitle || w.title || '',
-          company: w.company || '',
+          title: w.jobTitle || w.title || w.role || '',
+          company: w.company || w.organization || '',
           location: w.location || '',
-          duration: w.date || w.duration || '',
-          current: false,
-          bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
+          duration: w.date || w.duration || `${w.startDate || ''} – ${w.endDate || 'Present'}`.trim(),
+          current: !!(w.current || w.currentlyWorking || w.endDate === 'Present'),
+          bullets: Array.isArray(w.descriptions) ? w.descriptions
+            : Array.isArray(w.bulletPoints) ? w.bulletPoints
+            : Array.isArray(w.bullets) ? w.bullets
+            : w.description ? [w.description] : [],
         })));
       }
 
-      const expSection = extractSection(text, ['experience', 'work experience', 'employment', 'work history']);
-      if (expSection) {
-        const expRes = await fetch(`${AI_BASE}/ai/execute`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            query: 'Extract detailed work experience from this section',
-            user_role: 'candidate',
-            context: { section: 'job_experience', action: 'parse', content: expSection.slice(0, 3000) },
-          }),
-        });
-        if (expRes.ok) {
-          const expData = await expRes.json();
-          const jobs = expData?.result?.jobs || expData?.result?.workExperiences || [];
-          if (Array.isArray(jobs) && jobs.length > 0) {
-            update('experience', jobs.map((w: any) => ({
-              id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-              title: w.jobTitle || w.title || '',
-              company: w.company || '',
-              location: w.location || '',
-              duration: w.date || w.duration || '',
-              current: false,
-              bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
-            })));
-          }
-        }
-      }
-
       touchSave();
+      pushHistory();
+      setActiveIdPersisted('personal');
     } catch (e: any) {
       console.error('Import error:', e);
       if (e?.message?.includes('Failed to fetch') || e?.name === 'TypeError') {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
       } else {
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: e?.message || 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
       }
     } finally {
       setImportLoading(false);
     }
   };
+
+  processResumeFileRef.current = processResumeFile;
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -671,47 +712,9 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     await processResumeFile(file);
+    e.target.value = '';
   };
 
-  /** Extract a section from resume text by heading keywords */
-  function extractSection(text: string, headings: string[]): string | null {
-    const lines = text.split('\n');
-    const headingRegex = new RegExp(`^\\s*(${headings.join('|')})\\s*[:\\-]*\\s*$`, 'im');
-    const nextHeadingRegex = /^\s*(EDUCATION|EXPERIENCE|SKILLS|CERTIFICATION|PROJECT|SUMMARY|PROFILE|PERSONAL|LANGUAGE|REFERENCE|AWARD|PUBLICATION|VOLUNTEER|TRAINING|COURSE|INTERNSHIP|ACHIEVEMENT|ACTIVITY|INTEREST)\s*[:\\-]*\s*$/im;
-
-    let startIdx = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (headingRegex.test(lines[i])) { startIdx = i + 1; break; }
-    }
-    if (startIdx === -1) return null;
-
-    let endIdx = lines.length;
-    for (let i = startIdx; i < lines.length; i++) {
-      if (i > startIdx && nextHeadingRegex.test(lines[i])) { endIdx = i; break; }
-    }
-    const section = lines.slice(startIdx, endIdx).join('\n').trim();
-    return section || null;
-  }
-
-  /** Parse education section with regex */
-  function parseEducationRegex(text: string): Array<{ degree: string; institution: string; duration: string }> {
-    const results: Array<{ degree: string; institution: string; duration: string }> = [];
-    // Match patterns like: "B.Tech in CS, Stanford University, 2014-2018" or "Degree - Institution (Year-Year)"
-    const eduRegex = /([A-Za-z0-9.,&\s]+?)\s*(?:,|\s+[-–]\s+|\s+at\s+)\s*([A-Za-z0-9.,&\s]+?)\s*(?:,|\s+[-–]\s+|\s*\(|,\s*)(\d{4}\s*[-–]\s*\d{4}|\d{4}\s*[-–]\s*(?:Present|Current|\d{4})|\d{4})/g;
-    let match;
-    while ((match = eduRegex.exec(text)) !== null) {
-      results.push({
-        degree: match[1].trim(),
-        institution: match[2].trim(),
-        duration: match[3].trim(),
-      });
-    }
-    return results;
-  }
-
-  const lastSavedLabel = data.lastSaved
-    ? `Saved locally at ${new Date(data.lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-    : 'Not saved yet';
   const saveNote = 'Auto-saved to your browser. Resume data stays on this device.';
 
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -719,301 +722,124 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const downloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const { default: jsPDF } = await import('jspdf');
       const name = (data.personalInfo?.name || '').trim() || 'Resume';
-      
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 20;
-      const contentWidth = pageWidth - 2 * margin;
-      let y = margin;
-
-      // Helper function to add text with wrapping
-      const addText = (text: string, fontSize: number = 11, isBold: boolean = false, color: [number, number, number] = [0, 0, 0]) => {
-        pdf.setFontSize(fontSize);
-        pdf.setFont('', isBold ? 'bold' : 'normal');
-        pdf.setTextColor(...color);
-        const lines = pdf.splitTextToSize(text, contentWidth);
-        for (const line of lines) {
-          if (y + fontSize * 0.5 > pageHeight - margin) {
-            pdf.addPage();
-            y = margin;
-          }
-          pdf.text(line, margin, y);
-          y += fontSize * 0.6;
-        }
-        y += 2; // Small gap after text block
-      };
-
-      const addSectionHeader = (text: string) => {
-        if (y + 8 > pageHeight - margin) { pdf.addPage(); y = margin; }
-        pdf.setFontSize(12);
-        pdf.setFont('', 'bold');
-        pdf.setTextColor(30, 64, 175); // Blue
-        pdf.text(text.toUpperCase(), margin, y);
-        y += 3;
-        pdf.setDrawColor(30, 64, 175);
-        pdf.setLineWidth(0.5);
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += 6;
-      };
-
-      // Personal Info
-      const p = data.personalInfo;
-      if (p.name) addText(p.name, 18, true, [0, 0, 0]);
-      const contactParts = [p.email, p.phone, p.location, p.linkedin, p.portfolio].filter(Boolean);
-      if (contactParts.length) addText(contactParts.join('  |  '), 10, false, [100, 100, 100]);
-      y += 4;
-
-      // Summary
-      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary;
-      if (summaryVal) {
-        addSectionHeader('Professional Summary');
-        addText(summaryVal);
-      }
-
-      // Skills
-      if (data.skills.length) {
-        addSectionHeader('Core Competencies');
-        addText(data.skills.join('  ·  '), 10);
-      }
-
-      // Experience
-      if (data.experience.length) {
-        addSectionHeader('Experience');
-        data.experience.forEach(exp => {
-          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
-          const titleLine = `${exp.title}${exp.company ? `, ${exp.company}` : ''}`;
-          addText(titleLine, 11, true);
-          if (exp.duration) addText(exp.duration, 9, false, [100, 100, 100]);
-          exp.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`, 10);
-          });
-          y += 3;
-        });
-      }
-
-      // Education
-      if (data.education.length) {
-        addSectionHeader('Education');
-        data.education.forEach(edu => {
-          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
-          let eduLine = edu.degree;
-          if (edu.institution) eduLine += ` — ${edu.institution}`;
-          if (edu.grade) eduLine += ` | ${edu.grade}`;
-          addText(eduLine, 11, true);
-          if (edu.duration) addText(edu.duration, 9, false, [100, 100, 100]);
-          y += 2;
-        });
-      }
-
-      // Certifications
-      if (data.certifications?.length) {
-        addSectionHeader('Certifications');
-        data.certifications.forEach(cert => {
-          let certLine = cert.name;
-          if (cert.issuer) certLine += ` — ${cert.issuer}`;
-          if (cert.year) certLine += ` (${cert.year})`;
-          addText(certLine, 10);
-        });
-      }
-
-      // Awards
-      if (data.awards?.length) {
-        addSectionHeader('Awards & Achievements');
-        data.awards.forEach(award => {
-          let awardLine = award.title;
-          if (award.issuer) awardLine += ` — ${award.issuer}`;
-          if (award.year) awardLine += ` (${award.year})`;
-          addText(awardLine, 10, true);
-          if (award.description) addText(award.description, 9);
-        });
-      }
-
-      // Projects
-      if (data.projects?.length) {
-        addSectionHeader('Projects');
-        data.projects.forEach(proj => {
-          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
-          const titleLine = `${proj.name}${proj.role ? ` — ${proj.role}` : ''}`;
-          addText(titleLine, 11, true);
-          if (proj.duration) addText(proj.duration, 9, false, [100, 100, 100]);
-          if (proj.url) addText(proj.url, 9, false, [37, 99, 235]);
-          proj.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`, 10);
-          });
-          y += 3;
-        });
-      }
-
-      // Languages
-      if (data.languages?.length) {
-        addSectionHeader('Languages');
-        addText(data.languages.map(l => `${l.language} (${l.proficiency})`).join(', '), 10);
-      }
-
-      // Achievements
-      if (data.achievements?.length) {
-        addSectionHeader('Achievements');
-        data.achievements.forEach(a => {
-          addText(a.title, 10, true);
-          if (a.description) addText(a.description, 9);
-        });
-      }
-
-      pdf.save(`${name}.pdf`);
+      const { pdf, Document } = await import('@react-pdf/renderer');
+      const { createElement } = await import('react');
+      const { default: ResumePDFDocument } = await import('../components/resume-builder/ResumePDFDocument');
+      const element = createElement(ResumePDFDocument, { data }) as unknown as React.ReactElement<React.ComponentProps<typeof Document>>;
+      const blob = await pdf(element).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${name}.pdf`; a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       console.error('PDF generation failed:', e);
+      // Fallback: print-based PDF (still text-layer)
+      try {
+        const html = buildResumeHTML(data);
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none';
+        document.body.appendChild(iframe);
+        const iDoc = iframe.contentDocument!;
+        iDoc.open(); iDoc.write(html); iDoc.close();
+        await new Promise(r => setTimeout(r, 400));
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      } catch { /* silent */ }
     } finally {
       setPdfLoading(false);
     }
   };
 
   const downloadDOCX = async () => {
-    const name = (data.personalInfo?.name || '').trim() || 'Resume';
-    
-    // Generate a proper DOCX using docx library
+    setPdfLoading(true);
     try {
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
-      
-      const children: any[] = [];
-      
-      // Personal Info
-      const p = data.personalInfo;
-      if (p.name) {
-        children.push(new Paragraph({ children: [new TextRun({ text: p.name, bold: true, size: 32 })] }));
+      const name = (data.personalInfo?.name || '').trim() || 'Resume';
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+      const n = data.personalInfo;
+
+      const mkPara = (text: string, opts: any = {}) =>
+        new Paragraph({ children: [new TextRun({ text, ...opts })], spacing: { after: 60 } });
+      const mkHeading = (text: string) =>
+        new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 160, after: 60 }, border: { bottom: { style: 'single', size: 6, color: '333333', space: 2 } } });
+      const mkBullet = (text: string) =>
+        new Paragraph({ children: [new TextRun({ text })], bullet: { level: 0 }, spacing: { after: 40 } });
+
+      const children: any[] = [
+        // Header
+        new Paragraph({ children: [new TextRun({ text: n.name || '', bold: true, size: 36 })], alignment: AlignmentType.CENTER, spacing: { after: 60 } }),
+        new Paragraph({
+          children: [new TextRun({ text: [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  '), size: 20, color: '555555' })],
+          alignment: AlignmentType.CENTER, spacing: { after: 120 },
+        }),
+      ];
+
+      if (data.summary) {
+        children.push(mkHeading('Professional Summary'));
+        children.push(mkPara(Array.isArray(data.summary) ? data.summary.join(' ') : data.summary));
       }
-      const contactParts = [p.email, p.phone, p.location, p.linkedin, p.portfolio].filter(Boolean);
-      if (contactParts.length) {
-        children.push(new Paragraph({
-          children: [new TextRun({ text: contactParts.join('  |  '), size: 20, color: '666666' })],
-          spacing: { after: 200 }
-        }));
+      if (data.skills.length > 0) {
+        children.push(mkHeading('Skills'));
+        children.push(mkPara(data.skills.join('  ·  ')));
       }
-
-      const addSection = (title: string) => {
-        children.push(new Paragraph({ 
-          children: [new TextRun({ text: title.toUpperCase(), bold: true, size: 24, color: '1E40AF' })],
-          border: { bottom: { color: '1E40AF', size: 12, style: BorderStyle.SINGLE } },
-          spacing: { after: 200 }
-        }));
-      };
-
-      const addText = (text: string, bold = false, size = 22, color = '000000', spacingAfter = 100) => {
-        children.push(new Paragraph({ 
-          children: [new TextRun({ text, bold, size, color })],
-          spacing: { after: spacingAfter }
-        }));
-      };
-
-      // Summary
-      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary;
-      if (summaryVal) {
-        addSection('Professional Summary');
-        addText(summaryVal);
-      }
-
-      // Skills
-      if (data.skills.length) {
-        addSection('Core Competencies');
-        addText(data.skills.join('  ·  '));
-      }
-
-      // Experience
-      if (data.experience.length) {
-        addSection('Experience');
+      if (data.experience.length > 0) {
+        children.push(mkHeading('Experience'));
         data.experience.forEach(exp => {
-          addText(`${exp.title}${exp.company ? `, ${exp.company}` : ''}`, true, 24);
-          if (exp.duration) addText(exp.duration, false, 20, '666666', 50);
-          exp.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`, false, 22, '000000', 80);
-          });
-          addText('', false, 10, '000000', 100);
+          children.push(new Paragraph({ children: [new TextRun({ text: `${exp.title}${exp.company ? ` — ${exp.company}` : ''}`, bold: true }), new TextRun({ text: exp.duration ? `  |  ${exp.duration}` : '', color: '777777' })], spacing: { after: 40 } }));
+          exp.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
         });
       }
-
-      // Education
-      if (data.education.length) {
-        addSection('Education');
+      if (data.education.length > 0) {
+        children.push(mkHeading('Education'));
         data.education.forEach(edu => {
-          let eduLine = edu.degree;
-          if (edu.institution) eduLine += ` — ${edu.institution}`;
-          if (edu.grade) eduLine += ` | ${edu.grade}`;
-          addText(eduLine, true, 24);
-          if (edu.duration) addText(edu.duration, false, 20, '666666', 50);
-          addText('', false, 10, '000000', 100);
+          const deg = edu.ugDegree || edu.pgDegree || edu.degree || '';
+          children.push(mkPara(`${deg}${edu.institution ? ` — ${edu.institution}` : ''}${edu.duration ? `  |  ${edu.duration}` : ''}${edu.grade ? `  |  ${edu.grade}` : ''}`));
+        });
+      }
+      if (data.certifications.length > 0) {
+        children.push(mkHeading('Certifications'));
+        data.certifications.forEach(c => children.push(mkPara(`${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.year ? `  (${c.year})` : ''}`)));
+      }
+      if (data.projects.length > 0) {
+        children.push(mkHeading('Projects'));
+        data.projects.forEach(p => {
+          children.push(new Paragraph({ children: [new TextRun({ text: `${p.name}${p.role ? ` — ${p.role}` : ''}`, bold: true })], spacing: { after: 40 } }));
+          if (p.url) children.push(mkPara(p.url, { color: '2563eb' }));
+          p.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
+        });
+      }
+      if (data.languages.length > 0) {
+        children.push(mkHeading('Languages'));
+        children.push(mkPara(data.languages.map(l => `${l.language} (${l.proficiency})`).join('  ·  ')));
+      }
+      if (data.achievements?.length > 0) {
+        children.push(mkHeading('Achievements'));
+        data.achievements.forEach((a: any) => {
+          if (a.title) children.push(new Paragraph({ children: [new TextRun({ text: a.title, bold: true })], spacing: { after: 30 } }));
+          if (a.description) children.push(mkPara(a.description));
         });
       }
 
-      // Certifications
-      if (data.certifications?.length) {
-        addSection('Certifications');
-        data.certifications.forEach(cert => {
-          let certLine = cert.name;
-          if (cert.issuer) certLine += ` — ${cert.issuer}`;
-          if (cert.year) certLine += ` (${cert.year})`;
-          addText(certLine);
-        });
-      }
-
-      // Awards
-      if (data.awards?.length) {
-        addSection('Awards & Achievements');
-        data.awards.forEach(award => {
-          let awardLine = award.title;
-          if (award.issuer) awardLine += ` — ${award.issuer}`;
-          if (award.year) awardLine += ` (${award.year})`;
-          addText(awardLine, true);
-          if (award.description) addText(award.description);
-        });
-      }
-
-      // Projects
-      if (data.projects?.length) {
-        addSection('Projects');
-        data.projects.forEach(proj => {
-          addText(`${proj.name}${proj.role ? ` — ${proj.role}` : ''}`, true, 24);
-          if (proj.duration) addText(proj.duration, false, 20, '666666', 50);
-          if (proj.url) addText(proj.url, false, 20, '2563EB', 50);
-          proj.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`);
-          });
-          addText('', false, 10, '000000', 100);
-        });
-      }
-
-      // Languages
-      if (data.languages?.length) {
-        addSection('Languages');
-        addText(data.languages.map(l => `${l.language} (${l.proficiency})`).join(', '));
-      }
-
-      // Achievements
-      if (data.achievements?.length) {
-        addSection('Achievements');
-        data.achievements.forEach(a => {
-          addText(a.title, true);
-          if (a.description) addText(a.description);
-        });
-      }
-
-      const doc = new Document({ sections: [{ properties: {}, children }] });
+      const doc = new Document({
+        sections: [{ properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } }, children }],
+      });
       const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${name}.docx`;
-      a.click();
+      a.href = url; a.download = `${name}.docx`; a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('DOCX generation failed, falling back to HTML:', e);
-      // Fallback to HTML method
+      console.error('DOCX generation failed:', e);
+      // Fallback: HTML as .doc (still text-parseable)
       const html = buildResumeHTML(data);
       const blob = new Blob([html], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `${name}.doc`; a.click();
+      const a = document.createElement('a');
+      a.href = url; a.download = `${(data.personalInfo?.name || 'Resume').trim()}.doc`; a.click();
       URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -1042,9 +868,14 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       ) : (
         <div>
           {jobs.length > 5 && (
-            <input type="text" value={jobSearch} onChange={e => setJobSearch(e.target.value)}
+            <AutocompleteCombobox
+              value={jobSearch}
+              onChange={setJobSearch}
+              options={jobs.map((j: any) => ({ value: j.title || j.jobTitle || '', label: j.title || j.jobTitle || 'Untitled' }))}
+              allowCustom
               placeholder="Search jobs by title..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 mb-2" />
+              className="mb-2"
+            />
           )}
           <div className="grid gap-2">
               {filteredJobs.map((job: any) => {
@@ -1253,12 +1084,12 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   return (
     <>
       {/* Hidden file input for import */}
-      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileImport} />
+      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileImport} />
 
       {/* ── AI Suggestions Panel (Grammarly-like) ────────────────────── */}
       {showSuggestions && (
         <div className="fixed right-4 top-20 z-40 max-w-full sm:right-6 sm:top-24 md:right-8 md:top-28 lg:right-12 lg:top-32">
-          <AISuggestionsPanel onClose={() => setShowSuggestions(false)} onNavigate={(section) => { setActiveId(section); setShowSuggestions(false); }} />
+          <AISuggestionsPanel onClose={() => setShowSuggestions(false)} onNavigate={(section) => { setActiveIdPersisted(section); setShowSuggestions(false); }} />
         </div>
       )}
 
@@ -1272,19 +1103,52 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           onSetRole={setWizardRole}
           onSetStep={setWizardStep}
           onStart={setWizardStart}
+          onUploadNow={() => {
+            setTimeout(() => fileInputRef.current?.click(), 50);
+          }}
           onComplete={() => {
             sessionStorage.setItem(onboardingKey, '1');
             if (wizardGoal) update('goal', wizardGoal);
-            if (wizardRole) {
-              update('targetRole', wizardRole);
-              const roleData = ROLE_PRESETS[wizardRole];
-              if (roleData && !data.summary) update('summary', roleData.summary);
-              if (roleData) {
-                const existing = new Set(data.skills.map(s => s.toLowerCase()));
-                const newSkills = roleData.skills.filter(s => !existing.has(s.toLowerCase()));
-                if (newSkills.length > 0) update('skills', [...data.skills, ...newSkills]);
+            if (wizardRole) update('targetRole', wizardRole);
+
+            const goalData = wizardGoal ? GOAL_PRESETS[wizardGoal] : undefined;
+            const roleData = wizardRole ? ROLE_PRESETS[wizardRole] : undefined;
+
+            if (!data.summary) {
+              let summary = '';
+              if (goalData && roleData) {
+                summary = `${goalData.summaryPrefix} ${roleData.summary.charAt(0).toLowerCase() + roleData.summary.slice(1)}`;
+              } else if (roleData) {
+                summary = roleData.summary;
+              } else if (goalData) {
+                summary = `${goalData.summaryPrefix} professional`;
               }
+              if (summary) update('summary', summary);
             }
+
+            const existing = new Set(data.skills.map(s => s.toLowerCase()));
+            const newSkills = [...(roleData?.skills || []), ...(goalData?.skills || [])].filter(s => !existing.has(s.toLowerCase()));
+            if (newSkills.length > 0) update('skills', [...data.skills, ...newSkills]);
+
+            // Auto-hide irrelevant sections based on goal (only if empty)
+            const toHide = wizardGoal ? GOAL_HIDDEN_SECTIONS[wizardGoal] : undefined;
+            if (toHide && !data.hiddenSections?.length) {
+              toHide.forEach(sectionId => {
+                const hasData = (
+                  (sectionId === 'experience' && data.experience.length > 0) ||
+                  (sectionId === 'education' && data.education.length > 0) ||
+                  (sectionId === 'projects' && (data.projects?.length || 0) > 0) ||
+                  (sectionId === 'skills' && data.skills.length > 0) ||
+                  (sectionId === 'certs' && (data.certifications?.length || 0) > 0) ||
+                  (sectionId === 'languages' && (data.languages?.length || 0) > 0) ||
+                  (sectionId === 'achievements' && (data.achievements?.length || 0) > 0) ||
+                  (sectionId === 'custom' && (data.customSections?.length || 0) > 0) ||
+                  (sectionId === 'summary' && !!data.summary)
+                );
+                if (!hasData) toggleSection(sectionId);
+              });
+            }
+
             setShowOnboarding(false);
             if (wizardStart === 'import') fileInputRef.current?.click();
             else if (wizardStart === 'linkedin') setTriggerLinkedin(true);
@@ -1308,36 +1172,55 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           </div>
         </div>
       )}
+      {/* Import loading overlay */}
+      {importLoading && (
+        <div className="absolute inset-0 z-50 bg-white/80 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <p className="text-sm font-semibold text-gray-700">Parsing your resume with AI...</p>
+          <p className="text-xs text-gray-400">This may take up to 30 seconds</p>
+        </div>
+      )}
       {/* Workspace toolbar */}
-      <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
+      <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         {/* Mobile menu toggle */}
         <button onClick={() => setShowMobileSidebar(true)} className="md:hidden p-1 rounded hover:bg-gray-100 text-gray-500">
           <LayoutList className="w-4 h-4" />
         </button>
-        <input
-          value={data.resumeName}
-          onChange={(e) => update('resumeName', e.target.value)}
-          className="text-sm font-semibold text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent min-w-[80px] max-w-[140px] sm:max-w-[180px] px-1"
-        />
-        <span
-          title={saveNote}
-          className={`text-[10px] flex items-center gap-1 cursor-default ${
-          saveStatus === 'saving' ? 'text-amber-500' :
-          saveStatus === 'syncing' ? 'text-blue-500' :
-          saveStatus === 'offline' ? 'text-red-400' : 'text-emerald-600'
-        }`}>
-          {saveStatus === 'saving' && <><Loader2 className="w-2.5 h-2.5 animate-spin" />Saving...</>}
-          {saveStatus === 'saved' && <><Save className="w-2.5 h-2.5" />{lastSavedLabel}</>}
-          {saveStatus === 'syncing' && <><RefreshCw className="w-2.5 h-2.5 animate-spin" />Syncing...</>}
-          {saveStatus === 'offline' && <><WifiOff className="w-2.5 h-2.5" />Offline</>}
-        </span>
-        <div className="flex-1 min-w-0" />
+        <div className="flex items-center gap-1 min-w-0" style={{maxWidth: '180px'}}>
+          <input
+            value={data.resumeName}
+            onChange={(e) => update('resumeName', e.target.value)}
+            className="text-sm font-semibold text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent min-w-0 w-[90px] sm:w-[120px] px-1 truncate"
+          />
+          <span title={saveNote} className={`text-[10px] hidden lg:flex items-center gap-1 cursor-default shrink-0 ${
+            saveStatus === 'saving' ? 'text-amber-500' :
+            saveStatus === 'syncing' ? 'text-blue-500' :
+            saveStatus === 'offline' ? 'text-red-400' : 'text-emerald-600'
+          }`}>
+            {saveStatus === 'saving' && <><Loader2 className="w-2.5 h-2.5 animate-spin" />Saving...</>}
+            {saveStatus === 'saved' && <><Save className="w-2.5 h-2.5" />Saved</>}
+            {saveStatus === 'syncing' && <><RefreshCw className="w-2.5 h-2.5 animate-spin" />Syncing...</>}
+            {saveStatus === 'offline' && <><WifiOff className="w-2.5 h-2.5" />Offline</>}
+          </span>
+        </div>
         <div className="flex items-center gap-1">
-          <button onClick={undo} disabled={!canUndo()} title="Undo (Ctrl+Z)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: canUndo() ? 'inherit' : 'inherit' }}>
+          <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
+              canUndo
+                ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
+                : 'border-gray-200 text-gray-300 cursor-not-allowed'
+            }`}>
             <Undo2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Undo</span>
           </button>
-          <button onClick={redo} disabled={!canRedo()} title="Redo (Ctrl+Y)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
+              canRedo
+                ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
+                : 'border-gray-200 text-gray-300 cursor-not-allowed'
+            }`}>
             <Redo2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Redo</span>
           </button>
           <div className="w-px h-4 bg-gray-200 mx-1" />
           <button onClick={() => setShowSuggestions(!showSuggestions)}
@@ -1348,37 +1231,40 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </div>
         <div className="hidden sm:block w-px h-4 bg-gray-200" />
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-          <button onClick={() => { setMode('editor'); setQaStep(0); setAiMode(false); }}
-            className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'editor' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <button onClick={() => {
+              setMode('editor');
+              setQaStep(0);
+              setAiMode(false);
+              setShowSuggestions(false);
+              // Restore last active editor step or default to personal
+              const lastId = sessionStorage.getItem('rb_activeId') || 'personal';
+              setActiveIdPersisted(lastId);
+            }}
+            className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'editor' && !aiMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <PenLine className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Editor</span>
           </button>
-          <button onClick={() => { setMode('quick-apply'); setQaStep(0); setAiMode(false); }}
+          <button onClick={() => { setMode('quick-apply'); setQaStep(0); setAiMode(false); setShowSuggestions(false); }}
             className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'quick-apply' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <Send className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Quick Apply</span>
           </button>
         </div>
-        <div className="hidden sm:block w-px h-4 bg-gray-200" />
+        <div className="w-px h-4 bg-gray-200" />
+        <button onClick={() => fileInputRef.current?.click()} title="Import Resume" className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-green-300 bg-green-50 rounded hover:bg-green-100 text-green-700 transition-colors">
+          <Upload className="w-3 h-3" />Import
+        </button>
         <div className="hidden sm:flex items-center gap-1">
-          <button onClick={downloadPDF} disabled={pdfLoading} title="Download PDF" className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50">
+          <div className="w-px h-4 bg-gray-200" />
+          <button onClick={downloadPDF} disabled={pdfLoading} title="Download PDF" className="hidden sm:flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50">
             {pdfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} PDF
           </button>
-          <button onClick={downloadDOCX} title="Download DOCX" className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors">
+          <button onClick={downloadDOCX} title="Download DOCX" className="hidden sm:flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors">
             <FileDown className="w-3 h-3" /> DOCX
           </button>
-          <div className="w-px h-6 bg-gray-200 mx-1" />
-          <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-2 py-1 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Prev</span>
-          </button>
-          <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <span className="hidden sm:inline">Next</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-          <div className="w-px h-6 bg-gray-200 mx-1" />
-          <button onClick={() => setShowCompletion(true)} title="Finish" className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+          <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />
+          <button onClick={() => setShowCompletion(true)} title="Finish" className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
             <CheckCircle2 className="w-3 h-3" /> Finish
           </button>
-          <button onClick={() => onNavigate?.('job-listings')} title="Browse jobs" className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+          <button onClick={() => onNavigate?.('job-listings')} title="Browse jobs" className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
             <Send className="w-3 h-3" /> Apply
           </button>
         </div>
@@ -1460,7 +1346,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           <nav className="flex-1 py-1 overflow-y-auto">
             {sections.map((section) => {
               const SectionIcon = sectionIcons[section] || UserCircle;
-              const sectionItems = NAV.filter(n => n.section === section);
+              const sectionItems = orderedNav.filter(n => n.section === section);
               return (
                 <div key={section} className="mb-1">
                   {sidebarOpen && (
@@ -1477,7 +1363,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                     return (
                       <div key={item.id} className="flex items-center group">
                       <button
-                        onClick={() => setActiveId(item.id)}
+                        onClick={() => setActiveIdPersisted(item.id)}
                         title={item.label}
                         className={`flex-1 flex items-center gap-3 px-4 py-2.5 text-left transition-colors
                           ${isActive
@@ -1594,15 +1480,15 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           {mode === 'editor' && sidebarOpen && (
             <div className="border-t border-gray-100 p-2 flex gap-1.5">
               <button
-                onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)}
+                onClick={() => setActiveIdPersisted(orderedNav[Math.max(0, activeIdx - 1)].id)}
                 disabled={activeIdx === 0}
                 className="flex-1 flex items-center justify-center gap-1 py-1 text-[11px] border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-gray-600"
               >
                 <ChevronLeft className="w-3 h-3" />
               </button>
               <button
-                onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)}
-                disabled={activeIdx === NAV.length - 1}
+                onClick={() => setActiveIdPersisted(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)}
+                disabled={activeIdx === orderedNav.length - 1}
                 className="flex-1 flex items-center justify-center gap-1 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-3 h-3" />
@@ -1613,7 +1499,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
         {/* COL 2: Resume editor / Quick Apply */}
         <main className="flex-1 overflow-y-auto bg-white flex justify-center" style={{ minWidth: 0 }}>
-          <div className="w-full max-w-[950px] px-3 sm:px-6 md:px-10 py-4 sm:py-8">
+          <div className="w-full max-w-[950px] px-3 sm:px-6 md:px-10 py-4 sm:py-8 pb-20">
             {mode === 'quick-apply' ? (
               <div className="space-y-6">
                 {/* Step indicator */}
@@ -1646,28 +1532,25 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               </div>
             ) : (
               <div className="flex flex-col">
-                {/* Desktop Next/Prev buttons at top */}
-                <div className="hidden sm:flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                  <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    <ChevronLeft className="w-4 h-4" />
-                    Prev
+                {/* Step navigation bar — above the form */}
+                <div className="flex items-center justify-between px-4 py-3 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm sticky top-0 z-10">
+                  <button
+                    onClick={() => setActiveIdPersisted(orderedNav[Math.max(0, activeIdx - 1)].id)}
+                    disabled={activeIdx === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Prev
                   </button>
-                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {NAV.length} · {active.label}</span>
-                  <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-                {/* Mobile Next/Prev buttons */}
-                <div className="sm:hidden flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                  <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    <ChevronLeft className="w-4 h-4" />
-                    Prev
-                  </button>
-                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {NAV.length}</span>
-                  <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    Next
-                    <ChevronRight className="w-4 h-4" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-sm font-semibold text-gray-800">{active.label}</span>
+                    <span className="text-[10px] text-gray-400">{activeIdx + 1} of {orderedNav.length}</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveIdPersisted(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)}
+                    disabled={activeIdx === orderedNav.length - 1}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
                 <ActiveComponent />
@@ -1742,7 +1625,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                 className="w-full py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 Find Matching Jobs
               </button>
-              <button onClick={() => { setShowCompletion(false); setActiveId('score'); }}
+              <button onClick={() => { setShowCompletion(false); setActiveIdPersisted('score'); }}
                 className="w-full py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 View Full ATS Score
               </button>

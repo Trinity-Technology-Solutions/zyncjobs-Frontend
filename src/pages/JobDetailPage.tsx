@@ -3,6 +3,7 @@ import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
+import { apiFetch } from '../api/apiFetch';
 import { formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
@@ -86,9 +87,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const getCompanyLogo = (app: any) => {
     const name = app?.company || app?.companyName || '';
+    // 1. Persisted logo from companies API (canonical source)
+    if (companyLogoUrl) return companyLogoUrl;
+    // 2. Job-level persisted logo from jobs API
+    const jobLogo = app?.companyLogo || app?.logoUrl || '';
+    if (jobLogo && !jobLogo.startsWith('blob:')) return jobLogo;
+    // 3. Local utility fallback
     const localLogo = getLogoFromUtils(name);
     if (localLogo) return localLogo;
-    if (companyLogoUrl) return companyLogoUrl;
+    // 4. Backend proxy via website
     if (companyWebsite) {
       try {
         const domain = new URL(companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`).hostname.replace('www.', '');
@@ -96,6 +103,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         if (domain) return `${BACKEND}/logo-proxy?domain=${encodeURIComponent(domain)}`;
       } catch {}
     }
+    // 5. Safe company logo fallback (initials SVG)
     return getSafeCompanyLogo(app);
   };
 
@@ -271,7 +279,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     setMeta('og:url', ogUrl);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'ZyncJobs');
-    if (job.jobHeaderImage) setMeta('og:image', job.jobHeaderImage);
+    const ogImageUrl = `${backendUrl}/og/job-image?id=${job.id || job._id}`;
+    setMeta('og:image', ogImageUrl);
+    setMeta('og:image:width', '1200');
+    setMeta('og:image:height', '630');
+    setMeta('og:image:type', 'image/png');
     
     // Set Twitter meta tags
     const setTwitterMeta = (name: string, content: string) => {

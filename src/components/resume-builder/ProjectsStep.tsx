@@ -3,8 +3,11 @@ import { Plus, Trash2, Sparkles, Loader2, Check, X, Clock } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
+import { ph } from '../../utils/goalPlaceholders';
+
 export default function ProjectsStep() {
   const { data, addProject, updateProject, removeProject } = useResumeStore();
+  const goal = data.goal || '';
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiError, setAiError] = useState('');
   const [suggestion, setSuggestion] = useState<{ projId: string; bIdx: number; suggested: string } | null>(null);
@@ -74,7 +77,7 @@ export default function ProjectsStep() {
         <div>
           <h2 className="text-xl font-bold text-gray-900">Projects</h2>
           <p className="text-sm text-gray-500 mt-0.5">Showcase your key projects and contributions</p>
-          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-purple-400">💡</span> Link to <span className="text-purple-500 font-medium">GitHub</span> or live demo — recruiters verify projects they can actually see</p>
+          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Link to <span className="text-purple-500 font-medium">GitHub</span> or live demo — recruiters verify projects they can actually see</p>
         </div>
         <button onClick={addProject} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
           <Plus className="w-4 h-4" /> Add Project
@@ -109,25 +112,25 @@ export default function ProjectsStep() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Project Name *</label>
                     <input type="text" value={p.name} onChange={e => updateProject(p.id, 'name', e.target.value)}
-                      placeholder="e.g. E-Commerce Platform"
+                      placeholder={ph(goal, 'projectName')}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Your Role</label>
                     <input type="text" value={p.role} onChange={e => updateProject(p.id, 'role', e.target.value)}
-                      placeholder="e.g. Full Stack Developer"
+                      placeholder={ph(goal, 'role')}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                     <input type="text" value={p.duration} onChange={e => updateProject(p.id, 'duration', e.target.value)}
-                      placeholder="e.g. Jan 2023 – Mar 2023"
+                      placeholder="Enter start and end date"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Project URL (optional)</label>
                     <input type="url" value={p.url} onChange={e => updateProject(p.id, 'url', e.target.value)}
-                      placeholder="https://github.com/username/project"
+                      placeholder="Enter your project URL"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                 </div>
@@ -154,7 +157,7 @@ export default function ProjectsStep() {
                               const nb = [...p.bullets]; nb[bi] = e.target.value;
                               updateProject(p.id, 'bullets', nb);
                             }}
-                            placeholder="Describe your key achievements and technologies used"
+                            placeholder={ph(goal, 'achievement')}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
                           />
                         </div>

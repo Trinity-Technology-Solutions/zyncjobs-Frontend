@@ -3,6 +3,7 @@ import { Upload, Users, UserX, Mail, ChevronRight, Copy } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { S3Service } from '../../../services/s3Service';
 import { apiFetch } from '../../../api/apiFetch';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
@@ -787,13 +788,16 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
 
       {/* Controls */}
       <div className="flex items-center gap-3 flex-wrap">
-        <input
-          type="text"
-          placeholder="Search by name, email, skills..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="flex-1 min-w-[200px]">
+          <AutocompleteCombobox
+            value={search}
+            onChange={setSearch}
+            options={[]}
+            allowCustom
+            placeholder="Search by name, email, skills..."
+            className="bg-gray-800 border-gray-700 text-gray-200"
+          />
+        </div>
         <button
           onClick={() => setShowDuplicates(v => !v)}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -1025,13 +1029,16 @@ function InternalPage() {
 
       {/* Controls */}
       <div className="flex items-center gap-3 flex-wrap">
-        <input
-          type="text"
-          placeholder="Search by name, email, phone..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="flex-1 min-w-[200px]">
+          <AutocompleteCombobox
+            value={search}
+            onChange={setSearch}
+            options={[]}
+            allowCustom
+            placeholder="Search by name, email, phone..."
+            className="bg-gray-800 border-gray-700 text-gray-200"
+          />
+        </div>
         {selected.size > 0 && (
           <button
             onClick={sendToEmailPage}
@@ -1483,13 +1490,16 @@ function BulkEmailPage() {
                 Select Next {Math.min(batchSize, unsentCandidates.length)} Unsent
               </button>
             </div>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
-            />
+            <div className="w-44">
+              <AutocompleteCombobox
+                value={search}
+                onChange={setSearch}
+                options={[]}
+                allowCustom
+                placeholder="Search..."
+                className="bg-gray-800 border-gray-700 text-gray-200"
+              />
+            </div>
           </div>
           <div className="overflow-x-auto max-h-96">
             <table className="w-full text-sm">
@@ -1539,15 +1549,16 @@ function BulkEmailPage() {
         <div className="space-y-4">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
             <p className="text-sm font-semibold text-gray-200">Email Template</p>
-            <select
+            <AutocompleteCombobox
               value={template}
-              onChange={e => setTemplate(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="invite">Invitation to Join ZyncJobs</option>
-              <option value="followup">Follow-Up — Exclusive Opportunities</option>
-              <option value="jobs">New Job Openings Matching Your Profile</option>
-            </select>
+              onChange={(val) => setTemplate(val)}
+              options={[
+                { value: 'invite', label: 'Invitation to Join ZyncJobs' },
+                { value: 'followup', label: 'Follow-Up — Exclusive Opportunities' },
+                { value: 'jobs', label: 'New Job Openings Matching Your Profile' },
+              ]}
+              placeholder="Select template..."
+            />
             <div className="text-xs text-gray-400 bg-gray-800 rounded-lg px-3 py-2">
               <p className="font-medium text-gray-300 mb-1">Subject:</p>
               <p>{TEMPLATE_PREVIEWS[template].subject}</p>
@@ -1564,16 +1575,17 @@ function BulkEmailPage() {
             <p className="text-sm font-semibold text-gray-200">Batch Settings</p>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Select batch size</label>
-              <select
-                value={batchSize}
-                onChange={e => handleBatchSizeChange(Number(e.target.value))}
-                className="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value={50}>50 per batch</option>
-                <option value={100}>100 per batch</option>
-                <option value={200}>200 per batch</option>
-                <option value={500}>500 per batch</option>
-              </select>
+              <AutocompleteCombobox
+                value={String(batchSize)}
+                onChange={(val) => handleBatchSizeChange(Number(val))}
+                options={[
+                  { value: '50', label: '50 per batch' },
+                  { value: '100', label: '100 per batch' },
+                  { value: '200', label: '200 per batch' },
+                  { value: '500', label: '500 per batch' },
+                ]}
+                placeholder="Select batch size..."
+              />
             </div>
             <div className="text-xs text-gray-500 bg-gray-800/50 rounded-lg px-3 py-2 space-y-1">
               <p>📦 {selectedList.length} selected to send now</p>

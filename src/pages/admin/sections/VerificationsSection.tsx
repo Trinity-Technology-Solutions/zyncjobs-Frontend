@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, RefreshCw, AlertCircle, Building2, ExternalLink, 
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
@@ -104,12 +105,17 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold">Employer Verifications</h2>
-          <select value={filter} onChange={e => setFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500">
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <AutocompleteCombobox
+            value={filter}
+            onChange={(val) => setFilter(val)}
+            options={[
+              { value: 'pending', label: 'Pending' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+            ]}
+            placeholder="Select status..."
+            className="text-xs"
+          />
         </div>
         <button onClick={load} disabled={loading} className="text-gray-400 hover:text-white disabled:opacity-40">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />

@@ -9,6 +9,7 @@ interface Props {
 
 export default function AISuggestionsStep({ selectedJob }: Props) {
   const { data, update } = useResumeStore();
+  const goal = data.goal || '';
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState('');
@@ -29,9 +30,10 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
     setError('');
     setSuccess('');
     try {
-      const expText = data.experience
+      const goalContext = goal ? `Career goal: ${goal}. Tailor the summary for this career level.` : '';
+      const expText = [goalContext, ...data.experience
         .map((e) => `${e.title} at ${e.company} - ${e.bullets.join('. ')}`)
-        .join('. ');
+        .join('. ')].filter(Boolean).join('\n');
       try {
         const res = await executeResumeAI({
           section: 'summary',
@@ -42,7 +44,14 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
       } catch {
         const title = data.experience[0]?.title || 'Professional';
         const company = data.experience[0]?.company || 'a leading company';
-        update('summary', `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions and collaborate with cross-functional teams to drive measurable business impact.`);
+        const goalFallbacks: Record<string, string> = {
+          'first-job': `Motivated recent graduate with hands-on experience as ${title} at ${company}. Eager to apply academic knowledge and internship experience to deliver high-quality solutions in a dynamic team environment.`,
+          'internship': `Enthusiastic student with practical experience as ${title} at ${company}. Quick learner seeking an internship opportunity to develop skills and contribute to meaningful projects.`,
+          'career-switch': `Career-driven professional with transferable expertise from experience as ${title} at ${company}. Bringing a unique cross-functional perspective and strong adaptability to a new field.`,
+          'experienced': `Results-driven ${title} with a proven track record at ${company}. Experienced in delivering high-impact solutions, leading cross-functional teams, and driving measurable business outcomes.`,
+          'executive': `Visionary leader with executive-level experience as ${title} at ${company}. Proven ability to drive organizational strategy, lead large-scale initiatives, and deliver transformative business results.`,
+        };
+        update('summary', goalFallbacks[goal] || `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions and collaborate with cross-functional teams to drive measurable business impact.`);
       }
       setSuccess('✅ AI generated summary and skills!');
     } finally {
@@ -60,34 +69,39 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
     setSuccess('');
     try {
       const bullets = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim()));
-      const resumeText = [data.summary, ...bullets, ...data.skills].filter(Boolean).join('\n');
-      try {
-        const res = await executeResumeAI({
-          section: 'resume',
-          action: 'optimize',
-          content: `${jdText}\n---\n${resumeText}`,
-        });
-        setOptimizationResult({
-          keywords: (res.result || '').split(',').map(s => s.trim()).filter(Boolean),
-          atsScore: 75,
-          improvements: ['Review keywords added from JD', 'Quantify achievements with numbers'],
-        });
-      } catch {
+      const resumeText = [
+        data.targetRole ? `Target Role: ${data.targetRole}` : '',
+        data.summary ? `Summary: ${data.summary}` : '',
+        bullets.length ? `Bullets:\n${bullets.join('\n')}` : '',
+        data.skills.length ? `Skills: ${data.skills.join(', ')}` : '',
+        goal ? `Career Goal: ${goal}` : '',
+      ].filter(Boolean).join('\n');
+      const res = await executeResumeAI({
+        section: 'resume',
+        action: 'optimize',
+        content: `Job Description:\n${jdText}\n---\nResume:\n${resumeText}`,
+      });
+      // Parse structured JSON response from backend
+      let parsed: any = null;
+      try { parsed = JSON.parse(res.result || '{}'); } catch { /* not JSON */ }
+      if (parsed && (parsed.keywords || parsed.optimized_summary)) {
+        setOptimizationResult(parsed);
+      } else {
+        // Fallback: extract keywords from JD locally
         const words = jdText.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/);
-        const stop = new Set(['the','and','or','for','with','that','this','are','you','will','have','from','to','a','an','in','of','on','at','is','be','as','by']);
+        const stop = new Set(['the','and','or','for','with','that','this','are','you','will','have','from','to','a','an','in','of','on','at','is','be','as','by','experience','work','team']);
         const freq: Record<string,number> = {};
         words.forEach(w => { const c = w.toLowerCase(); if (c.length > 3 && !stop.has(c)) freq[c] = (freq[c]||0)+1; });
-        const keywords = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([w])=>w.charAt(0).toUpperCase()+w.slice(1));
+        const keywords = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([w])=>w.charAt(0).toUpperCase()+w.slice(1));
         setOptimizationResult({
           keywords,
-          atsScore: Math.min(95, 60 + keywords.length * 3),
-          improvements: [
-            `Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`,
-            'Quantify your achievements with numbers and percentages',
-            'Use action verbs at the start of each bullet point',
-          ],
+          optimized_summary: '',
+          optimized_bullets: [],
+          improvements: [`Add these JD keywords to your skills: ${keywords.slice(0,4).join(', ')}`, 'Quantify achievements with numbers and percentages', 'Start every bullet with a strong past-tense action verb'],
         });
       }
+    } catch {
+      setError('Optimization failed. Please try again.');
     } finally {
       setOptimizing(false);
     }
@@ -96,25 +110,32 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
   const applyOptimization = () => {
     if (!optimizationResult) return;
     update('jobDescription', jdText);
-    
-    // Add suggested keywords to skills
-    if (optimizationResult.keywords && optimizationResult.keywords.length > 0) {
-      const existingSkills = new Set(data.skills.map(s => s.toLowerCase()));
+
+    // 1. Merge new keywords into skills (dedup)
+    if (optimizationResult.keywords?.length > 0) {
+      const existingSkills = new Set(data.skills.map((s: string) => s.toLowerCase()));
       const newSkills = optimizationResult.keywords.filter((kw: string) => !existingSkills.has(kw.toLowerCase()));
-      if (newSkills.length > 0) {
-        update('skills', [...data.skills, ...newSkills]);
-      }
+      if (newSkills.length > 0) update('skills', [...data.skills, ...newSkills]);
     }
-    
-    // Update summary with JD-optimized version if not present
-    if (optimizationResult.improvements && optimizationResult.improvements.length > 0 && !data.summary) {
-      const title = data.experience[0]?.title || 'Professional';
-      const company = data.experience[0]?.company || 'a leading company';
-      const skills = data.skills.slice(0, 3).join(', ');
-      update('summary', `Results-driven ${title} with hands-on experience at ${company}. Skilled in ${skills || 'delivering high-quality solutions'}. Proven ability to optimize for ${optimizationResult.keywords.slice(0, 3).join(', ')} and drive measurable business impact.`);
+
+    // 2. Apply AI-optimized summary (always overwrite if AI returned one)
+    if (optimizationResult.optimized_summary?.trim()) {
+      update('summary', optimizationResult.optimized_summary.trim());
     }
-    
-    setSuccess('✅ Applied optimizations to your resume! Skills and summary updated.');
+
+    // 3. Apply optimized bullets back into the first experience entry
+    if (optimizationResult.optimized_bullets?.length > 0 && data.experience.length > 0) {
+      const updatedExperience = data.experience.map((exp, idx) => {
+        if (idx !== 0) return exp;
+        // Merge: replace empty bullets, append new ones up to the count
+        const existing = exp.bullets.filter((b: string) => b.trim());
+        const merged = [...optimizationResult.optimized_bullets.slice(0, Math.max(existing.length, optimizationResult.optimized_bullets.length))];
+        return { ...exp, bullets: merged };
+      });
+      update('experience', updatedExperience);
+    }
+
+    setSuccess('Optimizations applied — summary, skills, and bullets updated.');
     setOptimizationResult(null);
   };
 
@@ -139,7 +160,7 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
   }, [selectedJob?.id || selectedJob?._id]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Suggestions</h2>
         <p className="text-gray-600">Get AI-powered improvements for your resume</p>
@@ -187,7 +208,7 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
               <Target className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-2">🔥 JD-Based Optimization</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">JD-Based Optimization</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Paste a job description to optimize your resume with relevant keywords and improve ATS score
               </p>
@@ -223,36 +244,48 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
       {/* Optimization Results */}
       {optimizationResult && (
         <div className="bg-white border border-green-200 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Optimization Results</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-green-600">{optimizationResult.atsScore}%</span>
-              <span className="text-sm text-gray-500">ATS Score</span>
-            </div>
-          </div>
+          <h3 className="font-semibold text-gray-900 mb-4">Optimization Results</h3>
 
           <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">🎯 Extracted Keywords:</h4>
-              <div className="flex flex-wrap gap-2">
-                {optimizationResult.keywords.map((kw: string, i: number) => (
-                  <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
-                    {kw}
-                  </span>
-                ))}
+            {optimizationResult.optimized_summary && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Optimized Summary:</h4>
+                <p className="text-sm text-gray-600 bg-gray-50 rounded p-2">{optimizationResult.optimized_summary}</p>
               </div>
-            </div>
+            )}
 
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">💡 Improvements:</h4>
-              <ul className="space-y-1">
-                {optimizationResult.improvements.map((imp: string, i: number) => (
-                  <li key={i} className="text-sm text-gray-600">
-                    • {imp}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {optimizationResult.keywords?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Keywords to add to Skills:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {optimizationResult.keywords.map((kw: string, i: number) => (
+                    <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">{kw}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {optimizationResult.optimized_bullets?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Optimized Bullets (applied to first experience):</h4>
+                <ul className="space-y-1">
+                  {optimizationResult.optimized_bullets.map((b: string, i: number) => (
+                    <li key={i} className="text-sm text-gray-600">• {b}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {optimizationResult.improvements?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Improvement Tips:</h4>
+                <ul className="space-y-1">
+                  {optimizationResult.improvements.map((imp: string, i: number) => (
+                    <li key={i} className="text-sm text-gray-600">• {imp}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button onClick={applyOptimization}

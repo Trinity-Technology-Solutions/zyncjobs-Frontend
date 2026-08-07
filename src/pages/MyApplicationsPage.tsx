@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell, RefreshCw } from 'lucide-react';
-import { getCompanyLogo } from '../utils/logoUtils';
+import { apiFetch } from '../api/apiFetch';
+import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import Header from '../components/Header';
+import CompanyLogo from '../components/CompanyLogo';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
 import Notification from '../components/Notification';
@@ -36,6 +38,7 @@ interface Application {
     jobDescription?: string;
     salary?: any;
     skills?: string[];
+    companyLogo?: string;
   };
 }
 
@@ -51,7 +54,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [filter, setFilter] = useState<string>('all');
   const [editingApp, setEditingApp] = useState<string | null>(null);
   const [editCoverLetter, setEditCoverLetter] = useState<string>('');
-  const [showTimeline, setShowTimeline] = useState<string | null>(null);
+  const [showTimeline] = useState<string | null>(null);
   const [withdrawingApp, setWithdrawingApp] = useState<string | null>(null);
   const [withdrawalReason, setWithdrawalReason] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -431,23 +434,11 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           {/* Company logo + name row */}
                           <div className="flex items-center gap-3 mb-2">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-blue-50 border border-blue-100">
-                              <img 
-                                src={(() => {
-                                  // Force Nambikkai companies to use the local logo
-                                  if ((application.jobId?.company || '').toLowerCase().includes('nambikkai')) {
-                                    return '/images/company-logos/nambikkai-logo.png';
-                                  }
-                                  return getCompanyLogo(application.jobId?.company || '');
-                                })()
-                                } 
-                                alt={`${application.jobId?.company || 'Company'} Logo`} 
+                              <CompanyLogo
+                                companyName={application.jobId?.company || ''}
+                                storedLogo={application.jobId?.companyLogo}
+                                size={40}
                                 className="w-10 h-10 object-contain"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.onerror = null;
-                                  // Use Nambikkai logo as fallback for all companies
-                                  target.src = '/images/company-logos/nambikkai-logo.png';
-                                }}
                               />
                             </div>
                             <span className="font-semibold text-blue-700 text-base">{application.jobId?.company || 'Company Not Available'}</span>
@@ -756,21 +747,22 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Reason for withdrawal *
               </label>
-              <select
+              <AutocompleteCombobox
                 value={withdrawalReason}
-                onChange={(e) => setWithdrawalReason(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(val) => setWithdrawalReason(val)}
+                options={[
+                  { value: 'Found another opportunity', label: 'Found another opportunity' },
+                  { value: 'No longer interested', label: 'No longer interested' },
+                  { value: 'Company concerns', label: 'Company concerns' },
+                  { value: 'Salary expectations not met', label: 'Salary expectations not met' },
+                  { value: 'Location issues', label: 'Location issues' },
+                  { value: 'Personal reasons', label: 'Personal reasons' },
+                  { value: 'Other', label: 'Other' },
+                ]}
+                placeholder="Select a reason"
                 required
-              >
-                <option value="">Select a reason</option>
-                <option value="Found another opportunity">Found another opportunity</option>
-                <option value="No longer interested">No longer interested</option>
-                <option value="Company concerns">Company concerns</option>
-                <option value="Salary expectations not met">Salary expectations not met</option>
-                <option value="Location issues">Location issues</option>
-                <option value="Personal reasons">Personal reasons</option>
-                <option value="Other">Other</option>
-              </select>
+                className="w-full"
+              />
             </div>
             
             <div className="flex space-x-3">

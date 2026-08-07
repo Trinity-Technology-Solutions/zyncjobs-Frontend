@@ -42,6 +42,8 @@ export const getLocalCompanyLogo = (companyName: string): string => {
     'l&t': '/images/company-logos/lt-logo.png',
     'larsen & toubro': '/images/company-logos/lt-logo.png',
     'larsen and toubro': '/images/company-logos/lt-logo.png',
+    'persistent': '/images/company-logos/persistent-favicon.svg',
+    'persistent systems': '/images/company-logos/persistent-favicon.svg',
     'inypeople': '/images/company-logos/inypeople-logo.png',
     'inypeople jobs': '/images/company-logos/inypeople-logo.png',
     'iny people': '/images/company-logos/inypeople-logo.png',
@@ -544,6 +546,73 @@ export const getSafeCompanyLogo = (job: any): string => {
   const companyName = job.company || job.companyName || job.name || '';
   return getCompanyLogo(companyName);
 };
+
+// Shared profile completion calculation — single source of truth for Employer Profile
+// Uses the same 3-step field weighting (Step 1: 33%, Step 2: 33%, Step 3: 34%) for 14 fields total.
+export function calculateEmployerProfileCompletion(data: {
+  companyName?: string;
+  company?: string;
+  name?: string;
+  industry?: string;
+  companySize?: string;
+  size?: string;
+  foundedYear?: string | number;
+  headquarters?: string;
+  location?: string;
+  description?: string;
+  companyDescription?: string;
+  companyWebsite?: string;
+  website?: string;
+  tagline?: string;
+  email?: string;
+  companyEmail?: string;
+  phoneNumber?: string;
+  phone?: string;
+  linkedin?: string;
+  socialLinks?: { linkedin?: string; twitter?: string; facebook?: string };
+  gstNumber?: string;
+  benefits?: any[];
+  locations?: any[];
+}): number {
+  if (!data) return 0;
+
+  const companyName = data.companyName || data.company || data.name || '';
+  const industry = data.industry || '';
+  const companySize = data.companySize || data.size || '';
+  const foundedYear = data.foundedYear || '';
+  const headquarters = data.headquarters || data.location || '';
+  const description = data.description || data.companyDescription || '';
+  const website = data.companyWebsite || data.website || '';
+  const tagline = data.tagline || '';
+
+  const step1Fields = [
+    companyName, industry, companySize,
+    foundedYear, headquarters, description,
+    website, tagline,
+  ];
+  const step1Completed = step1Fields.filter(f => f && f.toString().trim()).length;
+  const step1Pct = Math.round((step1Completed / 8) * 33);
+
+  const email = data.companyEmail || data.email || '';
+  const phone = data.phoneNumber || data.phone || '';
+  const linkedIn = data.linkedin || data.socialLinks?.linkedin || '';
+  const gstNumber = data.gstNumber || '';
+
+  const step2Fields = [
+    email, phone, linkedIn, gstNumber,
+  ];
+  const step2Completed = step2Fields.filter(f => f && f.toString().trim()).length;
+  const step2Pct = Math.round((step2Completed / 4) * 33);
+
+  const step3Items = [
+    (data.benefits?.length ?? 0) > 0,
+    (data.locations?.length ?? 0) > 0,
+  ];
+  const step3Completed = step3Items.filter(Boolean).length;
+  const step3Pct = Math.round((step3Completed / 2) * 34);
+
+  return Math.min(100, step1Pct + step2Pct + step3Pct);
+}
 
 export const getLetterAvatar = (name: string): string => {
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();

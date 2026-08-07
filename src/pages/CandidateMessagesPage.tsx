@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../config/env';
 import { Send, Search, ArrowLeft, CheckCheck, Paperclip, Trash2, MessageSquare } from 'lucide-react';

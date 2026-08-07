@@ -80,76 +80,91 @@ export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: (
   const fixOne = async (s: Suggestion) => {
     setFixing(s.id);
     try {
-      // Fix: missing summary
-      if (s.section === 'summary' && (s.id === 's1' || s.id === 's2')) {
+      // Fix: missing summary — generate via AI
+      if (s.id === 's1' || s.id === 's2') {
         try {
           const context = data.experience.map(e => `${e.title} at ${e.company}`).join(', ') || 'professional';
           const sk = data.skills.slice(0, 5).join(', ');
           const res = await executeResumeAI({ section: 'summary', action: 'generate', content: `Generate a summary for a ${context}. Skills: ${sk}` });
-          if (res.result) { update('summary', res.result.replace(/\*\*/g, '').split('\n').filter(Boolean).slice(0, 3).join(' ')); }
+          if (res.result) update('summary', res.result.replace(/\*\*/g, '').split('\n').filter(Boolean).slice(0, 3).join(' '));
         } catch {
           const title = data.experience[0]?.title || 'Professional';
-          const company = data.experience[0]?.company || 'a leading company';
           const sk = data.skills.slice(0, 3).join(', ');
-          update('summary', `Results-driven ${title} with hands-on experience at ${company}. Skilled in ${sk || 'delivering high-quality solutions'}. Proven ability to collaborate with cross-functional teams to drive measurable business impact.`);
+          update('summary', `Results-driven ${title} with hands-on experience delivering high-quality solutions. Skilled in ${sk || 'cross-functional collaboration'}. Proven ability to drive measurable business impact.`);
         }
       }
 
-      // Fix: missing skills
+      // Fix: missing skills — add common ones
       if (s.id === 's3') {
-        const existing = new Set(data.skills.map(s => s.toLowerCase()));
+        const existing = new Set(data.skills.map(x => x.toLowerCase()));
         const suggested = ['Communication', 'Problem Solving', 'Team Collaboration', 'Time Management', 'Agile', 'Git', 'REST APIs', 'SQL', 'Project Management', 'Critical Thinking'];
-        const toAdd = suggested.filter(sk => !existing.has(sk.toLowerCase())).slice(0, 8 - data.skills.length);
+        const toAdd = suggested.filter(sk => !existing.has(sk.toLowerCase())).slice(0, Math.max(0, 8 - data.skills.length));
         if (toAdd.length > 0) update('skills', [...data.skills, ...toAdd]);
       }
 
-      // Fix: weak action verbs in bullets
-      if (s.id === 's6') {
-        const strongVerbs = ['Led', 'Built', 'Developed', 'Designed', 'Implemented', 'Optimized', 'Delivered', 'Managed', 'Improved', 'Created'];
-        const updated = data.experience.map(exp => ({
-          ...exp,
-          bullets: exp.bullets.map((b, i) => {
-            if (!b.trim()) return b;
-            const hasStrong = /^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered|created|launched|architected)/i.test(b.trim());
-            if (hasStrong) return b;
-            const verb = strongVerbs[i % strongVerbs.length];
-            return `${verb} ${b.charAt(0).toLowerCase()}${b.slice(1)}`;
-          }),
-        }));
-        update('experience', updated);
-      }
+      // Fix: no experience — navigate to experience section
+      if (s.id === 's4' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('experience'); setFixing(null); return; }
 
-      // Fix: no metrics in bullets
+      // Fix: no metrics — quantify bullets via AI
       if (s.id === 's5') {
-        const metricsCalls = data.experience.flatMap(exp =>
+        const snapshot = data.experience; // capture current state
+        const tasks = snapshot.flatMap(exp =>
           exp.bullets.map((b, i) => {
             if (!b.trim() || /\d/.test(b)) return null;
             return executeResumeAI({ section: 'experience', action: 'quantify', content: b, experienceId: exp.id })
-              .then(res => {
-                if (res.result) {
-                  const bullets = [...exp.bullets];
-                  bullets[i] = res.result;
-                  updateExperience(exp.id, 'bullets', bullets);
-                }
-              })
-              .catch(() => {
-                const bullets = [...exp.bullets];
-                bullets[i] = b.replace(/\.$/, '') + ', improving efficiency by 20%.';
-                updateExperience(exp.id, 'bullets', bullets);
-              });
+              .then(res => { if (res.result) { const bs = [...exp.bullets]; bs[i] = res.result; updateExperience(exp.id, 'bullets', bs); } })
+              .catch(() => { const bs = [...exp.bullets]; bs[i] = b.replace(/\.$/, '') + ', improving efficiency by 20%.'; updateExperience(exp.id, 'bullets', bs); });
           }).filter(Boolean)
         );
-        await Promise.all(metricsCalls);
+        await Promise.all(tasks);
       }
 
-      // Fix: LinkedIn not linked — navigate to personal section
-      if (s.id === 's7' && onNavigate) onNavigate('personal');
+      // Fix: weak action verbs — prepend strong verbs
+      if (s.id === 's6') {
+        const strongVerbs = ['Led', 'Built', 'Developed', 'Designed', 'Implemented', 'Optimized', 'Delivered', 'Managed', 'Improved', 'Created'];
+        update('experience', data.experience.map(exp => ({
+          ...exp,
+          bullets: exp.bullets.map((b, i) => {
+            if (!b.trim()) return b;
+            if (/^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered|created|launched|architected)/i.test(b.trim())) return b;
+            return `${strongVerbs[i % strongVerbs.length]} ${b.charAt(0).toLowerCase()}${b.slice(1)}`;
+          }),
+        })));
+      }
 
-      // Fix: no portfolio/projects — navigate to projects section
-      if (s.id === 's8' && onNavigate) onNavigate('projects');
+      // Fix: LinkedIn — navigate to personal
+      if (s.id === 's7' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('personal'); setFixing(null); return; }
 
-      // Fix: empty education — navigate to education section
-      if (s.id === 's9' && onNavigate) onNavigate('education');
+      // Fix: no portfolio/projects — navigate to projects
+      if (s.id === 's8' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('projects'); setFixing(null); return; }
+
+      // Fix: empty education — navigate to education
+      if (s.id === 's9' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('education'); setFixing(null); return; }
+
+      // Fix: AI suggestions — improve summary or first bullet via AI
+      if (s.id.startsWith('ai-')) {
+        const msg = s.message.toLowerCase();
+        if (msg.includes('summary') || msg.includes('objective')) {
+          try {
+            const res = await executeResumeAI({ section: 'summary', action: 'rewrite', content: data.summary || s.message });
+            if (res.result) update('summary', res.result);
+          } catch { /* silent */ }
+        } else if (data.experience.length > 0) {
+          const exp = data.experience[0];
+          const bullet = exp.bullets.find(b => b.trim()) || exp.bullets[0];
+          if (bullet) {
+            try {
+              const res = await executeResumeAI({ section: 'experience', action: 'improve', content: bullet, experienceId: exp.id });
+              if (res.result) {
+                const bs = [...exp.bullets];
+                const idx = exp.bullets.indexOf(bullet);
+                bs[idx] = res.result;
+                updateExperience(exp.id, 'bullets', bs);
+              }
+            } catch { /* silent */ }
+          }
+        }
+      }
 
     } catch { /* silent */ } finally {
       setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p));
@@ -158,11 +173,11 @@ export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: (
   };
 
   const fixAll = async () => {
-    const unfixed = suggestions.filter(s => !s.fixed);
-    // Run all fixes in parallel for speed
-    await Promise.all(unfixed.map(s => fixOne(s)));
-    // Re-analyze after fixes
-    setTimeout(analyzeResume, 2000);
+    // Run sequentially to avoid Zustand state race conditions
+    for (const s of suggestions.filter(x => !x.fixed)) {
+      await fixOne(s);
+    }
+    setTimeout(analyzeResume, 1500);
   };
 
   const iconMap = { error: <AlertTriangle className="w-4 h-4 text-red-500" />, warning: <Lightbulb className="w-4 h-4 text-amber-500" />, info: <Sparkles className="w-4 h-4 text-blue-500" /> };

@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 import { Search, MapPin, Users, Building2, Star, Briefcase } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
 import CompanyLogo from '../components/CompanyLogo';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Company {
   _id?: string;
@@ -57,8 +59,11 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [locationSearchInput, setLocationSearchInput] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [industryDropdownOpen, setIndustryDropdownOpen] = useState(false);
   const locationDropdownRef = useRef<HTMLDivElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
   const industryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Helper function to get the best logo for a company
@@ -307,8 +312,14 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
         })));
       }
       
+      // Clean locations — remove bad values, dedupe, sort alphabetically
+      const cleanedLocations = [...new Set(
+        locationsList
+          .map(l => (l || '').trim())
+          .filter(l => l && !/^location\s+not\s+specified$/i.test(l))
+      )].sort();
       setCompanies(companiesWithJobCounts);
-      setLocations(locationsList);
+      setLocations(cleanedLocations);
       setIndustries(industriesList);
       setFiltersLoading(false);
       
@@ -372,32 +383,26 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
     }
   };
 
-  // Get unique industries and locations for filters
-  // Now using backend data instead of extracting from companies
-  // const industries = [...new Set(companies.map(c => c.industry).filter(Boolean))];
-  // const locations = [...new Set(companies.map(c => c.location).filter(Boolean))];
-
-  // Normalize location for flexible matching
-  const normalizeLocation = (location: string): string => {
-    if (!location) return '';
-    return location
-      .toLowerCase()
-      .replace(/[,\s-_.]+/g, ' ') // Replace punctuation with spaces
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .trim();
-  };
+  // Filtered location suggestions based on search input
+  const filteredLocationSuggestions = useMemo(() => {
+    if (!locationSearchInput) return locations;
+    const query = locationSearchInput.trim().toLowerCase();
+    if (!query) return locations;
+    return locations.filter(loc =>
+      loc.toLowerCase().includes(query)
+    );
+  }, [locations, locationSearchInput]);
 
   // Check if a company location matches the selected location filter
   const locationMatches = (companyLocation: string, selectedLocation: string): boolean => {
-    if (!selectedLocation || !companyLocation) return true;
+    if (!selectedLocation) return true;
+    if (!companyLocation) return false;
     
-    const normalizedCompanyLocation = normalizeLocation(companyLocation);
-    const normalizedSelectedLocation = normalizeLocation(selectedLocation);
+    const trimmed = companyLocation.trim();
+    if (!trimmed) return false;
+    if (/^(location\s+not\s+specified|not\s+specified)$/i.test(trimmed)) return false;
     
-    // Check if the selected location is contained in the company location
-    // This handles cases like "Chennai" matching "Chennai, India" or "Chennai, Tamil Nadu"
-    return normalizedCompanyLocation.includes(normalizedSelectedLocation) ||
-           normalizedSelectedLocation.includes(normalizedCompanyLocation);
+    return trimmed.toLowerCase() === selectedLocation.trim().toLowerCase();
   };
 
 
@@ -416,14 +421,6 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       
       const matchesIndustry = !selectedIndustry || company.industry === selectedIndustry;
       const matchesLocation = !selectedLocation || locationMatches(company.location || '', selectedLocation);
-      
-      // Debug logging for Chennai companies when Chennai filter is selected
-      if (selectedLocation && selectedLocation.toLowerCase().includes('chennai')) {
-        const isMatch = locationMatches(company.location || '', selectedLocation);
-        if (company.location && company.location.toLowerCase().includes('chennai')) {
-          console.log(`🏢 ${company.name}: Location="${company.location}" | Selected="${selectedLocation}" | Match=${isMatch}`);
-        }
-      }
       
       return matchesSearch && matchesIndustry && matchesLocation;
     });
@@ -510,13 +507,14 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search Google, Microsoft, Amazon..."
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+              <AutocompleteCombobox
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-12 pl-9 pr-3 border border-gray-300 rounded-lg text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                onChange={setSearchTerm}
+                options={[]}
+                allowCustom
+                placeholder="Search Google, Microsoft, Amazon..."
+                className="pl-8"
               />
             </div>
 
@@ -550,36 +548,19 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
             {/* Location Filter */}
             <div className="relative" ref={locationDropdownRef}>
-              <button
-                type="button"
-                onClick={() => { !filtersLoading && setLocationDropdownOpen(o => !o); setIndustryDropdownOpen(false); }}
+              <AutocompleteCombobox
+                value={selectedLocation}
+                onChange={v => { setSelectedLocation(v); setLocationSearchInput(''); }}
+                options={locations.map(l => ({ value: l, label: l }))}
+                placeholder={filtersLoading ? 'Loading...' : 'Search locations...'}
                 disabled={filtersLoading}
-                className="w-full h-12 px-3 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between text-base text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <span className="truncate">{filtersLoading ? 'Loading...' : (selectedLocation || 'All Locations')}</span>
-                <svg className={`w-4 h-4 text-gray-500 flex-shrink-0 ml-1 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {locationDropdownOpen && !filtersLoading && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                  <button type="button" onClick={() => { setSelectedLocation(''); setLocationDropdownOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      !selectedLocation ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
-                    }`}>All Locations</button>
-                  {locations.map(location => (
-                    <button key={location} type="button" onClick={() => { setSelectedLocation(location); setLocationDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm border-t border-gray-100 transition-colors ${
-                        selectedLocation === location ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
-                      }`}>{location}</button>
-                  ))}
-                </div>
-              )}
+                maxOptions={20}
+              />
             </div>
 
             {/* Clear Filters */}
             <button
-              onClick={() => { setSearchTerm(''); setSelectedIndustry(''); setSelectedLocation(''); setLocationDropdownOpen(false); setIndustryDropdownOpen(false); }}
+              onClick={() => { setSearchTerm(''); setSelectedIndustry(''); setSelectedLocation(''); setLocationSearchInput(''); setLocationDropdownOpen(false); setHighlightedIndex(-1); setIndustryDropdownOpen(false); }}
               className="h-12 px-4 bg-gray-100 text-gray-800 text-base rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 w-full"
             >
               Clear Filters

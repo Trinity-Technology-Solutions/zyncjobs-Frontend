@@ -1,12 +1,15 @@
 ﻿import React, { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Upload, X, CheckCircle, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, Loader, Zap, Download, Users, Copy, Sparkles, MapPin, Clock, Briefcase } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { API_ENDPOINTS } from '../config/constants';
+import { API_ENDPOINTS, NOTICE_PERIOD_OPTIONS } from '../config/constants';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
-import { generatePositionId } from '../utils/jobMigrationUtils';
+  import { generatePositionId } from '../utils/jobMigrationUtils';
+  import { generateJD, generateLocalJD } from '../utils/jdGenerator';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { sendAIMessage } from '../services/aiChatService';
 
 interface Props {
@@ -68,21 +71,69 @@ function extractSkills(text: string): string[] {
   return Array.from(found).slice(0, 12);
 }
 
+const TITLE_RE = /^(?:senior|junior|sr\.?|jr\.?|lead|principal|chief|head|staff|assistant|associate|graduate|experienced|entry[- ]level|mid[- ]level)?\s*[A-Z][\w'\-& ,.]{2,50}?\s+(?:developer|engineer|manager|designer|analyst|accountant|nurse|technician|consultant|specialist|executive|representative|coordinator|supervisor|director|architect|officer|operator|clerk|mechanic|electrician|plumber|welder|driver|chef|cook|waiter|barista|security|housekeeper|cleaner|carpenter|worker|helper|attendant|agent|advisor|trainer|coach|editor|writer|reporter|photographer|librarian|pharmacist|therapist|counselor|doctor|physician|dentist|surgeon|researcher|scientist|technologist|administrator|trainee|intern|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data|qa|quality|ui|ux|graphic|content|hr|finance|account|business|operations|logistics|procurement|purchase|warehouse|safety|hse|sales|marketing)$/i;
+
+const TITLE_FILLER_RE = /^(?:experienced|innovative|passionate|motivated|talented|skilled|highly|strong|dynamic|creative|dedicated|self[- ]motivated|proactive|accomplished|seasoned|results[- ]driven|expert|exceptional|energetic|enthusiastic|ambitious|qualified|reliable|professional|detail[- ]oriented|customer[- ]focused|technical|strategic|hands[- ]on)\s+/i;
+
+const SENTENCE_RE = /(we\s+(?:are|'re)|looking\s+for|is\s+(?:seeking|hiring)|are\s+(?:seeking|hiring)|join\s+our|our\s+team|currently\s+(?:hiring|seeking))/i;
+const MARKER_RE = /^(?:job|position|role|opening|vacancy|jd|posting|requirement)[\s#\-.:]*\d+/i;
+const HEADER_RE = /^(?:job title|position title|title|company|organization|employer)\s*:/i;
+const NUMBERED_RE = /^\d+\s*[.)\-:]\s+[A-Z]/;
+const SEPARATOR_LINE_RE = /^\s*(?:-{3,}|={3,}|\*{3,}|~{3,}|_{3,}|…{3,})\s*$/;
+
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/^\s*#+\s*/, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/^\s*\*\s+/, '')
+    .trim();
+}
+
+function normalizeText(text: string): string {
+  return text
+    .split('\n')
+    .map(l => (SEPARATOR_LINE_RE.test(l) ? '' : l))
+    .join('\n')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function cleanTitle(raw: string): string {
+  let t = raw.trim().replace(/[*#_]/g, '').replace(/\s+/g, ' ');
+  for (let i = 0; i < 5 && TITLE_FILLER_RE.test(t); i++) t = t.replace(TITLE_FILLER_RE, '');
+  return t;
+}
+
 function extractJobTitle(text: string): string {
-  const patterns = [
-    /(?:job\s+title|position|role|vacancy|opening)\s*[:\-]\s*([^\n\r]{3,60})/i,
-    /(?:hiring|seeking|looking\s+for)\s+(?:a|an)?\s*([^\n\r,]{3,60}?)(?:\s+to|\s+for|\.|,|$)/i,
-    /^([^\n\r]{5,60}?)(?:\s+at\s+|\s+[-–]\s+|\s*\|)/im,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m?.[1]) {
-      const t = m[1].trim().replace(/[*#_]/g, '').replace(/\s+/g, ' ');
-      if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
-    }
+  const norm = normalizeText(text);
+  const lines = norm.split('\n').map(l => l.trim()).filter(l => l.length > 3 && l.length < 80).slice(0, 12);
+  const firstLine = lines[0] || '';
+
+  const labeled = norm.match(/(?:job\s+title|position|role|vacancy|opening)\s*[:\-]\s*([^\n\r]{3,60})/i);
+  if (labeled?.[1]) {
+    const t = cleanTitle(labeled[1]);
+    if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
   }
-  const firstLine = text.split('\n').find(l => l.trim().length > 3 && l.trim().length < 80);
-  return firstLine?.trim() || 'Untitled Position';
+
+  for (const line of lines) {
+    if (TITLE_RE.test(line) && !SENTENCE_RE.test(line)) return line;
+  }
+
+  const seeking = norm.match(/(?:hiring|seeking|looking\s+for)\s+(?:a|an)\s+([^\n\r,]{3,60}?)(?:\s+to|\s+for|\.|,|\n|$)/i);
+  if (seeking?.[1]) {
+    const t = cleanTitle(seeking[1]);
+    if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
+  }
+
+  const at = norm.match(/^([^\n\r]{5,60}?)(?:\s+at\s+|\s+[-–]\s+|\s*\|)/im);
+  if (at?.[1]) {
+    const t = cleanTitle(at[1]);
+    if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
+  }
+
+  return firstLine || 'Untitled Position';
 }
 
 function extractLocation(text: string): string {
@@ -98,6 +149,21 @@ function extractLocation(text: string): string {
   return '';
 }
 
+function extractCompanyName(text: string): string {
+  const label = text.match(/(?:company\s*name|hiring\s+company|company|organization|organisation|employer)\s*[:\-]\s*([^\n\r,]{2,60})/i);
+  if (label?.[1]) {
+    const t = label[1].trim().replace(/[*#_]/g, '');
+    if (t.length > 2 && t.length < 80 && !/http|www|email|apply|preferred|not\s+mandatory/i.test(t)) return t;
+  }
+  const subject = text.match(/^([A-Z][\w&'.\- ]{2,50}?)\s+(?:is|are)\s+(?:hiring|seeking|recruiting|looking\s+for)/im);
+  if (subject?.[1] && !/^(we|our|us|i)\b/i.test(subject[1])) return subject[1].trim();
+  const tagline = text.match(/^([A-Z][\w&'.\- ]{2,40}?)\s*[—–|]\s*[A-Z][^-\n]{2,40}$/m);
+  if (tagline?.[1] && !/developer|engineer|manager|architect|analyst|designer|specialist|consultant|executive|recruiter|agent|officer|analyst|accountant|technician/i.test(tagline[1])) return tagline[1].trim();
+  const at = text.match(/(?:at|for)\s+([A-Z][A-Za-z0-9&'.\- ]{2,45}?)(?:[,.;]|\n|$)/);
+  if (at?.[1] && !/^(inc|llc|ltd|pvt|the|a|an)\b/i.test(at[1])) return at[1].trim();
+  return '';
+}
+
 function extractExperience(text: string): string {
   const m = text.match(/(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i)
     || text.match(/(?:experience)\s*[:\-]?\s*(\d+)\s*[-–to]+\s*(\d+)/i)
@@ -110,12 +176,24 @@ function extractExperience(text: string): string {
   return '';
 }
 
-function extractJobType(text: string): string {
-  if (/full[- ]?time/i.test(text)) return 'Full-time';
-  if (/part[- ]?time/i.test(text)) return 'Part-time';
-  if (/contract|freelance/i.test(text)) return 'Contract';
-  if (/intern/i.test(text)) return 'Internship';
+// Maps any input (CSV cell, AI output, text) to one of the 6 valid DB enum values
+function normalizeJobType(value: unknown): string {
+  let raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') return '';
+  const v = raw.trim().toLowerCase().replace(/[-\s_]/g, '');
+  if (!v) return '';
+  if (/^(fulltime|ft)$/.test(v) || /permanent|regular/.test(v)) return 'Full-time';
+  if (/^(parttime|pt)$/.test(v)) return 'Part-time';
+  if (/contract/.test(v)) return 'Contract';
+  if (/freelanc/.test(v)) return 'Freelance';
+  if (/intern/.test(v)) return 'Internship';
+  if (/temp/.test(v) || /seasonal/.test(v)) return 'Temporary';
   return 'Full-time';
+}
+
+function extractJobType(text: string): string {
+  const m = text.match(/(full[- ]?time|part[- ]?time|freelanc\w*|contractual|contract\b|internship|intern\b|temporary|temp\b|permanent|seasonal)/i);
+  return m ? normalizeJobType(m[1]) || 'Full-time' : 'Full-time';
 }
 
 function extractCategory(title: string): string {
@@ -154,16 +232,17 @@ function validateJob(job: ParsedJob): string[] {
 
 // ── Parse plain text into a ParsedJob ─────────────────────────────────
 function parseTextToJob(text: string, fileName: string): ParsedJob {
-  const salary = extractSalary(text);
+  const norm = normalizeText(text);
+  const salary = extractSalary(norm);
   const job: ParsedJob = {
     id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     fileName,
-    jobTitle: extractJobTitle(text),
-    companyName: '',
-    jobLocation: extractLocation(text),
-    experienceRange: extractExperience(text),
-    skills: extractSkills(text),
-    jobType: extractJobType(text),
+    jobTitle: extractJobTitle(norm),
+    companyName: extractCompanyName(norm),
+    jobLocation: extractLocation(norm),
+    experienceRange: extractExperience(norm),
+    skills: extractSkills(norm),
+    jobType: extractJobType(norm),
     jobDescription: text.slice(0, 2000),
     minSalary: salary.min,
     maxSalary: salary.max,
@@ -184,7 +263,7 @@ function parseTextToJob(text: string, fileName: string): ParsedJob {
 // ── AI enhancement for a single job ───────────────────────────────────
 async function aiEnhanceJob(raw: string): Promise<Partial<ParsedJob>> {
   const prompt = `Extract job details from this job description. Return ONLY valid JSON:
-{"jobTitle":"","jobLocation":"","experienceRange":"","skills":[],"jobType":"Full-time","jobCategory":"","noticePeriod":"","minSalary":"","maxSalary":""}
+{"jobTitle":"","companyName":"","jobLocation":"","experienceRange":"","skills":[],"jobType":"Full-time","jobCategory":"","noticePeriod":"","minSalary":"","maxSalary":""}
 
 Job Description:
 ${raw.slice(0, 1500)}`;
@@ -232,7 +311,7 @@ function parseCSV(text: string): ParsedJob[] {
       jobLocation: get('location') || get('job location') || '',
       experienceRange: get('experience') || '',
       skills: skillsRaw.split(/[;|,]/).map(s => s.trim()).filter(Boolean).slice(0, 12),
-      jobType: get('employment type') || get('job type') || extractJobType(rawText),
+      jobType: normalizeJobType(get('employment type')) || normalizeJobType(get('job type')) || extractJobType(rawText),
       jobDescription: get('description') || rawText,
       minSalary: get('min salary') || get('salary min') || '',
       maxSalary: get('max salary') || get('salary max') || get('salary') || '',
@@ -252,16 +331,103 @@ function parseCSV(text: string): ParsedJob[] {
 }
 
 // ── Split pasted multi-JD text ─────────────────────────────────────────
+function hasRoleLine(text: string): boolean {
+  return text.split('\n').some(l => {
+    const t = l.trim();
+    return (TITLE_RE.test(t) && !SENTENCE_RE.test(t)) || /(?:hiring|looking\s+for|seeking)\s+(?:a|an)\b/i.test(t);
+  });
+}
+
+function isContinuation(block: string, prev: string, afterSeparator: boolean): boolean {
+  const firstLine = stripMarkdown(block.split('\n')[0]).toLowerCase();
+  if (!firstLine) return true;
+  const prevHasTitle = hasRoleLine(prev);
+  const titleLike = TITLE_RE.test(firstLine) && !SENTENCE_RE.test(firstLine);
+  const metaStart = /^(about|overview|responsibilities|requirements|qualifications|skills|benefits|role|summary|what we offer|key responsibilities|must have|nice to have|how to apply|zyncjobs|connecting|description|job description|experience|education|salary|location|company|the role|the company|the ideal candidate)/.test(firstLine);
+  // Explicit markers (Job 2:, JD 3:, "2. Title") always start a new JD
+  if (MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block)) return false;
+  // After an explicit separator (---), the fragment is a NEW JD unless it is
+  // clearly an internal section (About/Responsibilities...) or the JD's own
+  // title block appearing right after a header fragment.
+  if (afterSeparator) {
+    if (metaStart && prevHasTitle) return true;
+    if (titleLike && !prevHasTitle) return true;
+    return false;
+  }
+  // Title-like start after a JD that already has a role line => new JD
+  if (titleLike && prevHasTitle) return false;
+  // Hiring sentence start ("We are looking for a ...") => new JD boundary
+  if (prevHasTitle && SENTENCE_RE.test(firstLine) && /(hiring|looking|seeking|join|opportunity|vacanc|opening|need|require)/i.test(firstLine) && block.length > 150) return false;
+  // Meta/heading sections (About, Responsibilities, ...) => continuation
+  if (prevHasTitle && metaStart) return true;
+  // Short non-title fragments after a titled JD => continuation
+  if (block.length <= 300 && !titleLike && prevHasTitle) return true;
+  return false;
+}
+
 function splitPastedJDs(text: string): string[] {
-  const sep = /\n---+\n|\n={3,}\n|\n\*{3,}\n/g;
-  const parts = text.split(sep).map(p => p.trim()).filter(p => p.length > 50);
+  // Phase 1 — split at explicit separator lines (---, ===, ***, ~~~, ___ on
+  // their own line): the paste box tells users to separate JDs with ---.
+  const segments: { text: string; afterSep: boolean }[] = [];
+  let cur: string[] = [];
+  let afterSep = false;
+  for (const line of text.split('\n')) {
+    if (SEPARATOR_LINE_RE.test(line)) {
+      if (cur.length) segments.push({ text: normalizeText(cur.join('\n')), afterSep });
+      cur = [];
+      afterSep = true;
+      continue;
+    }
+    cur.push(line);
+  }
+  if (cur.length) segments.push({ text: normalizeText(cur.join('\n')), afterSep });
+
+  // Phase 2 — merge fragments that are continuations of the previous JD
+  // (e.g. --- used as a markdown rule INSIDE a single JD, or About/Requirements sections)
+  const groups: string[] = [];
+  for (const seg of segments) {
+    if (!seg.text) continue;
+    const last = groups[groups.length - 1];
+    if (last && isContinuation(seg.text, last, seg.afterSep)) {
+      groups[groups.length - 1] = last + '\n\n' + seg.text;
+    } else {
+      groups.push(seg.text);
+    }
+  }
+
+  // Phase 3 — drop fragments that are not real JDs; if separators were never
+  // used, split back-to-back JDs inside the single remaining segment.
+  let parts = groups.filter(g => g.length > 50 && hasRoleLine(g));
+  if (parts.length === 1) {
+    const blocks = parts[0].split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+    const inner: string[] = [];
+    let current = '';
+    for (const block of blocks) {
+      const firstLine = stripMarkdown(block.split('\n')[0].trim());
+      const titleLike = firstLine.length <= 140 && firstLine.split(/\s+/).length <= 10 && !SENTENCE_RE.test(firstLine) && TITLE_RE.test(firstLine);
+      const hiringLike = SENTENCE_RE.test(firstLine) && /(hiring|looking|seeking|join|opportunity|vacanc|opening|need|require)/i.test(firstLine) && block.length > 150;
+      const isStart = MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block) || titleLike || hiringLike;
+      const currentHasTitle = current ? hasRoleLine(current) : false;
+      if (isStart && current && currentHasTitle) {
+        inner.push(current.trim());
+        current = block;
+      } else {
+        current += (current ? '\n\n' : '') + block;
+      }
+    }
+    if (current) inner.push(current.trim());
+    const innerParts = inner.filter(g => g.length > 50);
+    if (innerParts.length > 1) parts = innerParts;
+  }
+
   return parts.length > 1 ? parts : [text];
 }
 
 // ── CSV template content ───────────────────────────────────────────────
-const CSV_TEMPLATE = `Job Title,Company,Location,Experience,Skills,Employment Type,Min Salary,Max Salary,Description
-Java Developer,Acme Corp,Chennai,3-5 years,"Java,Spring Boot,Microservices",Full-time,600000,900000,We are hiring a Java Developer...
-React Developer,Acme Corp,Bangalore,2-4 years,"React,TypeScript,Node.js",Full-time,500000,800000,Looking for a React Developer...`;
+// Notice Period is optional — older templates without this column still import fine.
+const CSV_TEMPLATE = `Job Title,Company,Location,Experience,Skills,Employment Type,Min Salary,Max Salary,Notice Period,Description
+Java Developer,Acme Corp,Chennai,3-5 years,"Java,Spring Boot,Microservices",Full-time,600000,900000,Immediate,We are hiring a Java Developer...
+React Developer,Acme Corp,Bangalore,2-4 years,"React,TypeScript,Node.js",Full-time,500000,800000,30 Days,Looking for a React Developer...`;
 
 // ── Duplicate detection ───────────────────────────────────────────────
 async function fetchExistingJobTitles(): Promise<string[]> {
@@ -285,6 +451,8 @@ function titleSimilarity(a: string, b: string): number {
 
 // ── Candidate count estimate ──────────────────────────────────────────
 async function fetchCandidateCount(skills: string[], title: string): Promise<number> {
+  // No skills extracted → 0 matches (never count ALL candidates)
+  if (!Array.isArray(skills) || skills.length === 0) return 0;
   try {
     const base = import.meta.env.VITE_API_URL || '/api';
     const skillParam = skills.slice(0, 5).join(',');
@@ -459,8 +627,8 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     setParsingLabel('Done!');
     setTimeout(() => {
       setJobs(prev => {
-        const existingIds = new Set(prev.map(j => j.fileName + j.jobTitle));
-        const newJobs = parsed.filter(j => !existingIds.has(j.fileName + j.jobTitle));
+        const existingIds = new Set(prev.map(j => j.jobTitle + j.companyName + j.jobLocation));
+        const newJobs = parsed.filter(j => !existingIds.has(j.jobTitle + j.companyName + j.jobLocation));
         return [...prev, ...newJobs];
       });
       setStep('preview');
@@ -481,11 +649,13 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
       const ai = await aiEnhanceJob(job.raw);
       Object.assign(job, {
         jobTitle: ai.jobTitle || job.jobTitle,
+        companyName: ai.companyName || job.companyName,
         jobLocation: ai.jobLocation || job.jobLocation,
         experienceRange: ai.experienceRange || job.experienceRange,
         skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills : job.skills,
-        jobType: ai.jobType || job.jobType,
+        jobType: normalizeJobType(ai.jobType) || job.jobType,
         jobCategory: ai.jobCategory || job.jobCategory,
+        noticePeriod: (ai.noticePeriod as string) || job.noticePeriod,
       });
       job.errors = validateJob(job);
       job.status = job.errors.length > 0 ? 'error' : 'ready';
@@ -494,8 +664,8 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     setParsingProgress(100);
     setTimeout(() => {
       setJobs(prev => {
-        const existingIds = new Set(prev.map(j => j.fileName + j.jobTitle));
-        const newJobs = parsed.filter(j => !existingIds.has(j.fileName + j.jobTitle));
+        const existingIds = new Set(prev.map(j => j.jobTitle + j.companyName + j.jobLocation));
+        const newJobs = parsed.filter(j => !existingIds.has(j.jobTitle + j.companyName + j.jobLocation));
         return [...prev, ...newJobs];
       });
       setStep('preview');
@@ -513,8 +683,9 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     if (!editingJob) return;
     setJobs(prev => prev.map(j => {
       if (j.id !== editingJob.id) return j;
-      const errs = validateJob(editingJob);
-      return { ...editingJob, errors: errs, status: errs.length > 0 ? 'error' : 'ready' };
+      const normalized = { ...editingJob, jobType: normalizeJobType(editingJob.jobType) || 'Full-time' };
+      const errs = validateJob(normalized);
+      return { ...normalized, errors: errs, status: errs.length > 0 ? 'error' : 'ready' };
     }));
     setEditingJob(null);
   };
@@ -582,32 +753,41 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
       ? desc.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
       : '';
     if (cleanDesc && cleanDesc.length > 300) return cleanDesc;
-    // Generate a structured JD from available fields
-    const skills = job.skills.length > 0 ? job.skills.join(', ') : 'relevant technologies';
-    const loc = job.jobLocation ? ` in ${job.jobLocation}` : '';
-    const exp = job.experienceRange ? `${job.experienceRange} of experience` : '2+ years of experience';
-    return `Job Summary
-We are looking for a talented ${job.jobTitle} to join ${companyName}${loc}. This is a ${job.jobType} position.
+    // Same rich JD template as manual posting (AI-first generation happens in ensureJobDescriptions)
+    return generateLocalJD(job.jobTitle, companyName, job.jobLocation || '', {
+      jobType: job.jobType || 'Full-time',
+      skills: job.skills,
+      educationLevel: "Bachelor's degree",
+      benefits: [],
+      salary: (job.minSalary && job.maxSalary) ? `${job.currency || 'INR'} ${job.minSalary} - ${job.maxSalary}` : undefined,
+    });
+  };
 
-Key Responsibilities
-\u2022 Design, develop and maintain high-quality solutions as a ${job.jobTitle}
-\u2022 Collaborate with cross-functional teams to deliver impactful results
-\u2022 Write clean, well-documented code following best practices
-\u2022 Participate in code reviews and contribute to continuous improvement
-
-Requirements
-\u2022 ${exp} in a relevant role
-\u2022 Strong proficiency in: ${skills}
-\u2022 Excellent communication and problem-solving skills
-\u2022 Ability to work independently and as part of a team
-
-What We Offer
-\u2022 Competitive compensation package
-\u2022 Professional growth and learning opportunities
-\u2022 Collaborative and inclusive work culture
-\u2022 Flexible working arrangements
-
-${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
+  // Same JD generation as manual posting: AI first, rich local template only if AI fails
+  const ensureJobDescriptions = async (toPublish: ParsedJob[], defaultCompany: string) => {
+    const updated: Record<string, string> = {};
+    for (const job of toPublish) {
+      const desc = job.jobDescription?.trim() || '';
+      const clean = desc
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+      if (clean.length > 300) continue;
+      try {
+        const companyName = job.companyName || defaultCompany || 'Company';
+        const jd = await generateJD(job.jobTitle, companyName, job.jobLocation || '', {
+          jobType: job.jobType || 'Full-time',
+          skills: job.skills,
+          educationLevel: "Bachelor's degree",
+          benefits: [],
+          salary: (job.minSalary && job.maxSalary) ? `${job.currency || 'INR'} ${job.minSalary} - ${job.maxSalary}` : undefined,
+        });
+        if (jd && jd.length > 100) updated[job.id] = jd;
+      } catch { /* keep existing description */ }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    if (Object.keys(updated).length > 0) {
+      setJobs(prev => prev.map(j => updated[j.id] ? { ...j, jobDescription: updated[j.id] } : j));
+    }
+    return updated;
   };
 
   const publishJobs = async () => {
@@ -623,6 +803,10 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
     // Mark all as publishing
     setJobs(prev => prev.map(j => toPublish.find(p => p.id === j.id) ? { ...j, status: 'publishing' } : j));
 
+    // Generate missing/short JDs the same way as manual posting (AI first, local fallback)
+    const generated = await ensureJobDescriptions(toPublish, defaultCompany);
+    toPublish.forEach(job => { if (generated[job.id]) job.jobDescription = generated[job.id]; });
+
     const jobsPayload = toPublish.map(job => {
       const companyName = job.companyName || defaultCompany || 'Company';
       return {
@@ -631,7 +815,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
         companyName,
         location: job.jobLocation || 'Remote',
         jobLocation: job.jobLocation || 'Remote',
-        jobType: [job.jobType],
+        jobType: [normalizeJobType(job.jobType) || 'Full-time'],
         description: buildFullDescription(job, companyName),
         jobDescription: buildFullDescription(job, companyName),
         skills: job.skills,
@@ -679,7 +863,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
             const payload = {
               jobTitle: job.jobTitle, company: companyName, companyName,
               location: job.jobLocation || 'Remote', jobLocation: job.jobLocation || 'Remote',
-              jobType: [job.jobType], type: job.jobType,
+              jobType: [normalizeJobType(job.jobType) || 'Full-time'], type: normalizeJobType(job.jobType) || 'Full-time',
               description: buildFullDescription(job, companyName),
               jobDescription: buildFullDescription(job, companyName),
               skills: job.skills, experienceRange: job.experienceRange,
@@ -720,16 +904,28 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
   // ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${
+      {/* Toast — rendered in a portal so it's never clipped by page/header layout */}
+      {toast && createPortal(
+        <div className={`fixed top-4 right-4 z-[9999] px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-[calc(100vw-2rem)] sm:max-w-md break-words ${
           toast.type === 'success' ? 'bg-green-600 text-white' :
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
         }`}>
-          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : toast.type === 'error' ? <X className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-          {toast.msg}
-        </div>
+          {toast.type === 'success' ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : toast.type === 'error' ? <X className="w-4 h-4 flex-shrink-0" /> : <Zap className="w-4 h-4 flex-shrink-0" />}
+          <span>{toast.msg}</span>
+        </div>,
+        document.body
       )}
+
+      {/* Hidden file input — always mounted so "+ Add More" can open the
+          picker directly from the preview without leaving the list */}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept=".csv"
+        className="hidden"
+        onChange={e => e.target.files && processFiles(e.target.files)}
+      />
 
       {/* Site Header */}
       <Header onNavigate={onNavigate} user={user} />
@@ -777,6 +973,25 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
               <p className="text-gray-500 mt-1 text-sm">Upload a CSV file — or paste multiple JDs below</p>
             </div>
 
+            {/* Existing parsed jobs notice (visible when coming back via "Add More") */}
+            {jobs.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-blue-200 rounded-2xl px-5 py-4">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span>
+                    <span className="font-semibold text-gray-900">{jobs.length} job{jobs.length !== 1 ? 's' : ''}</span> already parsed
+                    — new uploads will be merged with the existing list
+                  </span>
+                </div>
+                <button
+                  onClick={() => setStep('preview')}
+                  className="text-xs font-medium text-blue-700 border border-blue-200 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
+                >
+                  Back to Preview
+                </button>
+              </div>
+            )}
+
             {/* Drop zone */}
             <div
               onDrop={onDrop}
@@ -785,14 +1000,6 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
               onClick={() => fileRef.current?.click()}
               className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all ${dragOver ? 'border-blue-500 bg-blue-50 scale-[1.01]' : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/30'}`}
             >
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept=".csv"
-                className="hidden"
-                onChange={e => e.target.files && processFiles(e.target.files)}
-              />
               <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Upload className="w-7 h-7 text-blue-600" />
               </div>
@@ -875,38 +1082,38 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
         {step === 'preview' && (
           <div className="space-y-5">
             {/* Summary bar */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-lg font-bold text-gray-900">{jobs.length} Jobs Found</span>
-                <span className="flex items-center gap-1 text-sm text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-base font-bold text-gray-900">{jobs.length} Jobs Found</span>
+                <span className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
                   <CheckCircle className="w-3.5 h-3.5" /> {readyCount} Ready
                 </span>
                 {errorCount > 0 && (
-                  <span className="flex items-center gap-1 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
                     <AlertCircle className="w-3.5 h-3.5" /> {errorCount} Need Review
                   </span>
                 )}
                 {jobs.filter(j => j.isDuplicate).length > 0 && (
-                  <span className="flex items-center gap-1 text-sm text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full font-medium">
+                  <span className="flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full font-medium">
                     <Copy className="w-3.5 h-3.5" /> {jobs.filter(j => j.isDuplicate).length} Duplicates
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none border border-gray-200 rounded-lg px-3 h-9 hover:bg-gray-50 transition-colors">
                   <input type="checkbox" checked={jobs.every(j => j.selected)} onChange={e => setJobs(prev => prev.map(j => ({ ...j, selected: e.target.checked })))} className="rounded" />
                   Select all
                 </label>
                 <button
-                  onClick={() => setStep('upload')}
-                  className="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => fileRef.current?.click()}
+                  className="h-9 text-xs font-medium text-gray-600 border border-gray-200 px-3 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
                 >
                   + Add More
                 </button>
                 <button
                   onClick={checkDuplicates}
                   disabled={checkingDupes}
-                  className="text-sm text-orange-700 border border-orange-200 bg-orange-50 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  className="h-9 text-xs font-medium text-orange-700 border border-orange-200 bg-orange-50 px-3 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
                   title="Check against already posted jobs"
                 >
                   {checkingDupes ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
@@ -914,7 +1121,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 </button>
                 <button
                   onClick={loadCandidateCounts}
-                  className="text-sm text-purple-700 border border-purple-200 bg-purple-50 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition-colors flex items-center gap-1.5"
+                  className="h-9 text-xs font-medium text-purple-700 border border-purple-200 bg-purple-50 px-3 rounded-lg hover:bg-purple-100 transition-colors flex items-center gap-1.5 whitespace-nowrap"
                   title="Show matching candidate count per job"
                 >
                   <Users className="w-3.5 h-3.5" /> Match Counts
@@ -922,18 +1129,19 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 <button
                   onClick={bulkEnhance}
                   disabled={enhancing || selectedCount === 0}
-                  className="text-sm text-blue-700 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  className="h-9 text-xs font-medium text-blue-700 border border-blue-200 bg-blue-50 px-3 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
                   title="AI-rewrite all selected job descriptions"
                 >
                   {enhancing ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {enhancing ? (enhancingLabel || 'Enhancing…') : 'AI Enhance All'}
+                  {enhancing ? (enhancingLabel || 'Enhancing…') : 'AI Enhance'}
                 </button>
+                <div className="w-px h-6 bg-gray-200 mx-1" />
                 <button
                   onClick={publishJobs}
                   disabled={selectedCount === 0}
-                  className="bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  className="h-9 bg-blue-600 text-white text-xs font-semibold px-4 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 whitespace-nowrap"
                 >
-                  <Upload className="w-4 h-4" />
+                  <Upload className="w-3.5 h-3.5" />
                   Publish {selectedCount > 0 ? `${selectedCount} Jobs` : 'Selected'}
                 </button>
               </div>
@@ -1090,16 +1298,19 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
             </div>
 
             {/* Bottom action bar */}
-            <div className="sticky bottom-4 bg-white border border-gray-200 rounded-2xl shadow-lg px-5 py-4 flex items-center justify-between">
-              <span className="text-sm text-gray-600 font-medium">{selectedCount} of {jobs.length} selected</span>
-              <button
-                onClick={publishJobs}
-                disabled={selectedCount === 0}
-                className="bg-blue-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <Upload className="w-4 h-4" />
-                Publish {selectedCount > 0 ? `${selectedCount} Jobs` : 'Selected'}
-              </button>
+            <div className="sticky bottom-4 flex justify-center pointer-events-none">
+              <div className="pointer-events-auto bg-white border border-gray-200 rounded-full shadow-lg px-4 py-2.5 flex items-center gap-3">
+                <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{selectedCount} of {jobs.length} selected</span>
+                <div className="w-px h-4 bg-gray-200" />
+                <button
+                  onClick={publishJobs}
+                  disabled={selectedCount === 0}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Publish {selectedCount > 0 ? `${selectedCount} Jobs` : ''}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1193,26 +1404,33 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 </div>
               ))}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Job Type</label>
-                <select
+                <AutocompleteCombobox
+                  label="Job Type"
                   value={editingJob.jobType}
-                  onChange={e => setEditingJob(prev => prev ? { ...prev, jobType: e.target.value } : null)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  {['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setEditingJob(prev => prev ? { ...prev, jobType: val } : null)}
+                  options={['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship', 'Temporary'].map(t => ({ value: t, label: t }))}
+                  placeholder="Select job type"
+                />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Job Category</label>
-                <select
+                <AutocompleteCombobox
+                  label="Job Category"
                   value={editingJob.jobCategory}
-                  onChange={e => setEditingJob(prev => prev ? { ...prev, jobCategory: e.target.value } : null)}
+                  onChange={(val) => setEditingJob(prev => prev ? { ...prev, jobCategory: val } : null)}
+                  options={['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Legal','Manufacturing','Retail','Construction','Hospitality & Tourism','Media & Communications','Logistics & Supply Chain','Real Estate','Oil & Gas','Telecom','Banking & Insurance','Other'].map(c => ({ value: c, label: c }))}
+                  placeholder="Select category"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Notice Period</label>
+                <select
+                  value={editingJob.noticePeriod}
+                  onChange={e => setEditingJob(prev => prev ? { ...prev, noticePeriod: e.target.value } : null)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  {['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Other'].map(c => (
-                    <option key={c} value={c}>{c}</option>
+                  <option value="" disabled hidden>Select Notice Period</option>
+                  {NOTICE_PERIOD_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
               </div>

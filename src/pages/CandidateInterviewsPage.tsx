@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, Search, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 
 interface Interview {
@@ -20,7 +23,7 @@ interface Interview {
   location?: string;
   interviewerName?: string;
   interviewerEmail?: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  status: 'scheduled' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'rescheduled';
   notes?: string;
   createdAt: string;
 }
@@ -55,10 +58,11 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled' | 'accepted' | 'rejected'>('all');
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [responding, setResponding] = useState<string | null>(null);
 
   // Tick every 30s to refresh countdowns
   useEffect(() => {
@@ -107,10 +111,71 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
     } catch { /* silent */ }
   };
 
+  const respondToInterview = async (interviewId: string, action: 'accept' | 'reject') => {
+    if (!user?.email) return;
+    setResponding(interviewId);
+    try {
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interviewId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, candidateEmail: user.email })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: data.error || `Failed to ${action} interview.`, type: 'error' } }));
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: action === 'accept' ? 'Interview accepted!' : 'Interview declined.', type: 'success' } }));
+      fetchInterviews(true);
+    } catch {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error. Please try again.', type: 'error' } }));
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  // Handle interview token from email link after login
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const interviewToken = searchParams.get('interview_token');
+    const interviewAction = searchParams.get('interview_action');
+    if (interviewToken && interviewAction && ['accept', 'reject'].includes(interviewAction)) {
+      const handleAutoRespond = async () => {
+        setResponding('auto');
+        try {
+          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/respond`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: interviewToken, action: interviewAction })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: data.error || `Failed to ${interviewAction} interview.`, type: 'error' } }));
+          } else {
+            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: interviewAction === 'accept' ? 'Interview accepted!' : 'Interview declined.', type: 'success' } }));
+          }
+          fetchInterviews(true);
+        } catch {
+          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error. Please try again.', type: 'error' } }));
+        } finally {
+          setResponding(null);
+        }
+      };
+      handleAutoRespond();
+      // Clean up URL params after handling
+      const url = new URL(window.location.href);
+      url.searchParams.delete('interview_token');
+      url.searchParams.delete('interview_action');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams, fetchInterviews]);
+
   useEffect(() => { fetchInterviews(); }, [fetchInterviews]);
 
   const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode; pulse?: boolean }> = {
     scheduled:   { label: 'Scheduled',   bg: 'bg-blue-50',   text: 'text-blue-700',  icon: <Clock className="w-3 h-3" />, pulse: true },
+    accepted:    { label: 'Accepted',    bg: 'bg-emerald-50', text: 'text-emerald-700', icon: <CheckCircle className="w-3 h-3" /> },
+    rejected:    { label: 'Declined',    bg: 'bg-red-50',    text: 'text-red-700',   icon: <XCircle className="w-3 h-3" /> },
     completed:   { label: 'Completed',   bg: 'bg-green-50',  text: 'text-green-700', icon: <CheckCircle className="w-3 h-3" /> },
     cancelled:   { label: 'Cancelled',   bg: 'bg-red-50',    text: 'text-red-700',   icon: <XCircle className="w-3 h-3" /> },
     rescheduled: { label: 'Rescheduled', bg: 'bg-yellow-50', text: 'text-yellow-700',icon: <AlertCircle className="w-3 h-3" /> },
@@ -136,12 +201,16 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   });
 
   const upcomingCount  = interviews.filter(i => i.status === 'scheduled' || i.status === 'rescheduled').length;
+  const acceptedCount  = interviews.filter(i => i.status === 'accepted').length;
+  const rejectedCount  = interviews.filter(i => i.status === 'rejected').length;
   const completedCount = interviews.filter(i => i.status === 'completed').length;
   const cancelledCount = interviews.filter(i => i.status === 'cancelled').length;
 
   const statCards = [
     { label: 'Total',     value: interviews.length, color: 'text-gray-900',  bg: 'bg-white',        border: 'border-gray-200' },
     { label: 'Upcoming',  value: upcomingCount,      color: 'text-blue-600',  bg: 'bg-blue-50',      border: 'border-blue-200' },
+    { label: 'Accepted',  value: acceptedCount,      color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+    { label: 'Declined',  value: rejectedCount,      color: 'text-red-600',   bg: 'bg-red-50',       border: 'border-red-200' },
     { label: 'Completed', value: completedCount,     color: 'text-green-600', bg: 'bg-green-50',     border: 'border-green-200' },
     { label: 'Cancelled', value: cancelledCount,     color: 'text-red-600',   bg: 'bg-red-50',       border: 'border-red-200' },
   ];
@@ -194,18 +263,17 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
           {/* Search + Filter Bar */}
           <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex-1">
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search by job title, company, round..."
+            <div className="flex-1">
+              <AutocompleteCombobox
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="bg-transparent text-sm text-gray-700 outline-none w-full placeholder-gray-400"
+                onChange={setSearch}
+                options={[]}
+                allowCustom
+                placeholder="Search by job title, company, round..."
               />
             </div>
             <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-              {(['all', 'upcoming', 'completed', 'cancelled'] as const).map(tab => (
+              {(['all', 'upcoming', 'accepted', 'rejected', 'completed', 'cancelled'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setFilter(tab)}
@@ -362,9 +430,38 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           >
                             View Job
                           </button>
-                          {isUpcoming && interview.meetingLink ? (
+
+                          {isUpcoming && (
+                            <>
+                              <button
+                                onClick={() => respondToInterview(interview._id, 'accept')}
+                                disabled={responding === interview._id}
+                                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm px-3 py-2 rounded-lg transition-colors font-medium shadow-sm"
+                              >
+                                {responding === interview._id ? (
+                                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" />
+                                  </svg>
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => respondToInterview(interview._id, 'reject')}
+                                disabled={responding === interview._id}
+                                className="flex items-center gap-1.5 border-2 border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded-lg font-medium transition-colors"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Decline
+                              </button>
+                            </>
+                          )}
+
+                          {(isUpcoming || interview.status === 'accepted') && interview.meetingLink ? (
                             <a
-                              href={interview.meetingLink.startsWith('http') ? interview.meetingLink : `https://${interview.meetingLink}`}
+                              href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md active:scale-95"

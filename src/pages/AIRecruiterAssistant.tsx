@@ -44,8 +44,49 @@ const QUICK_ACTIONS = [
   { icon: Briefcase, label: 'Rejection Email', desc: 'Professional candidate emails', prompt: 'Write a professional and empathetic rejection email template for candidates who were not selected after the interview stage.', color: 'from-rose-500 to-rose-600' },
 ];
 
-const getFallback = (input: string): string => {
+const getAdvancedFallbackWithContext = (input: string, jobs: any[], user: any): string => {
   const q = input.toLowerCase();
+  const hasJobContext = jobs && jobs.length > 0;
+  const userName = user?.name || user?.fullName || 'Recruiter';
+  
+  if (hasJobContext) {
+    const jobTitles = jobs.map(j => j.jobTitle || j.title || '').filter(Boolean).join(', ');
+    const relevantSkills = jobs.flatMap(j => {
+      const skills = Array.isArray(j.skills) ? j.skills : [];
+      return skills.slice(0, 4);
+    }).filter(Boolean).join(', ');
+
+    const screeningForRoles = jobs.map(j => {
+      const title = j.jobTitle || j.title || 'role';
+      const skills = Array.isArray(j.skills) ? j.skills.slice(0, 5).join(', ') : 'core skills';
+      const exp = j.experienceRange || j.experienceLevel || 'relevant';
+      const loc = j.location || 'your location';
+      return `**${title}** (${loc})\n• Skills to verify: ${skills}\n• Experience: ${exp}\n• Assessment: technical/domain screening tailored to ${title}`;
+    }).join('\n\n');
+
+    if (q.includes('candidate') || q.includes('screen') || q.includes('evaluate')) {
+      return `${userName}, here is a screening plan built from your active roles (${jobTitles}):\n\n${screeningForRoles}\n\n**Universal red flags:**\n• Skills claimed but not backed by experience\n• Employment gaps without explanation\n• Poor communication in cover letter or interview\n\nKey skill focus for your openings: ${relevantSkills}\n\nWould you like detailed scoring criteria for any of these roles?`;
+    }
+
+    if (q.includes('interview')) {
+      return `${userName}, here are interview strategies tailored to your current openings (${jobTitles}):\n\n${screeningForRoles}\n\n**Recommended question structure:**\n• Role-specific technical questions around: ${relevantSkills}\n• Behavioral questions using the STAR format\n• Culture-fit and growth-orientation questions\n\nWould you like me to generate 10 ready-to-use questions for a specific role?`;
+    }
+
+    if (q.includes('job') && (q.includes('post') || q.includes('description') || q.includes('optim'))) {
+      return `${userName}, here is how to optimize your active postings (${jobTitles}):\n\n**For each role:**\n• Lead with impact and team context\n• List must-have skills first: ${relevantSkills}\n• Add salary range — postings with salary get ~30% more applications\n• Include location, work mode, and growth path\n• Keep requirements realistic — separate "must-have" from "nice-to-have"\n\nWant me to rewrite the description for one of these roles?`;
+    }
+
+    if (q.includes('salary') || q.includes('benchmark') || q.includes('pay')) {
+      return `${userName}, salary guidance for your active roles (${jobTitles}):\n\n• Use ZyncJobs salary insights for real-time, role-specific data\n• Adjust for location — metro cities command a 20-30% premium\n• Consider total comp: base + bonus + equity + benefits\n• Match ranges to the experience level in each posting\n\nSkills influencing pay in your roles: ${relevantSkills}\n\nTell me a specific role + location and I'll give a precise benchmark range.`;
+    }
+
+    if (q.includes('reject') || q.includes('email') || q.includes('template')) {
+      return `${userName}, here is a rejection email template you can use for candidates in your ${jobTitles} pipeline:\n\nSubject: Application Update - [Role]\n\nDear [Candidate Name],\n\nThank you for interviewing for [Role] at [Company]. We appreciated learning about your background.\n\nAfter careful review, we have decided to move forward with another candidate whose experience more closely matches our current needs.\n\nWe were impressed by [specific positive] and encourage you to apply for future openings that fit your profile.\n\nWarm regards,\n${userName}\n\nWould you like this customized for a specific stage or candidate?`;
+    }
+
+    return `${userName}, I can work with your active job data (${jobTitles}). Ask me about screening candidates, interview questions, optimizing postings, salary benchmarks, or candidate emails — and I'll tailor the answer to your current roles.`;
+  }
+
   if (q.includes('job') && (q.includes('post') || q.includes('description') || q.includes('optim')))
     return `Here's how to optimize your job posting:\n\n• **Clear job title** — Use standard titles (e.g., "Senior React Developer" not "Rockstar Coder")\n• **Compelling summary** — 2-3 sentences on role impact and team\n• **Specific requirements** — Separate "must-have" from "nice-to-have"\n• **Salary range** — Posts with salary get 30% more applications\n• **Company culture** — Mention work style, benefits, growth opportunities\n• **Clear apply process** — Tell candidates exactly what to expect\n\nWant me to write a specific job description for you?`;
   if (q.includes('interview') && q.includes('question'))
@@ -104,6 +145,7 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
     setMessages(updated);
     setInput('');
     setLoading(true);
+    
     // Check cache
     const key = cacheKey('recruiter', trimmed);
     const cached = getCached<string>(key);
@@ -112,30 +154,62 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       setLoading(false);
       return;
     }
-    const jobContextStr = jobContext.length > 0
-      ? `\n\nEmployer context — Active jobs: ${jobContext.map(j => j.jobTitle || j.title).join(', ')}`
-      : '';
+
+    // Try AI service first for contextual responses
+    let aiResponseSuccessful = false;
+    let aiResponse = '';
+    
     try {
       setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
       setLoading(false);
       let full = '';
       await sendAIMessageStream(
         updated.map(m => ({ role: m.role, content: m.content })),
-        SYSTEM_PROMPT + jobContextStr,
+        SYSTEM_PROMPT + (jobContext.length > 0 ? `\n\nCurrent job context: ${jobContext.map(j => {
+          const title = j.jobTitle || j.title || '';
+          const skills = Array.isArray(j.skills) ? j.skills.slice(0, 3).join(', ') : '';
+          const location = j.location || '';
+          return `${title} (skills: ${skills}, location: ${location})`;
+        }).join('; ')}` : ''),
         (chunk) => {
           full += chunk;
           setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
         },
-        abortRef.current.signal
+        abortRef.current.signal,
+        {
+          ...(jobContext.length > 0 && { jobs_context: jobContext }),
+          user_profile: user,
+        }
       );
-      if (full) setCached(key, full);
+      if (full) {
+        aiResponseSuccessful = true;
+        aiResponse = full;
+        setCached(key, full);
+      }
     } catch (e: any) {
-      if (e?.name === 'AbortError') return;
-      setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed), timestamp: new Date() }]);
-    } finally {
-      setLoading(false);
+      if (e?.name === 'AbortError' || e?.message === 'AI agent unavailable') {
+        // AI service not available or failed - use enhanced fallback
+        aiResponseSuccessful = false;
+      } else {
+        // Unexpected error - fallback to enhanced fallback
+        aiResponseSuccessful = false;
+        console.error('AI service error:', e);
+      }
     }
-  }, [messages, loading, jobContext]);
+
+    // Enhanced fallback logic with better context handling
+    if (!aiResponseSuccessful) {
+      const fallbackResponse = getAdvancedFallbackWithContext(trimmed, jobContext, user);
+      setMessages(prev => {
+        const updated = [...prev];
+        if (updated.length > 0 && updated[updated.length - 1].role === 'assistant' && updated[updated.length - 1].content === '') {
+          updated.pop();
+        }
+        updated.push({ role: 'assistant', content: fallbackResponse, timestamp: new Date() });
+        return updated;
+      });
+    }
+  }, [messages, loading, jobContext, user]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }

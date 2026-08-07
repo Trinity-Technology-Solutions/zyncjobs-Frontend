@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle, Info } from 'lucide-react';
+import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { apiFetch } from '../api/apiFetch';
 import { updateUserInStorage } from '../utils/userStorage';
+import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -69,11 +71,6 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     if (!formData.socialLinks.linkedin.trim()) errors.push('LinkedIn URL is required');
     if (!formData.gstNumber.trim()) errors.push('GST number is required for verification');
     return errors;
-  };
-
-  const validateStep3 = () => {
-    // Step 3 is optional, no mandatory fields
-    return [];
   };
 
   const handleNextStep = () => {
@@ -178,7 +175,18 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         });
         
         if (currentUser.companyLogo) {
-          setCompanyLogo(currentUser.companyLogo);
+          const storedLogo = currentUser.companyLogo;
+          if (storedLogo.startsWith('blob:') && currentUser.companyWebsite) {
+            const d = currentUser.companyWebsite.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+            if (d) {
+              const API = import.meta.env.VITE_API_URL || '/api';
+              setCompanyLogo(`${API}/logo-proxy?domain=${encodeURIComponent(d)}`);
+            } else {
+              setCompanyLogo(storedLogo);
+            }
+          } else {
+            setCompanyLogo(storedLogo);
+          }
         }
         return; // Don't fetch from backend if we have complete profile
       }
@@ -197,7 +205,18 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         }));
         
         if (currentUser.companyLogo) {
-          setCompanyLogo(currentUser.companyLogo);
+          const storedLogo = currentUser.companyLogo;
+          if (storedLogo.startsWith('blob:') && currentUser.companyWebsite) {
+            const d = currentUser.companyWebsite.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+            if (d) {
+              const API = import.meta.env.VITE_API_URL || '/api';
+              setCompanyLogo(`${API}/logo-proxy?domain=${encodeURIComponent(d)}`);
+            } else {
+              setCompanyLogo(storedLogo);
+            }
+          } else {
+            setCompanyLogo(storedLogo);
+          }
         }
       }
       
@@ -338,7 +357,23 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
             }));
             
             if (companyData.logo || companyData.companyLogo) {
-              setCompanyLogo(companyData.logo || companyData.companyLogo);
+              const storedLogo = companyData.logo || companyData.companyLogo;
+              if (storedLogo.startsWith('blob:')) {
+                const site = companyData.website || companyData.companyWebsite || formData.companyWebsite;
+                if (site) {
+                  const d = site.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+                  if (d) {
+                    const API = import.meta.env.VITE_API_URL || '/api';
+                    setCompanyLogo(`${API}/logo-proxy?domain=${encodeURIComponent(d)}`);
+                  } else {
+                    setCompanyLogo(storedLogo);
+                  }
+                } else {
+                  setCompanyLogo(storedLogo);
+                }
+              } else {
+                setCompanyLogo(storedLogo);
+              }
             }
           } else {
             console.log('Found company data but it does not belong to current user - ignoring');
@@ -409,11 +444,10 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
       const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
       if (!domain) return;
       const API = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${API}/logo-proxy?domain=${encodeURIComponent(domain)}`);
+      const proxyUrl = `${API}/logo-proxy?domain=${encodeURIComponent(domain)}`;
+      const res = await fetch(proxyUrl);
       if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setCompanyLogo(url);
+        setCompanyLogo(proxyUrl);
       } else {
         setCompanyLogo('');
       }
@@ -426,44 +460,11 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
 
   const [blockedCompany, setBlockedCompany] = useState('');
 
-  // Calculate completion percentage based on current step
-  const calculateCompletion = () => {
-    if (currentStep === 1) {
-      const step1Fields = [
-        formData.companyName,
-        formData.industry,
-        formData.companySize,
-        formData.foundedYear,
-        formData.headquarters,
-        formData.description,
-        formData.companyWebsite,
-        formData.tagline
-      ];
-      const completed = step1Fields.filter(field => field && field.toString().trim()).length;
-      return Math.round((completed / step1Fields.length) * 33); // 33% for step 1
-    } else if (currentStep === 2) {
-      const step2Fields = [
-        formData.companyEmail,
-        formData.phoneNumber,
-        formData.socialLinks.linkedin,
-        formData.gstNumber
-      ];
-      const completed = step2Fields.filter(field => field && field.toString().trim()).length;
-      return 33 + Math.round((completed / step2Fields.length) * 33); // 33% + step 2
-    } else {
-      const step3Fields = [
-        formData.benefits.length > 0 ? 'benefits' : '',
-        formData.locations.length > 0 ? 'locations' : ''
-      ];
-      const completed = step3Fields.filter(field => field && field.toString().trim()).length;
-      return 66 + Math.round((completed / step3Fields.length) * 34); // 66% + step 3
-    }
-  };
-
+  // Calculate completion percentage using shared single-source-of-truth helper
   useEffect(() => {
-    const percentage = calculateCompletion();
+    const percentage = calculateEmployerProfileCompletion(formData);
     setCompletionPercentage(percentage);
-  }, [formData, currentStep]);
+  }, [formData]);
 
   const handleSubmit = async () => {
     // Validate all steps before submission
@@ -579,6 +580,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
           foundedYear: formData.foundedYear,
           companyType: formData.companyType,
           benefits: formData.benefits,
+          locations: formData.locations,
           socialLinks: formData.socialLinks,
           gstNumber: formData.gstNumber,
           companyEmail: currentUser.email, // always use authenticated user's email
@@ -617,6 +619,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         foundedYear: formData.foundedYear,
         companyType: formData.companyType,
         benefits: formData.benefits,
+        locations: formData.locations,
         socialLinks: formData.socialLinks,
         gstNumber: formData.gstNumber,
         companyEmail: currentUser.email, // always use authenticated user's email
@@ -892,39 +895,39 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                   {/* Industry + Size */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     <div>
-                      <label className={labelCls}>Industry *</label>
-                      <div className="relative">
-                        <select value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} className={selectCls} required>
-                          <option value="">Select Industry</option>
-                          <option>Information Technology</option>
-                          <option>Healthcare</option>
-                          <option>Finance & Banking</option>
-                          <option>Education</option>
-                          <option>Manufacturing</option>
-                          <option>Retail</option>
-                          <option>Media & Entertainment</option>
-                          <option>Other</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
+                      <AutocompleteCombobox
+                        label="Industry *"
+                        value={formData.industry}
+                        onChange={(val) => setFormData(p => ({ ...p, industry: val }))}
+                        options={[
+                          { value: 'Information Technology', label: 'Information Technology' },
+                          { value: 'Healthcare', label: 'Healthcare' },
+                          { value: 'Finance & Banking', label: 'Finance & Banking' },
+                          { value: 'Education', label: 'Education' },
+                          { value: 'Manufacturing', label: 'Manufacturing' },
+                          { value: 'Retail', label: 'Retail' },
+                          { value: 'Media & Entertainment', label: 'Media & Entertainment' },
+                          { value: 'Other', label: 'Other' },
+                        ]}
+                        placeholder="Select Industry"
+                        required
+                      />
                     </div>
                     <div>
-                      <label className={labelCls}>Company Size *</label>
-                      <div className="relative">
-                        <select value={formData.companySize} onChange={e => setFormData(p => ({ ...p, companySize: e.target.value }))} className={selectCls} required>
-                          <option value="">Select Size</option>
-                          <option>1-10 employees</option>
-                          <option>11-50 employees</option>
-                          <option>51-200 employees</option>
-                          <option>201-500 employees</option>
-                          <option>500+ employees</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
+                      <AutocompleteCombobox
+                        label="Company Size *"
+                        value={formData.companySize}
+                        onChange={(val) => setFormData(p => ({ ...p, companySize: val }))}
+                        options={[
+                          { value: '1-10 employees', label: '1-10 employees' },
+                          { value: '11-50 employees', label: '11-50 employees' },
+                          { value: '51-200 employees', label: '51-200 employees' },
+                          { value: '201-500 employees', label: '201-500 employees' },
+                          { value: '500+ employees', label: '500+ employees' },
+                        ]}
+                        placeholder="Select Size"
+                        required
+                      />
                     </div>
                   </div>
 
@@ -944,19 +947,20 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Company Type *</label>
-                      <div className="relative">
-                        <select value={formData.companyType} onChange={e => setFormData(p => ({ ...p, companyType: e.target.value }))} className={selectCls} required>
-                          <option>Private</option>
-                          <option>Public</option>
-                          <option>Startup</option>
-                          <option>Non-Profit</option>
-                          <option>Government</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
+                      <AutocompleteCombobox
+                        label="Company Type *"
+                        value={formData.companyType}
+                        onChange={(val) => setFormData(p => ({ ...p, companyType: val }))}
+                        options={[
+                          { value: 'Private', label: 'Private' },
+                          { value: 'Public', label: 'Public' },
+                          { value: 'Startup', label: 'Startup' },
+                          { value: 'Non-Profit', label: 'Non-Profit' },
+                          { value: 'Government', label: 'Government' },
+                        ]}
+                        placeholder="Select Type"
+                        required
+                      />
                     </div>
                   </div>
 

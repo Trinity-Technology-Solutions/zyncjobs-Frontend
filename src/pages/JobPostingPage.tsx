@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -13,6 +13,8 @@ import mistralAIService from '../services/mistralAIService';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import { useJobTitles } from '../utils/jobTitlesData';
 
 
 interface JobPostingPageProps {
@@ -138,103 +140,6 @@ const KNOWN_TOOLS = [
   'machine learning', 'tensorflow', 'pytorch', 'rest', 'graphql', 'soap', 'api', 'sql'
 ];
 
-const TRENDING_COMPANIES = [
-  { id: '1', name: 'Google', logo: '' },
-  { id: '2', name: 'Microsoft', logo: '' },
-  { id: '3', name: 'Apple', logo: '' },
-  { id: '4', name: 'Amazon', logo: '' },
-  { id: '5', name: 'Meta', logo: '' },
-  { id: '6', name: 'Netflix', logo: '' },
-  { id: '7', name: 'Tesla', logo: '' },
-  { id: '8', name: 'Uber', logo: '' },
-  { id: '9', name: 'Airbnb', logo: '' },
-  { id: '10', name: 'Spotify', logo: '' },
-  { id: '11', name: 'Twitter', logo: '' },
-  { id: '12', name: 'LinkedIn', logo: '' },
-  { id: '13', name: 'Adobe', logo: '' },
-  { id: '14', name: 'Salesforce', logo: '' },
-  { id: '15', name: 'Oracle', logo: '' },
-  { id: '16', name: 'SAP', logo: '' },
-  { id: '17', name: 'IBM', logo: '' },
-  { id: '18', name: 'Intel', logo: '' },
-  { id: '19', name: 'NVIDIA', logo: '' },
-  { id: '20', name: 'Qualcomm', logo: '' },
-  { id: '21', name: 'PayPal', logo: '' },
-  { id: '22', name: 'Stripe', logo: '' },
-  { id: '23', name: 'Shopify', logo: '' },
-  { id: '24', name: 'Zoom', logo: '' },
-  { id: '25', name: 'Slack', logo: '' },
-  { id: '26', name: 'Atlassian', logo: '' },
-  { id: '27', name: 'GitHub', logo: '' },
-  { id: '28', name: 'GitLab', logo: '' },
-  { id: '29', name: 'Docker', logo: '' },
-  { id: '30', name: 'MongoDB', logo: '' },
-  { id: '31', name: 'Snowflake', logo: '' },
-  { id: '32', name: 'Databricks', logo: '' },
-  { id: '33', name: 'Cloudflare', logo: '' },
-  { id: '34', name: 'Figma', logo: '' },
-  { id: '35', name: 'Notion', logo: '' },
-  { id: '36', name: 'Canva', logo: '' },
-  { id: '37', name: 'HubSpot', logo: '' },
-  { id: '38', name: 'Zendesk', logo: '' },
-  { id: '39', name: 'ServiceNow', logo: '' },
-  { id: '40', name: 'Workday', logo: '' },
-  { id: '41', name: 'Datadog', logo: '' },
-  { id: '42', name: 'Twilio', logo: '' },
-  { id: '43', name: 'OpenAI', logo: '' },
-  { id: '44', name: 'Anthropic', logo: '' },
-  { id: '45', name: 'Palantir', logo: '' },
-  { id: '46', name: 'TCS', logo: '' },
-  { id: '47', name: 'Infosys', logo: '' },
-  { id: '48', name: 'Wipro', logo: '' },
-  { id: '49', name: 'HCL Technologies', logo: '' },
-  { id: '50', name: 'Tech Mahindra', logo: '' },
-  { id: '51', name: 'Accenture', logo: '' },
-  { id: '52', name: 'Cognizant', logo: '' },
-  { id: '53', name: 'Capgemini', logo: '' },
-  { id: '54', name: 'Mphasis', logo: '' },
-  { id: '55', name: 'Hexaware', logo: '' },
-  { id: '56', name: 'LTIMindtree', logo: '' },
-  { id: '57', name: 'Persistent Systems', logo: '' },
-  { id: '58', name: 'Coforge', logo: '' },
-  { id: '59', name: 'Zoho', logo: '' },
-  { id: '60', name: 'Freshworks', logo: '' },
-  { id: '61', name: 'Flipkart', logo: '' },
-  { id: '62', name: 'Swiggy', logo: '' },
-  { id: '63', name: 'Zomato', logo: '' },
-  { id: '64', name: 'Ola', logo: '' },
-  { id: '65', name: 'Paytm', logo: '' },
-  { id: '66', name: 'Razorpay', logo: '' },
-  { id: '67', name: "BYJU'S", logo: '' },
-  { id: '68', name: 'Unacademy', logo: '' },
-  { id: '69', name: 'upGrad', logo: '' },
-  { id: '70', name: 'Meesho', logo: '' },
-  { id: '71', name: 'Myntra', logo: '' },
-  { id: '72', name: 'Nykaa', logo: '' },
-  { id: '73', name: 'OYO', logo: '' },
-  { id: '74', name: 'Dream11', logo: '' },
-  { id: '75', name: 'PhonePe', logo: '' },
-  { id: '76', name: 'Zerodha', logo: '' },
-  { id: '77', name: 'Groww', logo: '' },
-  { id: '78', name: 'CRED', logo: '' },
-  { id: '79', name: 'Delhivery', logo: '' },
-  { id: '80', name: 'Postman', logo: '' },
-  { id: '81', name: 'BrowserStack', logo: '' },
-  { id: '82', name: 'Deloitte', logo: '' },
-  { id: '83', name: 'PwC', logo: '' },
-  { id: '84', name: 'KPMG', logo: '' },
-  { id: '85', name: 'EY', logo: '' },
-  { id: '86', name: 'McKinsey', logo: '' },
-  { id: '87', name: 'BCG', logo: '' },
-  { id: '88', name: 'HDFC Bank', logo: '' },
-  { id: '89', name: 'ICICI Bank', logo: '' },
-  { id: '90', name: 'JPMorgan', logo: '' },
-  { id: '91', name: 'Goldman Sachs', logo: '' },
-  { id: '92', name: 'Samsung', logo: '' },
-  { id: '93', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-  { id: '94', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
-];
-
 const INVALID_COMPANY_PHRASES = [
   'good to have', 'must have', 'nice to have', 'required skills', 'preferred skills',
   'key skills', 'technical skills', 'soft skills', 'job description',
@@ -277,6 +182,7 @@ const sanitizeParsedCompany = (company?: string): string => {
 
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const { jobTitles: jobTitleOptions } = useJobTitles();
 
   // Check for edit mode data from sessionStorage
   const editJobRaw = sessionStorage.getItem('editJobData');
@@ -499,7 +405,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     goodToHaveSkills: parsedData?.goodToHaveSkills || [],
     educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || '') || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.companyName || u.company || ''; } catch { return ''; } })() || (user?.companyName || user?.company || ''),
+    companyName: isEditMode ? (editJob?.company || editJob?.companyName || '') : (user?.companyName || user?.company || ''),
     companyLogo: editJob?.companyLogo || '',
     companyId: '',
     companyTagline: editJob?.companyTagline || editJob?.tagline || parsedData?.tagline || parsedData?.companyTagline || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.tagline || ''; } catch { return ''; } })() || (user?.tagline || ''),
@@ -527,9 +433,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [skillInput, setSkillInput] = useState('');
-  const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
+  const skillFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [catOpen, setCatOpen] = useState(false);
   const [catInput, setCatInput] = useState(jobData?.jobCategory || '');
   const [natOpen, setNatOpen] = useState(false);
@@ -621,7 +526,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     const fetchCompanyLogo = async () => {
       if (parsedData?.companyName && !jobData.companyLogo) {
         try {
-          // Try to fetch company from backend first
           const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(parsedData.companyName)}`);
           if (response.ok) {
             const data = await response.json();
@@ -635,7 +539,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             if (matchedCompany) {
               const name = matchedCompany.name || matchedCompany.companyName || '';
               updateJobData('companyLogo', getCompanyLogo(name) || matchedCompany.logo || matchedCompany.logoUrl || matchedCompany.imageUrl || matchedCompany.image || '');
-              updateJobData('companyId', matchedCompany._id || matchedCompany.id || matchedCompany.name);
               return;
             }
           }
@@ -643,24 +546,65 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           console.error('Error fetching company logo:', error);
         }
         
-        const matchedCompany = TRENDING_COMPANIES.find(company => 
-          company.name.toLowerCase().includes(parsedData.companyName.toLowerCase()) ||
-          parsedData.companyName.toLowerCase().includes(company.name.toLowerCase())
-        );
-        
-        if (matchedCompany) {
-          const companyLogo = matchedCompany.logo || getCompanyLogo(parsedData.companyName);
-          updateJobData('companyLogo', companyLogo);
-          updateJobData('companyId', matchedCompany.id);
-        } else {
-          const logo = getCompanyLogo(parsedData.companyName);
-          if (logo) updateJobData('companyLogo', logo);
-        }
+        const logo = getCompanyLogo(parsedData.companyName);
+        if (logo) updateJobData('companyLogo', logo);
       }
     };
     
     fetchCompanyLogo();
   }, [parsedData]);
+
+  // Prefill the employer's company name from their profile so the JD and the
+  // "Company for this job" field always use the real company (not "Your Company")
+  useEffect(() => {
+    const prefillCompany = async () => {
+      if (isEditMode) return;
+      if (jobData.companyName) return;
+      const email = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+      if (!email) return;
+
+      const applyCompany = (company: string, profile?: any) => {
+        if (!company) return;
+        updateJobData('companyName', company);
+        if (!jobData.companyLogo) {
+          const logo = profile?.companyLogo || profile?.logo || getCompanyLogo(company) || '';
+          if (logo) updateJobData('companyLogo', logo);
+        }
+        if (!jobData.companyTagline) {
+          const tagline = profile?.tagline || profile?.companyTagline || '';
+          if (tagline) updateJobData('companyTagline', tagline);
+        }
+      };
+
+      try {
+        const { apiFetch } = await import('../api/apiFetch');
+
+        // 1. Full user record — the source of truth for the company name
+        //    (set at employer registration, e.g. /api/users/by-email/:email)
+        try {
+          const ures = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/by-email/${encodeURIComponent(email)}`);
+          if (ures.ok) {
+            const u = await ures.json();
+            const uname = u?.companyName || u?.company || '';
+            if (uname) { applyCompany(uname, u); return; }
+          }
+        } catch (error) {
+          console.warn('User record fetch failed:', error);
+        }
+
+        // 2. Profile record
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(email)}`);
+        if (res.ok) {
+          const profile = await res.json();
+          const name = profile?.companyName || profile?.company || profile?.employerCompany || '';
+          if (name) applyCompany(name, profile);
+        }
+      } catch (error) {
+        console.warn('Company prefill failed:', error);
+      }
+    };
+    prefillCompany();
+  }, [isEditMode]);
 
   // Auto-parse skills from job description when parsedData is available
   useEffect(() => {
@@ -750,7 +694,20 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const handleJobTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     updateJobData('jobTitle', value);
-    
+
+    // Clear stale AI skills from a previously entered title so the next
+    // section always suggests skills for the CURRENT job title
+    if (aiSuggestedSkills.length > 0) setAiSuggestedSkills([]);
+
+    // Debounced AI skill suggestions for the entered title (works even when
+    // the user types without picking a dropdown suggestion)
+    if (skillFetchTimer.current) clearTimeout(skillFetchTimer.current);
+    if (value.trim().length >= 3) {
+      skillFetchTimer.current = setTimeout(() => {
+        fetchAISkillsForTitle(value.trim());
+      }, 500);
+    }
+
     if (value.length >= 1) {
       setIsLoadingJobTitles(true);
       
@@ -1190,7 +1147,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       try {
         const raw = await mistralAIService.generateJobDescription(
           jobTitle,
-          jobData.companyName || '',
+          jobData.companyName || user?.companyName || user?.company || '',
           jobData.jobLocation || '',
           context
         );
@@ -1870,117 +1827,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     setShowSkillSuggestions(false);
   };
 
-  const searchCompanies = async (query: string) => {
-    if (query.length < 2) {
-      setCompanySearchResults([]);
-      setShowCompanyDropdown(false);
-      return;
-    }
-
-    try {
-      // Fetch companies from backend API
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(query)}`);
-      if (response.ok) {
-        const data = await response.json();
-        const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
-        
-        const mappedCompanies = companies.map((company: any) => {
-          const name = company.name || company.companyName || '';
-          return {
-            id: company._id || company.id || name,
-            name,
-            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || '',
-            tagline: company.tagline || company.companyTagline || company.companySlogan || ''
-          };
-        });
-
-        // Enhanced search: also check if the query matches any part of company names
-        const queryLower = query.toLowerCase();
-        const additionalMatches = TRENDING_COMPANIES.filter(c => {
-          const nameLower = c.name.toLowerCase();
-          return nameLower.includes(queryLower) || 
-                 queryLower.includes(nameLower) ||
-                 // Check for partial word matches
-                 nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
-                 queryLower.split(' ').some(word => nameLower.includes(word));
-        });
-        
-        // Merge backend results with trending companies, avoiding duplicates
-        const merged = [...mappedCompanies];
-        additionalMatches.forEach(trending => {
-          if (!merged.some(m => m.name.toLowerCase() === trending.name.toLowerCase())) {
-            merged.push(trending);
-          }
-        });
-        
-        // If no results found, allow user to add the company they typed
-        if (merged.length === 0 && query.trim().length > 2) {
-          merged.push({
-            id: 'custom-' + Date.now(),
-            name: query.trim(),
-            logo: ''
-          });
-        }
-        
-        setCompanySearchResults(merged);
-        setShowCompanyDropdown(merged.length > 0);
-      } else {
-        // Fallback to trending companies with enhanced search
-        const queryLower = query.toLowerCase();
-        const filtered = TRENDING_COMPANIES.filter(company => {
-          const nameLower = company.name.toLowerCase();
-          return nameLower.includes(queryLower) || 
-                 queryLower.includes(nameLower) ||
-                 nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
-                 queryLower.split(' ').some(word => nameLower.includes(word));
-        });
-        
-        // If no matches in trending companies, allow custom company
-        if (filtered.length === 0 && query.trim().length > 2) {
-          filtered.push({
-            id: 'custom-' + Date.now(),
-            name: query.trim(),
-            logo: ''
-          });
-        }
-        
-        setCompanySearchResults(filtered);
-        setShowCompanyDropdown(filtered.length > 0);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      // Enhanced fallback search
-      const queryLower = query.toLowerCase();
-      const filtered = TRENDING_COMPANIES.filter(company => {
-        const nameLower = company.name.toLowerCase();
-        return nameLower.includes(queryLower) || 
-               queryLower.includes(nameLower) ||
-               nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
-               queryLower.split(' ').some(word => nameLower.includes(word));
-      });
-      
-      // Always allow custom company entry
-      if (query.trim().length > 2) {
-        filtered.push({
-          id: 'custom-' + Date.now(),
-          name: query.trim(),
-          logo: ''
-        });
-      }
-      
-      setCompanySearchResults(filtered);
-      setShowCompanyDropdown(filtered.length > 0);
-    }
-  };
-
-  const selectCompany = (company: any) => {
-    updateJobData('companyName', company.name);
-    updateJobData('companyLogo', company.logo);
-    updateJobData('companyId', company.id);
-    updateJobData('companyTagline', company.tagline || company.companyTagline || company.companySlogan || '');
-    setShowCompanyDropdown(false);
-  };
-
   const removeSkill = (skillToRemove: string) => {
     updateJobData('skills', jobData.skills.filter(skill => skill !== skillToRemove));
   };
@@ -1989,7 +1835,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     switch (step) {
       case 1:
         if (!jobData.jobTitle.trim()) return { isValid: false, message: 'Job title is required' };
-        if (!jobData.companyName.trim()) return { isValid: false, message: 'Company name is required' };
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
         if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
@@ -2076,95 +1921,40 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       
       <div className="space-y-8">
         <div className="relative">
-          <label className="block text-gray-700 font-medium mb-3">Job title *</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={jobData.jobTitle}
-              onChange={handleJobTitleChange}
-              onBlur={() => { if (jobData.jobTitle.length >= 3) { fetchAISkillsForTitle(jobData.jobTitle); } }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="e.g. Software Engineer"
-            />
-            {isLoadingJobTitles && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              </div>
-            )}
-          </div>
-          {showJobTitleSuggestions && jobTitleSuggestions.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {jobTitleSuggestions.map((title, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => selectJobTitle(title)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group"
-                >
-                  <span>{title}</span>
-                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">✨ AI</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <AutocompleteCombobox
+            label="Job title *"
+            value={jobData.jobTitle}
+            onChange={(val) => {
+              updateJobData('jobTitle', val);
+              if (val.length >= 3) fetchAISkillsForTitle(val);
+            }}
+            options={jobTitleOptions}
+            allowCustom
+            customLabel="Use custom title"
+            placeholder="e.g. Software Engineer"
+            required
+            autoFocus
+          />
         </div>
         
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Job location type *</label>
-          <select
+          <AutocompleteCombobox
+            label="Job location type *"
             value={jobData.locationType}
-            onChange={(e) => updateJobData('locationType', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="In person">In person</option>
-            <option value="Remote">Remote</option>
-            <option value="Hybrid">Hybrid</option>
-          </select>
+            onChange={(val) => updateJobData('locationType', val)}
+            options={[
+              { value: 'In person', label: 'In person' },
+              { value: 'Remote', label: 'Remote' },
+              { value: 'Hybrid', label: 'Hybrid' },
+            ]}
+            placeholder="Select location type"
+          />
         </div>
         
-        <div className="relative">
+        <div>
           <label className="block text-gray-700 font-medium mb-3">Company for this job *</label>
-          <p className="text-gray-500 text-sm mb-3">You can post jobs for any company, not just your registered company</p>
-          <div className="relative">
-            <input
-              type="text"
-              value={jobData.companyName}
-              onChange={(e) => {
-                updateJobData('companyName', e.target.value);
-                searchCompanies(e.target.value);
-              }}
-              onFocus={() => {
-                if (jobData.companyName.length >= 2) {
-                  searchCompanies(jobData.companyName);
-                }
-              }}
-              onBlur={() => {
-                setTimeout(() => setShowCompanyDropdown(false), 200);
-              }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Search for company (e.g., Google, Microsoft, Netflix)..."
-            />
-            {showCompanyDropdown && companySearchResults.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {companySearchResults.map((company) => (
-                  <div
-                    key={company.id}
-                    onMouseDown={() => selectCompany(company)}
-                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors flex items-center space-x-3 border-b last:border-b-0"
-                  >
-                    <div className="w-8 h-8 flex-shrink-0">
-                      <img
-                        src={company.logo}
-                        alt={company.name}
-                        className="w-8 h-8 rounded object-contain bg-white border"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    </div>
-                    <span className="text-gray-900 font-medium">{company.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-lg text-gray-700">
+            {jobData.companyName || (user?.companyName || user?.company || 'Your Company')}
           </div>
         </div>
         
@@ -2353,17 +2143,18 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         </div>
 
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Priority Level *</label>
-          <select
+          <AutocompleteCombobox
+            label="Priority Level *"
             value={jobData.priority || 'Medium'}
-            onChange={(e) => updateJobData('priority', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="Low">Low Priority</option>
-            <option value="Medium">Medium Priority</option>
-            <option value="High">High Priority</option>
-            <option value="Urgent">Urgent</option>
-          </select>
+            onChange={(val) => updateJobData('priority', val)}
+            options={[
+              { value: 'Low', label: 'Low Priority' },
+              { value: 'Medium', label: 'Medium Priority' },
+              { value: 'High', label: 'High Priority' },
+              { value: 'Urgent', label: 'Urgent' },
+            ]}
+            placeholder="Select priority"
+          />
         </div>
         
         <div className="relative">
@@ -2479,36 +2270,34 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           )}
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block text-gray-500 text-sm mb-1">Min Experience</label>
-              <select
+              <AutocompleteCombobox
+                label="Min Experience"
                 value={jobData.experienceRange.split(' - ')[0]?.trim() || ''}
-                onChange={(e) => {
+                onChange={(val) => {
                   const max = jobData.experienceRange.split(' - ')[1]?.trim() || '';
-                  updateJobData('experienceRange', e.target.value ? (max ? `${e.target.value} - ${max}` : e.target.value) : max);
+                  updateJobData('experienceRange', val ? (max ? `${val} - ${max}` : val) : max);
                 }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">Select</option>
-                {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(y => (
-                  <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
-                ))}
-              </select>
+                options={[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(y => ({
+                  value: `${y} year${y !== 1 ? 's' : ''}`,
+                  label: `${y} year${y !== 1 ? 's' : ''}`,
+                }))}
+                placeholder="Select"
+              />
             </div>
             <div className="flex-1">
-              <label className="block text-gray-500 text-sm mb-1">Max Experience</label>
-              <select
+              <AutocompleteCombobox
+                label="Max Experience"
                 value={jobData.experienceRange.split(' - ')[1]?.trim() || ''}
-                onChange={(e) => {
+                onChange={(val) => {
                   const min = jobData.experienceRange.split(' - ')[0]?.trim() || '';
-                  updateJobData('experienceRange', e.target.value ? (min ? `${min} - ${e.target.value}` : e.target.value) : min);
+                  updateJobData('experienceRange', val ? (min ? `${min} - ${val}` : val) : min);
                 }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">Select</option>
-                {[1,2,3,4,5,6,7,8,9,10,12,15,20,25].map(y => (
-                  <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
-                ))}
-              </select>
+                options={[1,2,3,4,5,6,7,8,9,10,12,15,20,25].map(y => ({
+                  value: `${y} year${y !== 1 ? 's' : ''}`,
+                  label: `${y} year${y !== 1 ? 's' : ''}`,
+                }))}
+                placeholder="Select"
+              />
             </div>
           </div>
         </div>
@@ -2533,19 +2322,19 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       
       <div className="space-y-8">
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Hiring timeline for this job *</label>
-          <select
+          <AutocompleteCombobox
+            label="Hiring timeline for this job *"
             value={jobData.hiringTimeline}
-            onChange={(e) => updateJobData('hiringTimeline', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select an option</option>
-            <option value="1 to 3 days">1 to 3 days</option>
-            <option value="3 to 7 days">3 to 7 days</option>
-            <option value="1 to 2 weeks">1 to 2 weeks</option>
-            <option value="2 to 4 weeks">2 to 4 weeks</option>
-            <option value="More than 4 weeks">More than 4 weeks</option>
-          </select>
+            onChange={(val) => updateJobData('hiringTimeline', val)}
+            options={[
+              { value: '1 to 3 days', label: '1 to 3 days' },
+              { value: '3 to 7 days', label: '3 to 7 days' },
+              { value: '1 to 2 weeks', label: '1 to 2 weeks' },
+              { value: '2 to 4 weeks', label: '2 to 4 weeks' },
+              { value: 'More than 4 weeks', label: 'More than 4 weeks' },
+            ]}
+            placeholder="Select an option"
+          />
         </div>
         
         <div>
@@ -2708,22 +2497,23 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           
           <div className="flex flex-wrap gap-3 items-end">
             <div style={{minWidth: '180px'}} className="flex-shrink-0">
-              <label className="block text-gray-600 text-sm mb-2">Show pay by</label>
-              <select
+              <AutocompleteCombobox
+                label="Show pay by"
                 value={jobData.payType}
-                onChange={(e) => {
-                  updateJobData('payType', e.target.value);
-                  if (e.target.value === 'Maximum amount') updateJobData('minSalary', '');
-                  if (e.target.value === 'Starting amount') updateJobData('maxSalary', '');
-                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); updateJobData('maxSalary', ''); }
+                onChange={(val) => {
+                  updateJobData('payType', val);
+                  if (val === 'Maximum amount') updateJobData('minSalary', '');
+                  if (val === 'Starting amount') updateJobData('maxSalary', '');
+                  if (val === 'Exact amount') { updateJobData('minSalary', ''); updateJobData('maxSalary', ''); }
                 }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="Range">Range</option>
-                <option value="Starting amount">Starting amount</option>
-                <option value="Maximum amount">Maximum amount (Upto)</option>
-                <option value="Exact amount">Exact amount</option>
-              </select>
+                options={[
+                  { value: 'Range', label: 'Range' },
+                  { value: 'Starting amount', label: 'Starting amount' },
+                  { value: 'Maximum amount', label: 'Maximum amount (Upto)' },
+                  { value: 'Exact amount', label: 'Exact amount' },
+                ]}
+                placeholder="Select pay type"
+              />
             </div>
             
             <div className="w-28">
@@ -2790,16 +2580,17 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           )}
           
           <div className="mt-4">
-            <label className="block text-gray-600 text-sm mb-2">Rate</label>
-            <select
+            <AutocompleteCombobox
+              label="Rate"
               value={jobData.payRate}
-              onChange={(e) => updateJobData('payRate', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="per year">per year</option>
-              <option value="per month">per month</option>
-              <option value="per hour">per hour</option>
-            </select>
+              onChange={(val) => updateJobData('payRate', val)}
+              options={[
+                { value: 'per year', label: 'per year' },
+                { value: 'per month', label: 'per month' },
+                { value: 'per hour', label: 'per hour' },
+              ]}
+              placeholder="Select rate"
+            />
           </div>
           
           {/* Salary Status Indicator */}
@@ -3394,10 +3185,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             
             <div className="flex justify-between items-center py-3 border-b border-gray-200">
               <span className="text-gray-600">Company for this job</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-800">{jobData.companyName}</span>
-                <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
-              </div>
+              <span className="text-gray-800">{jobData.companyName}</span>
             </div>
             
             {/* Only show number of openings if it's actually set and not 0 */}
@@ -3578,8 +3366,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
     const jobPostData = {
       jobTitle: jobData.jobTitle,
-      company: jobData.companyName || user?.companyName || 'Your Company',
-      companyName: jobData.companyName || user?.companyName || 'Your Company',
+      company: jobData.companyName || user?.companyName || '',
+      companyName: jobData.companyName || user?.companyName || '',
       companyLogo: logoUrl,
       companyTagline,
       companySlogan: companyTagline,
@@ -3627,9 +3415,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       postedByEmail: user.email,
       employerEmail: getEffectiveEmployerEmail(),
       employerName: user.name,
-      employerCompany: user?.companyName || jobData.companyName || 'Your Company',
+      employerCompany: user?.companyName || jobData.companyName || '',
       employerId: user.employerId || 'EID0001',
-      positionId: generatePositionId(jobData.companyName || user?.companyName),
+      positionId: generatePositionId(jobData.companyName || user?.companyName || ''),
       jobCategory: jobData.jobCategory || '',
       locationType: jobData.locationType || '',
       language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
@@ -3710,7 +3498,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           goodToHaveSkills: [],
           educationLevel: "Bachelor's degree",
           certifications: [],
-          companyName: '',
+          companyName: user?.companyName || user?.company || '',
           companyLogo: '',
           companyId: '',
           companyTagline: '',

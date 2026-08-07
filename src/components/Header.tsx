@@ -238,7 +238,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     fetchProfileMetrics();
     fetchNotifications();
     
-    // Socket.io real-time analytics update for candidates
+    // Socket.io real-time analytics — only connect if backend is reachable
     let socket: any = null;
     if (user?.type === 'candidate' || user?.type !== 'employer') {
       try {
@@ -247,28 +247,18 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
           if (userEmail) {
-            // Connect to backend Socket.io server
             const backendUrl = config.SOCKET_URL;
-            socket = io(backendUrl, { 
-              transports: ['polling', 'websocket'],
-              reconnection: true,
-              reconnectionDelay: 2000,
-              reconnectionAttempts: 2
+            socket = io(backendUrl, {
+              transports: ['websocket', 'polling'],
+              reconnection: false,
+              timeout: 3000,
             });
-            socket.on('connect', () => {
-              console.log('✅ Socket.io connected');
-            });
-            socket.on('connect_error', (err: any) => {
-              console.warn('Socket.io connection error:', err.message);
-            });
-            socket.on(`analytics_update:${userEmail}`, () => {
-              fetchProfileMetrics();
-            });
+            socket.on('connect', () => {});
+            socket.on('connect_error', () => { socket.disconnect(); });
+            socket.on(`analytics_update:${userEmail}`, () => { fetchProfileMetrics(); });
           }
         }
-      } catch (err) {
-        console.warn('Socket.io setup failed:', err);
-      }
+      } catch { /* socket unavailable in dev — safe to ignore */ }
     }
 
     // Listen for manual analytics refresh event
@@ -679,13 +669,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             type="button"
                             onClick={() => {
                               setIsDropdownOpen(false);
-                              // Ensure logout always triggers, even if parent components/overlays intercept events.
-                              // Fallback: trigger the global logout event App.tsx listens for.
-                              try {
-                                onLogout?.();
-                              } finally {
-                                window.dispatchEvent(new CustomEvent('zync:logout'));
-                              }
+                              onLogout?.();
                             }} 
                             className="flex items-center w-full text-left px-3 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >

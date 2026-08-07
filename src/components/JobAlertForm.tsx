@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Bell, ChevronDown } from 'lucide-react';
 import { JobAlert, AlertCriteria } from '../api/jobAlerts';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface Props {
   initial?: JobAlert | null;
@@ -170,17 +171,16 @@ const JobAlertForm: React.FC<Props> = ({ initial, onSave, onCancel }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Experience Level</label>
-              <div className="relative">
-                <select
-                  value={form.experienceLevel}
-                  onChange={e => set('experienceLevel', e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white transition"
-                >
-                  <option value="">Any level</option>
-                  {EXPERIENCE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
+              <AutocompleteCombobox
+                label="Experience Level"
+                value={form.experienceLevel}
+                onChange={(val) => set('experienceLevel', val)}
+                options={[
+                  { value: '', label: 'Any level' },
+                  ...EXPERIENCE_LEVELS.map(l => ({ value: l, label: l })),
+                ]}
+                placeholder="Select experience level"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>

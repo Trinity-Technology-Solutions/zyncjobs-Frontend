@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Search, IndianRupee, BarChart2, Award } from 'lucide-react';
+import { TrendingUp, IndianRupee, BarChart2, Award } from 'lucide-react';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/env';
 
 interface SalaryInsightsProps {
@@ -88,15 +89,13 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
 
       {/* Search */}
       <div className="flex gap-2 mb-6">
-        <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm">
-          <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <input
-            type="text"
+        <div className="flex-1">
+          <AutocompleteCombobox
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && fetchInsights(search)}
+            onChange={val => { setSearch(val); if (val.trim()) fetchInsights(val); }}
+            options={[]}
+            allowCustom
             placeholder="Search job title (e.g. Software Developer)"
-            className="flex-1 text-sm outline-none text-gray-700 placeholder-gray-400"
           />
         </div>
         <button

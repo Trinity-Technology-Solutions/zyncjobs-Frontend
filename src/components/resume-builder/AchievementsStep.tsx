@@ -120,13 +120,13 @@ export default function AchievementsStep() {
                         </div>
                       </div>
                     ) : (
-                      <div className="group">
+                      <div>
                         {item.description ? (
                           <p className="text-sm text-gray-800 leading-relaxed">{item.description}</p>
                         ) : (
                           <p className="text-sm text-gray-400 italic">Click AI to generate quantified description</p>
                         )}
-                        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 mt-2">
                           <button onClick={() => startEdit(item.id, 'description', item.description)}
                             className="flex items-center gap-1 px-2 py-1 text-[11px] text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
                             <Pencil className="w-3 h-3" /> Edit

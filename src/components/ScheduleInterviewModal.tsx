@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Video, X, Calendar, Clock, User, FileText, MapPin, ExternalLink } from 'lucide-react';
+import { Video, X, Calendar, Clock, User, FileText, MapPin } from 'lucide-react';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface ScheduleInterviewModalProps {
   application: any;
@@ -26,8 +27,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [meetLoading, setMeetLoading] = useState(false);
   const [meetGenerated, setMeetGenerated] = useState(false);
+  const [meetFallback, setMeetFallback] = useState(false);
   const [meetPlatform, setMeetPlatform] = useState<'zoom' | 'googlemeet'>('zoom');
-  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [tempDate, setTempDate] = useState('');
   const [tempTime, setTempTime] = useState('');
@@ -36,16 +37,6 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const nextRound = ROUND_ORDER.find(r => !existingRounds.includes(r)) || 'HR';
     setFormData(prev => ({ ...prev, round: nextRound }));
   }, [existingRounds]);
-
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const employerId = user.id || user._id;
-    if (!employerId) return;
-    fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${employerId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => setGoogleConnected(!!data?.connected))
-      .catch(() => setGoogleConnected(false));
-  }, []);
 
   const zyncAlert = (msg: string) =>
     window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: msg } }));
@@ -60,7 +51,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     setMeetLoading(true);
     setMeetPlatform(platform);
     setError('');
+    setMeetFallback(false);
     try {
+      // Google Meet: generate a link immediately. If no Google account is connected yet,
+      // the backend returns a working fallback video link — no forced connect popup.
       // Normalize to full ISO string (datetime-local gives '2025-07-01T10:00')
       const normalizedStart = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
         ? new Date(formData.scheduledDate + ':00').toISOString()
@@ -95,7 +89,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
       if (result.success && joinUrl) {
         setFormData(prev => ({ ...prev, meetingLink: joinUrl }));
         setMeetGenerated(true);
-        if (platform === 'googlemeet') setGoogleConnected(true);
+        setMeetFallback(!!result.fallback);
       } else {
         setError(`Failed to create ${platform === 'zoom' ? 'Zoom' : 'Google Meet'} meeting: ` + (result.error || result.message || 'Unknown error'));
       }
@@ -104,22 +98,6 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     } finally {
       setMeetLoading(false);
     }
-  };
-
-  const connectGoogleCalendar = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const employerId = user.id || user._id;
-    if (!employerId) { setError('Please log in first'); return; }
-    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
-    window.open(`${apiBase}/api/meetings/google-meet/connect?employerId=${employerId}`, '_blank', 'width=500,height=600');
-    // Poll for connection after window opens
-    const poll = setInterval(() => {
-      fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${employerId}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data?.connected) { setGoogleConnected(true); clearInterval(poll); } })
-        .catch(() => {});
-    }, 3000);
-    setTimeout(() => clearInterval(poll), 120000);
   };
 
   const scheduleInterview = async () => {
@@ -257,27 +235,35 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               <Clock size={14} className="inline mr-1" />Duration
             </label>
-            <select value={formData.duration}
-              onChange={e => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value={30}>30 minutes</option>
-              <option value={60}>1 hour</option>
-              <option value={90}>1.5 hours</option>
-              <option value={120}>2 hours</option>
-            </select>
+            <AutocompleteCombobox
+              label="Duration"
+              value={String(formData.duration)}
+              onChange={(val) => setFormData(prev => ({ ...prev, duration: parseInt(val) }))}
+              options={[
+                { value: '30', label: '30 minutes' },
+                { value: '60', label: '1 hour' },
+                { value: '90', label: '1.5 hours' },
+                { value: '120', label: '2 hours' },
+              ]}
+              placeholder="Select duration"
+            />
           </div>
 
           {/* Interview Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Interview Type</label>
-            <select value={formData.type}
-              onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '' }))}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="video">Video Call (Zoom)</option>
-              <option value="googlemeet">Google Meet</option>
-              <option value="phone">Phone Call</option>
-              <option value="in-person">In Person</option>
-            </select>
+            <AutocompleteCombobox
+              label="Interview Type"
+              value={formData.type}
+              onChange={(val) => setFormData(prev => ({ ...prev, type: val, meetingLink: '' }))}
+              options={[
+                { value: 'video', label: 'Video Call (Zoom)' },
+                { value: 'googlemeet', label: 'Google Meet' },
+                { value: 'phone', label: 'Phone Call' },
+                { value: 'in-person', label: 'In Person' },
+              ]}
+              placeholder="Select interview type"
+            />
           </div>
 
           {/* Meeting Link */}
@@ -305,19 +291,11 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 </button>
               </div>
 
-              {meetGenerated && (
+              {meetGenerated && !meetFallback && (
                 <p className="text-xs text-green-600 font-medium mb-2">✓ {meetPlatform === 'zoom' ? 'Zoom' : 'Google Meet'} link created successfully</p>
               )}
-              {!googleConnected && (
-                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
-                  <span className="text-xs text-amber-700">Connect Google Calendar for real Meet links</span>
-                  <button type="button" onClick={connectGoogleCalendar} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:underline">
-                    Connect <ExternalLink className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-              {googleConnected && (
-                <p className="text-xs text-green-600 font-medium mb-1">✓ Google Calendar connected</p>
+              {meetGenerated && meetFallback && (
+                <p className="text-xs text-amber-700 font-medium mb-2">✓ Video link created</p>
               )}
 
               <input type="url" value={formData.meetingLink}

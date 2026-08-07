@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, MoreVertical, CheckSquare, Mail, UserCheck } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
@@ -95,7 +96,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               }
               
               console.log('🔍 Fetching applications for job:', jobId, job.jobTitle);
-              const appResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/job/${jobId}`);
+              const appResponse = await apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/job/${jobId}`);
               
               if (appResponse.ok) {
                 const applications = await appResponse.json();
@@ -209,6 +210,66 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     }
   };
 
+  const closingRef = useRef(false);
+
+  const handleCloseSelectedJobs = async () => {
+    if (closingRef.current) return;
+    if (selectedJobs.length === 0) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to close" } }));
+      return;
+    }
+
+    const ok = await (window as any).confirmAsync(`Close ${selectedJobs.length} job(s)?`);
+    if (!ok) return;
+
+    closingRef.current = true;
+    const idsToClose = [...selectedJobs];
+    try {
+      const closePromises = idsToClose.map(jobId =>
+        apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/close`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'closed' })
+        })
+      );
+
+      const results = await Promise.allSettled(closePromises);
+
+      const successCount = results.filter(result =>
+        result.status === 'fulfilled' && result.value.ok
+      ).length;
+
+      const failedCount = idsToClose.length - successCount;
+
+      if (successCount > 0) {
+        setJobs(prevJobs => prevJobs.map(job => {
+          const jobId = getId(job);
+          return idsToClose.includes(jobId) ? { ...job, status: 'closed' } : job;
+        }));
+        setSelectedJobs([]);
+      }
+
+      if (failedCount === 0) {
+        window.dispatchEvent(new CustomEvent('zync:alert', {
+          detail: { message: `${successCount} job(s) closed successfully` }
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent('zync:alert', {
+          detail: {
+            message: `Closed ${successCount} job(s). ${failedCount} job(s) failed to close.`
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error closing selected jobs:', error);
+      window.dispatchEvent(new CustomEvent('zync:alert', {
+        detail: { message: 'Error closing jobs. Please try again.' }
+      }));
+    } finally {
+      closingRef.current = false;
+    }
+  };
+
   const filteredJobs = jobs.filter(job => {
     const jobTitle = job.jobTitle || job.title || '';
     const matchesSearch = jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -288,21 +349,21 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               </button>
             </div>
             
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-3 sm:mb-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-3 sm:mb-4">
               <div className="flex-1 relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by Title/Ref Code/Job ID"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Search by Title/Ref Code/Job ID"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
                 />
               </div>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                onChange={e => setSortBy(e.target.value)}
+                className="w-full sm:w-52 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
               >
                 <option value="posted">Sort by: Posted/sent date</option>
                 <option value="responses">Sort by: Response count</option>
@@ -477,30 +538,20 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     </button>
                   )}
                   
-                  <button
-                    onClick={() => {
-                      if (selectedJobs.length === 0) {
-                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to close" } }));
-                        return;
-                      }
-                      const ok = (window as any).confirmAsync(`Close ${selectedJobs.length} job(s)?`);
-                      if (ok) {
-                        // TODO: Implement bulk close functionality
-                        console.log('Closing jobs:', selectedJobs);
-                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `${selectedJobs.length} job(s) closed successfully` } }));
-                        setSelectedJobs([]);
-                      }
-                    }}
-                    disabled={selectedJobs.length === 0}
-                    className={`flex items-center space-x-2 text-sm transition-colors ${
-                      selectedJobs.length === 0
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:text-red-600 cursor-pointer'
-                    }`}
-                    title="Close selected jobs"
-                  >
-                    <span className="font-medium">Close Selected</span>
-                  </button>
+                  {false && (
+                    <button
+                      onClick={handleCloseSelectedJobs}
+                      disabled={selectedJobs.length === 0}
+                      className={`flex items-center space-x-2 text-sm transition-colors ${
+                        selectedJobs.length === 0
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-600 hover:text-red-600 cursor-pointer'
+                      }`}
+                      title="Close selected jobs"
+                    >
+                      <span className="font-medium">Close Selected</span>
+                    </button>
+                  )}
                 </div>
                 <span className="text-xs sm:text-sm text-gray-500 self-start sm:self-center">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>

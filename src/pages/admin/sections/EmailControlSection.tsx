@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Send, Mail, Users, AlertCircle, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
+import { apiFetch } from '../../../api/apiFetch';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
@@ -91,13 +93,17 @@ export default function EmailControlSection({ onUnauthorized }: { onUnauthorized
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-400 mb-1">Send To</label>
-              <select value={form.to} onChange={e => setForm(f => ({ ...f, to: e.target.value }))}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <option value="all">All Users</option>
-                <option value="candidates">Candidates Only</option>
-                <option value="employers">Employers Only</option>
-                <option value="specific">Specific Email</option>
-              </select>
+              <AutocompleteCombobox
+                value={form.to}
+                onChange={(val) => setForm(f => ({ ...f, to: val }))}
+                options={[
+                  { value: 'all', label: 'All Users' },
+                  { value: 'candidates', label: 'Candidates Only' },
+                  { value: 'employers', label: 'Employers Only' },
+                  { value: 'specific', label: 'Specific Email' },
+                ]}
+                placeholder="Select target..."
+              />
             </div>
             {form.to === 'specific' && (
               <div>

@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
   JOB_BULK_REFRESH: `${config.API_URL}/jobs/bulk-refresh`,
   JOB_REFRESH_STATUS: `${config.API_URL}/jobs/:id/refresh-status`,
   SEARCH: `${config.API_URL}/search`,
+  SKILLS: `${config.API_URL}/skills`,
 
   // Applications
   APPLICATIONS: `${config.API_URL}/applications`,
@@ -99,6 +100,9 @@ export const API_ENDPOINTS = {
 
   // Candidate Credentialing
   CREDENTIALING: `${config.API_URL}/credentialing`,
+
+  // Career Roadmap
+  ROADMAPS: `${config.API_URL}/roadmaps`,
 
   // Salary Insights
   SALARY_INSIGHTS: `${config.API_URL}/salary-insights`,

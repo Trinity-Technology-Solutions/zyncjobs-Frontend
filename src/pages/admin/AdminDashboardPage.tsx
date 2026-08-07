@@ -13,6 +13,7 @@ import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
 import { apiFetch } from '../../api/apiFetch';
 import { BackendStatusIndicator } from '../../utils/backendMonitor';
+import AutocompleteCombobox from '../../components/AutocompleteCombobox';
 import { isSuperAdmin, hasPermission, getAvailableActions, PERMISSIONS } from '../../utils/rolePermissions';
 import UserDetailsModal from './sections/UserDetailsModal';
 import VerificationsSection from './sections/VerificationsSection';
@@ -854,17 +855,19 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                       <td className="px-6 py-3 text-gray-400">{u.email}</td>
                       <td className="px-6 py-3">
                         {userRole === 'admin' || userRole === 'super_admin' ? (
-                          <select
+                          <AutocompleteCombobox
                             value={userRole}
                             disabled={!!actionLoading}
-                            onChange={e => changeRole(id, e.target.value)}
-                            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="super_admin">Super Admin</option>
-                            <option value="candidate">Candidate</option>
-                            <option value="employer">Employer</option>
-                          </select>
+                            onChange={(val) => changeRole(id, val)}
+                            options={[
+                              { value: 'admin', label: 'Admin' },
+                              { value: 'super_admin', label: 'Super Admin' },
+                              { value: 'candidate', label: 'Candidate' },
+                              { value: 'employer', label: 'Employer' },
+                            ]}
+                            placeholder="Select role..."
+                            className="text-xs"
+                          />
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-300 capitalize">{userRole}</span>
                         )}
@@ -1007,16 +1010,18 @@ function JobsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold">Jobs</h2>
-          <select
+          <AutocompleteCombobox
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="flagged">Flagged</option>
-          </select>
+            onChange={(val) => setStatusFilter(val)}
+            options={[
+              { value: 'pending', label: 'Pending' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'flagged', label: 'Flagged' },
+            ]}
+            placeholder="Select status..."
+            className="text-xs"
+          />
           {duplicates.size > 0 && (
             <span className="text-xs bg-amber-900/40 text-amber-400 px-2 py-0.5 rounded-full">
               {duplicates.size} duplicate{duplicates.size > 1 ? 's' : ''} detected
@@ -1219,16 +1224,18 @@ function GdprDashboardSection({ onUnauthorized }: { onUnauthorized: () => void }
             <h2 className="text-sm font-semibold">Consent Records</h2>
           </div>
           <div className="flex items-center gap-2">
-            <select
+            <AutocompleteCombobox
               value={filter}
-              onChange={e => setFilter(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none"
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="reminded">Reminded</option>
-              <option value="deleted">Deleted</option>
-            </select>
+              onChange={(val) => setFilter(val)}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'active', label: 'Active' },
+                { value: 'reminded', label: 'Reminded' },
+                { value: 'deleted', label: 'Deleted' },
+              ]}
+              placeholder="Select filter..."
+              className="text-xs"
+            />
             <button onClick={load} disabled={loading} className="text-gray-400 hover:text-white disabled:opacity-40">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import BackButton from './BackButton';
+import AutocompleteCombobox from './AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/env';
 import { getAuthHeaders, getApiHeaders } from '../utils/authUtils';
 import { apiFetch } from '../api/apiFetch';
@@ -244,7 +245,7 @@ const InterviewScheduling = () => {
               {interview.meetingLink && (
                 <div className="mb-4">
                   <a
-                    href={interview.meetingLink}
+                    href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id || interview.id}/join`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
@@ -328,33 +329,33 @@ const InterviewScheduling = () => {
 
               <div>
                 <label htmlFor="interview-duration" className="block text-sm font-medium mb-1">Duration (minutes)</label>
-                <select
-                  id="interview-duration"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-                  className="w-full p-2 border rounded-lg"
-                  aria-label="Select interview duration"
-                >
-                  <option value={30}>30 minutes</option>
-                  <option value={60}>1 hour</option>
-                  <option value={90}>1.5 hours</option>
-                  <option value={120}>2 hours</option>
-                </select>
+                <AutocompleteCombobox
+                  label="Duration (minutes)"
+                  value={String(formData.duration)}
+                  onChange={(val) => setFormData({ ...formData, duration: parseInt(val) })}
+                  options={[
+                    { value: '30', label: '30 minutes' },
+                    { value: '60', label: '1 hour' },
+                    { value: '90', label: '1.5 hours' },
+                    { value: '120', label: '2 hours' },
+                  ]}
+                  placeholder="Select duration"
+                />
               </div>
 
               <div>
                 <label htmlFor="interview-type" className="block text-sm font-medium mb-1">Type</label>
-                <select
-                  id="interview-type"
+                <AutocompleteCombobox
+                  label="Type"
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                  aria-label="Select interview type"
-                >
-                  <option value="video">Video Call</option>
-                  <option value="phone">Phone Call</option>
-                  <option value="in-person">In Person</option>
-                </select>
+                  onChange={(val) => setFormData({ ...formData, type: val })}
+                  options={[
+                    { value: 'video', label: 'Video Call' },
+                    { value: 'phone', label: 'Phone Call' },
+                    { value: 'in-person', label: 'In Person' },
+                  ]}
+                  placeholder="Select interview type"
+                />
               </div>
 
               {formData.type === 'video' && (
