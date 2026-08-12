@@ -260,23 +260,26 @@ function parseTextToJob(text: string, fileName: string): ParsedJob {
   return job;
 }
 
-// ── AI enhancement for a single job ───────────────────────────────────
-async function aiEnhanceJob(raw: string): Promise<Partial<ParsedJob>> {
-  const prompt = `Extract job details from this job description. Return ONLY valid JSON:
-{"jobTitle":"","companyName":"","jobLocation":"","experienceRange":"","skills":[],"jobType":"Full-time","jobCategory":"","noticePeriod":"","minSalary":"","maxSalary":""}
+// ── Batch AI enhancement for multiple jobs in one call ───────────────
+async function aiEnhanceBatch(raws: string[]): Promise<Partial<ParsedJob>[]> {
+  const snippets = raws.map((r, i) => `JD_${i + 1}:\n${r.slice(0, 800)}`).join('\n\n---\n\n');
+  const prompt = `Extract job details from each job description below. Return ONLY a valid JSON array with ${raws.length} objects, one per JD, in order:
+[{"jobTitle":"","companyName":"","jobLocation":"","experienceRange":"","skills":[],"jobType":"Full-time","jobCategory":"","noticePeriod":"","minSalary":"","maxSalary":""}]
 
-Job Description:
-${raw.slice(0, 1500)}`;
+${snippets}`;
   try {
     const reply = await sendAIMessage(
       [{ role: 'user', content: prompt }],
-      'You are a job description parser. Return only valid JSON, no markdown.',
-      undefined, 600
+      'You are a job description parser. Return only a valid JSON array, no markdown.',
+      undefined, 1200
     );
-    const match = reply.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-  } catch { /* fallback */ }
-  return {};
+    const match = reply.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch { /* fallback to empty results */ }
+  return raws.map(() => ({}));
 }
 
 // ── CSV parser (handles quoted fields) ───────────────────────────────
@@ -397,18 +400,26 @@ function splitPastedJDs(text: string): string[] {
 
   // Phase 3 — drop fragments that are not real JDs; if separators were never
   // used, split back-to-back JDs inside the single remaining segment.
-  let parts = groups.filter(g => g.length > 50 && hasRoleLine(g));
+  let parts = groups.filter(g => g.length > 50);
   if (parts.length === 1) {
     const blocks = parts[0].split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
     const inner: string[] = [];
     let current = '';
     for (const block of blocks) {
       const firstLine = stripMarkdown(block.split('\n')[0].trim());
-      const titleLike = firstLine.length <= 140 && firstLine.split(/\s+/).length <= 10 && !SENTENCE_RE.test(firstLine) && TITLE_RE.test(firstLine);
-      const hiringLike = SENTENCE_RE.test(firstLine) && /(hiring|looking|seeking|join|opportunity|vacanc|opening|need|require)/i.test(firstLine) && block.length > 150;
+      // Relaxed title detection: short line (≤10 words), not a sentence, not a meta-section
+      const titleLike =
+        firstLine.length >= 3 && firstLine.length <= 120 &&
+        firstLine.split(/\s+/).length <= 10 &&
+        !SENTENCE_RE.test(firstLine) &&
+        !/^(about|overview|responsibilities|requirements|qualifications|skills|benefits|summary|description|experience|education|salary|location|company|the role|how to apply)/i.test(firstLine);
+      const hiringLike =
+        SENTENCE_RE.test(firstLine) &&
+        /(hiring|looking|seeking|join|opportunity|vacanc|opening|need|require)/i.test(firstLine) &&
+        block.length > 150;
       const isStart = MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block) || titleLike || hiringLike;
-      const currentHasTitle = current ? hasRoleLine(current) : false;
-      if (isStart && current && currentHasTitle) {
+      const currentHasContent = current.length > 100;
+      if (isStart && current && currentHasContent) {
         inner.push(current.trim());
         current = block;
       } else {
@@ -641,27 +652,54 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     const parts = splitPastedJDs(text);
     setStep('parsing');
     setParsingProgress(0);
-    const parsed: ParsedJob[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      setParsingLabel(`Parsing job ${i + 1}/${parts.length}\u2026`);
-      setParsingProgress(Math.round((i / parts.length) * 80));
-      const job = parseTextToJob(parts[i], `JD ${i + 1}`);
-      const ai = await aiEnhanceJob(job.raw);
+    // Step 1 — regex-parse all JDs locally
+    setParsingLabel(`Parsing ${parts.length} job description${parts.length > 1 ? 's' : ''}…`);
+    const parsed: ParsedJob[] = parts.map((p, i) => parseTextToJob(p, `JD ${i + 1}`));
+    setParsingProgress(40);
+    // Step 2 — single batched AI call for all JDs
+    setParsingLabel(`Enhancing with AI (1 call for all ${parts.length} jobs)…`);
+    const aiResults = await aiEnhanceBatch(parsed.map(j => j.raw));
+    setParsingProgress(85);
+    // Step 3 — merge AI field extraction results back
+    aiResults.forEach((ai, i) => {
+      if (!parsed[i]) return;
+      const job = parsed[i];
       Object.assign(job, {
         jobTitle: ai.jobTitle || job.jobTitle,
         companyName: ai.companyName || job.companyName,
         jobLocation: ai.jobLocation || job.jobLocation,
         experienceRange: ai.experienceRange || job.experienceRange,
-        skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills : job.skills,
+        skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills as string[] : job.skills,
         jobType: normalizeJobType(ai.jobType) || job.jobType,
         jobCategory: ai.jobCategory || job.jobCategory,
         noticePeriod: (ai.noticePeriod as string) || job.noticePeriod,
       });
       job.errors = validateJob(job);
       job.status = job.errors.length > 0 ? 'error' : 'ready';
-      parsed.push(job);
+    });
+    // Step 4 — generate rich JD for each job (same as single job posting)
+    setParsingLabel(`Generating rich job descriptions…`);
+    for (let i = 0; i < parsed.length; i++) {
+      const job = parsed[i];
+      setParsingLabel(`Generating JD ${i + 1}/${parsed.length}: ${job.jobTitle}…`);
+      try {
+        const richJD = await generateJD(
+          job.jobTitle,
+          job.companyName || '',
+          job.jobLocation || '',
+          {
+            jobType: job.jobType || 'Full-time',
+            skills: job.skills,
+            educationLevel: "Bachelor's degree",
+            benefits: [],
+            salary: (job.minSalary && job.maxSalary) ? `${job.currency || 'INR'} ${job.minSalary} - ${job.maxSalary}` : undefined,
+          }
+        );
+        if (richJD && richJD.length > 100) job.jobDescription = richJD;
+      } catch { /* keep existing description */ }
     }
     setParsingProgress(100);
+    setParsingLabel('Done!');
     setTimeout(() => {
       setJobs(prev => {
         const existingIds = new Set(prev.map(j => j.jobTitle + j.companyName + j.jobLocation));

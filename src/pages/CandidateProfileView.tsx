@@ -66,6 +66,15 @@ function safeSkills(raw: unknown): string[] {
   return [];
 }
 
+// Coerce a value (bool, number, or string like 'true'/'1') to a boolean, first defined value wins
+function firstBool(...vals: unknown[]): boolean {
+  for (const v of vals) {
+    if (v === true || v === 'true' || v === 1 || v === '1') return true;
+    if (v === false || v === 'false' || v === 0 || v === '0') return false;
+  }
+  return false;
+}
+
 const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack }) => {
   const [searchParams] = useSearchParams();
   const [candidate, setCandidate] = useState<Record<string, any> | null>(null);
@@ -233,6 +242,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   function buildFromApi(data: Record<string, any>): Record<string, any> {
     const emp = parseEmployment(data.employment);
+    const isOwnProfile = !!(currentUser?.email && data.email &&
+      String(currentUser.email).toLowerCase() === String(data.email).toLowerCase());
     return {
       name: data.name || data.fullName || data.candidateName || storedData.name || 'Candidate',
       email: data.email || data.candidateEmail || storedData.email || effectiveCandidateId,
@@ -252,15 +263,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       awards: safeStr(data.awards || ''),
       gender: data.gender || '',
       birthday: data.birthday || '',
-      openToWork: data.openToWork ?? false,
-      visibilityStatus: data.visibilityStatus ?? 'passively-looking',
-      profileVisibility: data.profileVisibility ?? 'public',
+      openToWork: firstBool(data.openToWork, data.isOpenToWork, data.open_to_work, storedData.openToWork, isOwnProfile ? currentUser.openToWork : undefined),
+      visibilityStatus: data.visibilityStatus ?? storedData.visibilityStatus ?? 'passively-looking',
+      profileVisibility: data.profileVisibility ?? storedData.profileVisibility ?? 'public',
       experience: data.experience || data.experienceYears || '',
       expectedCTC: data.expectedCTC || data.salary || data.salaryExpectation || data.ctc || '',
     };
   }
 
   function buildFromStored(): Record<string, any> {
+    const isOwnProfile = !!(currentUser?.email && storedData.email &&
+      String(currentUser.email).toLowerCase() === String(storedData.email).toLowerCase());
     return {
       name: storedData.name || (effectiveCandidateId.includes('@') ? effectiveCandidateId.split('@')[0] : 'Candidate'),
       email: storedData.email || (effectiveCandidateId.includes('@') ? effectiveCandidateId : ''),
@@ -280,6 +293,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       awards: '',
       experience: '',
       expectedCTC: '',
+      openToWork: firstBool(storedData.openToWork, isOwnProfile ? currentUser.openToWork : undefined),
+      visibilityStatus: storedData.visibilityStatus ?? 'passively-looking',
+      profileVisibility: storedData.profileVisibility ?? 'public',
     };
   }
 

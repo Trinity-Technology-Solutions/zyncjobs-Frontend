@@ -69,7 +69,8 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     if (!formData.companyEmail.trim()) errors.push('Company email is required');
     if (!formData.phoneNumber.trim()) errors.push('Phone number is required');
     if (!formData.socialLinks.linkedin.trim()) errors.push('LinkedIn URL is required');
-    if (!formData.gstNumber.trim()) errors.push('GST number is required for verification');
+    // GST is optional — verification can be done later
+    // if (!formData.gstNumber.trim()) errors.push('GST number is required for verification');
     return errors;
   };
 
@@ -1086,14 +1087,13 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                   {/* GST/CIN */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     <div>
-                      <label className={labelCls}>GST Number *</label>
+                      <label className={labelCls}>GST Number <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
                       <input
                         type="text"
                         value={formData.gstNumber}
                         onChange={e => setFormData(p => ({ ...p, gstNumber: e.target.value }))}
                         placeholder="22AAAAA0000A1Z5"
                         className={inputCls}
-                        required
                       />
                       <p className="text-xs text-gray-500 mt-1">Required for company verification</p>
                     </div>

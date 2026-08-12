@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Clock, CheckSquare, AlertCircle, TrendingUp, Calendar, MapPin, Briefcase, Building2, Eye, Users, BarChart3, Zap } from 'lucide-react';
+import { RefreshCw, Clock, CheckSquare, AlertCircle, TrendingUp, MapPin, Eye, Users, BarChart3, Zap } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
-import { apiFetch } from '../api/apiFetch';
-import { tokenStorage } from '../utils/tokenStorage';
-import { getId } from '../utils/getId';
 import BackButton from '../components/BackButton';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
@@ -21,6 +18,7 @@ interface Job {
   createdAt: string;
   refreshCount?: number;
   lastRefreshedAt?: string;
+  isActive?: boolean;
   status: string;
   applicationCount?: number;
   salary?: any;
@@ -45,9 +43,10 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshStats, setRefreshStats] = useState({
+    totalJobs: 0,
     totalRefreshes: 0,
-    remainingRefreshes: 0,
-    nextRefreshDate: null as string | null
+    availableRefreshes: 0,
+    refreshesRemaining: 0,
   });
 
   useEffect(() => {
@@ -74,20 +73,33 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
     }
   };
 
+
   const fetchRefreshAnalytics = async () => {
     try {
-      const response = await fetch(
+      const res = await fetch(
         `${API_ENDPOINTS.BASE_URL}/jobs/refresh/analytics?employerEmail=${encodeURIComponent(user?.email || '')}&userPlan=free`
       );
-      if (response.ok) {
-        const analytics = await response.json();
-        setRefreshStats(analytics);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.analytics) {
+          const a = data.analytics;
+          const totalJobs = a.totalJobs ?? 0;
+          const totalRefreshes = a.totalRefreshes ?? 0;
+          const maxAllowed = totalJobs * (a.planLimits?.maxRefreshes ?? 3);
+          setRefreshStats({
+            totalJobs,
+            totalRefreshes,
+            availableRefreshes: a.availableRefreshes ?? 0,
+            refreshesRemaining: Math.max(0, maxAllowed - totalRefreshes),
+          });
+        }
       }
-    } catch (error) {
-      console.error('Error fetching refresh analytics:', error);
+    } catch (err) {
+      console.error('Error fetching refresh analytics:', err);
     }
   };
 
+  const activeJobs = jobs.filter(j => j.isActive || j.status === 'active' || j.status === 'Active');
 
 
   const handleJobSelect = (jobId: string) => {
@@ -162,8 +174,8 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
     return true;
   };
 
-  const refreshableJobs = jobs.filter(canRefreshJob);
-  const nonRefreshableJobs = jobs.filter(job => !canRefreshJob(job));
+  const refreshableJobs = activeJobs.filter(canRefreshJob);
+  const nonRefreshableJobs = activeJobs.filter(job => !canRefreshJob(job));
 
   const isAllRefreshableSelected = refreshableJobs.length > 0 && refreshableJobs.every(job => selectedJobs.includes(job.id || job._id!));
 
@@ -190,7 +202,9 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
             <p className="text-gray-600 text-sm sm:text-base">Boost your job visibility and attract top talent</p>
           </div>
         </div>
-        <div className="mb-8">
+
+        {/* Free Plan & Upgrade - TODO: enable after complete structure is built */}
+        {/* <div className="mb-8">
           <div className="flex items-center justify-end gap-3">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
               <div className="flex items-center gap-2">
@@ -202,32 +216,35 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
               Upgrade to Pro
             </button>
           </div>
-        </div>
+        </div> */}
 
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* Card 1 — Total refreshes done across all jobs */}
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
                 <RefreshCw className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-blue-600 bg-blue-200 px-2 py-1 rounded-full">Total</span>
+              <span className="text-xs font-medium text-blue-600 bg-blue-200 px-2 py-1 rounded-full">Used</span>
             </div>
             <p className="text-2xl font-bold text-blue-900 mb-1">{refreshStats.totalRefreshes}</p>
             <p className="text-sm text-blue-700">Refreshes Used</p>
           </div>
-          
+
+          {/* Card 2 — Remaining quota: (totalJobs × 3) - totalRefreshes */}
           <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-green-600 bg-green-200 px-2 py-1 rounded-full">Available</span>
+              <span className="text-xs font-medium text-green-600 bg-green-200 px-2 py-1 rounded-full">Remaining</span>
             </div>
-            <p className="text-2xl font-bold text-green-900 mb-1">{refreshStats.remainingRefreshes}</p>
-            <p className="text-sm text-green-700">Refreshes Left</p>
+            <p className="text-2xl font-bold text-green-900 mb-1">{refreshStats.refreshesRemaining}</p>
+            <p className="text-sm text-green-700">Refreshes Remaining</p>
           </div>
-          
+
+          {/* Card 3 — Jobs eligible to refresh right now */}
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
@@ -235,10 +252,11 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
               </div>
               <span className="text-xs font-medium text-purple-600 bg-purple-200 px-2 py-1 rounded-full">Ready</span>
             </div>
-            <p className="text-2xl font-bold text-purple-900 mb-1">{refreshableJobs.length}</p>
-            <p className="text-sm text-purple-700">Jobs Ready</p>
+            <p className="text-2xl font-bold text-purple-900 mb-1">{refreshStats.availableRefreshes}</p>
+            <p className="text-sm text-purple-700">Jobs Ready to Refresh</p>
           </div>
-          
+
+          {/* Card 4 — Total active jobs from backend */}
           <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center">
@@ -246,7 +264,7 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
               </div>
               <span className="text-xs font-medium text-orange-600 bg-orange-200 px-2 py-1 rounded-full">Total</span>
             </div>
-            <p className="text-2xl font-bold text-orange-900 mb-1">{jobs.length}</p>
+            <p className="text-2xl font-bold text-orange-900 mb-1">{refreshStats.totalJobs}</p>
             <p className="text-sm text-orange-700">Active Jobs</p>
           </div>
         </div>

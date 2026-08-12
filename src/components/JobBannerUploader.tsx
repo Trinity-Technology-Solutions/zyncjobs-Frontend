@@ -24,6 +24,9 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
   const [rawPreview, setRawPreview] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
   const [bannerUrl, setBannerUrl] = useState(currentBanner || '');
+  const [urlInput, setUrlInput] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlPreviewOk, setUrlPreviewOk] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -117,12 +120,24 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
   const handleRemove = () => {
     setBannerUrl('');
     setRawFile(null);
+    setUrlInput('');
+    setUrlError(null);
     if (rawPreview) {
       URL.revokeObjectURL(rawPreview);
       setRawPreview(null);
     }
     setError(null);
     onRemove();
+  };
+
+  const handleUrlApply = () => {
+    const url = urlInput.trim();
+    if (!url) { setUrlError('Please enter a URL'); return; }
+    try { new URL(url); } catch { setUrlError('Invalid URL format'); return; }
+    setUrlError(null);
+    setBannerUrl(url);
+    onChange(url);
+    setUrlInput('');
   };
 
   return (
@@ -196,6 +211,61 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
           </p>
         </div>
       ) : null}
+
+      {/* URL paste input */}
+      <div className="space-y-2">
+        <div className="flex gap-2 items-start">
+          <div className="flex-1">
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => { setUrlInput(e.target.value); setUrlError(null); setUrlPreviewOk(null); }}
+              onPaste={(e) => {
+                setTimeout(() => {
+                  setUrlInput(prev => prev.trim());
+                  setUrlError(null);
+                  setUrlPreviewOk(null);
+                }, 0);
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlApply(); } }}
+              placeholder="Or paste an image URL here..."
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                urlError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+              }`}
+            />
+            {urlError && <p className="text-xs text-red-600 mt-1">{urlError}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={handleUrlApply}
+            disabled={!urlInput.trim()}
+            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+          >
+            Use URL
+          </button>
+        </div>
+        {/* Live URL preview */}
+        {urlInput.trim() && (() => { try { new URL(urlInput.trim()); return true; } catch { return false; } })() && (
+          <div className="relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200" style={{height: '80px'}}>
+            <img
+              src={urlInput.trim()}
+              alt="URL preview"
+              className="w-full h-full object-cover"
+              onLoad={() => setUrlPreviewOk(true)}
+              onError={() => setUrlPreviewOk(false)}
+            />
+            {urlPreviewOk === false && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-500 text-xs text-center px-2">
+                <span className="text-lg mb-1">⚠️</span>
+                Cannot load this URL as image.<br/>Try right-clicking the image → "Copy image address"
+              </div>
+            )}
+            {urlPreviewOk === true && (
+              <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">✓ Image loaded</div>
+            )}
+          </div>
+        )}
+      </div>
 
       <input
         ref={fileInputRef}

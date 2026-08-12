@@ -325,7 +325,13 @@ function App() {
 
   const handleLogout = useCallback(() => {
     resetSavedJobs();
-    let userType = user?.type || localStorage.getItem('lastUserType');
+
+    // Read ALL sources BEFORE clearing anything
+    let userType: string | null | undefined = user?.type;
+
+    if (!userType || userType === 'candidate') {
+      userType = localStorage.getItem('lastUserType') || userType;
+    }
 
     if (!userType) {
       try {
@@ -343,8 +349,6 @@ function App() {
         }
       } catch { }
     }
-
-    console.log('🚪 Logout - User type detected:', userType);
 
     // Clear storage AFTER reading userType
     setUser(null);
@@ -473,20 +477,16 @@ function App() {
   useEffect(() => {
     initializeEmployerIdCounter();
     const handleForceLogout = () => {
-      // Get user type from multiple sources to ensure we have it
-      let userType = localStorage.getItem('lastUserType') || user?.type;
+      // Read ALL sources BEFORE clearing anything
+      let userType: string | null | undefined = localStorage.getItem('lastUserType');
 
-      // Fallback: try to get from localStorage user object if lastUserType is not available
       if (!userType) {
         try {
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           userType = storedUser.userType || storedUser.role || storedUser.type;
-        } catch {
-          // ignore parsing errors
-        }
+        } catch { }
       }
 
-      // Fallback: try to get from token payload
       if (!userType) {
         try {
           const token = tokenStorage.getAccess();
@@ -494,12 +494,8 @@ function App() {
             const payload = JSON.parse(atob(token.split('.')[1]));
             userType = payload.userType || payload.role;
           }
-        } catch {
-          // ignore token parsing errors
-        }
+        } catch { }
       }
-
-      console.log('🚪 Force logout - User type detected:', userType);
 
       // Clear user state immediately
       setUser(null);

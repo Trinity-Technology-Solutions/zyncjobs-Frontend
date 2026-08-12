@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Clock, XCircle, User, FileText, IndianRupee, Shield } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 
 interface CredentialedCandidate {
   _id: string;

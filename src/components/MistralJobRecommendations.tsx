@@ -27,6 +27,19 @@ function SvgIcon({ name, className = "w-4 h-4" }: { name: keyof typeof icons; cl
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Match endpoints can return items shaped like { job: {...}, score: ... } — normalize to the job object itself
+function extractJob(raw: any): any {
+  if (!raw || typeof raw !== 'object') return {};
+  const hasJobFields = raw._id || raw.id || raw.jobId || raw.jobTitle || raw.title || raw.company;
+  if (!hasJobFields && raw.job && typeof raw.job === 'object') return raw.job;
+  return raw;
+}
+
+function getJobId(job: any): string {
+  const j = extractJob(job);
+  return j._id || j.id || j.jobId || j._jobId || '';
+}
+
 interface MistralJobRecommendationsProps {
   resumeSkills: Array<{ skill: string }>;
   location: string;
@@ -149,8 +162,9 @@ const EnhancedMatchCard: React.FC<{
       <div className="flex gap-2 pt-2 border-t border-gray-100">
         <button
           onClick={() => {
-            const jobId = job._id || job.id;
-            localStorage.setItem('selectedJob', JSON.stringify(job));
+            const target = extractJob(job);
+            const jobId = getJobId(target);
+            localStorage.setItem('selectedJob', JSON.stringify(target));
             window.location.href = jobId ? `/job-detail?id=${jobId}` : '/job-listings';
           }}
           className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
@@ -159,13 +173,15 @@ const EnhancedMatchCard: React.FC<{
         </button>
         <button
           onClick={() => {
-            localStorage.setItem('selectedJob', JSON.stringify(job));
+            const target = extractJob(job);
+            const jobId = getJobId(target);
+            localStorage.setItem('selectedJob', JSON.stringify(target));
             sessionStorage.setItem('selectedJob', JSON.stringify({
-              _id: job._id,
-              jobTitle: job.jobTitle || job.title,
-              company: job.company,
-              location: job.location,
-              jobData: job
+              _id: jobId,
+              jobTitle: target.jobTitle || target.title,
+              company: target.company,
+              location: target.location,
+              jobData: target
             }));
             window.location.href = '/job-application';
           }}
@@ -206,7 +222,8 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
   const scoreJobs = (jobs: any[], limit: number): EnhancedJobRecommendation[] => {
     const profile = buildCandidateProfile();
-    return jobs.slice(0, limit).map(job => {
+    return jobs.slice(0, limit).map(item => {
+      const job = extractJob(item);
       const jobData = { ...job, title: job.jobTitle || job.title || '', skills: Array.isArray(job.skills) ? job.skills : [] };
       const b = computeMatchBreakdown(jobData, profile);
       const jobSkillsLower: string[] = jobData.skills.map((s: string) => String(s || '').toLowerCase());

@@ -43,6 +43,24 @@ const has = (v: any): boolean =>
 export const safeText = (v: any): string | null =>
   has(v) ? String(v).trim() : null;
 
+/**
+ * Formats a score field with its unit/label so records never show a bare
+ * number: "85" → "85%", "8.5" → "CGPA 8.5", while "85%", "8.5 CGPA", "9/10"
+ * are kept as entered.
+ */
+export const formatScore = (v: any): string | null => {
+  const raw = safeText(v);
+  if (!raw) return null;
+  const t = raw.toLowerCase();
+  if (t.includes("%") || t.includes("cgpa") || t.includes("/10") || t.includes("/ 10")) return raw;
+  const n = parseFloat(t);
+  if (!isNaN(n) && !t.includes("/")) {
+    if (n > 10) return `${raw}%`;
+    if (n > 0) return `CGPA ${raw}`;
+  }
+  return raw;
+};
+
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 export const isValidUrl = (v: string): boolean => {
@@ -261,6 +279,9 @@ export const EducationCollegeDisplay: React.FC<{ data: any }> = ({ data }) => {
     safeText(data.status) === "Pursuing" ||
     (data.passingYear && Number(data.passingYear) > new Date().getFullYear());
 
+  const year = safeText(data.passingYear || data.graduationYear || data.endYear || data.year);
+  const score = formatScore(data.percentage);
+
   return (
     <div className="flex items-start gap-4">
       <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -293,16 +314,16 @@ export const EducationCollegeDisplay: React.FC<{ data: any }> = ({ data }) => {
           {safeText(data.courseType) && (
             <span className="text-xs text-gray-500">{data.courseType}</span>
           )}
-          {safeText(data.passingYear) && (
+          {year && (
             <span className="text-xs text-gray-500">
               {isPursuing
-                ? `Expected ${data.passingYear}`
-                : `Graduated ${data.passingYear}`}
+                ? `Expected Graduation ${year}`
+                : `Graduation Year ${year}`}
             </span>
           )}
-          {safeText(data.percentage) && (
+          {score && (
             <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-              {data.percentage}
+              {score}
             </span>
           )}
         </div>
@@ -317,6 +338,8 @@ export const SchoolEducationDisplay: React.FC<{ data: any; label: string }> = ({
   label,
 }) => {
   if (!data || typeof data !== "object" || !safeText(data.board)) return null;
+  const year = safeText(data.passingYear || data.graduationYear || data.endYear || data.year);
+  const score = formatScore(data.percentage);
   return (
     <div className="flex items-start gap-4">
       <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -341,14 +364,14 @@ export const SchoolEducationDisplay: React.FC<{ data: any; label: string }> = ({
           {safeText(data.medium) && (
             <span className="text-xs text-gray-500">{data.medium} Medium</span>
           )}
-          {safeText(data.passingYear) && (
+          {year && (
             <span className="text-xs text-gray-500">
-              Passed {data.passingYear}
+              Passed {year}
             </span>
           )}
-          {safeText(data.percentage) && (
+          {score && (
             <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-              {data.percentage}%
+              {score}
             </span>
           )}
         </div>

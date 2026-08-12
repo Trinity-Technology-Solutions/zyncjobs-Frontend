@@ -4256,9 +4256,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               ...user,
               profilePhoto: photoUrl,
               profileFrame: frame || "none",
+              openToWork: frame === "green",
             };
             setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
+            window.dispatchEvent(new CustomEvent("zync:user-updated", { detail: updatedUser }));
 
             await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
               method: "POST",
@@ -4267,6 +4269,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 email: user?.email,
                 profilePhoto: photoUrl,
                 profileFrame: frame || "none",
+                openToWork: frame === "green",
               }),
             });
 

@@ -10,6 +10,7 @@ interface ConfirmDialogProps {
   variant?: 'danger' | 'warning' | 'info';
   onConfirm: () => void;
   onCancel: () => void;
+  overlayClassName?: string;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -21,6 +22,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   variant = 'danger',
   onConfirm,
   onCancel,
+  overlayClassName = 'z-[9999]',
 }) => {
   if (!isOpen) return null;
 
@@ -30,7 +32,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     'bg-blue-600 hover:bg-blue-700';
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+    <div className={`fixed inset-0 ${overlayClassName} flex items-center justify-center`}>
       <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onCancel} />
       <div className="relative bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-3">

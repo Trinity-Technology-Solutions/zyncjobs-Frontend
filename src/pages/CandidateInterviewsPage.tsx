@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { formatInterviewDate, formatInterviewTime, getInterviewJoinUrl, parseDateValue } from '../utils/interviewScheduleUtils';
 
 interface Interview {
   _id: string;
@@ -37,11 +38,11 @@ interface CandidateInterviewsPageProps {
 const getCountdown = (dateStr: string, timeStr: string): string => {
   try {
     if (!dateStr || !timeStr) return '';
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return '';
-    const target = new Date(dateStr);
-    if (isNaN(target.getTime())) return '';
-    target.setHours(hours, minutes, 0, 0);
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (!timeMatch) return '';
+    const target = parseDateValue(dateStr);
+    if (!target) return '';
+    target.setHours(parseInt(timeMatch[1], 10), parseInt(timeMatch[2], 10), 0, 0);
     const diff = target.getTime() - Date.now();
     if (diff <= 0) return 'Started';
     const d = Math.floor(diff / 86400000);
@@ -304,6 +305,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 const isUpcoming = interview.status === 'scheduled' || interview.status === 'rescheduled';
                 const countdown = isUpcoming ? getCountdown(interview.interviewDate || '', interview.interviewTime || '') : '';
                 const isHot = countdown.includes('🔥');
+                const joinUrl = getInterviewJoinUrl(interview);
                 const companyName = interview.jobId?.company || '';
                 const logoSrc = companyLogos[companyName.toLowerCase()] || getSafeCompanyLogo({ company: companyName });
                 const companyInitial = companyName.charAt(0).toUpperCase() || 'C';
@@ -372,13 +374,11 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewDate
-                                ? new Date(interview.interviewDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : 'Date TBD'}
+                              {formatInterviewDate(interview)}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewTime || 'Time TBD'}
+                              {formatInterviewTime(interview)}
                             </span>
                           </div>
                         </div>
@@ -459,16 +459,16 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             </>
                           )}
 
-                          {(isUpcoming || interview.status === 'accepted') && interview.meetingLink ? (
+                          {(isUpcoming || interview.status === 'accepted') && joinUrl && (
                             <a
-                              href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
+                              href={joinUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md active:scale-95"
                             >
                               <Video className="w-4 h-4" /> Join Interview
                             </a>
-                          ) : null}
+                          )}
                         </div>
                       </div>
                     </div>
