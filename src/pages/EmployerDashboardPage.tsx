@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2 } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -25,7 +25,6 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
-import { formatInterviewDate, formatInterviewTime, getInterviewJoinUrl } from '../utils/interviewScheduleUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
@@ -2113,7 +2112,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {interview.meetingLink && (
                               <div className="mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
-                                  href={getInterviewJoinUrl(interview) || undefined}
+                                  href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors shadow-sm"
@@ -2123,11 +2122,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 </a>
                                 <button
                                   onClick={() => {
-                                    const joinUrl = getInterviewJoinUrl(interview);
-                                    if (joinUrl) {
-                                      navigator.clipboard.writeText(joinUrl);
-                                      showToast('Meeting link copied!', 'success');
-                                    }
+                                    navigator.clipboard.writeText(`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`);
+                                    showToast('Meeting link copied!', 'success');
                                   }}
                                   className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-600 border border-gray-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition-colors"
                                   title="Copy meeting link"
@@ -2146,65 +2142,59 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[160px]">
-                          {canManageApplications ? (
-                            <AutocompleteCombobox
-                              value={interview.status || 'scheduled'}
-                              onChange={async (newStatus) => {
-                                try {
-                                  const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ status: newStatus }),
-                                  });
-                                  if (response.ok) {
-                                    setInterviews(prev => prev.map(int => int._id === interview._id ? { ...int, status: newStatus } : int));
-                                    showToast('Interview status updated!', 'success');
-                                  } else {
-                                    throw new Error('Failed to update status');
-                                  }
-                                } catch (error) {
-                                  console.error('Error updating interview status:', error);
-                                  showToast('Failed to update interview status. Please try again.', 'error');
+                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
+                          {canManageApplications ? (<AutocompleteCombobox
+                            value={interview.status || 'scheduled'}
+                            onChange={async (newStatus) => {
+                              try {
+                                const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ status: newStatus }),
+                                });
+                                
+                                if (response.ok) {
+                                  setInterviews(prev => 
+                                    prev.map(int => 
+                                      int._id === interview._id ? { ...int, status: newStatus } : int
+                                    )
+                                  );
+                                  showToast('Interview status updated!', 'success');
+                                } else {
+                                  throw new Error('Failed to update status');
                                 }
-                              }}
-                              options={[
-                                { value: 'scheduled', label: 'Scheduled' },
-                                { value: 'accepted', label: 'Accepted' },
-                                { value: 'rejected', label: 'Declined' },
-                                { value: 'completed', label: 'Completed' },
-                                { value: 'cancelled', label: 'Cancelled' }
-                              ]}
-                              placeholder="Select status"
-                              className="flex-1 lg:flex-none lg:w-full"
-                            />
-                          ) : (
-                            <span className="flex-1 lg:flex-none lg:w-full min-h-[40px] flex items-center justify-center px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">
-                              {interview.status || 'scheduled'}
-                            </span>
-                          )}
-                          {canDeleteRecords && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openConfirm(
-                                  'Delete Interview',
-                                  'Are you sure you want to delete this interview? This action cannot be undone.',
-                                  async () => {
-                                    try {
-                                      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
-                                        method: 'DELETE',
-                                        headers: { 'Content-Type': 'application/json' },
-                                      });
-                                      if (response.ok) {
-                                        setInterviews(prev => prev.filter(int => int._id !== interview._id));
-                                        showToast('Interview deleted successfully!', 'success');
-                                      } else {
-                                        showToast('Failed to delete interview', 'error');
-                                      }
-                                    } catch (error) {
-                                      console.error('Delete error:', error);
+                              } catch (error) {
+                                console.error('Error updating interview status:', error);
+                                showToast('Failed to update interview status. Please try again.', 'error');
+                              }
+                            }}
+                            options={[
+                              { value: 'scheduled', label: 'Scheduled' },
+                              { value: 'accepted', label: 'Accepted' },
+                              { value: 'rejected', label: 'Declined' },
+                              { value: 'completed', label: 'Completed' },
+                              { value: 'cancelled', label: 'Cancelled' }
+                            ]}
+                            placeholder="Select status"
+                            className="px-3 sm:px-4 py-2"
+                          />) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
+                          {canDeleteRecords && (<button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openConfirm(
+                                'Delete Interview', 
+                                'Are you sure you want to delete this interview? This action cannot be undone.', 
+                                async () => {
+                                  try {
+                                    const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
+                                      method: 'DELETE',
+                                      headers: { 'Content-Type': 'application/json' },
+                                    });
+                                    if (response.ok) {
+                                      setInterviews(prev => prev.filter(int => int._id !== interview._id));
+                                      showToast('Interview deleted successfully!', 'success');
+                                    } else {
                                       showToast('Failed to delete interview', 'error');
                                     }
                                     closeConfirm();
@@ -3089,19 +3079,45 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                 {owner.memberName.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-gray-900 text-base truncate">{owner.memberName}</p>
-                  <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">Owner</span>
-                  {owner.memberEmail === (currentUserEmail || employerEmail) && (
-                    <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">You</span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-0.5 truncate">{owner.memberEmail}</p>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {ROLE_PERMISSIONS.Owner.map(p => (
-                    <span key={p} className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">{p}</span>
-                  ))}
-                </div>
+                <p className="font-medium text-gray-900 text-sm truncate">{member.memberName}</p>
+                <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
+                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                  member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  roleColors[member.role]
+                }`}>
+                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
+                  {member.role}
+                </span>
+                {member.memberEmail !== (currentUserEmail || employerEmail) ? (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <AutocompleteCombobox value={member.role} onChange={(val) => handleRoleChange(member.id, val as TeamRole)}
+                      options={[
+                        { value: 'Recruiter', label: 'Recruiter' },
+                        { value: 'Viewer', label: 'Viewer' },
+                        { value: 'Owner', label: 'Owner' }
+                      ]}
+                      placeholder="Select role"
+                      className="text-xs min-w-[100px]"
+                    />
+                    <button onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (window.confirm('Are you sure you want to remove this team member?')) {
+                        await handleRemove(member.id);
+                      }
+                    }}
+                      className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400 italic text-center sm:text-left">You</span>
+                )}
               </div>
               <span className="text-xs px-3 py-1 rounded-full border font-semibold bg-green-50 text-green-700 border-green-200 flex-shrink-0">✅ Active</span>
             </div>

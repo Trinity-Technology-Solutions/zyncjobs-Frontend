@@ -351,24 +351,27 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-3 sm:mb-4">
               <div className="flex-1 relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                <input
-                  type="text"
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <AutocompleteCombobox
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={setSearchTerm}
+                  options={[]}
+                  allowCustom
                   placeholder="Search by Title/Ref Code/Job ID"
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                  className="pl-8"
                 />
               </div>
-              <select
+              <AutocompleteCombobox
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
-                className="w-full sm:w-52 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-              >
-                <option value="posted">Sort by: Posted/sent date</option>
-                <option value="responses">Sort by: Response count</option>
-                <option value="title">Sort by: Job title</option>
-              </select>
+                onChange={(val) => setSortBy(val)}
+                options={[
+                  { value: 'posted', label: 'Sort by: Posted/sent date' },
+                  { value: 'responses', label: 'Sort by: Response count' },
+                  { value: 'title', label: 'Sort by: Job title' },
+                ]}
+                placeholder="Sort by"
+                className="w-56"
+              />
             </div>
           </div>
           

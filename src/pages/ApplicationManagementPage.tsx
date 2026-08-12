@@ -10,7 +10,7 @@ import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
 import { executeAI } from '../services/aiChatService';
-import { apiFetch } from '../api/apiFetch';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -506,12 +506,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             {/* Search */}
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input
-                type="text"
+              <AutocompleteCombobox
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={setSearchQuery}
+                options={[]}
+                allowCustom
                 placeholder="Search candidate..."
-                className="w-40 outline-none text-sm text-gray-900 placeholder:text-gray-400 bg-transparent"
+                className="w-40"
               />
             </div>
             {applications.length > 0 && (

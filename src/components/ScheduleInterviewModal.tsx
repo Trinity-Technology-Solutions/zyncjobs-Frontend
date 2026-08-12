@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Video, X, Calendar, Clock, User, FileText, MapPin, ChevronDown } from 'lucide-react';
-import { formatLocalDateTime, toLocalDateTimeInput, isMeetingLinkForPlatform } from '../utils/interviewScheduleUtils';
+import { Video, X, Calendar, Clock, User, FileText, MapPin, ExternalLink } from 'lucide-react';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface ScheduleInterviewModalProps {
   application: any;
@@ -258,33 +258,35 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               <Clock size={14} className="inline mr-1" />Duration
             </label>
-            <div className="relative">
-              <select
-                value={String(formData.duration)}
-                onChange={e => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value, 10) }))}
-                className={selectClass}>
-                {DURATION_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+            <AutocompleteCombobox
+              label="Duration"
+              value={String(formData.duration)}
+              onChange={(val) => setFormData(prev => ({ ...prev, duration: parseInt(val) }))}
+              options={[
+                { value: '30', label: '30 minutes' },
+                { value: '60', label: '1 hour' },
+                { value: '90', label: '1.5 hours' },
+                { value: '120', label: '2 hours' },
+              ]}
+              placeholder="Select duration"
+            />
           </div>
 
           {/* Interview Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Interview Type</label>
-            <div className="relative">
-              <select
-                value={formData.type}
-                onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '', location: '' }))}
-                className={selectClass}>
-                {TYPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+            <AutocompleteCombobox
+              label="Interview Type"
+              value={formData.type}
+              onChange={(val) => setFormData(prev => ({ ...prev, type: val, meetingLink: '' }))}
+              options={[
+                { value: 'video', label: 'Video Call (Zoom)' },
+                { value: 'googlemeet', label: 'Google Meet' },
+                { value: 'phone', label: 'Phone Call' },
+                { value: 'in-person', label: 'In Person' },
+              ]}
+              placeholder="Select interview type"
+            />
           </div>
 
           {/* Meeting Link */}

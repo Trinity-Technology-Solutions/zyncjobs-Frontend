@@ -160,22 +160,11 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
         }
         break;
       }
-      case 'Backspace': {
-        if (value && !searchQuery) {
-          // Move selected value back into search input so user can edit char-by-char
-          e.preventDefault();
-          setSearchQuery(value.slice(0, -1));
-          onChange('');
-          openDropdown();
-        }
-        break;
-      }
+      case 'Backspace':
       case 'Delete': {
         if (value && !searchQuery) {
           e.preventDefault();
-          setSearchQuery(value);
           onChange('');
-          openDropdown();
         }
         break;
       }
@@ -216,7 +205,6 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
     const val = e.target.value;
     if (value) onChange('');
     setSearchQuery(val);
-    setChevronOpened(false);
     if (!isOpen) openDropdown();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -369,7 +357,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             aria-invalid={!!error}
             aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
             placeholder={placeholder}
-            value={searchQuery || (isOpen ? '' : value)}
+            value={value || searchQuery}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={() => {

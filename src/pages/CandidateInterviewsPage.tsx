@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
@@ -461,7 +460,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
                           {(isUpcoming || interview.status === 'accepted') && joinUrl && (
                             <a
-                              href={joinUrl}
+                              href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md active:scale-95"
