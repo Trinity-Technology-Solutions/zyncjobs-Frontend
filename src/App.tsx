@@ -74,7 +74,6 @@ const ApplicationManagementPage = lazy(() => import('./pages/ApplicationManageme
 const MeetingTest = lazy(() => import('./components/MeetingTest'));
 const SkillAssessmentPage = lazy(() => import('./pages/SkillAssessmentPage'));
 const AssessmentReviewPage = lazy(() => import('./pages/AssessmentReviewPage'));
-const InterviewScheduling = lazy(() => import('./components/InterviewScheduling'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const CandidateInterviewsPage = lazy(() => import('./pages/CandidateInterviewsPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
@@ -106,6 +105,7 @@ const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
 const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage'));
 const MyAlertsPage = lazy(() => import('./pages/MyAlertsPage'));
 const JobAlertNotificationsPage = lazy(() => import('./pages/JobAlertNotificationsPage'));
+const InterviewInvitePage = lazy(() => import('./pages/InterviewInvitePage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -157,6 +157,43 @@ const AssessmentReviewPageWrapper: React.FC<{
 }> = ({ onNavigate, user }) => {
   const { assessmentId } = useParams<{ assessmentId: string }>();
   return <AssessmentReviewPage onNavigate={onNavigate} user={user} assessmentId={assessmentId || ''} />;
+};
+
+// Dashboard route wrapper — detects intended role from URL for correct login redirect
+const DashboardRoute: React.FC<{ 
+  user: any; 
+  userLoading: boolean; 
+  nav: any; 
+  notification: any; 
+  setNotification: any;
+  handleNavigation: any;
+  handleLogout: any;
+}> = ({ user, userLoading, nav, notification, setNotification, handleNavigation, handleLogout }) => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const hash = location.hash.replace('#', '');
+  
+  // Determine intended role from query param, hash, or referrer
+  // Employer contexts: #interviews, #applications, #team, ?role=employer
+  const employerHashes = ['interviews', 'applications', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'];
+  const intendedRole = searchParams.get('role') || (employerHashes.includes(hash) ? 'employer' : 'candidate');
+  const redirectTo = intendedRole === 'employer' ? '/employer-login' : '/login';
+
+  return (
+    <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
+      <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
+      {user?.type === 'admin' || user?.type === 'super_admin' ? (
+        <Navigate to="/admin/dashboard" replace />
+      ) : user?.type === 'employer' ? (
+        <>
+          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+          <EmployerDashboardPage user={user as any} onNavigate={handleNavigation} onLogout={handleLogout} />
+        </>
+      ) : (
+        <WithLayout {...nav}><CandidateDashboardPage user={user as any} onNavigate={handleNavigation} /></WithLayout>
+      )}
+    </AuthGuard>
+  );
 };
 
 function MaintenancePage({ onRetry }: { onRetry: () => void }) {
@@ -288,7 +325,13 @@ function App() {
 
   const handleLogout = useCallback(() => {
     resetSavedJobs();
-    let userType = user?.type || localStorage.getItem('lastUserType');
+
+    // Read ALL sources BEFORE clearing anything
+    let userType: string | null | undefined = user?.type;
+
+    if (!userType || userType === 'candidate') {
+      userType = localStorage.getItem('lastUserType') || userType;
+    }
 
     if (!userType) {
       try {
@@ -306,8 +349,6 @@ function App() {
         }
       } catch { }
     }
-
-    console.log('🚪 Logout - User type detected:', userType);
 
     // Clear storage AFTER reading userType
     setUser(null);
@@ -436,20 +477,16 @@ function App() {
   useEffect(() => {
     initializeEmployerIdCounter();
     const handleForceLogout = () => {
-      // Get user type from multiple sources to ensure we have it
-      let userType = localStorage.getItem('lastUserType') || user?.type;
+      // Read ALL sources BEFORE clearing anything
+      let userType: string | null | undefined = localStorage.getItem('lastUserType');
 
-      // Fallback: try to get from localStorage user object if lastUserType is not available
       if (!userType) {
         try {
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           userType = storedUser.userType || storedUser.role || storedUser.type;
-        } catch {
-          // ignore parsing errors
-        }
+        } catch { }
       }
 
-      // Fallback: try to get from token payload
       if (!userType) {
         try {
           const token = tokenStorage.getAccess();
@@ -457,12 +494,8 @@ function App() {
             const payload = JSON.parse(atob(token.split('.')[1]));
             userType = payload.userType || payload.role;
           }
-        } catch {
-          // ignore token parsing errors
-        }
+        } catch { }
       }
-
-      console.log('🚪 Force logout - User type detected:', userType);
 
       // Clear user state immediately
       setUser(null);
@@ -581,6 +614,7 @@ function App() {
         }
       } catch {
         tokenStorage.clear();
+        localStorage.removeItem('user');
         setUser(null);
       } finally {
         setUserLoading(false);
@@ -756,19 +790,7 @@ function App() {
             {/* -- Protected: any logged-in user -- */}
             <Route path="/dashboard" element={
               userLoading ? <LoadingFallback /> :
-                <AuthGuard user={user} userLoading={false}>
-                  <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
-                  {user?.type === 'admin' || user?.type === 'super_admin' ? (
-                    <Navigate to="/admin/dashboard" replace />
-                  ) : user?.type === 'employer' ? (
-                    <>
-                      <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-                      <EmployerDashboardPage user={user as any} onNavigate={handleNavigation} onLogout={handleLogout} />
-                    </>
-                  ) : (
-                    <WithLayout {...nav}><CandidateDashboardPage user={user as any} onNavigate={handleNavigation} /></WithLayout>
-                  )}
-                </AuthGuard>
+                <DashboardRoute user={user} userLoading={userLoading} nav={nav} notification={notification} setNotification={setNotification} handleNavigation={handleNavigation} handleLogout={handleLogout} />
             } />
 
             <Route path="/candidate-messages" element={
@@ -825,11 +847,7 @@ function App() {
 
             <Route path="/interviews" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                {user?.type === 'candidate' ? (
-                  <CandidateInterviewsPage {...nav} />
-                ) : (
-                  <WithLayout {...nav}><InterviewScheduling /></WithLayout>
-                )}
+                <CandidateInterviewsPage {...nav} />
               </AuthGuard>
             } />
 
@@ -1070,6 +1088,11 @@ function App() {
                   handleLogin({ ...userData, type: userType as any });
                 }}
               />
+            } />
+
+            {/* -- Interview invite (public) -- */}
+            <Route path="/interview-invite" element={
+              <InterviewInvitePage onNavigate={handleNavigation} />
             } />
 
             {/* -- Redirects for old paths -- */}

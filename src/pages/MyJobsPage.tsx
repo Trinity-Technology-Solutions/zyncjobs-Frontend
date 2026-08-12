@@ -265,9 +265,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       // Then get applications for those jobs
       const applicationsPromises = employerJobIds.map((jobId: any) => 
-        fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`)
+        apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`)
       );
-      
+
       const applicationsResponses = await Promise.all(applicationsPromises);
       const allApplications = [];
       

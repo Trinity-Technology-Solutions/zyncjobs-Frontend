@@ -3,6 +3,7 @@ import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
+import { apiFetch } from '../api/apiFetch';
 import { formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
@@ -654,7 +655,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     img.src = getCategoryBanner(job.jobCategory || job.category || '') || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-purple-900/50"></div>
+                
               </div>
               {/* Job Description directly below banner inside same card */}
               <div className="p-6">
@@ -706,14 +707,34 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   }
                   if (buf.length) sections[current] = [...(sections[current] || []), ...buf];
 
-                  const renderLines = (lines: string[], forceBullet = false) => lines.map((line, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      {forceBullet || /^[•\-\*]/.test(line)
-                        ? <><span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span><span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span></>
-                        : <p className="text-sm text-gray-700 leading-relaxed">{line}</p>
+                  // Split a block of text into individual bullet-ready sentences/items
+                  const splitIntoBullets = (lines: string[]): string[] => {
+                    const result: string[] = [];
+                    for (const line of lines) {
+                      // Already a bullet marker — keep as-is
+                      if (/^[•\-\*]/.test(line)) { result.push(line); continue; }
+                      // Split on '. ' followed by capital letter (sentence boundary)
+                      const sentences = line.split(/\.\s+(?=[A-Z])/);
+                      if (sentences.length > 1) {
+                        sentences.forEach(s => { const t = s.trim(); if (t) result.push(t.endsWith('.') ? t : t + '.'); });
+                      } else {
+                        result.push(line);
                       }
-                    </div>
-                  ));
+                    }
+                    return result;
+                  };
+
+                  const renderLines = (lines: string[], forceBullet = false) => {
+                    const items = forceBullet ? splitIntoBullets(lines) : lines;
+                    return items.map((line, i) => (
+                      <div key={i} className="flex items-start gap-2.5 py-0.5">
+                        {forceBullet || /^[•\-\*]/.test(line)
+                          ? <><span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></span><span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span></>
+                          : <p className="text-sm text-gray-700 leading-relaxed">{line}</p>
+                        }
+                      </div>
+                    ));
+                  };
 
                   const sectionOrder: Array<[string, string]> = [
                     ['summary', 'Job Summary'],
@@ -739,12 +760,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   }
 
                   return (
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                       {sectionOrder.map(([key, label]) =>
                         sections[key]?.length ? (
                           <div key={key}>
-                            <h4 className="text-xl font-bold text-gray-900 mb-3">{label}</h4>
-                            <div className="space-y-2">{renderLines(sections[key], key === 'responsibilities' || key === 'requirements')}</div>
+                            <h4 className="text-xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">{label}</h4>
+                            <div className="space-y-1">{renderLines(sections[key], key !== 'summary' && key !== 'about' && key !== 'apply')}</div>
                           </div>
                         ) : null
                       )}

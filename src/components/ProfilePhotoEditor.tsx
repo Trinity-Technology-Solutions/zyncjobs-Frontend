@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, X, Check, Edit2, Trash2, Upload } from 'lucide-react';
+import { Camera, X, Check, Edit2, Upload } from 'lucide-react';
 
 interface ProfilePhotoEditorProps {
   isOpen: boolean;

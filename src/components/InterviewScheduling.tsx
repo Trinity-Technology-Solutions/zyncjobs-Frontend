@@ -113,9 +113,7 @@ const InterviewScheduling = () => {
         body: JSON.stringify({
           platform: 'zoom',
           topic: 'Interview Meeting',
-          start_time: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
-            ? new Date(formData.scheduledDate + ':00').toISOString()
-            : new Date(formData.scheduledDate).toISOString(),
+          start_time: formData.scheduledDate || new Date().toISOString(),
           duration: formData.duration,
           description: 'Interview meeting scheduled via ZyncJobs'
         })

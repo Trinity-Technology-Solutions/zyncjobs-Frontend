@@ -179,7 +179,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       if (!resolvedJobId || resolvedJobId === 'undefined' || resolvedJobId === 'null') {
         setApplications([]); setError('No job selected.'); setLoading(false); return;
       }
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${resolvedJobId}`);
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${resolvedJobId}`);
       if (response.status === 404) { setApplications([]); setError(null); setLoading(false); return; }
       if (!response.ok) throw new Error('Failed to fetch applications');
       const fetched = await response.json();

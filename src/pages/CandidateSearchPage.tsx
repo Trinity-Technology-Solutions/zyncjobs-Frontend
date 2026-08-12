@@ -43,6 +43,8 @@ export interface Candidate {
   availability?: string;
   noticePeriod?: string;
   openToRelocation?: boolean;
+  visibilityStatus?: string;
+  openToWork?: boolean;
   email?: string;
   profilePhoto?: string;
   profileSummary?: string;
@@ -113,6 +115,15 @@ const FIT_CONFIG: Record<string, { bg: string; text: string; dot: string }> = {
 // ─────────────────────────────────────────────────────────────
 // Pure helpers  (no React, fully testable)
 // ─────────────────────────────────────────────────────────────
+
+/** Coerce a value (bool, number, or string like 'true'/'1') to a boolean, first defined value wins. */
+function firstBool(...vals: unknown[]): boolean | undefined {
+  for (const v of vals) {
+    if (v === true || v === 'true' || v === 1 || v === '1') return true;
+    if (v === false || v === 'false' || v === 0 || v === '0') return false;
+  }
+  return undefined;
+}
 
 /** Parse any experience value into a plain number (years). */
 function toExpYears(raw: string | number | undefined): number {
@@ -565,7 +576,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                 const skills: string[] = Array.isArray(rawSkills)
                   ? rawSkills.map((s: any) => typeof s === 'object' ? s.name || String(s) : String(s)).filter(Boolean)
                   : typeof rawSkills === 'string' ? rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                return { ...c, _id: c._id || c.id, profilePhoto, resumeUrl, skills };
+                return { ...c, _id: c._id || c.id, profilePhoto, resumeUrl, skills,
+                  openToWork: firstBool(c.openToWork, c.isOpenToWork, c.open_to_work),
+                  visibilityStatus: c.visibilityStatus ?? c.jobSearchStatus ?? undefined,
+                };
               });
             setCandidates(mapped);
             break;
@@ -813,6 +827,8 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     sessionStorage.setItem('viewCandidateId', cid);
     sessionStorage.setItem('viewCandidateData', JSON.stringify({
       name: candidate.fullName ?? candidate.name ?? '', email: candidate.email ?? '', skills: candidate.skills ?? [], resumeUrl: candidate.resumeUrl ?? '',
+      openToWork: firstBool(candidate.openToWork),
+      visibilityStatus: candidate.visibilityStatus,
     }));
     setViewingCandidateId(cid);
   }, [user?.email]);
@@ -894,7 +910,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         <CandidateProfileView
           candidateId={viewingCandidateId}
           onNavigate={onNavigate}
-          onBack={() => setViewingCandidateId(null)}
+          onBack={() => { setViewingCandidateId(null); fetchCandidates(); }}
         />
       </div>
     );
@@ -907,7 +923,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           <CandidateProfileView
             candidateId={viewingCandidateId}
             onNavigate={onNavigate}
-            onBack={() => setViewingCandidateId(null)}
+            onBack={() => { setViewingCandidateId(null); fetchCandidates(); }}
           />
         </div>
       )}
@@ -1537,6 +1553,11 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                               <p className="text-xs text-gray-400 mt-0.5 sm:mt-1 flex items-center gap-1 truncate">
                                 <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{getCandidateLocation(candidate)}</span>
                               </p>
+                              {firstBool(candidate.openToWork) && (
+                                <span className="inline-flex items-center text-[10px] font-bold text-white bg-green-500 px-2 py-0.5 rounded-full mt-1.5 mr-auto">
+                                  #Open to Work
+                                </span>
+                              )}
                             </div>
                             {/* AI Score */}
                             <div className="flex flex-col items-center flex-shrink-0">

@@ -244,7 +244,35 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       }
       return '';
     })(),
-    country: editJob?.country || parsedData?.country || '',
+    country: (() => {
+      // 1. Direct field from API
+      const direct = editJob?.country || editJob?.jobCountry || editJob?.countryName || parsedData?.country || '';
+      if (direct.trim()) return direct.trim();
+      // 2. Fallback: derive from location string for old jobs saved without country
+      if (isEditMode) {
+        const loc = (editJob?.location || editJob?.jobLocation || '').toLowerCase();
+        if (loc && !/^(remote|hybrid|on-site)$/.test(loc.trim())) {
+          // India cities
+          const indiaKeywords = ['india','mumbai','delhi','bangalore','bengaluru','chennai','hyderabad','kolkata','pune','ahmedabad','noida','gurgaon','gurugram','kochi','coimbatore','madurai','salem','trichy','tiruchirappalli','vellore','erode','surat','jaipur','lucknow','nagpur','indore','bhopal','visakhapatnam','patna','vadodara','chandigarh','mysore','mangalore','bhubaneswar','dehradun','pondicherry','puducherry'];
+          if (indiaKeywords.some(k => loc.includes(k))) return 'India';
+          // UAE
+          if (loc.includes('dubai') || loc.includes('abu dhabi') || loc.includes('sharjah') || loc.includes('uae') || loc.includes('united arab')) return 'United Arab Emirates';
+          // Other common
+          if (loc.includes('singapore')) return 'Singapore';
+          if (loc.includes('london') || loc.includes('manchester') || loc.includes('birmingham') || loc.includes('uk') || loc.includes('united kingdom')) return 'United Kingdom';
+          if (loc.includes('new york') || loc.includes('san francisco') || loc.includes('chicago') || loc.includes('usa') || loc.includes('united states')) return 'United States';
+          if (loc.includes('toronto') || loc.includes('vancouver') || loc.includes('canada')) return 'Canada';
+          if (loc.includes('sydney') || loc.includes('melbourne') || loc.includes('australia')) return 'Australia';
+          if (loc.includes('kuala lumpur') || loc.includes('malaysia')) return 'Malaysia';
+          if (loc.includes('riyadh') || loc.includes('jeddah') || loc.includes('saudi')) return 'Saudi Arabia';
+          if (loc.includes('doha') || loc.includes('qatar')) return 'Qatar';
+          if (loc.includes('muscat') || loc.includes('oman')) return 'Oman';
+          if (loc.includes('kuwait')) return 'Kuwait';
+          if (loc.includes('bahrain')) return 'Bahrain';
+        }
+      }
+      return '';
+    })(),
     language: (() => {
       const lang = editJob?.language || editJob?.languages;
       if (lang) {
@@ -787,14 +815,19 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const handleLocationBlur = async (value: string) => {
     setTimeout(async () => {
       setShowLocationSuggestions(false);
+      // In edit mode, never auto-overwrite country from location blur
+      if (isEditMode) return;
       if (value && !/^(remote|hybrid|on-site)$/i.test(value.trim())) {
-        const local = getCountryFromCity(value);
-        if (local) { updateJobData('country', local); return; }
-        try {
-          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(value)}`);
-          const data = await res.json();
-          if (data.country) updateJobData('country', data.country);
-        } catch {}
+        setJobData(prev => {
+          if (prev.country) return prev;
+          const local = getCountryFromCity(value);
+          if (local) return { ...prev, country: local };
+          fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(value)}`)
+            .then(res => res.json())
+            .then(data => { if (data.country) updateJobData('country', data.country); })
+            .catch(() => {});
+          return prev;
+        });
       }
     }, 150);
   };
@@ -1660,13 +1693,17 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     setShowLocationSuggestions(false);
     setLocationSuggestions([]);
     if (location && !/^(remote|hybrid|on-site)$/i.test(location.trim())) {
-      const local = getCountryFromCity(location);
-      if (local) { updateJobData('country', local); return; }
-      try {
-        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(location)}`);
-        const data = await res.json();
-        if (data.country) updateJobData('country', data.country);
-      } catch {}
+      // Only auto-fill country if not already set
+      setJobData(prev => {
+        if (prev.country) return prev;
+        const local = getCountryFromCity(location);
+        if (local) return { ...prev, country: local };
+        fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(location)}`)
+          .then(res => res.json())
+          .then(data => { if (data.country) updateJobData('country', data.country); })
+          .catch(() => {});
+        return prev;
+      });
     }
   };
 

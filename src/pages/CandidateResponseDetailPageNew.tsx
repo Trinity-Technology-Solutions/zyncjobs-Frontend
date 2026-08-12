@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 
 interface CandidateResponseDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -45,7 +46,7 @@ const CandidateResponseDetailPage: React.FC<CandidateResponseDetailPageProps> = 
       }
 
       // Fetch applications for this job
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`);
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`);
       if (response.ok) {
         const fetchedApplications = await response.json();
         setApplications(fetchedApplications);

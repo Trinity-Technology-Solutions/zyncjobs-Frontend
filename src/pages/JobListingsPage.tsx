@@ -297,10 +297,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  // Reactive filter: runs when jobs load or Search/Clear is triggered
-  useEffect(() => {
-    if (jobs.length === 0) return;
-    let filtered = clientFilter(jobs, searchTerm, location);
+  // Single filter pipeline — used by the results effect AND the sidebar location counts.
+  // skipLocation=true excludes the sidebar location filter so each location's count
+  // reflects exactly how many results the user would get after checking it.
+  const computeFilteredJobs = useCallback((source: any[], skipLocation: boolean) => {
+    let filtered = clientFilter(source, searchTerm, location);
 
     if (filters.department.length > 0) {
       filtered = filtered.filter(job =>
@@ -351,7 +352,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         });
       });
     }
-    if (filters.location.length > 0) {
+    if (!skipLocation && filters.location.length > 0) {
       filtered = filtered.filter(job =>
         filters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
       );
@@ -384,6 +385,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         });
       });
     }
+    return filtered;
+  }, [clientFilter, searchTerm, location, filters, expMin, expMax, salaryMin, salaryMax]);
+
+  // Reactive filter: runs when jobs load, filters change, or Search is triggered
+  useEffect(() => {
+    if (jobs.length === 0) return;
+    const filtered = computeFilteredJobs(jobs, false);
     filtered.sort((a: any, b: any) => {
       const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
       const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
@@ -392,7 +400,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     setFilteredJobs(filtered);
     setCurrentPage(1);
     setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
-  }, [jobs, searchTrigger]);
+  }, [jobs, searchTrigger, computeFilteredJobs]);
 
   // Keep applyFilters as a no-op shim so existing call sites don't break
   const applyFilters = useCallback((_f: any, _j: any, _eMin?: any, _eMax?: any, _sMin?: any, _sMax?: any) => {}, []);
@@ -1194,10 +1202,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       ? jobLocs.filter(l => l.toLowerCase().includes(locationSearch.toLowerCase()))
                       : jobLocs;
                     const visible = showAllLocations ? filtered : filtered.slice(0, 6);
+                    // Count each location against ALL other active filters (term, category,
+                    // work mode, salary, etc.) — so the badge matches the real result count.
+                    const baseForCounts = jobs.length > 0 ? computeFilteredJobs(jobs, true) : [];
                     return (
                       <>
                         {visible.map(loc => {
-                          const count = jobs.filter(j => (j.location || '').toLowerCase().includes(loc.toLowerCase())).length;
+                          const count = baseForCounts.filter(j => (j.location || '').toLowerCase().includes(loc.toLowerCase())).length;
                           return (
                             <label key={loc} className="flex items-center gap-2 cursor-pointer group">
                               <input

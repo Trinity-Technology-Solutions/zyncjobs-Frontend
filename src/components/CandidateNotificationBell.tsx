@@ -116,7 +116,7 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
                   return (
                     <div
                       key={n.id}
-                      onClick={() => { onMarkRead(n.id); setOpen(false); onNavigate(isInterview ? 'my-applications' : 'my-applications'); }}
+                      onClick={() => { onMarkRead(n.id); setOpen(false); onNavigate(isInterview ? 'interviews' : 'my-applications'); }}
                       className={`px-5 py-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50' : ''}`}
                     >
                       <div className="flex items-start justify-between">
@@ -125,24 +125,26 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
                           <p className="text-xs text-gray-500 truncate">{n.company}</p>
                           
                           {isInterview ? (
-                            // Interview notification display
-                            <div className="mt-2 space-y-1">
-                              <p className="text-xs text-gray-600">{n.message}</p>
-                              <div className="flex items-center space-x-3 text-xs text-gray-500">
+                            // Interview notification display — cleaner layout
+                            <div className="mt-2 space-y-1.5">
+                              <p className="text-sm font-medium text-gray-900">
+                                {n.message || 'Interview scheduled'}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-600">
                                 {n.interviewDate && (
-                                  <span className="flex items-center space-x-1">
-                                    <Calendar className="w-3 h-3" />
+                                  <span className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-lg">
+                                    <Calendar className="w-3.5 h-3.5" />
                                     <span>{n.interviewDate}</span>
                                   </span>
                                 )}
                                 {n.interviewTime && (
-                                  <span className="flex items-center space-x-1">
-                                    <Clock className="w-3 h-3" />
+                                  <span className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-lg">
+                                    <Clock className="w-3.5 h-3.5" />
                                     <span>{n.interviewTime}</span>
                                   </span>
                                 )}
                                 {n.interviewMode && (
-                                  <span className="flex items-center space-x-1">
+                                  <span className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-lg">
                                     {getInterviewModeIcon(n.interviewMode)}
                                     <span className="capitalize">{n.interviewMode}</span>
                                   </span>

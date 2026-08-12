@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { formatInterviewDate, formatInterviewTime, getInterviewJoinUrl, parseDateValue } from '../utils/interviewScheduleUtils';
 
 interface Interview {
   _id: string;
@@ -35,11 +37,11 @@ interface CandidateInterviewsPageProps {
 const getCountdown = (dateStr: string, timeStr: string): string => {
   try {
     if (!dateStr || !timeStr) return '';
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return '';
-    const target = new Date(dateStr);
-    if (isNaN(target.getTime())) return '';
-    target.setHours(hours, minutes, 0, 0);
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (!timeMatch) return '';
+    const target = parseDateValue(dateStr);
+    if (!target) return '';
+    target.setHours(parseInt(timeMatch[1], 10), parseInt(timeMatch[2], 10), 0, 0);
     const diff = target.getTime() - Date.now();
     if (diff <= 0) return 'Started';
     const d = Math.floor(diff / 86400000);
@@ -60,6 +62,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [responding, setResponding] = useState<string | null>(null);
 
   // Tick every 30s to refresh countdowns
   useEffect(() => {
@@ -107,6 +110,65 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
       setCompanyLogos(map);
     } catch { /* silent */ }
   };
+
+  const respondToInterview = async (interviewId: string, action: 'accept' | 'reject') => {
+    if (!user?.email) return;
+    setResponding(interviewId);
+    try {
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interviewId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, candidateEmail: user.email })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: data.error || `Failed to ${action} interview.`, type: 'error' } }));
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: action === 'accept' ? 'Interview accepted!' : 'Interview declined.', type: 'success' } }));
+      fetchInterviews(true);
+    } catch {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error. Please try again.', type: 'error' } }));
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  // Handle interview token from email link after login
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const interviewToken = searchParams.get('interview_token');
+    const interviewAction = searchParams.get('interview_action');
+    if (interviewToken && interviewAction && ['accept', 'reject'].includes(interviewAction)) {
+      const handleAutoRespond = async () => {
+        setResponding('auto');
+        try {
+          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/respond`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: interviewToken, action: interviewAction })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: data.error || `Failed to ${interviewAction} interview.`, type: 'error' } }));
+          } else {
+            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: interviewAction === 'accept' ? 'Interview accepted!' : 'Interview declined.', type: 'success' } }));
+          }
+          fetchInterviews(true);
+        } catch {
+          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error. Please try again.', type: 'error' } }));
+        } finally {
+          setResponding(null);
+        }
+      };
+      handleAutoRespond();
+      // Clean up URL params after handling
+      const url = new URL(window.location.href);
+      url.searchParams.delete('interview_token');
+      url.searchParams.delete('interview_action');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams, fetchInterviews]);
 
   useEffect(() => { fetchInterviews(); }, [fetchInterviews]);
 
@@ -242,6 +304,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 const isUpcoming = interview.status === 'scheduled' || interview.status === 'rescheduled';
                 const countdown = isUpcoming ? getCountdown(interview.interviewDate || '', interview.interviewTime || '') : '';
                 const isHot = countdown.includes('🔥');
+                const joinUrl = getInterviewJoinUrl(interview);
                 const companyName = interview.jobId?.company || '';
                 const logoSrc = companyLogos[companyName.toLowerCase()] || getSafeCompanyLogo({ company: companyName });
                 const companyInitial = companyName.charAt(0).toUpperCase() || 'C';
@@ -310,13 +373,11 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewDate
-                                ? new Date(interview.interviewDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : 'Date TBD'}
+                              {formatInterviewDate(interview)}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewTime || 'Time TBD'}
+                              {formatInterviewTime(interview)}
                             </span>
                           </div>
                         </div>
@@ -368,7 +429,36 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           >
                             View Job
                           </button>
-                          {isUpcoming && interview.meetingLink ? (
+
+                          {isUpcoming && (
+                            <>
+                              <button
+                                onClick={() => respondToInterview(interview._id, 'accept')}
+                                disabled={responding === interview._id}
+                                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm px-3 py-2 rounded-lg transition-colors font-medium shadow-sm"
+                              >
+                                {responding === interview._id ? (
+                                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" />
+                                  </svg>
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => respondToInterview(interview._id, 'reject')}
+                                disabled={responding === interview._id}
+                                className="flex items-center gap-1.5 border-2 border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded-lg font-medium transition-colors"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Decline
+                              </button>
+                            </>
+                          )}
+
+                          {(isUpcoming || interview.status === 'accepted') && joinUrl && (
                             <a
                               href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                               target="_blank"
@@ -377,7 +467,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             >
                               <Video className="w-4 h-4" /> Join Interview
                             </a>
-                          ) : null}
+                          )}
                         </div>
                       </div>
                     </div>

@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/constants';
+import { apiFetch } from '../api/apiFetch';
 
 interface AnalyticsPageProps {
   onNavigate: (page: string, data?: any) => void;
