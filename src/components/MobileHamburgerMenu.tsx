@@ -19,6 +19,7 @@ import {
   Bell
 } from 'lucide-react';
 import JobAlertBadge from './JobAlertBadge';
+import { getPendingLogoutRole } from '../utils/logoutState';
 
 interface MobileHamburgerMenuProps {
   isOpen: boolean;
@@ -119,7 +120,14 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       window.dispatchEvent(new CustomEvent('userLogout'));
       if (onLogout) onLogout();
       onClose();
-      setTimeout(() => { window.location.href = '/'; }, 100);
+      // The full reload would override React Router's navigation, so target
+      // the correct login page using the remembered logout role.
+      setTimeout(() => {
+        const role = getPendingLogoutRole();
+        if (role === 'employer') window.location.href = '/employer-login';
+        else if (role === 'admin' || role === 'super_admin') window.location.href = '/admin/login';
+        else window.location.href = '/login';
+      }, 100);
     } catch (error) {
       console.error('Logout error:', error);
       window.location.reload();
