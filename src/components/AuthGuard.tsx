@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { getPendingLogoutRole } from '../utils/logoutState';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -29,7 +30,17 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, red
     );
   }
 
-  if (!user?.type) return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  if (!user?.type) {
+    // If a logout is in progress, honor the remembered role so the redirect
+    // goes to the correct login page (e.g. employer -> /employer-login) even
+    // though the default below is the candidate login.
+    const pendingRole = getPendingLogoutRole();
+    let dest = redirectTo;
+    if (pendingRole === 'employer') dest = '/employer-login';
+    else if (pendingRole === 'admin' || pendingRole === 'super_admin') dest = '/admin/login';
+    else if (pendingRole) dest = '/login';
+    return <Navigate to={dest} state={{ from: location }} replace />;
+  }
 
   const effectiveRole = user.type === 'super_admin' ? 'admin' : user.type;
   if (allowedRoles && !allowedRoles.includes(user.type) && !allowedRoles.includes(effectiveRole as any)) {

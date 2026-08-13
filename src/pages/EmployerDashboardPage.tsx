@@ -2199,9 +2199,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     } else {
                                       showToast('Failed to delete interview', 'error');
                                     }
+                                  } catch {
+                                    showToast('Network error. Please try again.', 'error');
+                                  } finally {
                                     closeConfirm();
                                   }
-                                );
+                                }
+                              );
                               }}
                               className="flex-shrink-0 lg:w-full min-h-[40px] inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-sm"
                             >

@@ -14,24 +14,6 @@ import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
-function useRefresh(fn: () => Promise<void>) {
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const trigger = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    setError(null);
-    try {
-      await fn();
-    } catch {
-      setError('Refresh failed. Please try again.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-  return { refreshing, error, trigger };
-}
-
 interface MyJobsPageProps {
   onNavigate: (page: string, data?: any) => void;
   user?: any;
@@ -45,14 +27,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   // Global saved jobs store
   const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
-  const fetchSavedJobsFromStore = useSavedJobsStore(s => s.fetchSavedJobs);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ type, message, show: true });
     setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
   };
 
-  const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<any[]>([]);
@@ -232,15 +212,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       console.error('Error fetching applied jobs:', error);
     }
   };
-
-  const refreshSaved = useRefresh(async () => {
-    await fetchSavedJobsFromStore();
-    const ids = Array.from(useSavedJobsStore.getState().savedJobIds);
-    if (ids.length === 0) { setSavedJobs([]); return; }
-    await fetchJobDetailsByIds(ids);
-  });
-
-  const refreshApplied = useRefresh(fetchAppliedJobs);
 
   const fetchEmployerApplications = async () => {
     try {
@@ -850,58 +821,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
               {activeTab}
             </h2>
-            
-
-              
-            {activeTab === 'Applied' && (
-              <>
-                {refreshApplied.error && (
-                  <span className="text-xs text-red-500 mr-2">{refreshApplied.error}</span>
-                )}
-                <button
-                  onClick={refreshApplied.trigger}
-                  className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Refresh applications"
-                  aria-label="Refresh applications"
-                  disabled={refreshApplied.refreshing}
-                >
-                  <RefreshCw className={`w-5 h-5 ${refreshApplied.refreshing ? 'animate-spin' : ''}`} />
-                </button>
-              </>
-            )}
-            
-              {user?.type === 'candidate' && activeTab === 'Saved' && (
-                <>
-                  <div className="flex items-center space-x-3">
-                    {refreshSaved.error && (
-                      <span className="text-xs text-red-500">{refreshSaved.error}</span>
-                    )}
-                    <button
-                      onClick={refreshSaved.trigger}
-                      disabled={refreshSaved.refreshing}
-                      className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Refresh saved jobs"
-                      aria-label="Refresh saved jobs"
-                    >
-                      <RefreshCw className={`w-5 h-5 ${refreshSaved.refreshing ? 'animate-spin' : ''}`} />
-                    </button>
-                    <span className="text-sm text-gray-600">Show expired jobs</span>
-                    <button
-                      onClick={() => setShowExpiredJobs(!showExpiredJobs)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        showExpiredJobs ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
-                      aria-label="Toggle show expired jobs"
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          showExpiredJobs ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      ></span>
-                    </button>
-                  </div>
-                </>
-              )}
           </div>
 
           {loading ? (

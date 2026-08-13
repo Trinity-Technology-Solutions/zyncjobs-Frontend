@@ -24,6 +24,7 @@ import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
 import { mergeUserToStorage, updateUserInStorage } from './utils/userStorage';
+import { getPendingLogoutRole, setPendingLogoutRole, clearPendingLogoutRole } from './utils/logoutState';
 import { useAnalytics } from './hooks/useAnalytics';
 import { useSavedJobsStore } from './store/useSavedJobsStore';
 import './utils/extensionErrorHandler'; // Initialize extension error handling
@@ -350,6 +351,11 @@ function App() {
       } catch { }
     }
 
+    // Remember the role BEFORE clearing so a subsequent forced logout
+    // (zync:logout from a 401) or any AuthGuard redirect still goes to the
+    // correct login page — logout is idempotent.
+    setPendingLogoutRole(userType);
+
     // Clear storage AFTER reading userType
     setUser(null);
     tokenStorage.clear();
@@ -359,7 +365,7 @@ function App() {
 
     if (userType === 'employer') navigate('/employer-login');
     else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
-    else navigate('/');
+    else navigate('/login');
   }, [navigate, user?.type]);
 
   const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string; passwordExpired?: boolean; daysSinceChange?: number; tempToken?: string }) => {
@@ -383,6 +389,8 @@ function App() {
     // Store user type separately for reliable logout redirection
     const userType = userData.type || userData.userType || userData.role || 'candidate';
     localStorage.setItem('lastUserType', userType);
+    // Fresh session — clear any remembered role from a previous logout
+    clearPendingLogoutRole();
 
     // If NOT a team member, clear employerOwnerId to prevent stale cross-account data
     const isTeamMember = !!(userData as any).teamRole;
@@ -477,8 +485,9 @@ function App() {
   useEffect(() => {
     initializeEmployerIdCounter();
     const handleForceLogout = () => {
-      // Read ALL sources BEFORE clearing anything
-      let userType: string | null | undefined = localStorage.getItem('lastUserType');
+      // Read ALL sources BEFORE clearing anything — the remembered role from a
+      // manual logout takes priority, since manual logout already wiped storage.
+      let userType: string | null | undefined = getPendingLogoutRole() || localStorage.getItem('lastUserType');
 
       if (!userType) {
         try {
@@ -496,6 +505,10 @@ function App() {
           }
         } catch { }
       }
+
+      // Remember the role BEFORE clearing so AuthGuard redirects go to the
+      // correct login page for forced logouts too.
+      setPendingLogoutRole(userType);
 
       // Clear user state immediately
       setUser(null);

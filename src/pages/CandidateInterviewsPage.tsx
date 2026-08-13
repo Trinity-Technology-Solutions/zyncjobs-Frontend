@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
+import { useSearchParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -57,7 +58,6 @@ const getCountdown = (dateStr: string, timeStr: string): string => {
 const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled' | 'accepted' | 'rejected'>('all');
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
@@ -72,7 +72,6 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
   const fetchInterviews = useCallback(async (refresh = false) => {
     if (!user?.email) { setLoading(false); return; }
-    if (refresh) setRefreshing(true);
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/candidate/${encodeURIComponent(user.email)}`);
       if (res.ok) {
@@ -86,7 +85,6 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
       if (refresh) window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error while refreshing interviews.' } }));
     } finally {
       setLoading(false);
-      if (refresh) setRefreshing(false);
     }
   }, [user]);
 
@@ -239,13 +237,6 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 <p className="text-xs text-gray-400 mt-0.5">{interviews.length} total · {upcomingCount} upcoming</p>
               </div>
             </div>
-            <button
-              onClick={() => fetchInterviews(true)}
-              disabled={refreshing}
-              className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
-            </button>
           </div>
         </div>
 

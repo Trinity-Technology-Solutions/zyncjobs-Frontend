@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search, TrendingUp, Eye, RefreshCw, Zap, Clock, User,
+  Search, TrendingUp, Eye, Zap, Clock, User,
   BarChart2, ChevronDown, ChevronUp, Sparkles, ArrowUpRight,
 } from 'lucide-react';
 import BackButton from '../components/BackButton';
@@ -160,12 +160,6 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Live
               </span>
             )}
-            <button
-              onClick={fetchData}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 bg-white border border-gray-200 hover:border-blue-300 px-3 py-1.5 rounded-lg transition-all shadow-sm"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
-            </button>
           </div>
         </div>
 
