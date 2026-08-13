@@ -5,6 +5,7 @@ import './alertOverride'; // Override window.alert before React mounts
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { GlobalErrorBoundary, GlobalErrorListener } from './components/GlobalErrorBoundary';
+import NavigationTracker from './components/NavigationTracker';
 import { setupGlobalErrorHandler } from './utils/enhancedErrorHandler';
 import { backendMonitor } from './utils/backendMonitor';
 import './utils/mobileTouchDebugger'; // Load mobile touch debugger
@@ -53,12 +54,13 @@ window.addEventListener('unhandledrejection', (e) => {
 
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
-    <GlobalErrorBoundary>
-      <ErrorBoundary>
-        <GlobalErrorListener />
-        <App />
-      </ErrorBoundary>
-    </GlobalErrorBoundary>
+      <GlobalErrorBoundary>
+        <ErrorBoundary>
+          <GlobalErrorListener />
+          <NavigationTracker />
+          <App />
+        </ErrorBoundary>
+      </GlobalErrorBoundary>
   </BrowserRouter>
 );
 

@@ -575,7 +575,7 @@ ${candidate.company}`;
         {/* Back Button */}
         <div className="mt-6">
           <BackButton 
-            onClick={() => onNavigate('application-management')}
+            fallback="/application-management"
             text="Back to Application Management"
           />
         </div>

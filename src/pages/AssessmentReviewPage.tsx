@@ -151,7 +151,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
         <div className="max-w-3xl mx-auto px-4">
 
           {/* Back button */}
-          <BackButton onClick={() => onNavigate('skill-assessment')} className="mb-6" />
+          <BackButton fallback="/skill-assessment" className="mb-6" />
 
           {/* Score Card — same style as result screen */}
           <div className="text-center mb-8">

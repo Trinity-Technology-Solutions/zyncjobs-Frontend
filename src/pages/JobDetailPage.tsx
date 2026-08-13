@@ -463,21 +463,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       <div className="bg-white/90 backdrop-blur-md shadow-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <BackButton 
-            onClick={() => {
-              try {
-                if (user?.type === 'employer' || user?.userType === 'employer') {
-                  onNavigate('my-jobs');
-                } else {
-                  onNavigate('job-listings');
-                }
-              } catch {
-                try {
-                  onNavigate('job-listings');
-                } catch {
-                  window.location.href = '/';
-                }
-              }
-            }}
+            fallback={user?.type === 'employer' || user?.userType === 'employer' ? '/my-jobs' : '/job-listings'}
             text={`Back to ${user?.type === 'employer' || user?.userType === 'employer' ? 'My Jobs' : 'Jobs'}`}
             className="mb-4"
           />

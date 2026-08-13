@@ -73,7 +73,7 @@ const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ onNavigate, skillName
 
       {/* Back Button */}
       <div className="fixed top-8 left-8 z-50">
-        <BackButton onClick={() => onNavigate('home')} />
+        <BackButton fallback="/" />
       </div>
 
       {/* Main Content */}

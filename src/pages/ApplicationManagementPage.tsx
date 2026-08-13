@@ -494,7 +494,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
-            <BackButton onClick={() => onNavigate('job-management')} />
+            <BackButton fallback="/job-management" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline

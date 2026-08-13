@@ -634,6 +634,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [user]);
 
   const fetchDashboardData = async (userData: any) => {
+    // Guard: don't fetch if no auth token — avoids 401 spam on mount
+    if (!tokenStorage.getAccess() && !tokenStorage.getRefresh()) return;
     try {
       setError(null);
       const userId = userData.id || userData._id || userData.userId;
@@ -702,7 +704,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               // Skip enrichment if jobId missing, non-string, already has title, or known 404
               if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined' && !app.jobTitle && !_missingJobIds.has(appJobId)) {
                 try {
-                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
+                  const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
                     return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Job Position' };
@@ -1266,7 +1268,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </svg>
             </button>
             <BackButton
-              onClick={() => onNavigate('home')}
+              fallback="/"
               text="Back to Home"
               className="hidden lg:flex"
             />

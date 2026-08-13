@@ -141,7 +141,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg, #0f9d58, #16a34a, #059669)', padding: '36px 40px 36px', borderRadius: '0 0 16px 16px' }}>
           <div className="max-w-4xl mx-auto">
-            <BackButton onClick={() => onNavigate('resume-studio')} className="mb-4" />
+            <BackButton fallback="/resume-studio" className="mb-4" />
             {/* Glass card */}
             <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '20px 24px' }}>
               <div className="flex items-center justify-between">

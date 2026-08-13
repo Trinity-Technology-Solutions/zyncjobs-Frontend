@@ -9,6 +9,7 @@ import React, {
   FocusEvent,
 } from 'react';
 import { ChevronDown, Loader2, Plus, Check } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/constants';
 
 export interface ComboboxOption {
   value: string;
@@ -17,6 +18,16 @@ export interface ComboboxOption {
 }
 
 type ComboboxOptionWithMeta = ComboboxOption & { isRecent?: boolean };
+
+type DataSourceKey = 'locations' | 'cities' | 'jobTitles';
+
+const DATA_SOURCE_URLS: Record<DataSourceKey, string> = {
+  locations: `${API_ENDPOINTS.BASE_URL}/autocomplete/locations`,
+  cities: `${API_ENDPOINTS.BASE_URL}/locations`,
+  jobTitles: `${API_ENDPOINTS.BASE_URL}/autocomplete/jobs`,
+};
+
+const backendOptionsCache = new Map<string, ComboboxOption[]>();
 
 export interface AutocompleteComboboxProps {
   label?: string;
@@ -38,6 +49,7 @@ export interface AutocompleteComboboxProps {
   debounceMs?: number;
   loadMore?: () => Promise<ComboboxOption[]>;
   hasMore?: boolean;
+  dataSource?: DataSourceKey;
   id?: string;
 }
 
@@ -61,6 +73,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   debounceMs = 150,
   loadMore,
   hasMore = false,
+  dataSource,
   id,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -68,6 +81,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chevronOpened, setChevronOpened] = useState(false);
+  const [backendOptions, setBackendOptions] = useState<ComboboxOption[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -82,16 +96,67 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   const listboxId = `${comboboxId}-listbox`;
   const inputId = `${comboboxId}-input`;
 
+  const effectiveMaxOptions = dataSource ? Math.max(maxOptions, 500) : maxOptions;
+
+  useEffect(() => {
+    if (!dataSource) return;
+    const url = DATA_SOURCE_URLS[dataSource];
+    const cached = backendOptionsCache.get(url);
+    if (cached) {
+      setBackendOptions(cached);
+      return;
+    }
+    let cancelled = false;
+    fetch(url)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (cancelled || !data) return;
+        const raw = Array.isArray(data)
+          ? data
+          : data.locations || data.job_titles || data.jobTitles || data.data || [];
+        const opts: ComboboxOption[] = [];
+        const seen = new Set<string>();
+        for (const item of raw) {
+          const label = typeof item === 'object' && item !== null
+            ? (item.name || item.city || item.label || item.title || '')
+            : String(item ?? '');
+          const clean = label.trim();
+          if (!clean || seen.has(clean.toLowerCase())) continue;
+          seen.add(clean.toLowerCase());
+          opts.push({ value: clean, label: clean });
+        }
+        opts.sort((a, b) => a.label.localeCompare(b.label));
+        if (opts.length === 0) return;
+        backendOptionsCache.set(url, opts);
+        if (!cancelled) setBackendOptions(opts);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [dataSource]);
+
+  const mergedOptions = useMemo<ComboboxOptionWithMeta[]>(() => {
+    if (!dataSource || backendOptions.length === 0) return allOptions;
+    const seen = new Set<string>();
+    const merged: ComboboxOptionWithMeta[] = [];
+    for (const opt of [...allOptions, ...backendOptions]) {
+      const key = opt.value.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(opt);
+    }
+    return merged;
+  }, [allOptions, backendOptions, dataSource]);
+
   const filteredOptions = useMemo<ComboboxOptionWithMeta[]>(() => {
-    const opts = allOptions
+    const opts = mergedOptions
       .filter(opt => !opt.disabled)
       .filter(opt =>
         !searchQuery ||
         opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         opt.value.toLowerCase().includes(searchQuery.toLowerCase())
       );
-    return opts.slice(0, maxOptions);
-  }, [searchQuery, allOptions, maxOptions]);
+    return opts.slice(0, effectiveMaxOptions);
+  }, [searchQuery, mergedOptions, effectiveMaxOptions]);
 
   const showDropdown = searchQuery.length > 0
     ? (filteredOptions.length > 0 || (allowCustom) || isLoading)

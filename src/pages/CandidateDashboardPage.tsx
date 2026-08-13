@@ -1074,9 +1074,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 sm:space-x-8 flex-shrink-0">
                 <BackButton
-                  onClick={() =>
-                    onNavigate && onNavigate(readOnly ? "dashboard" : "home")
-                  }
+                  fallback={readOnly ? "/dashboard" : "/"}
                   text={readOnly ? "Back" : "Back to Home"}
                   className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors py-4 font-['IBM_Plex_Sans']"
                 />

@@ -508,7 +508,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
       {/* Floating Back Button */}
       <BackButton 
-        onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()}
+        fallback="/dashboard"
       />
 
       {/* Match Breakdown Modal */}

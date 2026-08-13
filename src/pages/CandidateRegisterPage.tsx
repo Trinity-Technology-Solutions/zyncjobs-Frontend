@@ -222,7 +222,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
           <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
 
           <div className="relative z-10 flex flex-col px-16 py-12 w-full justify-between">
-            <BackButton onClick={() => onNavigate('home')} />
+            <BackButton fallback="/" />
 
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-blue-50 text-blue-600 border border-blue-200">

@@ -90,6 +90,8 @@ const formatSalary = (value: string): string => {
   return value;
 };
 
+const parseSalaryNumber = (value: string): number => parseInt((value || '').replace(/,/g, '')) || 0;
+
 // Snap a raw number to the nearest available dropdown option value
 const snapToDropdownYear = (n: number, isMax: boolean): string => {
   const minOpts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20];
@@ -1886,6 +1888,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         break;
       case 4:
         // Salary section is now optional
+        if (salaryModified && jobData.payType === 'Range' && jobData.minSalary && jobData.maxSalary) {
+          const minNum = parseSalaryNumber(jobData.minSalary);
+          const maxNum = parseSalaryNumber(jobData.maxSalary);
+          if (minNum > 0 && maxNum > 0 && maxNum < minNum) {
+            return { isValid: false, message: 'Maximum salary must be greater than or equal to the minimum salary' };
+          }
+        }
         break;
       case 5:
         if (jobData.skills.length === 0) return { isValid: false, message: 'At least one skill is required' };
@@ -2607,7 +2616,12 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             )}
           </div>
           {/* Salary preview hint */}
-          {salaryModified && (jobData.minSalary || jobData.maxSalary) && (
+          {salaryModified && jobData.payType === 'Range' && jobData.minSalary && jobData.maxSalary &&
+           parseSalaryNumber(jobData.maxSalary) > 0 && parseSalaryNumber(jobData.maxSalary) < parseSalaryNumber(jobData.minSalary) ? (
+            <p className="text-xs text-red-600 font-medium mt-2">
+              Maximum salary cannot be lower than the minimum salary.
+            </p>
+          ) : salaryModified && (jobData.minSalary || jobData.maxSalary) && (
             <p className="text-xs text-gray-500 mt-2">
               Preview: {jobData.payType === 'Maximum amount' ? `Upto ₹${formatSalary(jobData.maxSalary)}` :
                         jobData.payType === 'Starting amount' ? `From ₹${formatSalary(jobData.minSalary)}` :
@@ -3342,6 +3356,21 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         isVisible: true
       });
       return;
+    }
+
+    // Validate salary range: max must not be lower than min
+    if (salaryModified && jobData.payType === 'Range' && jobData.minSalary && jobData.maxSalary) {
+      const minNum = parseSalaryNumber(jobData.minSalary);
+      const maxNum = parseSalaryNumber(jobData.maxSalary);
+      if (minNum > 0 && maxNum > 0 && maxNum < minNum) {
+        setNotification({
+          type: 'error',
+          message: 'Maximum salary must be greater than or equal to the minimum salary',
+          isVisible: true
+        });
+        setCurrentStep(4);
+        return;
+      }
     }
 
     // Map experienceRange to experienceLevel enum

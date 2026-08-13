@@ -22,6 +22,32 @@ import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
+import { usePageSnapshot } from '../utils/listPageState';
+
+interface JobListingsSnapshot {
+  searchTerm: string;
+  location: string;
+  selectedCategory: string;
+  categoryTerms: string[];
+  filters: {
+    jobType: string;
+    salaryRange: string;
+    experience: string;
+    department: string[];
+    location: string[];
+    workMode: string[];
+    industry: string[];
+    companySize: string[];
+    freshness: string[];
+  };
+  salaryMin: number;
+  salaryMax: number;
+  expMin: number;
+  expMax: number;
+  radius: number;
+  activeTab: 'search' | 'recommended';
+  activeQuickFilter: string | null;
+}
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -88,6 +114,31 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [searchTrigger, setSearchTrigger] = useState(0);
   const fetchJobsRef = useRef<(...args: any[]) => void>();
   const jobsPerPage = 10;
+
+  // Preserve search filters + scroll when leaving and returning to this page
+  usePageSnapshot<JobListingsSnapshot>(
+    'zync:list:job-listings',
+    (snap, scrollY) => {
+      setSearchTerm(snap.searchTerm);
+      setLocation(snap.location);
+      setSelectedCategory(snap.selectedCategory);
+      setCategoryTerms(snap.categoryTerms || []);
+      setFilters(snap.filters);
+      setSalaryMin(snap.salaryMin ?? 0);
+      setSalaryMax(snap.salaryMax ?? 50);
+      setExpMin(snap.expMin ?? 0);
+      setExpMax(snap.expMax ?? 30);
+      setRadius(snap.radius ?? 25);
+      setActiveTab(snap.activeTab === 'recommended' ? 'recommended' : 'search');
+      setActiveQuickFilter(snap.activeQuickFilter ?? null);
+      window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
+    },
+    () => ({
+      searchTerm, location, selectedCategory, categoryTerms,
+      filters, salaryMin, salaryMax, expMin, expMax, radius,
+      activeTab, activeQuickFilter,
+    }),
+  );
 
   const isFiltered = filters.department.length > 0 || filters.workMode.length > 0 || filters.location.length > 0 ||
     filters.industry.length > 0 || filters.jobType || filters.freshness.length > 0 || expMin > 0 || expMax < 30 || salaryMin > 0 || salaryMax < 50;
@@ -727,7 +778,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg overflow-visible">
         {/* Back Button */}
         <BackButton
-          onClick={() => onNavigate ? onNavigate('home') : window.history.back()}
+          fallback="/"
           position="top-left"
           className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md"
         />

@@ -124,7 +124,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
         {/* Back */}
         <div className="flex items-center mb-8 anim-fade-1">
-          <BackButton onClick={() => onNavigate('dashboard')} text="Back" className="text-slate-600 hover:text-slate-900" />
+          <BackButton fallback="/dashboard" text="Back" className="text-slate-600 hover:text-slate-900" />
         </div>
 
         {/* Header */}

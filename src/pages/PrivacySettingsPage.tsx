@@ -720,7 +720,7 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
 
       <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
         <BackButton
-          onClick={() => onNavigate('settings')}
+          fallback="/settings"
           text="Back to Settings"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-6 transition-colors"
         />
