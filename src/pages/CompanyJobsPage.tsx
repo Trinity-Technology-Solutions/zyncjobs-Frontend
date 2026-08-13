@@ -94,7 +94,7 @@ const CompanyJobsPage = ({
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BackButton 
-          onClick={() => onNavigate && onNavigate('companies')}
+          fallback="/companies"
           text="Back to Companies"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-6"
         />

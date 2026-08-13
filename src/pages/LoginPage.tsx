@@ -132,7 +132,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-50 opacity-60" />
 
           <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-            <BackButton onClick={() => onNavigate('home')} />
+            <BackButton fallback="/" />
 
             <div>
               <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">

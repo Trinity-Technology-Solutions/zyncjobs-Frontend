@@ -234,7 +234,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
         <div className="bg-white border-b">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <BackButton onClick={() => onNavigate('dashboard')} text="Back" className="text-sm text-gray-500 hover:text-gray-700 transition-colors" />
+              <BackButton fallback="/dashboard" text="Back" className="text-sm text-gray-500 hover:text-gray-700 transition-colors" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">My Interviews</h1>
                 <p className="text-xs text-gray-400 mt-0.5">{interviews.length} total · {upcomingCount} upcoming</p>

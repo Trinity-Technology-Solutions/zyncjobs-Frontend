@@ -179,7 +179,6 @@ const InterviewScheduling = () => {
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
         <BackButton 
-          onClick={() => window.history.back()}
           text="Back"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
         />

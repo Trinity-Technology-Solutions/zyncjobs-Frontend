@@ -17,7 +17,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => 
       <div className="relative bg-gradient-to-br from-blue-50 via-orange-50 to-blue-100 text-gray-900 py-8 overflow-hidden border-b border-gray-200">
         {/* Back Button */}
         <div className="absolute top-4 left-4 z-10">
-          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
+          <BackButton fallback="/" className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
         </div>
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">

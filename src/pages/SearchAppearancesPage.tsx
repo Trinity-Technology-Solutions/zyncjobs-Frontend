@@ -141,7 +141,7 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <BackButton onClick={() => onNavigate('dashboard')} className="mb-4 sm:mb-5" />
+        <BackButton fallback="/dashboard" className="mb-4 sm:mb-5" />
 
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">

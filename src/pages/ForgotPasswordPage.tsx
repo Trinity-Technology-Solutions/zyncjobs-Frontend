@@ -127,7 +127,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
             
-            <BackButton onClick={() => onNavigate('login')} className="w-full justify-center" />
+            <BackButton fallback="/login" className="w-full justify-center" />
           </form>
         </div>
       </div>

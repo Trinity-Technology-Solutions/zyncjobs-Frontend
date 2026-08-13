@@ -17,7 +17,7 @@ const AccessibilityPage: React.FC<AccessibilityPageProps> = ({ onNavigate, user,
       <div className="relative bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 text-gray-900 py-12 border-b border-gray-200">
         {/* Back Button */}
         <div className="absolute top-4 left-4 z-10">
-          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
+          <BackButton fallback="/" className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
         </div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-gray-900 bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Accessibility Statement</h1>

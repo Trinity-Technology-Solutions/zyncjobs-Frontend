@@ -124,15 +124,15 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
 
-  const jobLocations = useMemo(() => [...new Set(jobs.map(j => j.location).filter(Boolean))], [jobs]);
-  const jobCategories = useMemo(() => [...new Set(jobs.map(j => j.jobCategory || j.jobType || '').filter(Boolean))], [jobs]);
+  const jobLocations = useMemo(() => [...new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))], [jobs]);
+  const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim()).filter(Boolean))], [jobs]);
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
-      if (selectedLocation && job.location !== selectedLocation) return false;
+      if (selectedLocation && !(job.location || '').toLowerCase().includes(selectedLocation.toLowerCase())) return false;
       if (selectedDepartment) {
-        const deptVal = job.jobCategory || job.jobType || '';
-        if (deptVal !== selectedDepartment) return false;
+        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim();
+        if (deptVal.toLowerCase() !== selectedDepartment.toLowerCase()) return false;
       }
       return true;
     });
@@ -382,6 +382,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             company: job.company || job.companyName || companyName,
             jobType: job.jobType,
             jobCategory: job.jobCategory,
+            category: job.category,
             slug: job.slug,
           }));
         setJobs(companyJobs);
@@ -572,7 +573,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         {/* Back Button */}
         <div className="absolute top-6 left-6 z-30">
           <BackButton 
-            onClick={() => onNavigate && onNavigate('companies')} 
+            fallback="/companies" 
             className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200" 
           />
         </div>
@@ -1259,8 +1260,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       { value: '', label: 'All Locations' },
                       ...jobLocations.map(location => ({ value: location, label: location })),
                     ]}
+                    dataSource="locations"
                     placeholder="Select location"
                     className="w-full sm:w-auto"
+                    maxOptions={jobLocations.length + 1}
                   />
                   <AutocompleteCombobox
                     value={selectedDepartment}
@@ -1271,6 +1274,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     ]}
                     placeholder="Select department"
                     className="w-full sm:w-auto"
+                    maxOptions={jobCategories.length + 1}
                   />
                   {(selectedLocation || selectedDepartment) && (
                     <button

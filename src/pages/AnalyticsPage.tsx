@@ -187,7 +187,7 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user, onLogou
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <BackButton onClick={() => onNavigate('dashboard')} />
+          <BackButton fallback="/dashboard" />
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>

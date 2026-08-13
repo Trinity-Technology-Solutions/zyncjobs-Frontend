@@ -4,6 +4,7 @@ import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, M
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import { usePageSnapshot } from '../utils/listPageState';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
@@ -50,6 +51,18 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const [collaborateEmail, setCollaborateEmail] = useState('');
   const [collaborateMessage, setCollaborateMessage] = useState('');
   const [isSendingCollaborate, setIsSendingCollaborate] = useState(false);
+
+  // Preserve filter tab, search + scroll when leaving and returning to this page
+  usePageSnapshot<{ filter: string; searchTerm: string; sortBy: string }>(
+    'zync:list:job-management',
+    (snap, scrollY) => {
+      setFilter(snap.filter || 'active');
+      setSearchTerm(snap.searchTerm || '');
+      setSortBy(snap.sortBy || 'posted');
+      window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
+    },
+    () => ({ filter, searchTerm, sortBy }),
+  );
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -308,7 +321,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <BackButton 
-          onClick={() => onNavigate('dashboard')}
+          fallback="/dashboard"
           text="Back to Dashboard"
           className="mb-4 sm:mb-6"
         />

@@ -187,7 +187,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
           <div className="max-w-4xl mx-auto px-8 py-6">
 
             {/* Back button — same style as reference */}
-            <BackButton onClick={() => onNavigate('job-detail')} className="mb-6" />
+            <BackButton fallback="/job-detail" className="mb-6" />
 
             {/* Resume Requirement Notice */}
             {!resumeUrl && (

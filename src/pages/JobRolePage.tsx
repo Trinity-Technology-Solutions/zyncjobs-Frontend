@@ -61,7 +61,7 @@ const JobRolePage: React.FC<JobRolePageProps> = ({ onNavigate, jobTitle }) => {
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentRole.color} p-8`}>
       <div className="mb-8">
-        <BackButton onClick={() => onNavigate('home')} className="mb-8" />
+        <BackButton fallback="/" className="mb-8" />
       </div>
 
       <div className="flex items-center justify-center min-h-[80vh]">

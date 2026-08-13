@@ -179,7 +179,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
 
           <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-            <BackButton onClick={() => onNavigate('home')} />
+            <BackButton fallback="/" />
 
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-6 bg-orange-50 text-orange-600 border border-orange-200">

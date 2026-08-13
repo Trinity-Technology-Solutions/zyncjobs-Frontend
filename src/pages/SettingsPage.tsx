@@ -173,29 +173,27 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
   };
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   const handleDeleteAccount = async () => {
-    const confirmed = await (window as any).confirmAsync('Are you sure you want to delete your account? This action cannot be undone.');
-    if (confirmed) {
-      try {
-        const userId = accountAPI.getUserIdFromStorage();
-        if (!userId) {
-          setNotification({ type: 'error', message: 'Could not identify user for deletion. Account will be cleared locally.', isVisible: true });
-        } else {
-          const result = await accountAPI.deleteAccount(userId);
-          if (result.success) {
-            setNotification({ type: 'success', message: result.message, isVisible: true });
-          } else {
-            setNotification({ type: 'error', message: `${result.message}. Account cleared locally.`, isVisible: true });
-          }
-        }
-      } catch (error) {
-        setNotification({ type: 'error', message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}. Account cleared locally.`, isVisible: true });
-      } finally {
-        accountAPI.clearUserData();
-        setUser(null);
-        if (onLogout) onLogout();
-        setTimeout(() => { onNavigate('home'); }, 2000);
+    if (deleteConfirmText !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      const userId = accountAPI.getUserIdFromStorage();
+      if (userId) {
+        await accountAPI.deleteAccount(userId);
       }
+    } catch {
+      // proceed with local cleanup regardless
+    } finally {
+      accountAPI.clearUserData();
+      setUser(null);
+      setShowDeleteModal(false);
+      setDeleting(false);
+      if (onLogout) onLogout();
+      setTimeout(() => { onNavigate('home'); }, 500);
     }
   };
 
@@ -213,7 +211,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col space-y-4">
               <BackButton
-                onClick={() => onNavigate('dashboard')}
+                fallback="/dashboard"
                 text="Back to Dashboard"
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors self-start"
               />
@@ -617,7 +615,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                               Permanently delete your account and all associated data. This action cannot be undone.
                             </p>
                             <button
-                              onClick={handleDeleteAccount}
+                              onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(''); }}
                               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
                             >
                               Delete Account
@@ -656,6 +654,76 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
           )}
         </div>
       </div>
+
+      {/* ── Delete Account Confirmation Modal ── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete Account</h3>
+                <p className="text-xs text-gray-500">This action is permanent and cannot be undone</p>
+              </div>
+            </div>
+
+            {/* What gets deleted */}
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
+              <p className="text-sm font-semibold text-red-800 mb-2">If you delete your account, the following will be permanently removed:</p>
+              <ul className="space-y-1">
+                {[
+                  'Your profile & personal details',
+                  'Your resume & uploaded documents',
+                  'All job applications you submitted',
+                  'Your saved jobs & job alerts',
+                  'Interview schedules & messages',
+                  'Your dashboard & activity history',
+                ].map(item => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-red-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Type DELETE to confirm */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type <span className="font-bold text-red-600">DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE here"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                disabled={deleting}
+                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete My Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

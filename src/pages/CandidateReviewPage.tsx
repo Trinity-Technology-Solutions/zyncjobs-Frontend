@@ -320,7 +320,7 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
       
       {/* Floating Back Button */}
       <BackButton 
-        onClick={() => onNavigate ? onNavigate('employer-dashboard') : window.history.back()}
+        fallback="/employer-dashboard"
       />
     </div>
   );

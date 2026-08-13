@@ -191,7 +191,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
         {/* Compact Hero Banner */}
         <div className="text-white px-4 py-5">
           <div className="max-w-6xl mx-auto relative overflow-hidden">
-            <BackButton onClick={() => onNavigate('dashboard')} className="mb-3" />
+            <BackButton fallback="/dashboard" className="mb-3" />
             <div className="flex flex-col items-center text-center">
               <div className="flex items-center gap-2 mb-3">
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">

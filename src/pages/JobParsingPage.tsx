@@ -1154,7 +1154,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <BackButton onClick={() => onNavigate('job-posting-selection')} text="Back" />
+            <BackButton fallback="/job-posting-selection" text="Back" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
