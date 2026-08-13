@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { apiFetch } from '../api/apiFetch';
 import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import Header from '../components/Header';

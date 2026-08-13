@@ -176,11 +176,10 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       return t;
     };
     const strictLocation = (v: string): string => {
-      // Take first city if slash-separated (e.g. "Chennai, India / Pan India" → "Chennai")
-      let t = (v || '').split('/')[0].split(',')[0].trim();
+      const t = (v || '').trim();
       if (!t || t.length > 40) return '';
       if (/^(remote|hybrid|on\s*-?\s*site|onsite)$/i.test(t)) return t;
-      if (/^[A-Za-z][A-Za-z\s'.\-]*$/.test(t)
+      if (/^[A-Za-z][A-Za-z\s,'.\-]*$/.test(t)
         && !/\b(developer|engineer|analyst|manager|executive|officer|specialist|consultant|hiring|apply|salary|experience|full\s*-?\s*time|part\s*-?\s*time|internship|contract|senior|lead|junior|design|develop|test)\b/i.test(t)
         && !/\d/.test(t)) return t;
       return '';
@@ -221,7 +220,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       jobLocation:      strictLocation(jobLocation),
       country,
       jobType,
-      experienceRange:  strictExp(normalizeExperienceRange(ai.experienceRange) || regex.experienceRange || extractExperience(description)),
+      experienceRange:  strictExp(regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description)),
       skills:           strictList((Array.isArray(ai.skills) && ai.skills.length) ? ai.skills : (regex.skills?.length ? regex.skills : extractSkills(description))),
       minSalary:        strictAmount(ai.minSalary    || regex.minSalary    || salary.min),
       maxSalary:        strictAmount(ai.maxSalary    || regex.maxSalary    || salary.max),
@@ -229,8 +228,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       payRate:          salary.payRate,
       payType:          (salary as any).payType,
       benefits:         strictList((Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description), 40, 10),
-      educationLevel:   strictShort(ai.educationLevel || (description.match(/bachelor|master|phd|associate|diploma|degree/i) ? extractEducation(description) : '')),
-      workSetting:      strictEnum(ai.workSetting || extractWorkSetting(description), ['Remote', 'Hybrid', 'On-site']),
+      educationLevel:   strictShort(ai.educationLevel || extractEducation(description)),
       jobDescription:   description,
       responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
       requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),

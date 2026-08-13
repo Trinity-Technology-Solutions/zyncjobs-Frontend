@@ -914,18 +914,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="flex gap-2 items-end flex-shrink-0">
               <div>
                 <label className="block text-xs font-medium text-white mb-1">Radius</label>
-                <select
+                <AutocompleteCombobox
                   value={String(radius)}
-                  onChange={e => setRadius(Number(e.target.value))}
-                  className="w-28 px-3 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-                >
-                  <option value="5">5 km</option>
-                  <option value="10">10 km</option>
-                  <option value="25">25 km</option>
-                  <option value="50">50 km</option>
-                  <option value="100">100 km</option>
-                  <option value="200">200 km</option>
-                </select>
+                  onChange={(val) => setRadius(Number(val))}
+                  options={[
+                    { value: '5', label: '5 km' },
+                    { value: '10', label: '10 km' },
+                    { value: '25', label: '25 km' },
+                    { value: '50', label: '50 km' },
+                    { value: '100', label: '100 km' },
+                    { value: '200', label: '200 km' },
+                  ]}
+                  placeholder="Radius"
+                  className="w-28 bg-white text-gray-700 rounded-lg text-sm font-medium"
+                />
               </div>
               <button 
                 onClick={handleSearch}
@@ -1088,17 +1090,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
-                  <select
+                  <AutocompleteCombobox
+                    label="Job Type"
                     value={filters.jobType}
-                    onChange={e => handleFilterChange('jobType', e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                  >
-                    <option value="">All Types</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Remote">Remote</option>
-                  </select>
+                    onChange={(val) => handleFilterChange('jobType', val)}
+                    options={[
+                      { value: '', label: 'All Types' },
+                      { value: 'Full-time', label: 'Full-time' },
+                      { value: 'Part-time', label: 'Part-time' },
+                      { value: 'Contract', label: 'Contract' },
+                      { value: 'Remote', label: 'Remote' },
+                    ]}
+                    placeholder="Select job type..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
@@ -1390,43 +1395,52 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
-                <select
+                <AutocompleteCombobox
+                  label="Job Type"
                   value={filters.jobType}
-                  onChange={e => handleFilterChange('jobType', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                >
-                  <option value="">All Types</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Remote">Remote</option>
-                </select>
+                  onChange={(val) => handleFilterChange('jobType', val)}
+                  options={[
+                    { value: '', label: 'All Types' },
+                    { value: 'Full-time', label: 'Full-time' },
+                    { value: 'Part-time', label: 'Part-time' },
+                    { value: 'Contract', label: 'Contract' },
+                    { value: 'Remote', label: 'Remote' },
+                  ]}
+                  placeholder="Select job type..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
-                <select
+                <AutocompleteCombobox
+                  label="Experience"
                   value={filters.experience}
-                  onChange={e => handleFilterChange('experience', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                >
-                  <option value="">All Levels</option>
-                  <option value="Entry">Entry Level</option>
-                  <option value="Mid">Mid Level</option>
-                  <option value="Senior">Senior Level</option>
-                </select>
+                  onChange={(val) => handleFilterChange('experience', val)}
+                  options={[
+                    { value: '', label: 'All Levels' },
+                    { value: 'Entry', label: 'Entry Level' },
+                    { value: 'Mid', label: 'Mid Level' },
+                    { value: 'Senior', label: 'Senior Level' },
+                  ]}
+                  placeholder="Select experience level..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
-                <select
+                <AutocompleteCombobox
+                  label="Salary Range"
                   value={filters.salaryRange}
-                  onChange={e => handleFilterChange('salaryRange', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                >
-                  <option value="">All Ranges</option>
-                  <option value="50k-100k">₹50k - ₹100k</option>
-                  <option value="100k-150k">₹100k - ₹150k</option>
-                  <option value="150k+">₹150k+</option>
-                </select>
+                  onChange={(val) => handleFilterChange('salaryRange', val)}
+                  options={[
+                    { value: '', label: 'All Ranges' },
+                    { value: '50k-100k', label: '₹50k - ₹100k' },
+                    { value: '100k-150k', label: '₹100k - ₹150k' },
+                    { value: '150k+', label: '₹150k+' },
+                  ]}
+                  placeholder="Select salary range..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
             </div>
           </div>

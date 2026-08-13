@@ -222,8 +222,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
   const scoreJobs = (jobs: any[], limit: number): EnhancedJobRecommendation[] => {
     const profile = buildCandidateProfile();
-    return jobs.slice(0, limit).map(item => {
-      const job = extractJob(item);
+    return jobs.slice(0, limit).map(job => {
       const jobData = { ...job, title: job.jobTitle || job.title || '', skills: Array.isArray(job.skills) ? job.skills : [] };
       const b = computeMatchBreakdown(jobData, profile);
       const jobSkillsLower: string[] = jobData.skills.map((s: string) => String(s || '').toLowerCase());

@@ -1004,28 +1004,30 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                     <div className="flex flex-col gap-3">
                       {/* Boolean search bar */}
                       <div className="relative">
-                        <Bot className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400 w-4 h-4 z-10" />
-                        <input
-                          type="text"
+                        <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400 w-4 h-4 z-10" />
+                        <AutocompleteCombobox
                           value={booleanQuery}
-                          onChange={e => setBooleanQuery(e.target.value)}
+                          onChange={setBooleanQuery}
+                          options={[]}
+                          allowCustom
                           placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
-                          className="w-full pl-9 pr-16 py-2.5 border border-purple-200 bg-purple-50/50 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-300"
+                          className="pl-8 border-purple-200 bg-purple-50/50"
                         />
                         {booleanQuery && (
-                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded z-10 ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                          <span className={`absolute right-10 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded z-10 ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
                             {parseBooleanQuery(booleanQuery) ? 'valid' : 'syntax'}
                           </span>
                         )}
                       </div>
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
-                        <input
-                          type="text"
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+                        <AutocompleteCombobox
                           value={searchTerm}
-                          onChange={e => setSearchTerm(e.target.value)}
+                          onChange={setSearchTerm}
+                          options={[]}
+                          allowCustom
                           placeholder="Search candidates by name, title, email…"
-                          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 bg-white"
+                          className="pl-8"
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1255,38 +1257,30 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                         {/* Designation */}
                         <div className="relative pt-2">
                           <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Designation</label>
-                          <input
-                            type="text"
+                          <AutocompleteCombobox
                             value={designationInput}
-                            onChange={e => setDesignationInput(e.target.value)}
-                            onKeyDown={e => {
-                              if ((e.key === 'Enter' || e.key === ',') && designationInput.trim()) {
-                                e.preventDefault();
-                                if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]);
-                                setDesignationInput('');
-                              }
+                            onChange={v => {
+                              if (v && !designations.includes(v)) setDesignations((d: any) => [...d, v]);
+                              setDesignationInput('');
                             }}
+                            options={[]}
+                            allowCustom
                             placeholder="e.g. Engineer"
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                           />
                         </div>
 
                         {/* Ex-Company */}
                         <div className="relative pt-2">
                           <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Ex-Company</label>
-                          <input
-                            type="text"
+                          <AutocompleteCombobox
                             value={companyInput}
-                            onChange={e => setCompanyInput(e.target.value)}
-                            onKeyDown={e => {
-                              if ((e.key === 'Enter' || e.key === ',') && companyInput.trim()) {
-                                e.preventDefault();
-                                if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]);
-                                setCompanyInput('');
-                              }
+                            onChange={v => {
+                              if (v && !targetCompanies.includes(v)) setTargetCompanies((c: any) => [...c, v]);
+                              setCompanyInput('');
                             }}
+                            options={[]}
+                            allowCustom
                             placeholder="e.g. Infosys"
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                           />
                         </div>
                       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Video, X, Calendar, Clock, User, FileText, MapPin } from 'lucide-react';
+import { Video, X, Calendar, Clock, User, FileText, MapPin, ChevronDown } from 'lucide-react';
 import { formatLocalDateTime, isMeetingLinkForPlatform } from '../utils/interviewScheduleUtils';
 
 interface ScheduleInterviewModalProps {
@@ -24,6 +24,7 @@ const TYPE_OPTIONS = [
 ];
 
 const inputClass = 'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+const selectClass = 'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white';
 
 const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
   application, existingRounds, onClose, onSuccess
@@ -246,40 +247,32 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               <Clock size={14} className="inline mr-1" />Duration
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {DURATION_OPTIONS.map(o => {
-                const isSel = String(formData.duration) === o.value;
-                return (
-                  <button key={o.value} type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, duration: parseInt(o.value, 10) }))}
-                    className={`py-1.5 rounded-lg text-xs font-semibold border transition-all text-center ${
-                      isSel ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                    }`}>
-                    {o.label}
-                  </button>
-                );
-              })}
+            <div className="relative">
+              <select
+                value={String(formData.duration)}
+                onChange={e => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value, 10) }))}
+                className={selectClass}>
+                {DURATION_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
           {/* Interview Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Interview Type</label>
-            <div className="grid grid-cols-2 gap-2">
-              {TYPE_OPTIONS.map(o => {
-                const isSel = formData.type === o.value;
-                return (
-                  <button key={o.value} type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, type: o.value, meetingLink: '', location: '' }))}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all text-left ${
-                      isSel ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                    }`}>
-                    {o.label}
-                  </button>
-                );
-              })}
+            <div className="relative">
+              <select
+                value={formData.type}
+                onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '', location: '' }))}
+                className={selectClass}>
+                {TYPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
