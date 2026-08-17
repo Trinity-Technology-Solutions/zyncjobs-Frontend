@@ -1721,8 +1721,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
                 <div className="flex flex-row gap-2">
                   <AutocompleteCombobox
-                    value={appFilterJob}
-                    onChange={(val) => setAppFilterJob(val)}
+                    value={appFilterJob === 'all' ? '' : appFilterJob}
+                    onChange={(val) => setAppFilterJob(val || 'all')}
                     options={[
                       { value: 'all', label: 'All Jobs' },
                       ...jobs.map(job => {
@@ -1735,8 +1735,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     className="text-sm flex-1 min-w-0"
                   />
                   <AutocompleteCombobox
-                    value={appFilterStatus}
-                    onChange={(val) => setAppFilterStatus(val)}
+                    value={appFilterStatus === 'all' ? '' : appFilterStatus}
+                    onChange={(val) => setAppFilterStatus(val || 'all')}
                     options={[
                       { value: 'all', label: 'All Status' },
                       { value: 'pending', label: 'Pending' },

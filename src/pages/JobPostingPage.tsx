@@ -79,18 +79,33 @@ interface JobData {
   companyTagline: string;
 }
 
+// Normalize any supported salary input into a real numeric value.
+// Handles plain numbers, commas, decimals, and K / L / Cr suffixes (case-insensitive).
+// Examples: "6.7K" -> 6700, "800" -> 800, "5" -> 5, "6,700" -> 6700, "5L" -> 500000, "1.2Cr" -> 12000000
+const parseSalaryNumber = (value: string): number => {
+  const s = String(value || '').trim().toLowerCase().replace(/,/g, '');
+  if (!s) return 0;
+  const match = s.match(/^(\d+(?:\.\d+)?)\s*(k|l|cr)?$/);
+  if (!match) return 0;
+  const num = parseFloat(match[1]);
+  if (isNaN(num)) return 0;
+  const unit = match[2] || '';
+  if (unit === 'k') return num * 1000;
+  if (unit === 'l') return num * 100000;
+  if (unit === 'cr') return num * 10000000;
+  return num;
+};
+
+// Format a salary for display only — never used for validation.
+// Small values (e.g. 800) stay exact; large values are abbreviated with K / L / Cr.
 const formatSalary = (value: string): string => {
-  const num = parseInt(value.replace(/,/g, ''));
-  if (isNaN(num)) return value;
-  // If user enters small numbers (1-999), treat as Lakhs (LPA)
-  if (num < 1000) return `${num}L`;
+  const num = parseSalaryNumber(value);
+  if (num <= 0) return value;
   if (num >= 10000000) return `${(num / 10000000).toFixed(num % 10000000 === 0 ? 0 : 1)}Cr`;
   if (num >= 100000) return `${(num / 100000).toFixed(num % 100000 === 0 ? 0 : 1)}L`;
   if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}K`;
-  return value;
+  return `${num}`;
 };
-
-const parseSalaryNumber = (value: string): number => parseInt((value || '').replace(/,/g, '')) || 0;
 
 // Snap a raw number to the nearest available dropdown option value
 const snapToDropdownYear = (n: number, isMax: boolean): string => {
@@ -2579,7 +2594,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   value={salaryFocused === 'min' ? jobData.minSalary : (jobData.minSalary ? formatSalary(jobData.minSalary) : '')}
                   onFocus={() => setSalaryFocused('min')}
                   onChange={(e) => {
-                    updateJobData('minSalary', e.target.value.replace(/[^0-9]/g, ''));
+                    updateJobData('minSalary', e.target.value.replace(/[^0-9.,kKcClLrR\s]/g, ''));
                     setSalaryModified(true);
                   }}
                   onBlur={() => setSalaryFocused(null)}
@@ -2605,7 +2620,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   value={salaryFocused === 'max' ? jobData.maxSalary : (jobData.maxSalary ? formatSalary(jobData.maxSalary) : '')}
                   onFocus={() => setSalaryFocused('max')}
                   onChange={(e) => {
-                    updateJobData('maxSalary', e.target.value.replace(/[^0-9]/g, ''));
+                    updateJobData('maxSalary', e.target.value.replace(/[^0-9.,kKcClLrR\s]/g, ''));
                     setSalaryModified(true);
                   }}
                   onBlur={() => setSalaryFocused(null)}
@@ -3393,6 +3408,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
     
+    // Normalize salary inputs to real numeric values for the API payload.
+    // "6.7K" -> 6700, "800" -> 800, "5L" -> 500000. Empty inputs stay 0.
+    const salaryMinValue = parseSalaryNumber(jobData.minSalary);
+    const salaryMaxValue = jobData.payType === 'Exact amount'
+      ? parseSalaryNumber(jobData.minSalary)
+      : parseSalaryNumber(jobData.maxSalary);
+    
     // Format jobType as simple string - let backend handle PostgreSQL conversion
     const formatJobType = (field: any): string => {
       if (Array.isArray(field)) {
@@ -3451,27 +3473,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       experienceRange: jobData.experienceRange || '',
       ...(shouldIncludeSalary && {
         salary: {
-          min: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-          max: (() => {
-            if (jobData.payType === 'Exact amount') {
-              const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
-              return v > 0 && v < 1000 ? v * 100000 : v;
-            }
-            const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
-            return v > 0 && v < 1000 ? v * 100000 : v;
-          })(),
+          min: salaryMinValue,
+          max: salaryMaxValue,
           currency: jobData.currency,
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
         },
-        salaryMin: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-        salaryMax: (() => {
-          if (jobData.payType === 'Exact amount') {
-            const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
-            return v > 0 && v < 1000 ? v * 100000 : v;
-          }
-          const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
-          return v > 0 && v < 1000 ? v * 100000 : v;
-        })(),
+        salaryMin: salaryMinValue,
+        salaryMax: salaryMaxValue,
         currency: jobData.currency,
         payRate: jobData.payRate,
         payType: jobData.payType

@@ -138,7 +138,8 @@ export const formatSalary = (salary: any, currencyCode?: string): string => {
     if (code === 'INR') {
       if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
       if (n >= 100000)   return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
-      if (n > 0 && n < 1000) return `${n}L`;
+      if (n >= 1000)     return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+      return n.toString();
     }
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
     if (n >= 1000)    return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
