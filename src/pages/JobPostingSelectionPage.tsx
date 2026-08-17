@@ -1,5 +1,6 @@
 import React from 'react';
 import BackButton from '../components/BackButton';
+import GetStartedButton from '../components/animata/button/get-started-button';
 
 interface JobPostingSelectionPageProps {
   onNavigate: (page: string, options?: any) => void;
@@ -174,12 +175,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
             <div className="mt-auto flex items-center justify-between pt-2">
               <span className="text-xs text-blue-100/80 uppercase tracking-wider font-medium">Full Control</span>
-              <button className="bg-white text-blue-700 font-semibold text-sm px-5 py-2 rounded-lg flex items-center gap-1.5 hover:bg-blue-50 transition-colors">
-                Get Started
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <GetStartedButton text="Get Started" />
             </div>
           </div>
 
@@ -222,12 +218,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
             <div className="mt-auto flex items-center justify-between pt-2">
               <span className="text-xs text-orange-100/80 uppercase tracking-wider font-medium">Fastest Way</span>
-              <button className="bg-white text-orange-600 font-semibold text-sm px-5 py-2 rounded-lg flex items-center gap-1.5 hover:bg-orange-50 transition-colors">
-                Get Started
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <GetStartedButton text="Get Started" />
             </div>
           </div>
 
@@ -270,12 +261,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
             </div>
             <div className="mt-auto flex items-center justify-between pt-2">
               <span className="text-xs text-green-100/80 uppercase tracking-wider font-medium">Recruiters & Agencies</span>
-              <button className="bg-white text-green-700 font-semibold text-sm px-5 py-2 rounded-lg flex items-center gap-1.5 hover:bg-green-50 transition-colors">
-                Get Started
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <GetStartedButton text="Get Started" />
             </div>
           </div>
         </div>

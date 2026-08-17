@@ -4,6 +4,7 @@ import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../util
 import CompanyLogo from './CompanyLogo';
 import { formatSalary } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
+import WorkButton from './animata/button/work-button';
 import { getId } from '../utils/getId';
 
 interface LatestJobsProps {
@@ -279,12 +280,10 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
             </div>
             
             <div className="text-center">
-              <button
+              <WorkButton
+                text="Load More"
                 onClick={() => onNavigate && onNavigate('job-listings')}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Load More
-              </button>
+              />
             </div>
           </>
         )}

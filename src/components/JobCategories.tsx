@@ -6,13 +6,10 @@ import {
   DollarSign, 
   HeadphonesIcon, 
   ShoppingCart, 
-  TrendingUp, 
   Palette,
-  ArrowRight,
-  Briefcase,
-  Building2,
-  Stethoscope
+  Building2
 } from 'lucide-react';
+import GradientCard from './GradientCard';
 
 interface JobCategoriesProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -22,57 +19,73 @@ const categories = [
   { 
     name: 'Software Development', 
     icon: Code, 
-    gradient: 'from-blue-500 to-indigo-600',
-    glow: 'group-hover:shadow-blue-200',
+    gradient: 'blue' as const,
+    badge: 'High Demand',
+    badgeColor: '#60A5FA',
+    description: 'Build the next big thing — web, mobile & cloud roles.',
     searchTerms: ['software developer', 'frontend developer', 'backend developer', 'full stack developer', 'web developer', 'software engineer']
   },
   { 
     name: 'Digital Marketing', 
     icon: Megaphone, 
-    gradient: 'from-orange-500 to-pink-600',
-    glow: 'group-hover:shadow-orange-200',
+    gradient: 'orange' as const,
+    badge: 'Trending',
+    badgeColor: '#FB923C',
+    description: 'Grow brands with SEO, social & performance marketing.',
     searchTerms: ['digital marketing', 'seo specialist', 'social media manager', 'content marketer', 'ppc specialist', 'growth hacker']
   },
   { 
     name: 'Human Resources', 
     icon: Users, 
-    gradient: 'from-violet-500 to-purple-600',
-    glow: 'group-hover:shadow-violet-200',
+    gradient: 'purple' as const,
+    badge: 'In Demand',
+    badgeColor: '#A78BFA',
+    description: 'Shape workplace culture and hire great people.',
     searchTerms: ['hr manager', 'recruiter', 'talent acquisition', 'hr executive', 'people operations', 'human resources']
   },
   { 
     name: 'Finance & Accounting', 
     icon: DollarSign, 
-    gradient: 'from-green-500 to-emerald-600',
-    glow: 'group-hover:shadow-green-200',
+    gradient: 'green' as const,
+    badge: 'Essential',
+    badgeColor: '#34D399',
+    description: 'Own the numbers — from audits to financial analysis.',
     searchTerms: ['accountant', 'financial analyst', 'finance manager', 'chartered accountant', 'auditor', 'bookkeeper']
   },
   { 
     name: 'Customer Support', 
     icon: HeadphonesIcon, 
-    gradient: 'from-cyan-500 to-blue-600',
-    glow: 'group-hover:shadow-cyan-200',
+    gradient: 'cyan' as const,
+    badge: 'Top Roles',
+    badgeColor: '#22D3EE',
+    description: 'Deliver customer experiences people love.',
     searchTerms: ['customer support', 'customer service', 'support executive', 'help desk', 'customer success', 'technical support']
   },
   { 
     name: 'Sales & Business Dev', 
     icon: ShoppingCart, 
-    gradient: 'from-yellow-500 to-orange-600',
-    glow: 'group-hover:shadow-yellow-200',
+    gradient: 'yellow' as const,
+    badge: 'Growing',
+    badgeColor: '#FBBF24',
+    description: 'Drive revenue and open new markets.',
     searchTerms: ['sales executive', 'business development', 'account manager', 'sales manager', 'inside sales', 'b2b sales']
   },
   { 
     name: 'Operations & Admin', 
     icon: Building2, 
-    gradient: 'from-teal-500 to-green-600',
-    glow: 'group-hover:shadow-teal-200',
+    gradient: 'teal' as const,
+    badge: 'Core Roles',
+    badgeColor: '#2DD4BF',
+    description: 'Keep businesses running smoothly every day.',
     searchTerms: ['operations manager', 'admin executive', 'office manager', 'operations analyst', 'back office', 'administrative assistant']
   },
   { 
     name: 'UI/UX Design', 
     icon: Palette, 
-    gradient: 'from-pink-500 to-rose-600',
-    glow: 'group-hover:shadow-pink-200',
+    gradient: 'pink' as const,
+    badge: 'Creative',
+    badgeColor: '#F472B6',
+    description: 'Design products people love to use.',
     searchTerms: ['ui designer', 'ux designer', 'graphic designer', 'web designer', 'product designer', 'visual designer']
   }
 ];
@@ -111,11 +124,11 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+    <section className="py-10 sm:py-14 lg:py-16 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Heading */}
-        <div className="text-center mb-12 sm:mb-16">
+        <div className="text-center mb-10 sm:mb-12">
           <span className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-widest border border-blue-100 mb-4">
             Job Categories
           </span>
@@ -127,45 +140,44 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Grid - Responsive with explicit mobile handling */}
+        {/* Grid - Bento Gradient Cards */}
         <div className="w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 auto-rows-fr">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 auto-rows-fr">
             {categories.map((cat, i) => {
               const Icon = cat.icon;
+              const featured = i === 0 || i === 1;
+              const spanClasses = [
+                'sm:col-span-2 lg:col-span-2 lg:row-span-2 xl:col-span-2 xl:row-span-2',
+                'sm:col-span-2 lg:col-span-1 xl:col-span-2',
+                '',
+                '',
+                '',
+                '',
+                'lg:col-span-2 xl:col-span-1',
+                '',
+              ][i];
 
               return (
                 <div
                   key={cat.name}
                   ref={el => { cardRefs.current[i] = el; }}
-                  onClick={() => handleCategoryClick(cat)}
-                  className={`relative group cursor-pointer rounded-2xl bg-white/70 backdrop-blur-xl border border-gray-200 p-6 shadow-md hover:shadow-2xl ${cat.glow} transition-all duration-500 flex flex-col items-center text-center min-h-[160px] sm:min-h-[180px] ${
+                  className={`h-full ${spanClasses} ${
                     visible[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                   }`}
                   style={{ transitionDelay: `${i * 60}ms` }}
                 >
-                  {/* Glow effect */}
-                  <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500 bg-gradient-to-r ${cat.gradient}`} />
-
-                  {/* Icon */}
-                  <div className={`relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-2xl text-white bg-gradient-to-r ${cat.gradient} mb-4 shadow-lg group-hover:scale-105 transition-transform duration-300 flex-shrink-0 mx-auto`}>
-                    <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 flex flex-col justify-between text-center">
-                    {/* Title */}
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-700 transition-colors leading-tight">
-                      {cat.name}
-                    </h3>
-
-                    {/* Explore */}
-                    <div className="flex items-center justify-center mt-auto">
-                      <span className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors font-medium">
-                        Explore
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </span>
-                    </div>
-                  </div>
+                  <GradientCard
+                    badgeText={cat.badge}
+                    badgeColor={cat.badgeColor}
+                    title={cat.name}
+                    description={cat.description}
+                    ctaText="Explore"
+                    gradient={cat.gradient}
+                    icon={<Icon className="w-full h-full" />}
+                    featured={featured}
+                    chips={featured ? cat.searchTerms.slice(0, 3) : undefined}
+                    onClick={() => handleCategoryClick(cat)}
+                  />
                 </div>
               );
             })}

@@ -2,6 +2,7 @@ import React from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import GetStartedButton from '../components/animata/button/get-started-button';
 
 interface AboutPageProps {
   onNavigate?: (page: string) => void;
@@ -161,12 +162,12 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => 
           <p className="text-white/90 mb-8 text-lg max-w-2xl mx-auto">
             Whether you are a job seeker ready for your next move or an employer looking for the right person — ZyncJobs makes it simple, seamless, and worth your time.
           </p>
-          <button 
-            onClick={() => onNavigate && onNavigate('role-selection')}
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors font-semibold text-lg"
-          >
-            Get Started Today
-          </button>
+          <div className="flex justify-center">
+            <GetStartedButton
+              text="Get Started Today"
+              onClick={() => onNavigate && onNavigate('candidate-register')}
+            />
+          </div>
         </div>
       </main>
 

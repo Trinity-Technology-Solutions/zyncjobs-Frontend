@@ -1,4 +1,6 @@
 import React from 'react';
+import GetStartedButton from './animata/button/get-started-button';
+import WorkButton from './animata/button/work-button';
 
 interface CallToActionProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -61,20 +63,17 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
         }`}>
           
           {/* Primary Button */}
-          <button 
-            onClick={() => onNavigate && onNavigate('role-selection')}
-            className="bg-white text-gray-900 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
-          >
-            Get Started
-          </button>
+          <GetStartedButton
+            text="Get Started"
+            onClick={() => onNavigate && onNavigate('candidate-register')}
+          />
 
           {/* Secondary Button */}
-          <button 
+          <WorkButton
+            text="Browse Jobs"
+            size="md"
             onClick={() => onNavigate && onNavigate('job-listings')}
-            className="border-2 border-gray-400 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-gray-900 transition-all duration-300 hover:border-white"
-          >
-            Browse Jobs
-          </button>
+          />
 
         </div>
 

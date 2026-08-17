@@ -5,7 +5,10 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { sendAIMessageStream } from '../services/aiChatService';
+import { searchCandidates, rankCandidates, shortlistCandidates, type RecruiterCandidate } from '../services/aiRecruiterService';
 import { useTypewriter } from '../hooks/useTypewriter';
+
+const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
 
 interface AIRecruiterAssistantProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -18,6 +21,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  candidates?: RecruiterCandidate[];
 }
 
 const SYSTEM_PROMPT = `You are ZyncJobs AI Recruiter Assistant — an expert recruitment automation assistant for employers and HR teams on ZyncJobs.
@@ -42,7 +46,18 @@ const QUICK_ACTIONS = [
   { icon: Zap, label: 'Screening Criteria', desc: 'Set smart filters & red flags', prompt: 'What are the best screening criteria and red flags to watch for when hiring a full-stack developer?', color: 'from-amber-500 to-amber-600' },
   { icon: Target, label: 'Write Job Description', desc: 'Create compelling JDs instantly', prompt: 'Write a compelling job description for a Data Analyst role at a mid-size tech company with 3-5 years experience required.', color: 'from-pink-500 to-pink-600' },
   { icon: Briefcase, label: 'Rejection Email', desc: 'Professional candidate emails', prompt: 'Write a professional and empathetic rejection email template for candidates who were not selected after the interview stage.', color: 'from-rose-500 to-rose-600' },
+  { icon: Users, label: 'Source Candidates', desc: 'Find candidates by criteria', prompt: 'Source candidates for a Senior Frontend Developer role with React and TypeScript', color: 'from-cyan-500 to-cyan-600' },
+  { icon: Target, label: 'Rank Candidates', desc: 'Rank applicants by fit', prompt: 'Rank candidates for my open role', color: 'from-blue-500 to-indigo-600' },
+  { icon: Zap, label: 'Shortlist Best Fit', desc: 'Get a shortlist recommendation', prompt: 'Shortlist the best candidates for my open roles', color: 'from-amber-500 to-orange-600' },
 ];
+
+const detectRecruiterIntent = (text: string): 'source' | 'rank' | 'shortlist' | null => {
+  const q = text.toLowerCase();
+  if (/\b(short[- ]?list|short listing)\b/.test(q)) return 'shortlist';
+  if (/\b(rank|score|evaluate|compare|best fit|best candidate|top candidate)\b/.test(q)) return 'rank';
+  if (/\b(source|find|search|look for|fetch|hire)\b/.test(q)) return 'source';
+  return null;
+};
 
 const getAdvancedFallbackWithContext = (input: string, jobs: any[], user: any): string => {
   const q = input.toLowerCase();
@@ -109,10 +124,22 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [jobContext, setJobContext] = useState<any[]>([]);
+  const [shortlistedIds, setShortlistedIds] = useState<string[]>([]);
+  const [aiOnline, setAiOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    fetch(`${AI_BASE}/docs`, { signal: ctrl.signal })
+      .then(r => setAiOnline(r.ok))
+      .catch(() => setAiOnline(false))
+      .finally(() => clearTimeout(timer));
+    return () => { ctrl.abort(); clearTimeout(timer); };
+  }, []);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const { streamingText, isTyping, typeText } = useTypewriter();
+  const { streamingText, isTyping } = useTypewriter();
 
   useEffect(() => {
     const loadJobs = async () => {
@@ -126,7 +153,7 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           );
           setJobContext(mine.slice(0, 5));
         }
-      } catch {}
+      } catch { /* offline or backend unavailable */ }
     };
     if (user?.email) loadJobs();
   }, [user]);
@@ -134,6 +161,30 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
+
+  const shortlistCandidate = useCallback(async (candidate: RecruiterCandidate) => {
+    const job = jobContext[0];
+    const jobId = job?._id || job?.id;
+    if (!jobId) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Open a job first — shortlisting needs an active job" } }));
+      return;
+    }
+    if (!candidate.id) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate profile not found — open them in Candidate Search instead" } }));
+      return;
+    }
+    try {
+      await fetch(`${API_ENDPOINTS.BASE_URL}/employer/shortlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateId: candidate.id, jobId, notes: `Shortlisted via AI Recruiter Assistant for ${job.jobTitle || job.title || 'the role'}` }),
+      });
+      setShortlistedIds(prev => prev.includes(candidate.id!) ? prev : [...prev, candidate.id!]);
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `${candidate.name} shortlisted for ${job.jobTitle || job.title || 'the role'}!` } }));
+    } catch {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Error shortlisting candidate" } }));
+    }
+  }, [jobContext]);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -155,9 +206,46 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       return;
     }
 
+    // Structured recruiter actions — real AI service endpoints (sourcing, ranking, shortlisting)
+    const intent = detectRecruiterIntent(trimmed);
+    if (intent) {
+      try {
+        const cleaned = trimmed.replace(/\b(please|pls|source|find|search|short[- ]?list|rank|me|for|candidates?|candidate)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+        const firstJob = jobContext[0];
+        const jobDesc = cleaned
+          || (firstJob ? `${firstJob.jobTitle || firstJob.title || ''}${Array.isArray(firstJob.skills) && firstJob.skills.length ? ` — ${firstJob.skills.slice(0, 5).join(', ')}` : ''}`.trim() : '')
+          || 'skilled professionals';
+        let candidates: RecruiterCandidate[] = [];
+        let summary = '';
+
+        if (intent === 'source') {
+          const r = await searchCandidates(jobDesc);
+          candidates = r.candidates;
+          summary = `🔎 **Sourced ${r.totalCount || candidates.length} matching candidate${(r.totalCount || candidates.length) === 1 ? '' : 's'}** from the talent pool for:\n"${jobDesc}"\n\nShowing the top ${candidates.length} below — tap a card to open Candidate Search.`;
+        } else if (intent === 'rank') {
+          const found = await searchCandidates(jobDesc);
+          const r = await rankCandidates(jobDesc, found.candidates.map((c) => ({ ...c })));
+          candidates = r.ranked;
+          summary = `🏆 **Ranked ${candidates.length} candidates by fit** for:\n"${jobDesc}"\n\nSorted best-first by match score.`;
+        } else {
+          const r = await shortlistCandidates(jobDesc);
+          candidates = r.candidates;
+          summary = `✅ **Shortlist recommendation** for:\n"${jobDesc}"\n\n${candidates.length} candidate${candidates.length === 1 ? '' : 's'} made the cut — ranked by fit.`;
+        }
+
+        if (candidates.length > 0) {
+          setCached(key, summary);
+          setLoading(false);
+          setMessages(prev => [...prev, { role: 'assistant', content: summary, candidates, timestamp: new Date() }]);
+          return;
+        }
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') console.warn('Structured recruiter action failed, falling back to chat:', e);
+      }
+    }
+
     // Try AI service first for contextual responses
     let aiResponseSuccessful = false;
-    let aiResponse = '';
     
     try {
       setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
@@ -183,7 +271,6 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       );
       if (full) {
         aiResponseSuccessful = true;
-        aiResponse = full;
         setCached(key, full);
       }
     } catch (e: any) {
@@ -231,54 +318,80 @@ return (
 
 
       {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="relative bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden">
+        {/* Animated glow orbs */}
+        <div className="absolute -top-24 -left-24 w-72 h-72 bg-blue-500/25 rounded-full blur-3xl zync-float" />
+        <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl zync-float-delayed" />
+        <div className="absolute top-0 right-1/3 w-48 h-48 bg-cyan-400/10 rounded-full blur-2xl zync-float-slow" />
+        {/* Subtle grid overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '42px 42px' }}
+        />
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-9">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => onNavigate?.('dashboard')}
                 aria-label="Go back"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/15 hover:bg-white/25 text-white shadow-sm hover:shadow-md transition-all backdrop-blur-sm flex-shrink-0"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/15 hover:bg-white/25 text-white shadow-sm hover:shadow-md hover:scale-105 transition-all backdrop-blur-sm flex-shrink-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="19" y1="12" x2="5" y2="12" />
                   <polyline points="12 19 5 12 12 5" />
                 </svg>
               </button>
-              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-400 to-violet-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
-                <Sparkles className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+              <div className="relative">
+                <div className="absolute inset-0 bg-violet-500/50 rounded-xl sm:rounded-2xl blur-md zync-glow" />
+                <div className="relative w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-400 via-blue-500 to-violet-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
+                  <Sparkles className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+                </div>
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">AI Recruiter Assistant</h1>
-                <p className="text-blue-300 text-xs sm:text-sm mt-0.5">Powered by AI · Automate your hiring workflow</p>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+                  AI Recruiter Assistant
+                  <span className="hidden sm:inline-flex text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-blue-500/30 to-violet-500/30 border border-white/20 text-blue-200 rounded-full px-2 py-0.5">Beta</span>
+                </h1>
+                <p className="text-blue-300/90 text-xs sm:text-sm mt-0.5">Agentic AI talent sourcing · screening · ranked shortlists</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2.5 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
+                <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-400' : 'bg-red-400'} shadow-[0_0_8px_rgba(52,211,153,0.8)]`} />
+                <span className="text-xs text-white/80 font-medium truncate">
+                  {aiOnline === null ? 'Connecting to AI engine…' : aiOnline ? 'AI Engine Online' : 'AI Engine Offline'}
+                </span>
+              </div>
               {jobContext.length > 0 && (
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2.5 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
                   <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-white/80 truncate">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
+                  <span className="text-xs text-white/80 font-medium truncate">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
                 </div>
               )}
               <button
                 onClick={resetChat}
-                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-3 sm:px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-colors flex-shrink-0"
+                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-3 sm:px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-all hover:scale-[1.02] active:scale-95 flex-shrink-0"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> 
+                <RotateCcw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">New Chat</span>
               </button>
             </div>
           </div>
         </div>
+        {/* Gradient divider */}
+        <div className="relative h-px bg-gradient-to-r from-transparent via-blue-500/70 to-transparent" />
       </div>
 
       <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 flex gap-4 sm:gap-6" style={{ minHeight: 0 }}>
 
         {/* Left Sidebar — Quick Actions */}
         <div className="w-56 sm:w-64 flex-shrink-0 hidden lg:block">
-          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm overflow-hidden sticky top-6">
-            <div className="px-3 sm:px-4 py-3 border-b border-gray-100 bg-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Actions</p>
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-blue-900/5 overflow-hidden sticky top-6">
+            <div className="relative px-4 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-violet-600 text-white overflow-hidden">
+              <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/10 rounded-full" />
+              <p className="text-xs font-semibold uppercase tracking-wider relative">Quick Actions</p>
+              <p className="text-[11px] text-blue-100/90 mt-0.5 relative">One-click hiring workflows</p>
             </div>
             <div className="p-2 space-y-1">
               {QUICK_ACTIONS.map((action, i) => {
@@ -287,19 +400,26 @@ return (
                   <button
                     key={i}
                     onClick={() => sendMessage(action.prompt)}
-                    className="w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 rounded-lg sm:rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                    className="w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 rounded-lg sm:rounded-xl hover:bg-blue-50/70 hover:translate-x-0.5 transition-all text-left group"
                   >
-                    <div className={`w-7 sm:w-8 h-7 sm:h-8 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                    <div className={`w-7 sm:w-8 h-7 sm:h-8 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
                       <Icon className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">{action.label}</p>
                       <p className="text-xs text-gray-400 truncate hidden sm:block">{action.desc}</p>
                     </div>
-                    <ChevronRight className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" />
+                    <ChevronRight className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 flex-shrink-0 transition-all" />
                   </button>
                 );
               })}
+            </div>
+            <div className="px-3 py-3 border-t border-gray-100 bg-gray-50/80">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                <p className="text-[11px] font-medium text-gray-600">AI Engine {aiOnline === null ? '…' : aiOnline ? 'Online' : 'Offline'}</p>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">Sourcing, ranking & shortlisting run on the live AI service.</p>
             </div>
           </div>
         </div>
@@ -316,9 +436,10 @@ return (
                   <button
                     key={i}
                     onClick={() => sendMessage(action.prompt)}
-                    className="flex flex-col sm:flex-row items-center sm:items-start gap-2 px-2 sm:px-3 py-2.5 bg-white border border-gray-200 rounded-lg sm:rounded-xl text-center sm:text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    style={{ animationDelay: `${i * 60}ms` }}
+                    className="zync-pop-in flex flex-col sm:flex-row items-center sm:items-start gap-2 px-2 sm:px-3 py-2.5 bg-white border border-gray-200 rounded-lg sm:rounded-xl text-center sm:text-left hover:border-blue-300 hover:bg-blue-50 hover:shadow-md hover:-translate-y-0.5 transition-all"
                   >
-                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0`}>
+                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
                       <Icon className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-white" />
                     </div>
                     <span className="text-xs font-medium text-gray-700 truncate">{action.label}</span>
@@ -329,14 +450,16 @@ return (
           )}
 
           {/* Chat Messages */}
-          <div ref={chatRef} className="flex-1 bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5 mb-3">
+          <div className="relative flex-1 bg-white rounded-2xl border border-gray-200/80 shadow-xl shadow-blue-900/5 overflow-hidden mb-3 flex flex-col min-h-0">
+            <div className="h-1 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-600 zync-gradient-anim flex-shrink-0" />
+            <div ref={chatRef} className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-2 sm:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div key={i} style={{ animationDelay: `${Math.min(i * 80, 400)}ms` }} className={`zync-msg-in flex gap-2 sm:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 {/* Avatar */}
-                <div className={`w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm ${
+                <div className={`w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center shadow-md ${
                   msg.role === 'assistant'
-                    ? 'bg-gradient-to-br from-blue-500 to-violet-600'
-                    : 'bg-gradient-to-br from-gray-600 to-gray-700'
+                    ? 'bg-gradient-to-br from-blue-500 to-violet-600 ring-2 ring-violet-200/60'
+                    : 'bg-gradient-to-br from-gray-600 to-gray-700 ring-2 ring-gray-200/60'
                 }`}>
                   {msg.role === 'assistant'
                     ? <Sparkles className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
@@ -348,37 +471,106 @@ return (
                 <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div className={`px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
                     msg.role === 'assistant'
-                      ? 'bg-gray-50 text-gray-800 rounded-tl-sm border border-gray-100'
-                      : 'bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-tr-sm'
+                      ? 'bg-gradient-to-br from-gray-50 to-white text-gray-800 rounded-tl-sm border border-gray-100'
+                      : 'bg-gradient-to-br from-blue-600 to-violet-600 text-white rounded-tr-sm shadow-md'
                   }`}>
                     {i === messages.length - 1 && msg.role === 'assistant' && isTyping ? streamingText : msg.content}
                     {i === messages.length - 1 && msg.role === 'assistant' && isTyping && (
                       <span className="inline-block w-1 h-4 bg-blue-400 animate-pulse ml-0.5 align-middle" />
                     )}
                   </div>
+
+                  {msg.role === 'assistant' && msg.candidates && msg.candidates.length > 0 && (
+                    <div className="w-full max-w-[85%] sm:max-w-[75%] grid gap-2 sm:grid-cols-2 mt-1">
+                      {msg.candidates.map((c, ci) => (
+                        <div key={`${c.name}-${ci}`} style={{ animationDelay: `${ci * 70}ms` }} className="zync-pop-in bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:border-blue-300 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm ring-2 ring-violet-100">
+                              <span className="text-xs font-bold text-white">
+                                {(c.name.split(' ').map(p => p[0]).join('') || '?').slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{c.name}</p>
+                              {c.role && <p className="text-xs text-gray-500 truncate">{c.role}</p>}
+                              {(c.location || c.experience) && (
+                                <p className="text-xs text-gray-400 truncate">
+                                  {[c.location, c.experience].filter(Boolean).join(' · ')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {c.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {c.skills.slice(0, 4).map(s => (
+                                <span key={s} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-medium">{s}</span>
+                              ))}
+                              {c.skills.length > 4 && <span className="text-[10px] text-gray-400 self-center">+{c.skills.length - 4}</span>}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            {c.matchScore != null && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-semibold">
+                                <CheckCircle2 className="w-3 h-3" /> Match {c.matchScore}%
+                              </span>
+                            )}
+                            {c.atsScore != null && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-md text-[10px] font-semibold">
+                                <Sparkles className="w-3 h-3" /> ATS {c.atsScore}
+                              </span>
+                            )}
+                          </div>
+                          {c.missingSkills.length > 0 && (
+                            <p className="text-[10px] text-amber-600 mt-1.5">Missing: {c.missingSkills.slice(0, 3).join(', ')}</p>
+                          )}
+                          <div className="flex gap-1.5 mt-2">
+                            <button
+                              onClick={() => shortlistCandidate(c)}
+                              disabled={shortlistedIds.includes(c.id || '')}
+                              className={`flex-1 text-xs font-semibold rounded-lg py-1.5 transition-colors disabled:cursor-default ${
+                                shortlistedIds.includes(c.id || '')
+                                  ? 'bg-emerald-50 text-emerald-600'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              }`}
+                            >
+                              {shortlistedIds.includes(c.id || '') ? '✓ Shortlisted' : 'Shortlist'}
+                            </button>
+                            <button
+                              onClick={() => onNavigate?.('candidate-search')}
+                              className="flex-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg py-1.5 transition-colors"
+                            >
+                              View Profile
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <span className="text-xs text-gray-400 px-1">{formatTime(msg.timestamp)}</span>
                 </div>
               </div>
             ))}
 
             {loading && !isTyping && (
-              <div className="flex gap-2 sm:gap-3">
-                <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="zync-msg-in flex gap-2 sm:gap-3">
+                <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-violet-200/60">
                   <Sparkles className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
                 </div>
-                <div className="bg-gray-50 border border-gray-100 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl rounded-tl-sm shadow-sm">
+                <div className="bg-white border border-gray-100 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl rounded-tl-sm shadow-sm">
                   <div className="flex gap-1.5 items-center h-4 sm:h-5">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-2 h-2 bg-blue-500 rounded-full zync-typing-dot" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-violet-500 rounded-full zync-typing-dot" style={{ animationDelay: '180ms' }} />
+                    <span className="w-2 h-2 bg-blue-400 rounded-full zync-typing-dot" style={{ animationDelay: '360ms' }} />
                   </div>
                 </div>
               </div>
             )}
           </div>
+          </div>
 
           {/* Input Box */}
-          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-2 sm:p-3 flex-shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-blue-900/5 p-2 sm:p-3 flex-shrink-0 focus-within:ring-2 focus-within:ring-blue-500/25 focus-within:border-blue-300/60 transition-all">
             <div className="flex gap-2 sm:gap-3 items-end">
               <textarea
                 ref={textareaRef}
@@ -393,12 +585,15 @@ return (
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || loading}
-                className="w-9 sm:w-10 h-9 sm:h-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg sm:rounded-xl flex items-center justify-center hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex-shrink-0 shadow-sm"
+                className="w-9 sm:w-10 h-9 sm:h-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg sm:rounded-xl flex items-center justify-center hover:opacity-90 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex-shrink-0 shadow-md shadow-blue-600/25"
               >
                 <Send className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-2 px-1">Press Enter to send · Shift+Enter for new line</p>
+            <div className="flex items-center justify-between mt-2 px-1">
+              <p className="text-xs text-gray-400">Press Enter to send · Shift+Enter for new line</p>
+              <p className="text-[10px] text-gray-300 hidden sm:block">AI can make mistakes — verify important details</p>
+            </div>
           </div>
         </div>
       </div>

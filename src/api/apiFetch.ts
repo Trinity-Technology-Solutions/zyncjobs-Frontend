@@ -29,19 +29,15 @@ function onRefreshed(newToken: string) {
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = tokenStorage.getRefresh();
-  if (!refreshToken) {
-    console.warn('No refresh token available for token refresh');
-    tokenStorage.clear();
-    window.dispatchEvent(new CustomEvent('zync:logout'));
-    return null;
-  }
 
   try {
     console.log('Attempting token refresh...');
+    // The backend reads the httpOnly refreshToken cookie first, so a refresh is
+    // attempted even when no token is mirrored in storage (e.g. new tab / reload).
     const res = await fetch(`${API_BASE}/users/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: refreshToken ? JSON.stringify({ refreshToken }) : JSON.stringify({}),
       credentials: 'include',
     });
 

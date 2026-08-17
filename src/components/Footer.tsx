@@ -1,5 +1,7 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { FileText, MessageSquare, Compass, CheckSquare, Instagram, Linkedin, Facebook, Globe } from 'lucide-react';
+import { isEmployerPagePath } from '../utils/rolePermissions';
 
 interface FooterProps {
   onNavigate?: (page: string, topic?: string) => void;
@@ -7,13 +9,15 @@ interface FooterProps {
 }
 
 const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
-  const isCandidate = user?.type === 'candidate';
+  const location = useLocation();
+  const onEmployerPage = isEmployerPagePath(location.pathname);
+  const isCandidate = user?.type === 'candidate' && !onEmployerPage;
 
   const handleEmployerLink = (page: string) => {
     if (!onNavigate) return;
-    // If no user is logged in or user is a candidate, redirect to employer login
+    // If no user is logged in or user is a candidate, go to the employer page
     if (!user || isCandidate) {
-      onNavigate('employer-login');
+      onNavigate('employers');
     } else {
       onNavigate(page);
     }
@@ -32,7 +36,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
     { name: "Hiring Dashboard", action: () => handleEmployerLink('dashboard') },
   ];
 
-  const isEmployer = user?.type === 'employer';
+  const isEmployer = user?.type === 'employer' || onEmployerPage;
 
   const resourceLinks = [
     { name: "Resume Studio", icon: FileText, action: () => onNavigate && onNavigate('resume-studio'), candidateOnly: true },
@@ -82,7 +86,8 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {!isEmployer && (
           <div>
             <h4 className="text-lg font-semibold mb-6" id="footer-jobseekers">For Job Seekers</h4>
             <ul className="space-y-3" aria-labelledby="footer-jobseekers">
@@ -98,8 +103,10 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
               ))}
             </ul>
           </div>
+          )}
           
-          {/* Always show employer section, but redirect to login if not logged in as employer */}
+          {/* For Employers — hidden on candidate-facing pages */}
+          {!isCandidate && (
           <div>
             <h4 className="text-lg font-semibold mb-6" id="footer-employers">For Employers</h4>
             <ul className="space-y-3" aria-labelledby="footer-employers">
@@ -115,6 +122,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
               ))}
             </ul>
           </div>
+          )}
           
           {resourceLinks.length > 0 && (
           <div>
