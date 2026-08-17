@@ -7,6 +7,7 @@ import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation, CAREER_RESOURCE_URLS } from '../store/useNavigation';
+import { isEmployerPagePath } from '../utils/rolePermissions';
 import { strapiAPI } from '../api/strapi';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
@@ -33,13 +34,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const currentPath = location.pathname;
 
   const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
-  const isEmployerAuthPage = currentPath === '/employer-login' || currentPath === '/employer-register';
+
+  // Employer context = employer logged in OR on an employer-facing page
+  const isEmployerContext = user?.type === 'employer' || isEmployerPagePath(currentPath);
 
   // Show Job Seeker links everywhere EXCEPT on Job Seeker Auth pages
   const showJobSeekerLinks = !isJobSeekerAuthPage;
-  
-  // Show Employer links everywhere EXCEPT on Employer Auth pages
-  const showEmployerLinks = !isEmployerAuthPage;
 
   // Secret typed sequence to reveal admin login
   useEffect(() => {
@@ -101,14 +101,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const handleRegisterClick = () => {
     setIsDropdownOpen(false);
     if (onNavigate) {
-      onNavigate('role-selection');
+      onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
     }
   };
 
-  const handleEmployerLoginClick = () => {
+  const handleEmployerPageClick = () => {
     setIsDropdownOpen(false);
     if (onNavigate) {
-      onNavigate('employer-login');
+      onNavigate('employers');
     }
   };
 
@@ -196,9 +196,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         if (user.type === 'employer') {
               // Fetch employer notifications
               const [appsRes, jobsRes, interviewsRes] = await Promise.all([
-                fetch(API_ENDPOINTS.APPLICATIONS),
-                fetch(API_ENDPOINTS.JOBS),
-                fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
+                apiFetch(API_ENDPOINTS.APPLICATIONS),
+                apiFetch(API_ENDPOINTS.JOBS),
+                apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
               ]);
               
               const realNotifications: Array<{id: string; type: string; title: string; message: string; time: string}> = [];
@@ -314,6 +314,29 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
+            {isEmployerContext ? (
+              <>
+                <button
+                  onClick={() => onNavigate && onNavigate('candidate-search')}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Candidate Search
+                </button>
+                <button
+                  onClick={() => onNavigate && onNavigate('my-jobs')}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Posted Jobs
+                </button>
+                <button
+                  onClick={() => onNavigate && onNavigate('job-posting-selection')}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Post a Job
+                </button>
+              </>
+            ) : (
+              <>
             {navItems.length > 0 ? (
               navItems
                 .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
@@ -410,18 +433,31 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     onNavigate && onNavigate('my-jobs');
                   }
                 } else {
-                  onNavigate && onNavigate('role-selection');
+                  onNavigate && onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
                 }
               }}
               className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
               {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
             </button>
+              </>
+            )}
 
           </nav>
 
           {/* Right side items */}
           <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto">
+
+            {/* For Employers Button - only outside employer context */}
+            {!isEmployerContext ? (
+              <button 
+                onClick={handleEmployerPageClick}
+                className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                title="Go to employer page"
+              >
+                For Employers
+              </button>
+            ) : null}
 
             {/* Login/Register Dropdown */}
             {user ? (
@@ -684,6 +720,21 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   </>
                 )}
               </div>
+            ) : isEmployerContext ? (
+              <>
+                <button 
+                  onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
+                  className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Employer Login
+                </button>
+                <button 
+                  onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                >
+                  Create Account
+                </button>
+              </>
             ) : (
               <div className="relative" ref={dropdownRef}>
                 <button 
@@ -709,18 +760,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </>
                     )}
                     
-                    {showJobSeekerLinks && showEmployerLinks && <hr className="my-1" />}
-                    
-                    {showEmployerLinks && (
-                      <>
-                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
-                        <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                          For Employers / Post Jobs
-                        </button>
-                      </>
-                    )}
-                    
-                    {(showJobSeekerLinks || showEmployerLinks) && adminUnlocked && <hr className="my-1" />}
+                    {showJobSeekerLinks && adminUnlocked && <hr className="my-1" />}
                     
                     {adminUnlocked && (
                       <button

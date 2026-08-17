@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
+import WorkButton from '../components/animata/button/work-button';
 import { generateEmployerId } from '../utils/employerIdUtils';
 import { EnhancedCompanyVerificationService as CompanyVerificationService, type DomainVerificationResult, type CompanyProfile } from '../services/enhancedCompanyVerificationService';
 import { updateUserInStorage } from '../utils/userStorage';
@@ -924,10 +925,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       {fieldErrors.declaration && <p className="text-xs text-red-500 mt-1">{fieldErrors.declaration}</p>}
                     </div>
 
-                    <button type="submit" disabled={loading || !agreedToTerms || !agreedToDeclaration}
-                      className="w-full h-12 sm:h-14 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]">
-                      {loading ? 'Creating Account...' : 'Create Employer Account'}
-                    </button>
+                    <WorkButton type="submit" disabled={loading || !agreedToTerms || !agreedToDeclaration}
+                      text={loading ? 'Creating Account...' : 'Create Employer Account'}
+                      className="w-full" />
                     <button type="button" onClick={() => { setStep(2); setError(''); }}
                       className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
                       <ArrowLeft className="w-4 h-4" /> Back

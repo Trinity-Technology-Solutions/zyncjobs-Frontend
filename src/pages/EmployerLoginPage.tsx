@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
 import { generateEmployerId } from '../utils/employerIdUtils';
+import WorkButton from '../components/animata/button/work-button';
 import { updateUserInStorage } from '../utils/userStorage';
 
 interface EmployerLoginPageProps {
@@ -325,13 +326,12 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                   </div>
                 </div>
 
-                <button
+                <WorkButton
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 sm:py-4 rounded-xl text-white font-semibold text-sm sm:text-base bg-orange-500 hover:bg-orange-600 active:bg-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
-                >
-                  {loading ? 'Signing In...' : 'Access Dashboard'}
-                </button>
+                  text={loading ? 'Signing In...' : 'Access Dashboard'}
+                  className="w-full"
+                />
               </form>
 
               <div className="mt-4 sm:mt-6 lg:mt-8 space-y-2 sm:space-y-3">

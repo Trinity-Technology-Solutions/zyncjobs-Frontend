@@ -3,6 +3,7 @@ import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import analytics from '../services/analytics';
+import WorkButton from './animata/button/work-button';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -298,13 +299,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
               {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>}
             </div>
 
-            <button
+            <WorkButton
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </button>
+              text={loading ? 'Creating Account...' : 'Create Account'}
+              className="w-full"
+            />
           </form>
 
           <div className="mt-6">

@@ -3,6 +3,7 @@ import { Mail, CheckCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
+import WorkButton from '../components/animata/button/work-button';
 
 interface ForgotPasswordPageProps {
   onNavigate: (page: string) => void;
@@ -119,13 +120,12 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
               )}
             </div>
 
-            <button
+            <WorkButton
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 btn-glow"
-            >
-              {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
+              text={loading ? 'Sending...' : 'Send Reset Link'}
+              className="w-full"
+            />
             
             <BackButton fallback="/login" className="w-full justify-center" />
           </form>

@@ -13,7 +13,7 @@ export const MobileNavTest: React.FC<{ onNavigate: (page: string) => void }> = (
     if (action === 'login') {
       onNavigate('login');
     } else if (action === 'register') {
-      onNavigate('role-selection');
+      onNavigate('candidate-register');
     }
   };
 

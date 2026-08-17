@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2 } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -25,6 +25,7 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
+import { formatInterviewDate, formatInterviewTime } from '../utils/interviewScheduleUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
@@ -168,7 +169,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterJob, setAppFilterJob] = useState('all');
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
-  const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [closingJobId, setClosingJobId] = useState<string | null>(null);
@@ -185,40 +185,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   // Ensure logout always redirects to employer login
   useEffect(() => { localStorage.setItem('lastUserType', 'employer'); }, []);
 
-  // Fetch recent conversations for sidebar Messages panel
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const userData = localStorage.getItem('user');
-        if (!userData) return;
-        const { id, _id } = JSON.parse(userData);
-        const userId = id || _id;
-        if (!userId) return;
-        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/messages?candidateId=${encodeURIComponent(userId)}`);
-        if (!res.ok) return;
-        const convos = await res.json();
-        // Enrich each conversation with the other party's info
-        const enriched = await Promise.all(
-          convos.slice(0, 4).filter((c: any) => c.lastMessage).map(async (c: any) => {
-            const msg = c.lastMessage;
-            const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-            try {
-              const uRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/${otherId}`);
-              const uData = (uRes.ok) ? await uRes.json() : {};
-              return {
-                ...c,
-                otherName: uData.name || uData.fullName || 'Candidate',
-                otherPhoto: uData.profilePicture || uData.photo || '',
-                preview: msg.message?.substring(0, 40) || ''
-              };
-            } catch { return { ...c, otherName: 'Candidate', otherPhoto: '', preview: msg.message?.substring(0,40)||'' }; }
-          })
-        );
-        setRecentMessages(enriched);
-      } catch (e) { console.error('Messages fetch error:', e); }
-    };
-    fetchMessages();
-  }, []);
+
 
   useEffect(() => {
     const token = getToken();
@@ -1107,41 +1074,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
 
-            {/* Messages + Activity panel - Enhanced Card Style */}
-            <div className="px-3 sm:px-4 py-3 sm:py-4 mx-2 sm:mx-3 mt-3 sm:mt-4 bg-gradient-to-br from-blue-600/80 to-blue-700/70 rounded-xl border-2 border-blue-400/80 backdrop-blur-sm shadow-lg">
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">💬 Messages</span>
-                <button onClick={() => onNavigate('candidate-messages')} className="text-white hover:text-blue-100 transition-colors">
-                  <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </button>
-              </div>
-              {recentMessages.length === 0 ? (
-                <p className="text-xs sm:text-sm text-white text-center py-2">No messages yet</p>
-              ) : (
-                <div className="space-y-1.5 sm:space-y-2">
-                  {recentMessages.map((c, i) => (
-                    <div key={i} onClick={() => onNavigate('candidate-messages')} className="flex items-center gap-2 cursor-pointer hover:bg-blue-500/40 rounded-lg p-1.5 sm:p-2 transition-all duration-200 border border-transparent hover:border-blue-300/60">
-                      {c.otherPhoto ? (
-                        <img src={c.otherPhoto} alt={c.otherName} className="w-6 sm:w-8 h-6 sm:h-8 rounded-full object-cover flex-shrink-0 border-2 border-blue-300/60" />
-                      ) : (
-                        <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {c.otherName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-semibold text-white truncate">{c.otherName}</p>
-                        <p className="text-xs text-white truncate">{c.preview}...</p>
-                      </div>
-                      {c.unreadCount > 0 && (
-                        <span className="bg-blue-400 text-white text-xs w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[9px] sm:text-[10px]">{c.unreadCount}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
 
             {/* Role badge for team members */}
             {teamRole && (
@@ -1173,6 +1106,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
                 { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
                 { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+                { key: 'ats-dashboard',    label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => withRoleCheck('Recruiter Analytics', 'Recruiter', () => onNavigate('ats-dashboard')), external: true, show: true },
                 // { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true }, // TODO: enable after complete structure is built
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
@@ -3085,23 +3019,23 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                 {owner.memberName.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">{member.memberName}</p>
-                <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
+                <p className="font-medium text-gray-900 text-sm truncate">{owner.memberName}</p>
+                <p className="text-xs text-gray-500 truncate">{owner.memberEmail}</p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
-                  member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                  roleColors[member.role]
+                  owner.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                  owner.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  roleColors[owner.role]
                 }`}>
-                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                  {owner.status === 'pending' ? '⏳ Pending' : owner.status === 'active' ? '✅ Active' : owner.status || 'Active'}
                 </span>
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
-                  {member.role}
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[owner.role]}`}>
+                  {owner.role}
                 </span>
-                {member.memberEmail !== (currentUserEmail || employerEmail) ? (
+                {owner.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <AutocompleteCombobox value={member.role} onChange={(val) => handleRoleChange(member.id, val as TeamRole)}
+                    <AutocompleteCombobox value={owner.role} onChange={(val) => handleRoleChange(owner.id, val as TeamRole)}
                       options={[
                         { value: 'Recruiter', label: 'Recruiter' },
                         { value: 'Viewer', label: 'Viewer' },
@@ -3114,7 +3048,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                       e.preventDefault();
                       e.stopPropagation();
                       if (window.confirm('Are you sure you want to remove this team member?')) {
-                        await handleRemove(member.id);
+                        await handleRemove(owner.id);
                       }
                     }}
                       className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">

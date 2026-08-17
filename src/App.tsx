@@ -36,8 +36,6 @@ const PasswordExpiredModal = lazy(() => import('./components/PasswordExpiredModa
 const AccountLockedModal = lazy(() => import('./components/AccountLockedModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
 
-const RoleSelectionModal = lazy(() => import('./components/RoleSelectionModal'));
-const RoleSelectionPage = lazy(() => import('./pages/RoleSelectionPage'));
 const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage'));
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
@@ -107,6 +105,7 @@ const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage')
 const MyAlertsPage = lazy(() => import('./pages/MyAlertsPage'));
 const JobAlertNotificationsPage = lazy(() => import('./pages/JobAlertNotificationsPage'));
 const InterviewInvitePage = lazy(() => import('./pages/InterviewInvitePage'));
+const ATSDashboard = lazy(() => import('./pages/ATSDashboard'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -264,7 +263,6 @@ function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
-  const [showRoleSelectionModal, setShowRoleSelectionModal] = useState(false);
   const [passwordExpired, setPasswordExpired] = useState(false);
   const [expiredUserData, setExpiredUserData] = useState<any>(null);
   const [accountLocked, setAccountLocked] = useState(false);
@@ -279,7 +277,6 @@ function App() {
   const closeModals = useCallback(() => {
     setShowLoginModal(false);
     setShowRegisterModal(false);
-    setShowRoleSelectionModal(false);
   }, []);
 
   const handleNavigation = useCallback((page: string, params?: any) => {
@@ -417,11 +414,6 @@ function App() {
     }
   }, [closeModals]);
 
-  const handleRoleSelection = useCallback((role: 'candidate' | 'employer') => {
-    closeModals();
-    navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
-  }, [closeModals, navigate]);
-
   const handlePasswordChange = useCallback(async (currentPassword: string, newPassword: string) => {
     try {
       const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -551,12 +543,13 @@ function App() {
 
       if (!token) {
         const refreshToken = tokenStorage.getRefresh();
-        if (!refreshToken) { setUserLoading(false); return; }
         try {
+          // Try the httpOnly refreshToken cookie too (no stored token needed).
           const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
+            body: refreshToken ? JSON.stringify({ refreshToken }) : JSON.stringify({}),
+            credentials: 'include',
           });
           if (res.ok) {
             const data = await res.json();
@@ -564,6 +557,7 @@ function App() {
             if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
             token = data.accessToken;
           } else {
+            if (!refreshToken) { setUserLoading(false); return; }
             tokenStorage.clear();
             setUser(null);
             setUserLoading(false);
@@ -711,7 +705,10 @@ function App() {
           <Routes>
             {/* -- Public home -- */}
             <Route path="/" element={
-              <div className="min-h-screen bg-white overflow-x-hidden">
+              user?.type === 'employer' ? (
+                <EmployersPage {...nav} />
+              ) : (
+              <div className="min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
                 <NewHero onNavigate={handleNavigation} user={user as any} />
                 <LatestJobs onNavigate={handleNavigation} />
@@ -722,6 +719,7 @@ function App() {
                 <Footer onNavigate={handleNavigation} user={user as any} />
                 <ChatWidget />
               </div>
+              )
             } />
 
             <Route path="/candidate-messages" element={
@@ -760,7 +758,7 @@ function App() {
                 <EmployerCompleteProfilePage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
-            <Route path="/role-selection" element={<RoleSelectionPage {...nav} />} />
+            <Route path="/role-selection" element={<Navigate to="/candidate-register" replace />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigation} />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage onNavigate={handleNavigation} />} />
 
@@ -804,6 +802,12 @@ function App() {
             <Route path="/dashboard" element={
               userLoading ? <LoadingFallback /> :
                 <DashboardRoute user={user} userLoading={userLoading} nav={nav} notification={notification} setNotification={setNotification} handleNavigation={handleNavigation} handleLogout={handleLogout} />
+            } />
+
+            <Route path="/ats-dashboard" element={
+              <AuthGuard user={user} userLoading={userLoading}>
+                <ATSDashboard onNavigate={handleNavigation} />
+              </AuthGuard>
             } />
 
             <Route path="/candidate-messages" element={
@@ -1159,7 +1163,6 @@ function App() {
       <Suspense fallback={null}>
         <LoginModal isOpen={showLoginModal} onClose={closeModals} onNavigate={handleNavigation} onLogin={handleLogin} />
         <RegisterModal isOpen={showRegisterModal} onClose={closeModals} onNavigate={handleNavigation} />
-        <RoleSelectionModal isOpen={showRoleSelectionModal} onClose={closeModals} onSelectRole={handleRoleSelection} />
         
         {passwordExpired && expiredUserData && (
           <PasswordExpiredModal

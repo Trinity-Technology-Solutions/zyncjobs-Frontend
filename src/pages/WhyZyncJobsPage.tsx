@@ -2,6 +2,7 @@ import React from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import WorkButton from '../components/animata/button/work-button';
 
 interface WhyZyncJobsPageProps {
   onNavigate?: (page: string) => void;
@@ -158,12 +159,12 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
         <div className="text-center bg-gradient-to-r from-blue-600 to-orange-500 text-white rounded-2xl p-12">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-lg mb-8 text-white/90">Join thousands of professionals and companies on ZyncJobs</p>
-          <button
-            onClick={() => onNavigate && onNavigate('role-selection')}
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
-          >
-            Sign Up Now
-          </button>
+          <div className="flex justify-center">
+            <WorkButton
+              text="Sign Up Now"
+              onClick={() => onNavigate && onNavigate('candidate-register')}
+            />
+          </div>
         </div>
       </main>
 

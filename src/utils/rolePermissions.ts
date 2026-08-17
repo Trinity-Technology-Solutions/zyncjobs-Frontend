@@ -2,6 +2,13 @@
 export type UserRole = 'super_admin' | 'admin' | 'manager' | 'employer' | 'candidate' | 'moderator';
 export type AccountStatus = 'active' | 'suspended' | 'deleted';
 
+// Paths that belong to the employer experience (employer landing + auth pages)
+export const EMPLOYER_PAGE_PATHS = ['/employers', '/employer-login', '/employer-register', '/employer-complete-profile'];
+
+// True when the current route is an employer-facing page
+export const isEmployerPagePath = (path: string): boolean =>
+  EMPLOYER_PAGE_PATHS.some(p => path === p || path.startsWith(`${p}/`));
+
 export const PERMISSIONS = {
   // Super Admin permissions
   MANAGE_ADMINS: 'manage_admins',
