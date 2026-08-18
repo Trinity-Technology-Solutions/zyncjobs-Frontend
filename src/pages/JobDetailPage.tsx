@@ -651,24 +651,61 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   const rawDesc = job.jobDescription || job.description || '';
                   if (!rawDesc.trim()) return <p className="text-sm text-gray-500">No description available.</p>;
 
-                  // Normalise: decode entities first, then strip HTML tags
+                  // Normalise: decode entities, strip HTML
                   const clean = rawDesc
                     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
                     .replace(/<[^>]*>/g, ' ')
                     .replace(/\s{2,}/g, ' ');
 
-                  // Insert newline before known section headers so they land on their own line
-                  const SECTION_RE = /(Job Summary|About the Role|Role Overview|Key Responsibilities|Responsibilities|Role & Responsibilities|Role and Responsibilities|Requirements|Mandatory Skills|Required Skills|Qualifications|Good to Have|Nice to Have|What We Offer|About Us|How to Apply)/gi;
-                  const normalised = clean.replace(SECTION_RE, (m: any) => `\n${m}\n`);
+                  // All known section headings — new AI names + legacy names
+                  const ALL_SECTIONS = [
+                    'Job Summary',
+                    'About the Company',
+                    'What You Will Do',
+                    'What We Are Looking For',
+                    'Technical Skills & Expertise',
+                    'What Makes You Stand Out',
+                    'Experience & Education',
+                    'Compensation & Benefits',
+                    'How to Apply',
+                    // legacy
+                    'About the Role', 'Role Overview', 'About Us',
+                    'Key Responsibilities', 'Responsibilities', 'Role & Responsibilities', 'Role and Responsibilities',
+                    'Requirements', 'Mandatory Skills', 'Required Skills', 'Qualifications',
+                    'Key Skill Sets', 'Behavioral Competencies',
+                    'Experience', 'Education', 'Employment Type',
+                    'Good to Have', 'Nice to Have',
+                    'What We Offer', 'Benefits',
+                  ];
 
+                  // Build regex to insert newlines before any heading
+                  const SECTION_RE = new RegExp(
+                    `(${ALL_SECTIONS.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+                    'gi'
+                  );
+                  const normalised = clean.replace(SECTION_RE, (m: string) => `\n${m}\n`);
+
+                  // Map every heading variant → canonical bucket
                   const sectionHeaders: Record<string, string> = {
-                    'job summary': 'summary', 'about the role': 'summary', 'role overview': 'summary',
+                    'job summary': 'summary',
+                    'about the role': 'summary', 'role overview': 'summary',
+                    'what you will do': 'responsibilities',
                     'key responsibilities': 'responsibilities', 'responsibilities': 'responsibilities',
                     'role & responsibilities': 'responsibilities', 'role and responsibilities': 'responsibilities',
+                    'what we are looking for': 'requirements',
                     'requirements': 'requirements', 'mandatory skills': 'requirements',
                     'required skills': 'requirements', 'qualifications': 'requirements',
+                    'technical skills & expertise': 'skills',
+                    'key skill sets': 'skills',
+                    'what makes you stand out': 'competencies',
+                    'behavioral competencies': 'competencies',
+                    'experience & education': 'expEdu',
+                    'experience': 'expEdu', 'education': 'expEdu', 'employment type': 'expEdu',
+                    'compensation & benefits': 'benefits',
+                    'what we offer': 'benefits', 'benefits': 'benefits',
                     'good to have': 'goodtohave', 'nice to have': 'goodtohave',
-                    'what we offer': 'offer', 'about us': 'about', 'how to apply': 'apply',
+                    'about the company': 'about', 'about us': 'about',
+                    'how to apply': 'apply',
                   };
 
                   const sections: Record<string, string[]> = {};
@@ -678,14 +715,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   for (const raw of normalised.split('\n')) {
                     const line = raw.trim();
                     if (!line) continue;
-                    const lower = line.toLowerCase();
+                    const lower = line.toLowerCase().replace(/:$/, '');
                     const matched = Object.keys(sectionHeaders).find(h => lower === h);
                     if (matched) {
                       if (buf.length) sections[current] = [...(sections[current] || []), ...buf];
                       current = sectionHeaders[matched];
                       buf = [];
                     } else {
-                      // skip pure metadata lines
                       if (!/^(job title|company|work location|employment type|salary|notice period|experience required)\s*:/i.test(line)) {
                         buf.push(line);
                       }
@@ -693,13 +729,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   }
                   if (buf.length) sections[current] = [...(sections[current] || []), ...buf];
 
-                  // Split a block of text into individual bullet-ready sentences/items
                   const splitIntoBullets = (lines: string[]): string[] => {
                     const result: string[] = [];
                     for (const line of lines) {
-                      // Already a bullet marker — keep as-is
-                      if (/^[•\-\*]/.test(line)) { result.push(line); continue; }
-                      // Split on '. ' followed by capital letter (sentence boundary)
+                      if (/^[-\u2022\u2013\*]/.test(line)) { result.push(line); continue; }
                       const sentences = line.split(/\.\s+(?=[A-Z])/);
                       if (sentences.length > 1) {
                         sentences.forEach(s => { const t = s.trim(); if (t) result.push(t.endsWith('.') ? t : t + '.'); });
@@ -710,31 +743,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     return result;
                   };
 
-                  const renderLines = (lines: string[], forceBullet = false) => {
-                    const items = forceBullet ? splitIntoBullets(lines) : lines;
-                    return items.map((line, i) => (
-                      <div key={i} className="flex items-start gap-2.5 py-0.5">
-                        {forceBullet || /^[•\-\*]/.test(line)
-                          ? <><span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></span><span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span></>
-                          : <p className="text-sm text-gray-700 leading-relaxed">{line}</p>
-                        }
-                      </div>
-                    ));
-                  };
-
-                  const sectionOrder: Array<[string, string]> = [
-                    ['summary', 'Job Summary'],
-                    ['responsibilities', 'Key Responsibilities'],
-                    ['requirements', 'Requirements'],
-                    ['goodtohave', 'Good to Have'],
-                    ['offer', 'What We Offer'],
-                    ['about', 'About Us'],
-                    ['apply', 'How to Apply'],
+                  // Section config: [bucket, display label, color, bullet?]
+                  const sectionOrder: Array<[string, string, string, boolean]> = [
+                    ['summary',       'Job Summary',                  'text-blue-700  border-blue-200  bg-blue-50',    false],
+                    ['about',         'About the Company',            'text-gray-700  border-gray-200  bg-gray-50',    false],
+                    ['responsibilities','What You Will Do',           'text-indigo-700 border-indigo-200 bg-indigo-50', true],
+                    ['requirements',  'What We Are Looking For',      'text-purple-700 border-purple-200 bg-purple-50', true],
+                    ['skills',        'Technical Skills & Expertise', 'text-teal-700  border-teal-200  bg-teal-50',    true],
+                    ['competencies',  'What Makes You Stand Out',     'text-orange-700 border-orange-200 bg-orange-50', true],
+                    ['expEdu',        'Experience & Education',        'text-green-700  border-green-200  bg-green-50',  false],
+                    ['goodtohave',    'Good to Have',                 'text-amber-700  border-amber-200  bg-amber-50',  true],
+                    ['benefits',      'Compensation & Benefits',      'text-emerald-700 border-emerald-200 bg-emerald-50', true],
+                    ['apply',         'How to Apply',                 'text-blue-600  border-blue-100  bg-blue-50',    false],
                   ];
 
                   const hasAnySections = sectionOrder.some(([key]) => sections[key]?.length);
 
-                  // Fallback: if no sections matched, just render the full text as paragraphs
                   if (!hasAnySections) {
                     return (
                       <div className="space-y-2">
@@ -746,15 +770,34 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   }
 
                   return (
-                    <div className="space-y-8">
-                      {sectionOrder.map(([key, label]) =>
-                        sections[key]?.length ? (
+                    <div className="space-y-7">
+                      {sectionOrder.map(([key, label, colorStr, forceBullet]) => {
+                        const lines = sections[key];
+                        if (!lines?.length) return null;
+                        const [textColor] = colorStr.trim().split(/\s+/);
+                        const processedLines = key === 'expEdu' ? lines.flatMap(l => l.split(/\\.\\s+(?=[A-Z])/).map((s: string) => s.trim()).filter(Boolean)) : lines;`n                          const items = forceBullet ? splitIntoBullets(processedLines) : processedLines;
+                        return (
                           <div key={key}>
-                            <h4 className="text-xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">{label}</h4>
-                            <div className="space-y-1">{renderLines(sections[key], key !== 'summary' && key !== 'about' && key !== 'apply')}</div>
+                            <h4 className={`font-semibold text-sm uppercase tracking-wide text-gray-800 mb-3 pb-1.5 border-b border-gray-100`}>{label}</h4>
+                            {forceBullet ? (
+                              <ul className="space-y-2">
+                                {items.map((line, i) => (
+                                  <li key={i} className="flex items-start gap-2.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-2 flex-shrink-0" />
+                                    <span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[-\u2022\u2013\*]\s*/, '')}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {items.map((line, i) => (
+                                  <p key={i} className="text-sm text-gray-700 leading-relaxed">{line}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        ) : null
-                      )}
+                        );
+                      })}
                     </div>
                   );
                 })()}

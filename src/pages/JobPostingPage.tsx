@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -103,13 +103,13 @@ const snapToDropdownYear = (n: number, isMax: boolean): string => {
 
 const extractExperienceFromText = (text: string): string => {
   if (!text) return '';
-  // Only match lines/phrases that are clearly about experience years — not random sentences
+  // Only match lines/phrases that are clearly about experience years � not random sentences
   const patterns = [
-    /(?:experience\s+required|experience)[:\s]*?(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:experience\s+required|experience)[:\s]*?(\d+)\s*[-�]\s*(\d+)\s*(?:years?|yrs?)/i,
     /(?:experience\s+required|experience)[:\s]*?(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
-    /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+    /(\d+)\s*[-�]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
     /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-�to]+\s*(\d+)\s*(?:years?|yrs?)/i,
     /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
     /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
   ];
@@ -349,7 +349,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       const cleaned = stripHtml(parsed);
       const lines = cleaned.split('\n').map(l => l.trim());
 
-      // Metadata label patterns — lines to skip entirely
+      // Metadata label patterns � lines to skip entirely
       const metaPatterns = [
         /^(job\s+)?description\s*:?\s*$/i,
         /^job\s+summary\s*:?\s*$/i,
@@ -373,7 +373,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         /^connecting\s+talent/i,
       ];
 
-      // Content section starters — once we hit these, include everything from here
+      // Content section starters � once we hit these, include everything from here
       const contentSectionPatterns = [
         /^(role\s+overview|about\s+the\s+role|job\s+overview|overview)/i,
         /^(key\s+)?responsibilities/i,
@@ -416,7 +416,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         contentStartIdx = startIdx;
       }
 
-      // Build final description — skip inline meta lines throughout
+      // Build final description � skip inline meta lines throughout
       const result = lines
         .slice(contentStartIdx)
         .filter(line => !metaPatterns.some(p => p.test(line)))
@@ -459,6 +459,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [jdTab, setJdTab] = useState<'edit' | 'preview'>('preview');
   const [isLoadingJobTitles, setIsLoadingJobTitles] = useState(false);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
@@ -609,7 +610,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       try {
         const { apiFetch } = await import('../api/apiFetch');
 
-        // 1. Full user record — the source of truth for the company name
+        // 1. Full user record � the source of truth for the company name
         //    (set at employer registration, e.g. /api/users/by-email/:email)
         try {
           const ures = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/by-email/${encodeURIComponent(email)}`);
@@ -677,13 +678,25 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     if (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') {
       updateJobData('jobDescription', '');
     }
-    // In parse mode, clear only garbage values — real JD will be regenerated at step 6
+    // In parse mode, clear only garbage values � real JD will be regenerated at step 6
     if (mode === 'parse' && (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined')) {
       updateJobData('jobDescription', '');
     }
   }, []);
 
-  // Auto-extract experience range from job description — only in manual mode when not already set
+  // When job title changes while on step 6, clear and regenerate JD for the new role
+  const prevJobTitleRef = React.useRef(jobData.jobTitle);
+  useEffect(() => {
+    const prev = prevJobTitleRef.current;
+    prevJobTitleRef.current = jobData.jobTitle;
+    if (jobData.jobTitle && jobData.jobTitle !== prev && currentStep === 6) {
+      updateJobData('jobDescription', '');
+      setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobData.jobTitle]);
+
+  // Auto-extract experience range from job description � only in manual mode when not already set
   useEffect(() => {
     if (mode === 'parse') return;
     if (jobData.jobDescription && !jobData.experienceRange) {
@@ -959,7 +972,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     return ['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'Git', 'AWS', 'Docker'];
   };
 
-  // Local JD generator — no AI dependency, always works
+  // Local JD generator � no AI dependency, always works
   const generateLocalJD = (jobTitle: string, company: string, location: string, context: any): string => {
     const title = jobTitle.toLowerCase();
     const co = company || 'our company';
@@ -967,7 +980,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     const skills = Array.isArray(context?.skills) && context.skills.length > 0 ? context.skills.join(', ') : 'relevant technologies';
     const jobType = Array.isArray(context?.jobType) ? context.jobType.join('/') : (context?.jobType || 'Full-time');
     const education = Array.isArray(context?.educationLevel) ? context.educationLevel[0] : (context?.educationLevel || "Bachelor's degree");
-    const salary = context?.salary ? `\n• Salary: ${context.salary}` : '';
+    const salary = context?.salary ? `\n� Salary: ${context.salary}` : '';
     const benefits = Array.isArray(context?.benefits) && context.benefits.length > 0 ? context.benefits.join(', ') : 'health insurance, flexible work';
 
     const isTech = /developer|engineer|programmer|architect|devops|fullstack|frontend|backend|data|cloud|security|qa|tester/i.test(title);
@@ -1114,35 +1127,43 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       ];
     }
 
-    const respText = responsibilities.map(r => `• ${r}`).join('\n');
-    const reqText = requirements.map(r => `• ${r}`).join('\n');
+    const respText = responsibilities.map(r => `- ${r}`).join('\n');
+    const reqText = requirements.map(r => `- ${r}`).join('\n');
+    const benefitsText = benefits !== 'health insurance, flexible work'
+      ? benefits.split(', ').map(b => `- ${b}`).join('\n')
+      : `- Comprehensive health, dental, and vision insurance\n- Flexible working arrangements and remote work options\n- Annual learning and development budget\n- Performance-based bonuses and incentives\n- Paid time off, public holidays, and wellness days`;
 
     return `Job Summary
-We are looking for a talented and experienced ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring a strong background in ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting. You will work closely with cross-functional teams to deliver high-quality outcomes and contribute to the long-term success of the organization.
+We are looking for a talented and experienced ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring a strong background in ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting.
 
-About the Role
-As a ${jobTitle} at ${co}, you will be responsible for driving key initiatives, collaborating with stakeholders, and delivering results that align with our strategic goals. We are looking for someone who is proactive, detail-oriented, and committed to continuous improvement. This role offers significant growth potential and the opportunity to work on challenging, meaningful projects.
+About the Company
+${co} is a forward-thinking organisation committed to excellence and innovation, hiring through ZyncJobs to connect with top talent.
 
-Key Responsibilities
+What You Will Do
 ${respText}
 
-Requirements
+What We Are Looking For
 ${reqText}
 
-What We Offer
-• Competitive compensation package${salary}
-• ${benefits}
-• Professional development and continuous learning opportunities
-• Collaborative, inclusive, and innovative work culture
-• Opportunity to work on impactful projects with a talented team
-• Flexible working arrangements and work-life balance
-• Regular performance reviews and career growth pathways
+Technical Skills & Expertise
+${skills}
 
-About ${co}
-${co} is a forward-thinking organization committed to excellence, innovation, and creating value for our clients and stakeholders. We believe in empowering our employees to do their best work and fostering a culture of respect, collaboration, and continuous improvement. Join us and be part of a team that is shaping the future.
+What Makes You Stand Out
+- Strong attention to detail with a commitment to delivering high-quality work
+- Ability to work effectively both independently and as part of a collaborative team
+- Clear and confident communication with stakeholders at all levels
+- Ownership mindset with a results-driven, proactive approach
+- Adaptability and eagerness to learn in a fast-paced environment
+
+Experience & Education
+${education}
+
+Compensation & Benefits
+Salary: ${salary ? salary : 'Competitive compensation package commensurate with experience'}
+${benefitsText}
 
 How to Apply
-If you are passionate about ${jobTitle.toLowerCase()} and meet the above requirements, we would love to hear from you. Apply now through ZyncJobs and take the next step in your career journey.`;
+Interested candidates are invited to apply directly through this ZyncJobs job posting. Click the Apply button to submit your application. We look forward to hearing from you.`;
   };
 
   // Extract bullet points from a named section in JD text
@@ -1153,7 +1174,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       if (match) {
         return match[1]
           .split('\n')
-          .map(l => l.replace(/^[\u2022\-\*\d+\.\)\s]+/, '').trim())
+          .map(l => l.replace(/^[-\u2022\u2013\*\d+\.\)\s]+/, '').trim())
           .filter(l => l.length > 10);
       }
     }
@@ -1162,7 +1183,10 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
   // Auto-generate job description and populate skills/education
   const generateJobDescription = async (jobTitle: string, forceUpdate = false) => {
-    if (!jobTitle || jobTitle.length < 3) return;
+    if (!jobTitle) {
+      setNotification({ type: 'error', message: 'Please enter a job title', isVisible: true });
+      return;
+    }
     setIsGeneratingDescription(true);
     try {
       const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
@@ -1172,12 +1196,12 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         salary: shouldIncludeSalary ? `${jobData.currency} ${formatSalary(jobData.minSalary)} - ${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
         benefits: jobData.benefits,
         educationLevel: jobData.educationLevel,
-        existingDescription: (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') ? '' : jobData.jobDescription,
+        existingDescription: '',  // always generate fresh — never recycle old JD
         responsibilities: jobData.responsibilities.filter(Boolean),
         requirements: jobData.requirements.filter(Boolean),
       };
 
-      // Try AI first — fall back to local only if AI fails
+      // Try AI first � fall back to local only if AI fails
       let jdText = '';
       try {
         const raw = await mistralAIService.generateJobDescription(
@@ -1195,6 +1219,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         jdText = generateLocalJD(jobTitle, jobData.companyName || '', jobData.jobLocation || '', context);
       }
       updateJobData('jobDescription', jdText);
+      setJdTab('preview');
 
       const parsedSkills = parseSkillsFromJobDescription(jdText, jobTitle);
       if (!forceUpdate) {
@@ -1210,8 +1235,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       } else {
         updateJobData('skills', [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15));
         // On regenerate, also extract responsibilities and requirements from the new JD
-        const extractedResp = extractSectionFromJD(jdText, ['Key Responsibilities', 'Responsibilities']);
-        const extractedReq = extractSectionFromJD(jdText, ['Requirements', 'Qualifications']);
+        const extractedResp = extractSectionFromJD(jdText, ['What You Will Do', 'Key Responsibilities', 'Job Responsibilities', 'Responsibilities']);
+        const extractedReq = extractSectionFromJD(jdText, ['What We Are Looking For', 'Requirements', 'Qualifications']);
         if (extractedResp.length > 0) updateJobData('responsibilities', extractedResp);
         if (extractedReq.length > 0) updateJobData('requirements', extractedReq);
       }
@@ -1663,6 +1688,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
   // Select suggestions
   const selectJobTitle = (title: string) => {
     updateJobData('jobTitle', title);
+    updateJobData('jobDescription', '');  // clear stale JD so it regenerates for new role
     setShowJobTitleSuggestions(false);
     setJobTitleSuggestions([]);
     fetchAISkillsForTitle(title);
@@ -1962,7 +1988,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={() => mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}
           text={mode === 'parse' ? 'Back to Parser' : 'Back to Selection'}
         />
-        <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">×</button>
+        <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">�</button>
       </div>
       
       <div className="space-y-8">
@@ -2031,7 +2057,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group cursor-pointer"
                 >
                   <span>{location}</span>
-                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">📍</span>
+                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">??</span>
                 </div>
               ))}
             </div>
@@ -2104,7 +2130,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           <label className="block text-gray-700 font-medium mb-3">Nationality Restriction</label>
           <p className="text-gray-500 text-sm mb-2">Specify if this job is open only to a particular nationality.</p>
           {parsedData?.nationalityRestriction && (
-            <p className="text-xs text-green-600 mb-2">✨ Auto-detected from JD: <strong>{parsedData.nationalityRestriction}</strong></p>
+            <p className="text-xs text-green-600 mb-2">? Auto-detected from JD: <strong>{parsedData.nationalityRestriction}</strong></p>
           )}
           {(() => {
             const NAT_OPTIONS = [
@@ -2168,7 +2194,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           })()}
           {jobData.nationalityRestriction && (
             <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              ⚠️ This job will be prominently marked as <strong>{jobData.nationalityRestriction}</strong> on job listings.
+              ?? This job will be prominently marked as <strong>{jobData.nationalityRestriction}</strong> on job listings.
             </p>
           )}
         </div>
@@ -2237,7 +2263,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             Language(s) required{' '}
             <span className="text-gray-400 font-normal text-sm">(optional)</span>
             {Array.isArray(jobData.language) && jobData.language.length > 0 && mode === 'parse' && (
-              <span className="ml-2 text-xs text-green-600">✨ Auto-detected from JD</span>
+              <span className="ml-2 text-xs text-green-600">? Auto-detected from JD</span>
             )}
           </label>
           {(() => {
@@ -2261,13 +2287,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
                       }`}
                     >
-                      {selected.includes(lang) ? '✓' : '+'} {lang}
+                      {selected.includes(lang) ? '?' : '+'} {lang}
                     </button>
                   ))}
                   {selected.filter((l: string) => !['English','Hindi','Tamil','Telugu','Kannada','Malayalam','Marathi','Bengali','Gujarati','Punjabi','Arabic'].includes(l)).map((lang: string) => (
                     <span key={lang} className="inline-flex items-center px-3 py-1.5 border border-blue-600 rounded-lg text-sm text-blue-600 bg-blue-50">
-                      ✓ {lang}
-                      <button type="button" onClick={() => updateJobData('language', selected.filter((l: string) => l !== lang))} className="ml-2 text-blue-400 hover:text-blue-700">×</button>
+                      ? {lang}
+                      <button type="button" onClick={() => updateJobData('language', selected.filter((l: string) => l !== lang))} className="ml-2 text-blue-400 hover:text-blue-700">�</button>
                     </span>
                   ))}
                 </div>
@@ -2307,11 +2333,11 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         <div>
           <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
           {mode === 'parse' && jobData.experienceRange && /^\d+ years? - \d+ years?$/.test(jobData.experienceRange) && (
-            <p className="text-xs text-green-600 mb-2">✨ Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
+            <p className="text-xs text-green-600 mb-2">? Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
           )}
           {mode === 'parse' && jobData.noticePeriod && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-3">
-              📋 <strong>Note from JD:</strong> {jobData.noticePeriod}
+              ?? <strong>Note from JD:</strong> {jobData.noticePeriod}
             </p>
           )}
           <div className="flex gap-4">
@@ -2356,7 +2382,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>→</span>
+          <span>?</span>
         </button>
       </div>
     </div>
@@ -2452,7 +2478,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>←</span>
+          <span>?</span>
           <span>Back</span>
         </button>
         <button
@@ -2460,7 +2486,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>→</span>
+          <span>?</span>
         </button>
       </div>
     </div>
@@ -2500,7 +2526,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>←</span>
+          <span>?</span>
           <span>Back</span>
         </button>
         <button
@@ -2508,7 +2534,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>→</span>
+          <span>?</span>
         </button>
       </div>
     </div>
@@ -2534,7 +2560,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 }}
                 className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
               >
-                <span>×</span>
+                <span>�</span>
                 <span>Clear Salary</span>
               </button>
             )}
@@ -2565,7 +2591,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             <div className="w-28">
               <label className="block text-gray-600 text-sm mb-2">Currency</label>
               <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 font-medium">
-                ₹ INR
+                ? INR
               </div>
             </div>
             
@@ -2623,10 +2649,10 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             </p>
           ) : salaryModified && (jobData.minSalary || jobData.maxSalary) && (
             <p className="text-xs text-gray-500 mt-2">
-              Preview: {jobData.payType === 'Maximum amount' ? `Upto ₹${formatSalary(jobData.maxSalary)}` :
-                        jobData.payType === 'Starting amount' ? `From ₹${formatSalary(jobData.minSalary)}` :
-                        jobData.payType === 'Exact amount' ? `₹${formatSalary(jobData.minSalary)}` :
-                        `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
+              Preview: {jobData.payType === 'Maximum amount' ? `Upto ?${formatSalary(jobData.maxSalary)}` :
+                        jobData.payType === 'Starting amount' ? `From ?${formatSalary(jobData.minSalary)}` :
+                        jobData.payType === 'Exact amount' ? `?${formatSalary(jobData.minSalary)}` :
+                        `?${formatSalary(jobData.minSalary)} - ?${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
             </p>
           )}
           
@@ -2728,7 +2754,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>←</span>
+          <span>?</span>
           <span>Back</span>
         </button>
         <button
@@ -2736,7 +2762,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>→</span>
+          <span>?</span>
         </button>
       </div>
     </div>
@@ -2779,7 +2805,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   onClick={() => removeSkill(skill)} 
                   className="ml-2 text-blue-600 hover:text-blue-800"
                 >
-                  ×
+                  �
                 </button>
               </span>
             ))}
@@ -2846,7 +2872,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                         : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
                     }`}
                   >
-                    {jobData.skills.includes(skill) ? '✓' : '+'} {skill}
+                    {jobData.skills.includes(skill) ? '?' : '+'} {skill}
                   </button>
                 ))}
               </div>
@@ -2884,7 +2910,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                     onClick={() => updateJobData('goodToHaveSkills', jobData.goodToHaveSkills.filter((_, i) => i !== index))}
                     className="ml-2 text-amber-600 hover:text-amber-800"
                   >
-                    ×
+                    �
                   </button>
                 </span>
               ))}
@@ -2910,7 +2936,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             {/* JD parsed good-to-have suggestions */}
             {mode === 'parse' && parsedData?.goodToHaveSkills?.length > 0 && (
               <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-xs font-medium text-amber-700 mb-2">From JD — click to add:</p>
+                <p className="text-xs font-medium text-amber-700 mb-2">From JD � click to add:</p>
                 <div className="flex flex-wrap gap-2">
                   {parsedData.goodToHaveSkills.map((skill: string) => (
                     <button
@@ -2926,7 +2952,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                           : 'border-amber-300 text-amber-700 hover:bg-amber-100'
                       }`}
                     >
-                      {jobData.goodToHaveSkills.includes(skill) ? '✓' : '+'} {skill}
+                      {jobData.goodToHaveSkills.includes(skill) ? '?' : '+'} {skill}
                     </button>
                   ))}
                 </div>
@@ -2966,7 +2992,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                       : 'border-gray-300 text-gray-700 hover:border-gray-400'
                   }`}
                 >
-                  {currentEducation.includes(level) ? '✓' : '+'} {level}
+                  {currentEducation.includes(level) ? '?' : '+'} {level}
                 </button>
               );
             })}
@@ -2985,7 +3011,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>←</span>
+          <span>?</span>
           <span>Back</span>
         </button>
         <button
@@ -2993,7 +3019,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>→</span>
+          <span>?</span>
         </button>
       </div>
     </div>
@@ -3004,6 +3030,134 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
     </svg>
   );
+
+  // Styled JD preview � LinkedIn/Naukri style
+  const JDPreview: React.FC<{ text: string }> = ({ text }) => {
+    if (!text?.trim()) return null;
+
+    const SECTION_HEADINGS = [
+      'Job Summary', 'About the Company', 'What You Will Do', 'What We Are Looking For',
+      'Technical Skills & Expertise', 'What Makes You Stand Out', 'Experience & Education',
+      'Compensation & Benefits', 'How to Apply',
+      // legacy headings (fallback / old AI output)
+      'Job Responsibilities', 'Qualifications', 'Key Skill Sets', 'Behavioral Competencies',
+      'Experience', 'Education', 'Employment Type', 'Benefits', 'About the Role',
+      'Key Responsibilities', 'Requirements', 'What We Offer', 'About Us',
+    ];
+
+    const sectionColors: Record<string, string> = {
+      'Job Summary': 'text-blue-700',
+      'About the Company': 'text-gray-700',
+      'What You Will Do': 'text-indigo-700',
+      'Job Responsibilities': 'text-indigo-700',
+      'Key Responsibilities': 'text-indigo-700',
+      'What We Are Looking For': 'text-purple-700',
+      'Qualifications': 'text-purple-700',
+      'Requirements': 'text-purple-700',
+      'Technical Skills & Expertise': 'text-teal-700',
+      'Key Skill Sets': 'text-teal-700',
+      'What Makes You Stand Out': 'text-orange-700',
+      'Behavioral Competencies': 'text-orange-700',
+      'Experience & Education': 'text-green-700',
+      'Experience': 'text-green-700',
+      'Education': 'text-green-700',
+      'Compensation & Benefits': 'text-emerald-700',
+      'Benefits': 'text-emerald-700',
+      'What We Offer': 'text-emerald-700',
+      'How to Apply': 'text-blue-600',
+      'Employment Type': 'text-gray-600',
+      'About the Role': 'text-blue-700',
+      'About Us': 'text-gray-700',
+    };
+
+    // Split text into sections
+    const lines = text.split('\n');
+    type Section = { heading: string | null; lines: string[] };
+    const sections: Section[] = [];
+    let current: Section = { heading: null, lines: [] };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const isHeading = SECTION_HEADINGS.some(
+        h => trimmed === h || trimmed === h + ':' || trimmed.toLowerCase() === h.toLowerCase()
+      );
+      if (isHeading) {
+        if (current.heading !== null || current.lines.some(l => l.trim())) {
+          sections.push(current);
+        }
+        current = { heading: trimmed.replace(/:$/, ''), lines: [] };
+      } else {
+        current.lines.push(line);
+      }
+    }
+    if (current.heading !== null || current.lines.some(l => l.trim())) {
+      sections.push(current);
+    }
+
+    const renderLines = (sectionLines: string[]) =>
+      sectionLines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        const isBullet = /^[-\u2022\u2013\*]\s+/.test(trimmed);
+        const content = isBullet ? trimmed.replace(/^[-\u2022\u2013\*]\s+/, '') : trimmed;
+        if (isBullet) {
+          return (
+            <li key={i} className="flex items-start gap-2 text-gray-700 text-sm leading-relaxed">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              <span>{content}</span>
+            </li>
+          );
+        }
+        return <p key={i} className="text-gray-700 text-sm leading-relaxed">{content}</p>;
+      }).filter(Boolean);
+
+    return (
+      <div className="bg-white">
+        {/* Header bar */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-6 py-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-white font-semibold text-base">{jobData.jobTitle || 'Job Description'}</p>
+              <p className="text-blue-100 text-xs">{[jobData.companyName, jobData.jobLocation].filter(Boolean).join(' � ')}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sections � no boxes, just headings + content */}
+        <div className="space-y-7">
+          {sections.map((section, si) => {
+            const hasContent = section.lines.some(l => l.trim());
+            if (!hasContent && !section.heading) return null;
+            const colorClass = section.heading ? (sectionColors[section.heading] || 'text-gray-800') : 'text-gray-800';
+            const hasBullets = section.lines.some(l => /^[-\u2022\u2013\*]\s+/.test(l.trim()));
+            return (
+              <div key={si}>
+                {section.heading && (
+                  <h3 className={`font-semibold text-sm uppercase tracking-wide text-gray-800 mb-3 pb-1.5 border-b border-gray-100`}>
+                    {section.heading}
+                  </h3>
+                )}
+                {hasContent && (
+                  hasBullets ? (
+                    <ul className="space-y-2">
+                      {renderLines(section.lines)}
+                    </ul>
+                  ) : (
+                    <div className="space-y-1.5">{renderLines(section.lines)}</div>
+                  )
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   const renderJobDescription = () => (
     <div className="px-6 py-8">
@@ -3018,14 +3172,57 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </span>
             )}
           </div>
-          <p className="text-gray-500 text-sm mb-4">AI-powered job description. You can edit or replace it.</p>
-          
-          <textarea
-            value={jobData.jobDescription}
-            onChange={(e) => updateJobData('jobDescription', e.target.value)}
-            placeholder="Enter job description here..."
-            className="w-full p-4 min-h-[200px] resize-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          <p className="text-gray-500 text-sm mb-4">AI-powered job description. Edit the raw text below or view the formatted preview.</p>
+
+          {/* Tabs: Edit / Preview */}
+          <>
+            <div className="flex border-b border-gray-200 mb-4">
+              <button
+                type="button"
+                onClick={() => setJdTab('edit')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  jdTab === 'edit'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                ?? Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setJdTab('preview')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  jdTab === 'preview'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                ?? Preview
+              </button>
+            </div>
+
+            {jdTab === 'edit' ? (
+              <textarea
+                value={jobData.jobDescription}
+                onChange={(e) => updateJobData('jobDescription', e.target.value)}
+                placeholder="Enter job description here..."
+                className="w-full p-4 min-h-[400px] resize-y border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm leading-relaxed"
+              />
+            ) : (
+              <div className="min-h-[400px]">
+                {jobData.jobDescription ? (
+                  <JDPreview text={jobData.jobDescription} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                    <svg className="w-10 h-10 mb-3 text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm">No description yet. Generate one with AI or switch to Edit tab.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         </div>
         
         {/* Key Responsibilities Section */}
@@ -3036,7 +3233,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           <div className="space-y-2">
             {jobData.responsibilities.map((responsibility, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">•</span>
+                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">�</span>
                 <input
                   type="text"
                   value={responsibility}
@@ -3055,7 +3252,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   }}
                   className="text-red-600 hover:text-red-800 p-2"
                 >
-                  ×
+                  �
                 </button>
               </div>
             ))}
@@ -3079,7 +3276,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           <div className="space-y-2">
             {jobData.requirements.map((requirement, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">•</span>
+                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">�</span>
                 <input
                   type="text"
                   value={requirement}
@@ -3098,7 +3295,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   }}
                   className="text-red-600 hover:text-red-800 p-2"
                 >
-                  ×
+                  �
                 </button>
               </div>
             ))}
@@ -3140,7 +3337,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>←</span>
+          <span>?</span>
           <span>Back</span>
         </button>
         <button
@@ -3283,7 +3480,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 <span className="text-gray-600">Pay</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">
-                    ₹{formatSalary(jobData.minSalary)} - ₹{formatSalary(jobData.maxSalary)} {jobData.payRate}
+                    ?{formatSalary(jobData.minSalary)} - ?{formatSalary(jobData.maxSalary)} {jobData.payRate}
                   </span>
                   <button onClick={() => setCurrentStep(4)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
@@ -3310,7 +3507,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                     const jd = (jobData.jobDescription || '').trim();
                     if (!jd) return (
                       <span className="text-orange-500 text-sm cursor-pointer" onClick={() => setCurrentStep(6)}>
-                        No description — click Edit to add one
+                        No description � click Edit to add one
                       </span>
                     );
                     const preview = jd.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\n+/g, ' ').trim();
@@ -3333,7 +3530,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>←</span>
+          <span>?</span>
           <span>Back</span>
         </button>
         <button
@@ -3419,7 +3616,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     // Build comprehensive job description
     const buildJobDescription = (): string => {
       const base = (jobData.jobDescription || '').trim();
-      // Always use the base description if it exists — regardless of format
+      // Always use the base description if it exists � regardless of format
       if (base) return base;
       // Fallback: build from responsibilities + requirements if no base JD
       const respItems = (Array.isArray(jobData.responsibilities) ? jobData.responsibilities : []).filter(Boolean);

@@ -65,6 +65,8 @@ export interface RecruiterCandidate {
   missingSkills: string[];
   summary?: string;
   email?: string;
+  recommendation?: string | null;
+  feedback?: string;
 }
 
 export interface RecruiterSearchResult {
@@ -120,6 +122,8 @@ export function normalizeCandidate(raw: any): RecruiterCandidate | null {
     missingSkills: missingSkills.slice(0, 4),
     summary: pick(raw, ['summary', 'profile_summary', 'description', 'headline_summary']) as string | undefined,
     email: pick(raw, ['email', 'userEmail']) as string | undefined,
+    recommendation: pick(raw, ['recommendation']) as string | null | undefined,
+    feedback: pick(raw, ['feedback', 'aiSummary', 'summary_feedback']) as string | undefined,
   };
 }
 

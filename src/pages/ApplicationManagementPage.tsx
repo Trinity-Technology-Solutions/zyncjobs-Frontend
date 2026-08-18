@@ -9,7 +9,7 @@ import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown } from 'luc
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
-import { executeAI } from '../services/aiChatService';
+import { rankCandidates, type RecruiterCandidate } from '../services/aiRecruiterService';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface ApplicationManagementPageProps {
@@ -145,8 +145,9 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobSkills, setJobSkills] = useState<string[]>([]);
   const [jobDescription, setJobDescription] = useState<string>('');
-  const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string; recommendation?: string; aiSummary?: string; breakdown?: any }[] | null>(null);
+  const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string; recommendation?: string; aiSummary?: string; fromAI?: boolean; breakdown?: any }[] | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
+  const [aiFailed, setAiFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
@@ -275,26 +276,53 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     const candidateSkills = normalizeSkillArray(app.skills || app.candidateSkills || []);
     const normalizedJobSkills = normalizeSkillArray(skills);
 
-    // Skills score (50%) — matched / jobSkills (not candidateSkills)
-    let skillScore = 0;
-    if (normalizedJobSkills.length > 0 && candidateSkills.length > 0) {
+    // Text-based skill detection: search each required skill inside the candidate's
+    // experience / education / resume text so matches are never missed.
+    const textBlob = `${app.candidateExperience || ''} ${app.candidateEducation || ''} ${app.resumeText || app.parsedResume?.resumeText || ''}`.toLowerCase();
+    const foundInText = normalizedJobSkills.filter(js => js && textBlob.includes(js));
+
+    const knownSkills = [...new Set([...candidateSkills, ...foundInText])];
+    const hasSkillData = knownSkills.length > 0 || textBlob.trim().length > 30;
+
+    // Skills score (50%) — matched / jobSkills
+    let skillScore: number;
+    if (normalizedJobSkills.length > 0 && knownSkills.length > 0) {
       const matched = normalizedJobSkills.filter(js =>
-        candidateSkills.some(cs => cs.includes(js) || js.includes(cs))
+        knownSkills.some(cs => cs.includes(js) || js.includes(cs))
       ).length;
       skillScore = Math.round((matched / normalizedJobSkills.length) * 100);
-    } else if (candidateSkills.length > 0) {
-      skillScore = Math.min(90, candidateSkills.length * 9);
+    } else if (knownSkills.length > 0) {
+      skillScore = Math.min(90, knownSkills.length * 9);
+    } else {
+      // No skill data at all — neutral, never 0 (prevents unfair auto-rejects)
+      skillScore = 45;
     }
 
-    // Experience score (25%)
+    // Experience score (25%) — neutral when unknown, never 20
     const rawExp = app.candidateExperience ?? app.experience ?? app.yearsOfExperience ?? '';
     const expYears = typeof rawExp === 'number' ? rawExp : parseFloat(String(rawExp).match(/(\d+\.?\d*)/)?.[1] || '0');
-    const expScore = expYears >= 5 ? 100 : expYears >= 3 ? 80 : expYears >= 1 ? 60 : expYears > 0 ? 40 : 20;
+    const hasExpData = !!rawExp && String(rawExp).trim().length > 0;
+    const expScore = !hasExpData ? 45 : expYears >= 5 ? 100 : expYears >= 3 ? 80 : expYears >= 1 ? 60 : expYears > 0 ? 40 : 25;
 
     // Completeness score (25%)
     const completeness = profileCompletenessScore(app);
 
-    return Math.min(99, Math.max(1, Math.round(skillScore * 0.5 + expScore * 0.25 + completeness * 0.25)));
+    return {
+      score: Math.min(99, Math.max(1, Math.round(skillScore * 0.5 + expScore * 0.25 + completeness * 0.25))),
+      hasSkillData,
+    };
+  };
+
+  const deriveStatus = (score: number, ai: any, hasSkillData: boolean) => {
+    // When the AI responded, trust its recommendation — but a "reject" must be
+    // backed by a clearly low score; borderline rejections go to Screening.
+    if (ai?.matchScore != null && ai?.recommendation) {
+      if (ai.recommendation === 'strong') return 'shortlisted';
+      if (ai.recommendation === 'reject') return score < 40 ? 'rejected' : 'reviewed';
+    }
+    if (score >= 50) return 'shortlisted';
+    if (score < 30) return hasSkillData ? 'rejected' : 'reviewed'; // never reject on missing data
+    return 'reviewed';
   };
 
   const runAIShortlist = async () => {
@@ -316,39 +344,34 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     }
 
     const jobDesc = jobDescription || `Job skills: ${skills.join(', ')}`;
-    const preview = await Promise.all(applications.map(async (app: any) => {
-      let score = computeScore(app, skills);
-      let recommendation: string | undefined;
-      let aiSummary: string | undefined;
-      let breakdown: any;
 
-            try {
-        const aiResult = await executeAI(
-          `Score this candidate for the job. Job: ${jobDesc}. Candidate: ${buildCandidateResumeText(app)}`,
-          { jobDescription: jobDesc, candidateResume: buildCandidateResumeText(app) },
-          'employer'
-        ) as any;
-        const result = aiResult?.result || aiResult;
-        const aiScore =
-          result?.match_percentage ??
-          result?.overallScore ??
-          result?.score ??
-          result?.hybrid_score ??
-          null;
-        if (typeof aiScore === 'number' && aiScore > 0) {
-          score = Math.min(99, Math.max(1, Math.round(aiScore)));
-          recommendation = result.recommendation;
-          aiSummary = result.aiSummary || result.summary;
-          breakdown = result.breakdown;
-        }
-        // else: keep local computeScore result
-      } catch (error) {
-        console.error('AI Auto-Shortlist failed, using rule score', error);
-      }
+    // Real AI ranking — one batched call to the AI service (/ai/recruiter/candidates/rank)
+    let ranked: RecruiterCandidate[] = [];
+    setAiFailed(false);
+    try {
+      const r = await rankCandidates(
+        jobDesc,
+        applications.map((app: any) => ({
+          name: app.candidateName || app.name || 'Candidate',
+          skills: normalizeSkillArray(app.skills || app.candidateSkills || []),
+          resume: buildCandidateResumeText(app),
+        }))
+      );
+      ranked = r.ranked;
+    } catch (error) {
+      console.error('AI ranking failed, using rule scores', error);
+      setAiFailed(true);
+    }
+    const rankedByName = new Map(ranked.map((c) => [c.name, c]));
 
-      const newStatus = score >= 50 ? 'shortlisted' : score < 30 ? 'rejected' : 'reviewed';
-      return { app, score, newStatus, recommendation, aiSummary, breakdown };
-    }));
+    const preview = applications.map((app: any) => {
+      const candidateName = app.candidateName || app.name || 'Candidate';
+      const ai = rankedByName.get(candidateName);
+      const { score, hasSkillData } = computeScore(app, skills);
+      const finalScore = ai?.matchScore ?? score;
+      const newStatus = deriveStatus(finalScore, ai, hasSkillData);
+      return { app, score: finalScore, newStatus, recommendation: ai?.recommendation, aiSummary: ai?.feedback, fromAI: ai?.matchScore != null };
+    });
 
     setAiPreview(preview);
     setAiRunning(false);
@@ -382,7 +405,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-    } catch (e) {
+    } catch {
       alert('Failed to download resumes. Please try again.');
     } finally {
       setBulkDownloading(false);
@@ -409,7 +432,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-    } catch (e) {
+    } catch {
       alert('Failed to export applications. Please try again.');
     } finally {
       setCsvDownloading(false);
@@ -598,12 +621,20 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             <div className="p-4 bg-indigo-50 border-b text-sm text-indigo-700">
               {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found — using profile completeness'}
             </div>
+            {aiFailed && (
+              <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
+                ⚠️ AI scoring service is unavailable — scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
+              </div>
+            )}
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
-              {aiPreview.map(({ app, score, newStatus }) => (
+              {aiPreview.map(({ app, score, newStatus, fromAI }) => (
                 <div key={app.id || app._id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border">
                   <div><div className="font-medium text-gray-900 text-sm">{app.candidateName}</div><div className="text-xs text-gray-400">{app.candidateEmail}</div></div>
                   <div className="flex items-center gap-3">
-                    <div className="text-right"><div className="text-xs text-gray-500">Score</div><div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div></div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500 flex items-center gap-1">{fromAI ? 'AI Score' : 'Est. Score'}</div>
+                      <div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div>
+                    </div>
                     <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : newStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
                       {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : newStatus === 'rejected' ? <XCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
                       {newStatus}

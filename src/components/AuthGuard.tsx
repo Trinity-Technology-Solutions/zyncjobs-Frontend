@@ -39,6 +39,16 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, red
     if (pendingRole === 'employer') dest = '/employer-login';
     else if (pendingRole === 'admin' || pendingRole === 'super_admin') dest = '/admin/login';
     else if (pendingRole) dest = '/login';
+    else if (allowedRoles && allowedRoles.length > 0) {
+      // No logout in progress — derive the login page from the route's roles
+      // so employer features ask for employer login and admin features ask
+      // for admin login instead of always defaulting to candidate login.
+      const hasCandidate = allowedRoles.includes('candidate');
+      const hasEmployer = allowedRoles.includes('employer');
+      const hasAdmin = allowedRoles.some(r => r === 'admin' || r === 'super_admin' || r === 'manager');
+      if (!hasCandidate && hasAdmin && !hasEmployer) dest = '/admin/login';
+      else if (!hasCandidate && hasEmployer) dest = '/employer-login';
+    }
     return <Navigate to={dest} state={{ from: location }} replace />;
   }
 
