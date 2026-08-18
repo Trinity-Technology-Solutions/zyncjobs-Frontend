@@ -775,7 +775,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         const lines = sections[key];
                         if (!lines?.length) return null;
                         const [textColor] = colorStr.trim().split(/\s+/);
-                        const processedLines = key === 'expEdu' ? lines.flatMap(l => l.split(/\\.\\s+(?=[A-Z])/).map((s: string) => s.trim()).filter(Boolean)) : lines;`n                          const items = forceBullet ? splitIntoBullets(processedLines) : processedLines;
+                        const processedLines = key === 'expEdu' ? lines.flatMap(l => l.split(/\. (?=[A-Z])/).map((s: string) => s.trim()).filter(Boolean)) : lines;
+                        const items = forceBullet ? splitIntoBullets(processedLines) : processedLines;
                         return (
                           <div key={key}>
                             <h4 className={`font-semibold text-sm uppercase tracking-wide text-gray-800 mb-3 pb-1.5 border-b border-gray-100`}>{label}</h4>
