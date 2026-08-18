@@ -38,7 +38,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 <Sparkles className="w-3.5 h-3.5 animate-pulse-soft" />
                 AI-Powered Hiring Platform
               </div>
-              <h1 className="hero-fade-2 text-5xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-6">
+              <h1 className="hero-fade-2 text-4xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-6">
                 Hire the right talent,<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-blue-500 bg-[length:200%_auto] animate-gradient-shift">decoded by AI</span>
               </h1>
@@ -77,7 +77,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
             </div>
 
             {/* Hero visual — quick callback form */}
-            <div className="lg:col-span-5 hidden md:block">
+            <div className="lg:col-span-5 hidden sm:block">
               <HeroCallbackCard />
             </div>
           </div>
@@ -257,7 +257,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               sub="Whether you're an enterprise, an SMB, or a consultancy — there's a plan that fits."
             />
           </Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             <Reveal delay={0}>
               <SegmentCard
                 icon={Building2}
@@ -306,7 +306,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               sub="Testimonials from valued clients who've elevated their hiring with ZyncJobs."
             />
           </Reveal>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
                 quote: 'The AI shortlists are spot on. We cut our time-to-hire by half and every shortlist candidate came interview-ready.',
@@ -749,7 +749,7 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
         </Reveal>
 
         {/* Product cards for active category */}
-        <div key={active} className="suite-panel-in grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div key={active} className="suite-panel-in grid grid-cols-1 sm:grid-cols-2 gap-6">
           {PRODUCTS[active].map((p, i) => (
             <Reveal key={p.name} delay={i * 80}>
               <div className="group relative bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:border-blue-200 hover:-translate-y-1.5 transition-all duration-300 p-7 h-full flex flex-col overflow-hidden">
@@ -884,7 +884,7 @@ function CallbackForm() {
     <section id="request-callback" className="py-16 lg:py-24 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-2 shadow-2xl shadow-blue-100/70 rounded-2xl overflow-hidden border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 shadow-2xl shadow-blue-100/70 rounded-2xl overflow-hidden border border-gray-100">
             <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden p-8 lg:p-12 text-white">
               <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 55%)' }}></div>
               <div className="relative">
@@ -1027,7 +1027,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
               <div className={`border rounded-xl overflow-hidden transition-colors duration-300 ${open === i ? 'border-blue-200 shadow-md shadow-blue-100/60' : 'border-gray-200'}`}>
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="w-full flex items-center gap-4 px-6 py-5 text-left bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-5 text-left bg-white hover:bg-gray-50 transition-colors"
                   aria-expanded={open === i}
                 >
                   <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${open === i ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
@@ -1043,7 +1043,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
                   style={{ gridTemplateRows: open === i ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="pl-[4.25rem] pr-6 pb-6 text-gray-600 leading-relaxed text-[15px]">{f.a}</div>
+                    <div className="pl-4 pr-4 sm:pl-[4.25rem] sm:pr-6 pb-6 text-gray-600 leading-relaxed text-[15px]">{f.a}</div>
                   </div>
                 </div>
               </div>

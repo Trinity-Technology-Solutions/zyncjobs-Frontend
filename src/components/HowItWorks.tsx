@@ -77,7 +77,9 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
+    const mq = window.matchMedia('(min-width: 1024px)');
     const update = () => {
+      if (!mq.matches) { ticking.current = false; return; }
       const rect = el.getBoundingClientRect();
       const total = el.offsetHeight - window.innerHeight;
       if (total <= 0) { ticking.current = false; return; }
@@ -99,6 +101,26 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
     };
   }, []);
 
+  const [visibleSteps, setVisibleSteps] = useState<Set<number>>(() => new Set());
+
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.mobile-step-card'));
+    if (els.length === 0) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            const i = Number((en.target as HTMLElement).dataset.i);
+            setVisibleSteps((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
+          }
+        });
+      },
+      { threshold: 0.12 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   const frac = progress * (steps.length - 1);
   const active = Math.min(steps.length - 1, Math.floor(frac + 0.001));
   const step = steps[active];
@@ -115,8 +137,24 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
 
   return (
     <section>
-      {/* Scroll-driven steps — tall wrapper, sticky viewport */}
-      <div ref={sectionRef} className="relative" style={{ height: `${steps.length * 100}vh` }}>
+      {/* Static heading — shared by desktop scroll story and mobile stack */}
+      <div className="pt-10 sm:pt-12 pb-6 text-center px-4">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md text-gray-700 text-xs font-bold uppercase tracking-widest border border-white/80 shadow-sm mb-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" /> How It Works
+        </span>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 leading-tight">
+          Your Dream Job is{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
+            Just 4 Steps Away
+          </span>
+        </h2>
+        <p className="text-gray-600 max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
+          Scroll to walk through your journey — watch every step come alive as you move.
+        </p>
+      </div>
+
+      {/* Desktop: scroll-driven steps — tall wrapper, sticky viewport */}
+      <div ref={sectionRef} className="relative hidden lg:block" style={{ height: `${steps.length * 100}vh` }}>
         <div className="sticky top-0 h-screen overflow-hidden flex flex-col">
 
           {/* Background gradient layers — continuous crossfade */}
@@ -136,24 +174,8 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
             );
           })}
 
-          {/* Static heading — stays fixed while steps change */}
-          <div className="relative pt-10 sm:pt-12 pb-6 text-center px-4">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md text-gray-700 text-xs font-bold uppercase tracking-widest border border-white/80 shadow-sm mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" /> How It Works
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 leading-tight">
-              Your Dream Job is{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
-                Just 4 Steps Away
-              </span>
-            </h2>
-            <p className="text-gray-600 max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
-              Scroll to walk through your journey — watch every step come alive as you move.
-            </p>
-          </div>
-
           {/* Changing content — steps */}
-          <div className="relative flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 flex items-center">
+          <div className="relative flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 flex items-center">
             <div key={active} className="step-in w-full grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
 
               {/* Step indicator */}
@@ -309,6 +331,51 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
               })}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile/tablet: stacked journey cards (auto height — no clipping) */}
+      <div className="lg:hidden px-4 sm:px-6 pb-14">
+        <div className="max-w-xl mx-auto space-y-6">
+          {steps.map((s, i) => (
+            <div
+              key={s.id}
+              data-i={i}
+              className={`mobile-step-card relative overflow-hidden rounded-3xl bg-gradient-to-br ${s.gradient} border border-white/70 shadow-sm p-5 sm:p-6 transition-all duration-700 ${
+                visibleSteps.has(i) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+              }`}
+            >
+              <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/40 rounded-full blur-3xl" />
+              <div className="relative flex items-start gap-3.5">
+                <span className={`w-12 h-12 rounded-2xl ${s.chipBg} flex items-center justify-center text-lg font-black text-white shadow-lg shadow-black/10 ring-4 ring-white/70 flex-shrink-0`}>
+                  {s.id}
+                </span>
+                <div className="pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1">
+                    Step {s.id} / {steps.length}
+                  </p>
+                  <h3 className="text-2xl font-bold text-gray-900 leading-tight">{s.title}</h3>
+                </div>
+              </div>
+              <p className="relative mt-3.5 text-gray-600 text-[15px] leading-relaxed">{s.desc}</p>
+              <ul className="relative mt-4 space-y-2">
+                {s.bullets.map((b) => (
+                  <li key={b} className="flex items-center gap-3 rounded-xl bg-white/70 border border-gray-100 shadow-sm px-3.5 py-2">
+                    <span className={`w-5 h-5 min-w-[20px] min-h-[20px] rounded-full ${s.chipBg} flex items-center justify-center`}>
+                      <Check className="w-3 h-3 text-white" />
+                    </span>
+                    <span className="text-[13px] font-medium text-gray-800">{b}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="relative mt-5">
+                <WorkButton size="md" text={s.cta} onClick={() => onNavigate?.(s.page)} />
+              </div>
+              <div className="relative mt-6">
+                <StepMockup index={i} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
