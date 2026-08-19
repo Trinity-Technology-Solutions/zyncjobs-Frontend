@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   TrendingUp,
@@ -97,6 +97,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
   const [resumePopupError, setResumePopupError] = useState("");
+  const dropHandledRef = useRef(0);
   const [resumePopupDragOver, setResumePopupDragOver] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>({});
@@ -3851,13 +3852,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     e.preventDefault();
                     e.stopPropagation();
                     setResumePopupDragOver(false);
+                    dropHandledRef.current = Date.now();
                     const file = e.dataTransfer.files?.[0];
                     if (file) {
                       setResumePopupFile(file);
                       setResumePopupError("");
                     }
                   }}
-                  onClick={() => document.getElementById('resume-popup-input')?.click()}
+                  onClick={(e) => {
+                    if (Date.now() - dropHandledRef.current < 100) return;
+                    document.getElementById('resume-popup-input')?.click();
+                  }}
                 >
                   <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-700">

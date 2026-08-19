@@ -48,7 +48,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const analyze = async () => {
+const analyze = async () => {
     setError(''); setResult(null); setLoading(true);
     
     // Track analytics event
@@ -86,36 +86,48 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
         resumeContent = resumeText;
       }
       
-      // Use hybrid backend ATS Score v2 (Rule 70% + AI 30%), fallback to local engine
-      const parsedContent = resumeIntelligenceEngine.parseResumeContent(resumeContent);
-      let finalResult = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
+      // AI-FIRST: Call backend AI for proper semantic analysis
+      let finalResult: ScoreResult;
+      let aiSuccess = false;
+      
       try {
         const hybrid = await resumeAIService.atsScoreV2(resumeContent, jobDescription);
         setAiResult(hybrid);
+        aiSuccess = true;
+        
+        // Build result primarily from AI analysis
+        const parsedContent = resumeIntelligenceEngine.parseResumeContent(resumeContent);
+        const localResult = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
+        
         finalResult = {
-          ...finalResult,
+          ...localResult,
           overallScore: hybrid.score,
           atsScore: hybrid.score,
           keywordMatch: hybrid.rule_score,
           missingKeywords: hybrid.missing_keywords,
-          strengths: hybrid.suggestions.length > 0 ? hybrid.suggestions.slice(0, 3) : finalResult.strengths,
+          strengths: hybrid.suggestions.length > 0 ? hybrid.suggestions.slice(0, 3) : localResult.strengths,
           improvements: [
             ...(hybrid.suggestions.slice(0, 3).map(s => ({ issue: s, fix: s, priority: 'medium' as const }))),
-            ...finalResult.improvements.slice(0, 3),
+            ...localResult.improvements.slice(0, 3),
           ].slice(0, 5),
-          recommendations: [...hybrid.keyword_optimization.slice(0, 3), ...finalResult.recommendations.slice(0, 3)],
-          verdict: hybrid.reason || finalResult.verdict,
+          recommendations: [...hybrid.keyword_optimization.slice(0, 3), ...localResult.recommendations.slice(0, 3)],
+          verdict: hybrid.reason || localResult.verdict,
         };
       } catch {
+        // AI failed — fall back to local code-based analysis
         setAiResult(null);
+        const parsedContent = resumeIntelligenceEngine.parseResumeContent(resumeContent);
+        finalResult = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
       }
+      
       setResult(finalResult);
-
+      
       // Track successful analysis
       comprehensiveAnalyticsSystem.trackEvent(userId, 'feature_usage', {
         feature: 'resume_analysis',
         score: finalResult.overallScore,
-        hasJobDescription: !!jobDescription
+        hasJobDescription: !!jobDescription,
+        aiUsed: aiSuccess
       });
       
     } catch (e: any) {

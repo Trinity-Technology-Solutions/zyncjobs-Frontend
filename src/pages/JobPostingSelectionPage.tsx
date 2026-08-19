@@ -168,7 +168,8 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
             <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
               {manualFeatures.map(f => (
                 <div key={f} className="flex items-center gap-2 text-xs text-blue-50">
-                  <span className="check-manual">✓</span><span>{f}</span>
+                  <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  <span>{f}</span>
                 </div>
               ))}
             </div>
@@ -211,7 +212,8 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
             <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
               {parseFeatures.map(f => (
                 <div key={f} className="flex items-center gap-2 text-xs text-orange-50">
-                  <span className="check-ai">✓</span><span>{f}</span>
+                  <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  <span>{f}</span>
                 </div>
               ))}
             </div>
@@ -255,7 +257,8 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
             <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
               {bulkFeatures.map(f => (
                 <div key={f} className="flex items-center gap-2 text-xs text-green-50">
-                  <span className="text-white">✓</span><span>{f}</span>
+                  <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  <span>{f}</span>
                 </div>
               ))}
             </div>

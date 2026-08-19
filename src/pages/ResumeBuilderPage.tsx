@@ -9,7 +9,7 @@ import {
   Eye, EyeOff, Upload,
 } from 'lucide-react';
 
-const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
+const AI_BASE = import.meta.env.VITE_AI_API_URL || '/api/ai-proxy';
 import TemplateSelection from '../components/resume-builder/TemplateSelection';
 import PersonalInfoStep from '../components/resume-builder/PersonalInfoStep';
 import SummaryStep from '../components/resume-builder/SummaryStep';
@@ -131,6 +131,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const dropHandledRef = useRef(0);
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardStart, setWizardStart] = useState('');
   const [wizardGoal, setWizardGoal] = useState('');
@@ -691,6 +692,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
+    dropHandledRef.current = Date.now();
     const file = e.dataTransfer.files[0];
     if (!file) return;
     if (file.size < 100) {
@@ -1104,6 +1106,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           onSetStep={setWizardStep}
           onStart={setWizardStart}
           onUploadNow={() => {
+            if (Date.now() - dropHandledRef.current < 100) return;
             setTimeout(() => fileInputRef.current?.click(), 50);
           }}
           onComplete={() => {
@@ -1150,7 +1153,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             }
 
             setShowOnboarding(false);
-            if (wizardStart === 'import') fileInputRef.current?.click();
+            if (wizardStart === 'import' && Date.now() - dropHandledRef.current >= 100) fileInputRef.current?.click();
             else if (wizardStart === 'linkedin') setTriggerLinkedin(true);
             else if (wizardStart === 'ai') setAiMode(true);
           }}
@@ -1160,7 +1163,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     <div className="flex flex-col flex-1 min-h-0 bg-[#f4f6fb] relative"
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
+      onDrop={(e) => {
+        if (Date.now() - dropHandledRef.current < 100) return;
+        handleDrop(e);
+      }}
     >
       {/* Drag-over overlay */}
       {dragOver && (
@@ -1249,7 +1255,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           </button>
         </div>
         <div className="w-px h-4 bg-gray-200" />
-        <button onClick={() => fileInputRef.current?.click()} title="Import Resume" className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-green-300 bg-green-50 rounded hover:bg-green-100 text-green-700 transition-colors">
+        <button onClick={() => { if (Date.now() - dropHandledRef.current < 100) return; fileInputRef.current?.click(); }} title="Import Resume" className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-green-300 bg-green-50 rounded hover:bg-green-100 text-green-700 transition-colors">
           <Upload className="w-3 h-3" />Import
         </button>
         <div className="hidden sm:flex items-center gap-1">

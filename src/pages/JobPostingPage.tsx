@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Pencil, Eye } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -118,13 +119,13 @@ const snapToDropdownYear = (n: number, isMax: boolean): string => {
 
 const extractExperienceFromText = (text: string): string => {
   if (!text) return '';
-  // Only match lines/phrases that are clearly about experience years � not random sentences
+  // Only match lines/phrases that are clearly about experience years — not random sentences
   const patterns = [
-    /(?:experience\s+required|experience)[:\s]*?(\d+)\s*[-�]\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:experience\s+required|experience)[:\s]*?(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
     /(?:experience\s+required|experience)[:\s]*?(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
-    /(\d+)\s*[-�]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+    /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
     /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-�to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)/i,
     /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
     /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
   ];
@@ -364,7 +365,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       const cleaned = stripHtml(parsed);
       const lines = cleaned.split('\n').map(l => l.trim());
 
-      // Metadata label patterns � lines to skip entirely
+      // Metadata label patterns — lines to skip entirely
       const metaPatterns = [
         /^(job\s+)?description\s*:?\s*$/i,
         /^job\s+summary\s*:?\s*$/i,
@@ -388,7 +389,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         /^connecting\s+talent/i,
       ];
 
-      // Content section starters � once we hit these, include everything from here
+      // Content section starters — once we hit these, include everything from here
       const contentSectionPatterns = [
         /^(role\s+overview|about\s+the\s+role|job\s+overview|overview)/i,
         /^(key\s+)?responsibilities/i,
@@ -431,7 +432,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         contentStartIdx = startIdx;
       }
 
-      // Build final description � skip inline meta lines throughout
+      // Build final description — skip inline meta lines throughout
       const result = lines
         .slice(contentStartIdx)
         .filter(line => !metaPatterns.some(p => p.test(line)))
@@ -625,7 +626,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       try {
         const { apiFetch } = await import('../api/apiFetch');
 
-        // 1. Full user record � the source of truth for the company name
+        // 1. Full user record — the source of truth for the company name
         //    (set at employer registration, e.g. /api/users/by-email/:email)
         try {
           const ures = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/by-email/${encodeURIComponent(email)}`);
@@ -693,7 +694,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     if (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') {
       updateJobData('jobDescription', '');
     }
-    // In parse mode, clear only garbage values � real JD will be regenerated at step 6
+    // In parse mode, clear only garbage values — real JD will be regenerated at step 6
     if (mode === 'parse' && (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined')) {
       updateJobData('jobDescription', '');
     }
@@ -711,7 +712,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobData.jobTitle]);
 
-  // Auto-extract experience range from job description � only in manual mode when not already set
+  // Auto-extract experience range from job description — only in manual mode when not already set
   useEffect(() => {
     if (mode === 'parse') return;
     if (jobData.jobDescription && !jobData.experienceRange) {
@@ -987,7 +988,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     return ['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'Git', 'AWS', 'Docker'];
   };
 
-  // Local JD generator � no AI dependency, always works
+  // Local JD generator — no AI dependency, always works
   const generateLocalJD = (jobTitle: string, company: string, location: string, context: any): string => {
     const title = jobTitle.toLowerCase();
     const co = company || 'our company';
@@ -995,7 +996,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     const skills = Array.isArray(context?.skills) && context.skills.length > 0 ? context.skills.join(', ') : 'relevant technologies';
     const jobType = Array.isArray(context?.jobType) ? context.jobType.join('/') : (context?.jobType || 'Full-time');
     const education = Array.isArray(context?.educationLevel) ? context.educationLevel[0] : (context?.educationLevel || "Bachelor's degree");
-    const salary = context?.salary ? `\n� Salary: ${context.salary}` : '';
+    const salary = context?.salary ? `\n• Salary: ${context.salary}` : '';
     const benefits = Array.isArray(context?.benefits) && context.benefits.length > 0 ? context.benefits.join(', ') : 'health insurance, flexible work';
 
     const isTech = /developer|engineer|programmer|architect|devops|fullstack|frontend|backend|data|cloud|security|qa|tester/i.test(title);
@@ -1216,7 +1217,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         requirements: jobData.requirements.filter(Boolean),
       };
 
-      // Try AI first � fall back to local only if AI fails
+      // Try AI first — fall back to local only if AI fails
       let jdText = '';
       try {
         const raw = await mistralAIService.generateJobDescription(
@@ -2003,7 +2004,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={() => mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}
           text={mode === 'parse' ? 'Back to Parser' : 'Back to Selection'}
         />
-        <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">�</button>
+        <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">×</button>
       </div>
       
       <div className="space-y-8">
@@ -2072,7 +2073,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                   className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group cursor-pointer"
                 >
                   <span>{location}</span>
-                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">??</span>
+                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">📍</span>
                 </div>
               ))}
             </div>
@@ -2145,7 +2146,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           <label className="block text-gray-700 font-medium mb-3">Nationality Restriction</label>
           <p className="text-gray-500 text-sm mb-2">Specify if this job is open only to a particular nationality.</p>
           {parsedData?.nationalityRestriction && (
-            <p className="text-xs text-green-600 mb-2">? Auto-detected from JD: <strong>{parsedData.nationalityRestriction}</strong></p>
+            <p className="text-xs text-green-600 mb-2">✨ Auto-detected from JD: <strong>{parsedData.nationalityRestriction}</strong></p>
           )}
           {(() => {
             const NAT_OPTIONS = [
@@ -2209,7 +2210,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           })()}
           {jobData.nationalityRestriction && (
             <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              ?? This job will be prominently marked as <strong>{jobData.nationalityRestriction}</strong> on job listings.
+              ⚠️ This job will be prominently marked as <strong>{jobData.nationalityRestriction}</strong> on job listings.
             </p>
           )}
         </div>
@@ -2278,7 +2279,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             Language(s) required{' '}
             <span className="text-gray-400 font-normal text-sm">(optional)</span>
             {Array.isArray(jobData.language) && jobData.language.length > 0 && mode === 'parse' && (
-              <span className="ml-2 text-xs text-green-600">? Auto-detected from JD</span>
+              <span className="ml-2 text-xs text-green-600">✨ Auto-detected from JD</span>
             )}
           </label>
           {(() => {
@@ -2302,13 +2303,13 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
                       }`}
                     >
-                      {selected.includes(lang) ? '?' : '+'} {lang}
+                      {selected.includes(lang) ? '✓' : '+'} {lang}
                     </button>
                   ))}
                   {selected.filter((l: string) => !['English','Hindi','Tamil','Telugu','Kannada','Malayalam','Marathi','Bengali','Gujarati','Punjabi','Arabic'].includes(l)).map((lang: string) => (
                     <span key={lang} className="inline-flex items-center px-3 py-1.5 border border-blue-600 rounded-lg text-sm text-blue-600 bg-blue-50">
-                      ? {lang}
-                      <button type="button" onClick={() => updateJobData('language', selected.filter((l: string) => l !== lang))} className="ml-2 text-blue-400 hover:text-blue-700">�</button>
+                      ✓ {lang}
+                      <button type="button" onClick={() => updateJobData('language', selected.filter((l: string) => l !== lang))} className="ml-2 text-blue-400 hover:text-blue-700">×</button>
                     </span>
                   ))}
                 </div>
@@ -2348,11 +2349,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         <div>
           <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
           {mode === 'parse' && jobData.experienceRange && /^\d+ years? - \d+ years?$/.test(jobData.experienceRange) && (
-            <p className="text-xs text-green-600 mb-2">? Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
+            <p className="text-xs text-green-600 mb-2">✨ Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
           )}
           {mode === 'parse' && jobData.noticePeriod && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-3">
-              ?? <strong>Note from JD:</strong> {jobData.noticePeriod}
+              📋 <strong>Note from JD:</strong> {jobData.noticePeriod}
             </p>
           )}
           <div className="flex gap-4">
@@ -2397,7 +2398,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>?</span>
+          <span>→</span>
         </button>
       </div>
     </div>
@@ -2493,7 +2494,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>?</span>
+          <span>←</span>
           <span>Back</span>
         </button>
         <button
@@ -2501,7 +2502,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>?</span>
+          <span>→</span>
         </button>
       </div>
     </div>
@@ -2541,7 +2542,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>?</span>
+          <span>←</span>
           <span>Back</span>
         </button>
         <button
@@ -2549,7 +2550,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>?</span>
+          <span>→</span>
         </button>
       </div>
     </div>
@@ -2575,7 +2576,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                 }}
                 className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
               >
-                <span>�</span>
+                <span>×</span>
                 <span>Clear Salary</span>
               </button>
             )}
@@ -2606,7 +2607,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             <div className="w-28">
               <label className="block text-gray-600 text-sm mb-2">Currency</label>
               <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 font-medium">
-                ? INR
+                ₹ INR
               </div>
             </div>
             
@@ -2664,10 +2665,10 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             </p>
           ) : salaryModified && (jobData.minSalary || jobData.maxSalary) && (
             <p className="text-xs text-gray-500 mt-2">
-              Preview: {jobData.payType === 'Maximum amount' ? `Upto ?${formatSalary(jobData.maxSalary)}` :
-                        jobData.payType === 'Starting amount' ? `From ?${formatSalary(jobData.minSalary)}` :
-                        jobData.payType === 'Exact amount' ? `?${formatSalary(jobData.minSalary)}` :
-                        `?${formatSalary(jobData.minSalary)} - ?${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
+              Preview: {jobData.payType === 'Maximum amount' ? `Upto ₹${formatSalary(jobData.maxSalary)}` :
+                        jobData.payType === 'Starting amount' ? `From ₹${formatSalary(jobData.minSalary)}` :
+                        jobData.payType === 'Exact amount' ? `₹${formatSalary(jobData.minSalary)}` :
+                        `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
             </p>
           )}
           
@@ -2769,7 +2770,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>?</span>
+          <span>←</span>
           <span>Back</span>
         </button>
         <button
@@ -2777,7 +2778,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>?</span>
+          <span>→</span>
         </button>
       </div>
     </div>
@@ -2820,7 +2821,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                   onClick={() => removeSkill(skill)} 
                   className="ml-2 text-blue-600 hover:text-blue-800"
                 >
-                  �
+                  ×
                 </button>
               </span>
             ))}
@@ -2887,7 +2888,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                         : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
                     }`}
                   >
-                    {jobData.skills.includes(skill) ? '?' : '+'} {skill}
+                    {jobData.skills.includes(skill) ? '✓' : '+'} {skill}
                   </button>
                 ))}
               </div>
@@ -2925,7 +2926,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                     onClick={() => updateJobData('goodToHaveSkills', jobData.goodToHaveSkills.filter((_, i) => i !== index))}
                     className="ml-2 text-amber-600 hover:text-amber-800"
                   >
-                    �
+                    ×
                   </button>
                 </span>
               ))}
@@ -2951,7 +2952,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             {/* JD parsed good-to-have suggestions */}
             {mode === 'parse' && parsedData?.goodToHaveSkills?.length > 0 && (
               <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-xs font-medium text-amber-700 mb-2">From JD � click to add:</p>
+                <p className="text-xs font-medium text-amber-700 mb-2">From JD — click to add:</p>
                 <div className="flex flex-wrap gap-2">
                   {parsedData.goodToHaveSkills.map((skill: string) => (
                     <button
@@ -2967,7 +2968,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                           : 'border-amber-300 text-amber-700 hover:bg-amber-100'
                       }`}
                     >
-                      {jobData.goodToHaveSkills.includes(skill) ? '?' : '+'} {skill}
+                      {jobData.goodToHaveSkills.includes(skill) ? '✓' : '+'} {skill}
                     </button>
                   ))}
                 </div>
@@ -3007,7 +3008,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                       : 'border-gray-300 text-gray-700 hover:border-gray-400'
                   }`}
                 >
-                  {currentEducation.includes(level) ? '?' : '+'} {level}
+                  {currentEducation.includes(level) ? '✓' : '+'} {level}
                 </button>
               );
             })}
@@ -3026,7 +3027,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>?</span>
+          <span>←</span>
           <span>Back</span>
         </button>
         <button
@@ -3034,7 +3035,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
         >
           <span>Continue</span>
-          <span>?</span>
+          <span>→</span>
         </button>
       </div>
     </div>
@@ -3046,7 +3047,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     </svg>
   );
 
-  // Styled JD preview � LinkedIn/Naukri style
+  // Styled JD preview — LinkedIn/Naukri style
   const JDPreview: React.FC<{ text: string }> = ({ text }) => {
     if (!text?.trim()) return null;
 
@@ -3138,12 +3139,12 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             </div>
             <div>
               <p className="text-white font-semibold text-base">{jobData.jobTitle || 'Job Description'}</p>
-              <p className="text-blue-100 text-xs">{[jobData.companyName, jobData.jobLocation].filter(Boolean).join(' � ')}</p>
+              <p className="text-blue-100 text-xs">{[jobData.companyName, jobData.jobLocation].filter(Boolean).join(' • ')}</p>
             </div>
           </div>
         </div>
 
-        {/* Sections � no boxes, just headings + content */}
+        {/* Sections — no boxes, just headings + content */}
         <div className="space-y-7">
           {sections.map((section, si) => {
             const hasContent = section.lines.some(l => l.trim());
@@ -3201,7 +3202,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                ?? Edit
+                <Pencil className="w-4 h-4 inline mr-1" /> Edit
               </button>
               <button
                 type="button"
@@ -3212,7 +3213,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                ?? Preview
+                <Eye className="w-4 h-4 inline mr-1" /> Preview
               </button>
             </div>
 
@@ -3248,7 +3249,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           <div className="space-y-2">
             {jobData.responsibilities.map((responsibility, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">�</span>
+                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">•</span>
                 <input
                   type="text"
                   value={responsibility}
@@ -3267,7 +3268,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                   }}
                   className="text-red-600 hover:text-red-800 p-2"
                 >
-                  �
+                  ×
                 </button>
               </div>
             ))}
@@ -3291,7 +3292,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           <div className="space-y-2">
             {jobData.requirements.map((requirement, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">�</span>
+                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">•</span>
                 <input
                   type="text"
                   value={requirement}
@@ -3310,7 +3311,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                   }}
                   className="text-red-600 hover:text-red-800 p-2"
                 >
-                  �
+                  ×
                 </button>
               </div>
             ))}
@@ -3352,7 +3353,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>?</span>
+          <span>←</span>
           <span>Back</span>
         </button>
         <button
@@ -3495,7 +3496,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                 <span className="text-gray-600">Pay</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">
-                    ?{formatSalary(jobData.minSalary)} - ?{formatSalary(jobData.maxSalary)} {jobData.payRate}
+                    ₹{formatSalary(jobData.minSalary)} - ₹{formatSalary(jobData.maxSalary)} {jobData.payRate}
                   </span>
                   <button onClick={() => setCurrentStep(4)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
@@ -3522,7 +3523,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                     const jd = (jobData.jobDescription || '').trim();
                     if (!jd) return (
                       <span className="text-orange-500 text-sm cursor-pointer" onClick={() => setCurrentStep(6)}>
-                        No description � click Edit to add one
+                        No description — click Edit to add one
                       </span>
                     );
                     const preview = jd.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\n+/g, ' ').trim();
@@ -3545,7 +3546,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           onClick={prevStep}
           className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
         >
-          <span>?</span>
+          <span>←</span>
           <span>Back</span>
         </button>
         <button
@@ -3638,7 +3639,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     // Build comprehensive job description
     const buildJobDescription = (): string => {
       const base = (jobData.jobDescription || '').trim();
-      // Always use the base description if it exists � regardless of format
+      // Always use the base description if it exists — regardless of format
       if (base) return base;
       // Fallback: build from responsibilities + requirements if no base JD
       const respItems = (Array.isArray(jobData.responsibilities) ? jobData.responsibilities : []).filter(Boolean);
@@ -3958,4 +3959,3 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
 };
 
 export default JobPostingPage;
-
