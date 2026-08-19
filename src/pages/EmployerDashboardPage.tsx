@@ -860,6 +860,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [applications]);
 
   const [chartFilterJobId, setChartFilterJobId] = useState<string>('tab:top');
+  const [barsAnimated, setBarsAnimated] = useState(false);
 
   // ── Job Performance Score (ATS-style) ──────────────────────────────
   const jobPerformanceStats = useMemo(() => {
@@ -886,6 +887,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     });
   }, [jobs, applications, interviews]);
 
+  useEffect(() => {
+    if (jobPerformanceStats.length === 0) return;
+    setBarsAnimated(false);
+    const t = setTimeout(() => setBarsAnimated(true), 60);
+    return () => clearTimeout(t);
+  }, [jobPerformanceStats]);
 
   const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
   
@@ -1503,8 +1510,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 {/* Progress bar */}
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-500"
-                                      style={{ width: `${Math.max(job.progressPct, 3)}%`, background: bar }} />
+                                    <div className="h-full rounded-full transition-all duration-700"
+                                      style={{ width: barsAnimated ? `${Math.max(job.progressPct, 3)}%` : '0%', background: bar }} />
                                   </div>
                                   <span className="text-[11px] font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
                                   {job.jobData && (

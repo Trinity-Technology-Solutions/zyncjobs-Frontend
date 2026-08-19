@@ -6,9 +6,9 @@ import WorkButton from '../components/animata/button/work-button';
 import { API_ENDPOINTS } from '../config/env';
 import {
   Briefcase, Search, LogIn, UserPlus, ArrowRight, CheckCircle2,
-  Bot, ClipboardCheck, CalendarClock, Wallet,
+  Bot, CalendarClock, Wallet,
   Building2, Users, Zap, Target, TrendingUp, Phone, Mail,
-  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock
+  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck
 } from 'lucide-react';
 
 const EmployersPage = ({ onNavigate, user, onLogout }: {
@@ -177,13 +177,6 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 grad: 'from-orange-500 to-rose-400', tile: 'bg-orange-50', text: 'text-orange-500', cta: 'Try AI Assistant',
               },
               {
-                icon: ClipboardCheck, title: 'Skill Assessments', target: 'skill-assessment',
-                desc: 'Let candidates prove their skills with scored, role-specific tests.',
-                bullets: ['Role-specific test libraries', 'Automatic scoring & reporting', 'Shortlist by assessment results'],
-                variant: 'skill-assessment', url: 'zyncjobs.ai/skill-assessment',
-                grad: 'from-emerald-500 to-teal-400', tile: 'bg-emerald-50', text: 'text-emerald-600', cta: 'Explore Assessments',
-              },
-              {
                 icon: CalendarClock, title: 'Interview Scheduling', target: 'interviews',
                 desc: 'Plan and manage interviews with one-click scheduling.',
                 bullets: ['No back-and-forth emails', 'Automated confirmations & reminders', 'Built-in video meeting links'],
@@ -235,7 +228,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                       </div>
                       <div className="aspect-[16/10] overflow-hidden">
                         <div className="h-full transition-transform duration-700 ease-out group-hover:scale-[1.06]">
-                          <SitePreview variant={f.variant} />
+                          <SitePreview variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights'} />
                         </div>
                       </div>
                     </div>
@@ -603,7 +596,7 @@ function JobTicker() {
   );
 }
 
-/* -- Hero callback card � quick request form (Naukri-style) -- */
+/* -- Hero callback card — quick request form (Naukri-style) -- */
 function HeroCallbackCard() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', hiringFor: 'Your company' });
   const [submitted, setSubmitted] = useState(false);
@@ -672,7 +665,7 @@ function HeroCallbackCard() {
   );
 }
 
-/* -- One-Stop Solution � product categories with sub-products -- */
+/* -- One-Stop Solution — product categories with sub-products -- */
 const PRODUCT_CATEGORIES = [
   { id: 'sourcing', label: 'Talent Sourcing', icon: Users },
   { id: 'screening', label: 'Screening & Evaluation', icon: ClipboardCheck },
@@ -692,7 +685,6 @@ const PRODUCTS: Record<ProductCategoryId, {
     { name: 'Resume Parser & Ranking', tag: 'Automatic resume scoring', bullets: ['Parse & score every resume', 'Skill & experience extraction', 'Ranked shortlists in seconds'], stats: [{ v: '100%', l: 'resumes parsed' }, { v: 'Auto', l: 'scoring' }], grad: 'from-cyan-500 to-sky-400', initials: 'RP', target: 'job-parsing' },
   ],
   screening: [
-    { name: 'Skill Assessments', tag: 'Role-specific tests', bullets: ['Role-specific test libraries', 'Automatic scoring & reporting', 'Shortlist by assessment results'], stats: [{ v: '20+', l: 'test libraries' }, { v: 'Auto', l: 'scored' }], grad: 'from-emerald-500 to-teal-400', initials: 'SA', target: 'skill-assessment' },
     { name: 'Verified Candidates', tag: 'Credential-checked profiles', bullets: ['Email & identity verification', 'Skill validation checks', 'Clearly marked verified profiles'], stats: [{ v: '100%', l: 'verified profiles' }, { v: '24h', l: 'verification' }], grad: 'from-blue-600 to-indigo-500', initials: 'VC', target: 'candidate-search' },
   ],
   automation: [
@@ -1065,7 +1057,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
 
 
 /* ── Site preview — mini replica of the real ZyncJobs page UI ── */
-function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'skill-assessment' | 'interviews' | 'salary-insights' }) {
+function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' }) {
   const Bar = () => (
     <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100">
       <div className="flex items-center gap-1.5">
@@ -1188,35 +1180,6 @@ function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' 
           <div className="flex gap-1.5 mt-auto">
             <div className="flex-1 bg-white border border-gray-200 rounded-full px-3 py-1.5 text-[8px] text-gray-400">Ask anything about hiring…</div>
             <span className="w-7 h-6 rounded-lg bg-orange-500 text-white text-[9px] flex items-center justify-center">➤</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'skill-assessment') {
-    return (
-      <div className="bg-gray-50 h-full flex flex-col">
-        <Bar />
-        <div className="p-4 flex-1">
-          <p className="text-[12px] font-bold text-gray-900 mb-1">Skill Assessments</p>
-          <p className="text-[9px] text-gray-400 mb-3">Validate candidates before you interview</p>
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { name: 'Frontend Development', q: '30 questions', min: '25 min', lvl: 'Intermediate', bar: 'w-3/4' },
-              { name: 'Data Analysis', q: '25 questions', min: '20 min', lvl: 'Advanced', bar: 'w-1/2' },
-              { name: 'Communication Skills', q: '20 questions', min: '15 min', lvl: 'Beginner', bar: 'w-1/4' },
-              { name: 'SQL & Databases', q: '28 questions', min: '22 min', lvl: 'Intermediate', bar: 'w-2/3' },
-            ].map((a) => (
-              <div key={a.name} className="bg-white border border-gray-200 rounded-lg p-3">
-                <p className="text-[9px] font-bold text-gray-900">{a.name}</p>
-                <p className="text-[7.5px] text-gray-400 mt-0.5">{a.q} · {a.min} · {a.lvl}</p>
-                <div className="h-1 bg-gray-100 rounded-full mt-2.5 mb-2.5 overflow-hidden">
-                  <div className={`h-full ${a.bar} bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full`} />
-                </div>
-                <div className="text-[8px] font-bold text-white bg-emerald-500 px-2 py-1 rounded-md text-center">Start Test</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

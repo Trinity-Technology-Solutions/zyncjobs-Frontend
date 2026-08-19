@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   TrendingUp,
@@ -97,6 +97,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
   const [resumePopupError, setResumePopupError] = useState("");
+  const dropHandledRef = useRef(0);
   const [resumePopupDragOver, setResumePopupDragOver] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>({});
@@ -805,12 +806,99 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         'Power BI','Excel','Tableau','Machine Learning','Deep Learning','NLP','OpenCV',
       ];
       const skills = techKeywords.filter(k => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text));
+      
+      // Extract title (first non-name, non-contact line after name)
+      const name = nameMatch?.[1] || '';
+      const nameIdx = text.toLowerCase().indexOf(name.toLowerCase());
+      let title = '';
+      if (nameIdx >= 0) {
+        const afterName = text.substring(nameIdx + name.length);
+        const afterNameLines = afterName.split('\n').map(l => l.trim()).filter(Boolean);
+        for (const line of afterNameLines.slice(0, 6)) {
+          if (line && line !== name && !line.includes('@') && !line.match(/^\+?\d/) && line.length > 3 && line.length < 80 && !line.match(/^(http|www)/i)) {
+            title = line;
+            break;
+          }
+        }
+      }
+      
+      // Extract summary (first paragraph after name/contact)
+      let summary = '';
+      const summaryKeywords = ['summary', 'objective', 'profile', 'about'];
+      for (const kw of summaryKeywords) {
+        const idx = text.toLowerCase().indexOf(kw);
+        if (idx >= 0) {
+          const after = text.substring(idx + kw.length);
+          const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+          summary = lines.slice(0, 3).join(' ');
+          break;
+        }
+      }
+      if (!summary && lines.length > 5) {
+        summary = lines.slice(5, 10).join(' ');
+      }
+      
+      // Extract work experiences (basic)
+      const workExperiences: any[] = [];
+      const expKeywords = ['experience', 'employment', 'work history', 'professional experience'];
+      for (const kw of expKeywords) {
+        const idx = text.toLowerCase().indexOf(kw);
+        if (idx >= 0) {
+          const after = text.substring(idx + kw.length);
+          const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+          let current: any = null;
+          for (const line of lines.slice(0, 20)) {
+            if (line.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4}/i)) {
+              if (current) workExperiences.push(current);
+              current = { jobTitle: '', company: '', date: line, descriptions: [] };
+            } else if (current && line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+              current.descriptions.push(line.replace(/^[•\-\*]\s*/, ''));
+            } else if (current && !current.company && line.length > 3 && line.length < 60) {
+              current.company = line;
+            } else if (current && !current.jobTitle && line.length > 3 && line.length < 80) {
+              current.jobTitle = line;
+            }
+          }
+          if (current) workExperiences.push(current);
+          break;
+        }
+      }
+      
+      // Extract educations (basic)
+      const educations: any[] = [];
+      const eduKeywords = ['education', 'qualification', 'academic', 'degree'];
+      for (const kw of eduKeywords) {
+        const idx = text.toLowerCase().indexOf(kw);
+        if (idx >= 0) {
+          const after = text.substring(idx + kw.length);
+          const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+          let current: any = null;
+          for (const line of lines.slice(0, 10)) {
+            if (line.match(/\b(b\.?tech|m\.?tech|b\.?e|m\.?e|b\.?sc|m\.?sc|mba|bca|mca|b\.?com|m\.?com|phd|diploma|hsc|sslc|10th|12th)\b/i)) {
+              if (current) educations.push(current);
+              current = { degree: line, school: '', date: '', grade: '' };
+            } else if (current && line.length > 3 && line.length < 80 && !current.school) {
+              current.school = line;
+            } else if (current && line.match(/\b(19|20)\d{2}\b/)) {
+              current.date = line.match(/\b(19|20)\d{2}\b/)?.[0] || '';
+            }
+          }
+          if (current) educations.push(current);
+          break;
+        }
+      }
+      
       return {
         name: nameMatch?.[1] || old.name || '',
+        email: emailMatch?.[0] || old.email || '',
         phone: phoneMatch?.[0] || old.phone || '',
         location: location || old.location || '',
+        title: title || old.title || '',
+        summary: summary || old.profileSummary || '',
         skills: skills.length > 0 ? skills : (old.skills || []),
-        email: emailMatch?.[0] || old.email || '',
+        workExperiences: workExperiences.length > 0 ? workExperiences : (old.workExperiences || []),
+        educations: educations.length > 0 ? educations : (old.educations || []),
+        country: old.country || '',
       };
     } catch {
       return {};
@@ -837,16 +925,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       if (fallback.name || fallback.phone || fallback.location || (Array.isArray(fallback.skills) && fallback.skills.length > 0)) {
         p = {
           name: fallback.name,
+          email: fallback.email,
           phone: fallback.phone,
           location: fallback.location,
+          title: fallback.title,
+          summary: fallback.summary,
           skills: fallback.skills,
-          email: fallback.email,
-          title: '',
-          summary: '',
-          workExperiences: [],
-          educations: [],
-          projects: [],
-          certifications: [],
+          workExperiences: fallback.workExperiences,
+          educations: fallback.educations,
+          projects: fallback.projects || [],
+          certifications: fallback.certifications || [],
+          country: fallback.country || '',
         };
       } else {
         p = {};
@@ -3851,13 +3940,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     e.preventDefault();
                     e.stopPropagation();
                     setResumePopupDragOver(false);
+                    dropHandledRef.current = Date.now();
                     const file = e.dataTransfer.files?.[0];
                     if (file) {
                       setResumePopupFile(file);
                       setResumePopupError("");
                     }
                   }}
-                  onClick={() => document.getElementById('resume-popup-input')?.click()}
+                  onClick={(e) => {
+                    if (Date.now() - dropHandledRef.current < 100) return;
+                    document.getElementById('resume-popup-input')?.click();
+                  }}
                 >
                   <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-700">

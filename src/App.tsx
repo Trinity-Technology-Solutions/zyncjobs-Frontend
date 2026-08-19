@@ -200,7 +200,7 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="text-center px-6">
-        <div className="text-6xl mb-6">??</div>
+        <div className="text-6xl mb-6">🛠️</div>
         <h1 className="text-3xl font-bold text-white mb-3">Under Maintenance</h1>
         <p className="text-gray-400 mb-6">We're making some improvements. Please check back soon.</p>
         <button onClick={onRetry} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">
@@ -224,6 +224,8 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
 // Synchronously read user from localStorage BEFORE first render — eliminates flicker
 function getInitialUser(): UserType | null {
   try {
+    // If user explicitly logged out, never restore from localStorage
+    if (localStorage.getItem('zync:logged_out') === '1') return null;
     const stored = JSON.parse(localStorage.getItem('user') || '{}');
     if (!stored.email || (!stored.userType && !stored.role)) return null;
     const rawType = stored.userType || stored.role || 'candidate';
@@ -359,6 +361,8 @@ function App() {
     sessionStorage.clear();
     localStorage.removeItem('user');
     localStorage.removeItem('lastUserType');
+    // Mark explicit logout so restoreSession skips cookie-based re-auth on next refresh
+    localStorage.setItem('zync:logged_out', '1');
 
     if (userType === 'employer') navigate('/employer-login');
     else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
@@ -380,6 +384,8 @@ function App() {
     loginTimestamp.current = Date.now();
     setUser(userData);
     closeModals();
+    // Clear the explicit-logout flag so future refreshes restore the session
+    localStorage.removeItem('zync:logged_out');
     // Fetch saved jobs once after login
     setTimeout(() => fetchSavedJobs(), 500);
 
@@ -511,6 +517,7 @@ function App() {
       sessionStorage.clear();
       localStorage.removeItem('user');
       localStorage.removeItem('lastUserType');
+      localStorage.setItem('zync:logged_out', '1');
 
       if (userType === 'employer') navigate('/employer-login');
       else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
@@ -525,6 +532,13 @@ function App() {
     window.addEventListener('zync:account-locked', handleAccountLocked);
 
     const restoreSession = async () => {
+      // If the user explicitly logged out, do NOT re-authenticate via cookie.
+      // This is the root cause of the "auto re-login after logout + refresh" bug.
+      if (localStorage.getItem('zync:logged_out') === '1') {
+        setUserLoading(false);
+        return;
+      }
+
       // Clean up any base64 images stored in localStorage
       try {
         const stored = localStorage.getItem('user');
@@ -1124,7 +1138,7 @@ function App() {
                       <div className="text-[120px] font-black text-gray-100 leading-none select-none">404</div>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="bg-white px-4">
-                          <div className="text-5xl mb-2">??</div>
+                          <div className="text-5xl mb-2">🧭</div>
                         </div>
                       </div>
                     </div>

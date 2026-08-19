@@ -112,7 +112,7 @@ function firstBool(...vals: unknown[]): boolean {
   return false;
 }
 
-const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack }) => {
+const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack, onLogout }) => {
   const [searchParams] = useSearchParams();
   const [candidate, setCandidate] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -368,7 +368,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   return (
     <div className="min-h-screen bg-[#f0f2f7]">
-      <Header onNavigate={onNavigate} user={currentUser} onLogout={() => {}} />
+      <Header onNavigate={onNavigate} user={currentUser} onLogout={onLogout} />
       {/* Sticky back bar */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-3">
