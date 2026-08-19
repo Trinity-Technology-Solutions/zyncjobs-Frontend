@@ -125,14 +125,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
 
   const jobLocations = useMemo(() => [...new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))], [jobs]);
-  const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim()).filter(Boolean))], [jobs]);
+  const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim().toLowerCase()).filter(Boolean))], [jobs]);
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
       if (selectedLocation && !(job.location || '').toLowerCase().includes(selectedLocation.toLowerCase())) return false;
       if (selectedDepartment) {
-        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim();
-        if (deptVal.toLowerCase() !== selectedDepartment.toLowerCase()) return false;
+        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim().toLowerCase();
+        if (deptVal !== selectedDepartment.toLowerCase()) return false;
       }
       return true;
     });
@@ -1270,7 +1270,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     onChange={(val) => setSelectedDepartment(val)}
                     options={[
                       { value: '', label: 'All Departments' },
-                      ...jobCategories.map(cat => ({ value: cat, label: cat })),
+                      ...jobCategories.map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) })),
                     ]}
                     placeholder="Select department"
                     className="w-full sm:w-auto"
