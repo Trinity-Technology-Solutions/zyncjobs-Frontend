@@ -61,6 +61,72 @@ interface CandidateDashboardPageProps {
   viewEmail?: string;
 }
 
+// Classify parsed education entries into college / Class XII / Class X profile fields
+const splitEducations = (eduArr: any[]) => {
+  const extractYear = (dateStr: any) => String(dateStr || "").match(/\d{4}/)?.[0] || "";
+  const joined = (e: any) => `${e?.degree || ""} ${e?.school || e?.college || ""}`;
+  const collegeEntry = eduArr.find(e => !/hsc|12th|class\s*x\s*ii|higher secondary|sslc|10th|class\s*x\b|matric/i.test(joined(e)));
+  const class12Entry = eduArr.find(e => /hsc|12th|class\s*x\s*ii|higher secondary/i.test(joined(e)));
+  const class10Entry = eduArr.find(e => /sslc|10th|class\s*x\b|matric/i.test(joined(e)));
+  const toEntry = (e: any, hasBoard: boolean) => {
+    const school = e?.school || e?.college || "";
+    const entry: any = {
+      passingYear: extractYear(e?.endYear || e?.passingYear || e?.date || ""),
+      percentage: e?.percentage || e?.grade || e?.gpa || "",
+    };
+    if (hasBoard) { entry.board = school; entry.school = school; } else { entry.college = school; entry.degree = e?.degree || ""; }
+    return entry;
+  };
+  const result: any = {};
+  if (collegeEntry) result.educationCollege = toEntry(collegeEntry, false);
+  if (class12Entry) result.educationClass12 = toEntry(class12Entry, true);
+  if (class10Entry) result.educationClass10 = toEntry(class10Entry, true);
+  return result;
+};
+
+// Map parsed certifications / internships / languages / awards into profile shapes
+const mapParsedSections = (p: any, old: any) => {
+  const extractYear = (d: any) => String(d || "").match(/\d{4}/)?.[0] || "";
+  const extractMonth = (d: any) =>
+    String(d || "").match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i)?.[0] || "";
+  const certifications =
+    Array.isArray(p?.certifications) && p.certifications.length > 0
+      ? p.certifications.map((c: any) => ({
+          certificationName: c.name || c.certificationName || "",
+          provider: c.provider || "",
+          startYear: extractYear(c.date || c.year || ""),
+          noExpiry: true,
+        }))
+      : (old?.certifications || []);
+  const internships =
+    Array.isArray(p?.internships) && p.internships.length > 0
+      ? p.internships.map((w: any) => {
+          const dateParts = String(w.date || "").split(/\s*[-–]\s*/);
+          return {
+            companyName: w.company || w.companyName || "",
+            designation: w.jobTitle || w.title || w.designation || "",
+            description: Array.isArray(w.descriptions)
+              ? w.descriptions.join(" ")
+              : w.description || "",
+            startMonth: extractMonth(dateParts[0]),
+            startYear: extractYear(dateParts[0]),
+            endMonth: extractMonth(dateParts[1]),
+            endYear: extractYear(dateParts[1]),
+            currentlyWorking: /present|current/i.test(w.date || "") || !!w.current,
+          };
+        })
+      : (old?.internships || []);
+  const languages =
+    Array.isArray(p?.languages) && p.languages.length > 0
+      ? p.languages
+      : (old?.languages || []);
+  const awards =
+    Array.isArray(p?.awards) && p.awards.length > 0
+      ? p.awards.join("\n")
+      : (old?.awards || "");
+  return { certifications, internships, languages, awards };
+};
+
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   user: userProp,
   onNavigate,
@@ -942,6 +1008,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       }
     }
     const eduArr = Array.isArray(p.educations) ? p.educations : [];
+    const eduSplit = splitEducations(eduArr);
     const old = currentUser || {};
     return {
       name: p.name || old.name || '',
@@ -965,18 +1032,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             };
           })
         : (old.employment || []),
-      educationCollege: eduArr.length > 0 ? {
-        college: eduArr[0].school || eduArr[0].college || '',
-        degree: eduArr[0].degree || '',
-        passingYear: (eduArr[0].endYear || eduArr[0].passingYear || eduArr[0].date || '').match(/\d{4}/)?.[0] || '',
-        percentage: eduArr[0].percentage || eduArr[0].grade || '',
-      } : (old.educationCollege || {}),
+      educationCollege: eduSplit.educationCollege || (old.educationCollege || {}),
+      educationClass12: eduSplit.educationClass12 || (old.educationClass12 || {}),
+      educationClass10: eduSplit.educationClass10 || (old.educationClass10 || {}),
       projects: Array.isArray(p.projects) && p.projects.length > 0
         ? p.projects.map((pr: any) => ({
             projectName: pr.name || pr.projectName || '',
-            description: pr.description || '',
+            description: pr.description || (Array.isArray(pr.descriptions) ? pr.descriptions.join(' ') : '') || '',
           }))
         : (old.projects || []),
+      ...mapParsedSections(p, old),
     };
   };
 
@@ -2275,6 +2340,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 birthday: user?.birthday || "",
                                 location: user?.location || "",
                                 phone: user?.phone || "",
+                                jobTitle: user?.jobTitle || "",
+                                education: user?.education || "",
                               });
                             }}
                             className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
@@ -2294,6 +2361,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             {user.educationCollege.college}
                           </p>
                         )}
+                        {!user?.educationCollege?.college &&
+                          user?.education && (
+                            <p className="text-gray-500 text-sm mb-3">
+                              {user.education}
+                            </p>
+                          )}
 
                         {/* Contact Info */}
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm text-gray-600 mb-3">
@@ -2546,7 +2619,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       </div>
                     ) : (
                       <div className="py-4 text-gray-500 text-sm">
-                        <p>No education details added yet</p>
+                        {user?.education ? (
+                          <p className="text-gray-700">{user.education}</p>
+                        ) : (
+                          <p>No education details added yet</p>
+                        )}
                       </div>
                     )}
                     {user?.educationClass12 &&
@@ -4076,6 +4153,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       : educations && typeof educations === "object"
                         ? [educations]
                         : [];
+                    const eduSplit = splitEducations(eduArr);
                     const extractYear = (dateStr: string) =>
                       String(dateStr || "").match(/\d{4}/)?.[0] || "";
                     const normalizedSkills: string[] = Array.isArray(p.skills)
@@ -4135,28 +4213,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             })
                           : user?.employment || [],
                       educationCollege:
-                        eduArr.length > 0
-                          ? {
-                              college:
-                                eduArr[0].school || eduArr[0].college || "",
-                              degree: eduArr[0].degree || "",
-                              passingYear: extractYear(
-                                eduArr[0].endYear ||
-                                  eduArr[0].passingYear ||
-                                  eduArr[0].date ||
-                                  "",
-                              ),
-                              percentage:
-                                eduArr[0].percentage || eduArr[0].grade || "",
-                            }
-                          : user?.educationCollege || {},
+                        eduSplit.educationCollege || user?.educationCollege || {},
+                      educationClass12:
+                        eduSplit.educationClass12 || user?.educationClass12 || {},
+                      educationClass10:
+                        eduSplit.educationClass10 || user?.educationClass10 || {},
                       projects:
                         p.projects?.length > 0
                           ? p.projects.map((pr: any) => ({
                               projectName: pr.name || pr.projectName || "",
-                              description: pr.description || "",
-                            }))
-                          : user?.projects || [],
+                              description:
+                                pr.description ||
+                                (Array.isArray(pr.descriptions)
+                                  ? pr.descriptions.join(" ")
+                                  : "") ||
+                                "",
+}))
+                            : user?.projects || [],
+                        ...mapParsedSections(p, user),
                     };
                     setUser(merged);
                     localStorage.setItem("user", JSON.stringify(merged));

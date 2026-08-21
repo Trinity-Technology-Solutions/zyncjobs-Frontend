@@ -20,12 +20,12 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [rawFile, setRawFile] = useState<File | null>(null);
-  const [rawPreview, setRawPreview] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
+  const [rawPreview, setRawPreview] = useState<string | null>(null);
   const [bannerUrl, setBannerUrl] = useState(currentBanner || '');
   const [urlInput, setUrlInput] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlValidating, setUrlValidating] = useState(false);
   const [urlPreviewOk, setUrlPreviewOk] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +60,6 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
       setError(validationError);
       return;
     }
-    setRawFile(file);
     const preview = URL.createObjectURL(file);
     setRawPreview(preview);
     setShowCropper(true);
@@ -109,7 +108,6 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
-      setRawFile(null);
       if (rawPreview) {
         URL.revokeObjectURL(rawPreview);
         setRawPreview(null);
@@ -119,7 +117,6 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
 
   const handleRemove = () => {
     setBannerUrl('');
-    setRawFile(null);
     setUrlInput('');
     setUrlError(null);
     if (rawPreview) {
@@ -130,11 +127,25 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
     onRemove();
   };
 
-  const handleUrlApply = () => {
+  const handleUrlApply = async () => {
     const url = urlInput.trim();
     if (!url) { setUrlError('Please enter a URL'); return; }
     try { new URL(url); } catch { setUrlError('Invalid URL format'); return; }
     setUrlError(null);
+    setUrlValidating(true);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = url;
+      });
+    } catch {
+      setUrlValidating(false);
+      setUrlError('Cannot load this URL as an image. It may be blocked or not an image file.');
+      return;
+    }
+    setUrlValidating(false);
     setBannerUrl(url);
     onChange(url);
     setUrlInput('');
@@ -220,7 +231,7 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
               type="text"
               value={urlInput}
               onChange={(e) => { setUrlInput(e.target.value); setUrlError(null); setUrlPreviewOk(null); }}
-              onPaste={(e) => {
+              onPaste={() => {
                 setTimeout(() => {
                   setUrlInput(prev => prev.trim());
                   setUrlError(null);
@@ -238,10 +249,10 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
           <button
             type="button"
             onClick={handleUrlApply}
-            disabled={!urlInput.trim()}
+            disabled={!urlInput.trim() || urlValidating}
             className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
           >
-            Use URL
+            {urlValidating ? 'Checking...' : 'Use URL'}
           </button>
         </div>
         {/* Live URL preview */}
@@ -280,7 +291,6 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
           src={rawPreview}
           onClose={() => {
             setShowCropper(false);
-            setRawFile(null);
             if (rawPreview) {
               URL.revokeObjectURL(rawPreview);
               setRawPreview(null);

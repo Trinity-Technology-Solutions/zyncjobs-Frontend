@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -182,7 +183,12 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       }
       const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${resolvedJobId}`);
       if (response.status === 404) { setApplications([]); setError(null); setLoading(false); return; }
-      if (!response.ok) throw new Error('Failed to fetch applications');
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        let errorMsg = `Failed to fetch applications (${response.status})`;
+        try { const j = JSON.parse(errorText); errorMsg = j.error || j.message || errorMsg; } catch {}
+        throw new Error(errorMsg);
+      }
       const fetched = await response.json();
 
       const withDetails = await Promise.all(fetched.map(async (app: any) => {
@@ -208,7 +214,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
         } catch { roundsMap[id] = []; }
       }));
       setInterviewRounds(roundsMap);
-    } catch { setError('Failed to load applications'); setApplications([]); }
+    } catch (e: any) {
+        setError('Failed to load applications: ' + (e?.message || 'Unknown error'));
+        setApplications([]);
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to load applications: ' + (e?.message || 'Unknown error'), type: 'error' } }));
+      }
     finally { setLoading(false); }
   };
 

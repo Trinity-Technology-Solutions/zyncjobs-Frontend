@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pencil, Eye } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
-import EmptyState from '../components/EmptyState';
 import { sendAIMessage } from '../services/aiChatService';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { API_ENDPOINTS } from '../config/constants';
@@ -11,7 +10,6 @@ import { getCompanyLogo } from '../utils/logoUtils';
 import { getCategoryBanner, getCategoryBannerOptions } from '../utils/categoryBannerImages';
 import JobBannerUploader from '../components/JobBannerUploader';
 import mistralAIService from '../services/mistralAIService';
-import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
@@ -144,61 +142,7 @@ const extractExperienceFromText = (text: string): string => {
   return '';
 };
 
-const KNOWN_TOOLS = [
-  'postman', 'rest assured', 'selenium', 'jira', 'confluence', 'jenkins',
-  'docker', 'kubernetes', 'git', 'github', 'gitlab', 'bitbucket',
-  'react', 'angular', 'vue', 'node', 'nodejs', 'express', 'django', 'flask',
-  'spring', 'hibernate', 'maven', 'gradle', 'junit', 'pytest', 'jest',
-  'aws', 'azure', 'gcp', 'terraform', 'ansible', 'linux', 'ubuntu',
-  'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch',
-  'python', 'java', 'javascript', 'typescript', 'kotlin', 'swift', 'golang',
-  'html', 'css', 'sass', 'tailwind', 'bootstrap', 'figma', 'sketch',
-  'tableau', 'power bi', 'excel', 'salesforce', 'sap', 'erp',
-  'agile', 'scrum', 'kanban', 'devops', 'ci/cd', 'microservices',
-  'machine learning', 'tensorflow', 'pytorch', 'rest', 'graphql', 'soap', 'api', 'sql'
-];
-
-const INVALID_COMPANY_PHRASES = [
-  'good to have', 'must have', 'nice to have', 'required skills', 'preferred skills',
-  'key skills', 'technical skills', 'soft skills', 'job description',
-  'job requirements', 'what we offer', 'who we are', 'not mentioned',
-  'not specified', 'not provided', 'n/a', 'none', 'responsibilities include',
-  'duties include', 'candidate should', 'applicant must', 'looking for',
-  'we are seeking', 'ideal candidate', 'successful candidate'
-];
-
-const sanitizeParsedCompany = (company?: string): string => {
-  if (!company || company.trim().length < 2) return '';
-  
-  const trimmed = company.trim();
-  const lower = trimmed.toLowerCase();
-  
-  // Skip obvious invalid phrases
-  if (INVALID_COMPANY_PHRASES.some(p => lower.includes(p))) return '';
-  
-  // Skip if it's just a known tool/technology
-  if (KNOWN_TOOLS.some(t => lower === t)) return '';
-  
-  // Skip if it starts with a number
-  if (/^\d/.test(trimmed)) return '';
-  
-  // Skip if it's all caps and more than 4 words (likely a description)
-  if (/^[A-Z\s&]+$/.test(trimmed) && trimmed.split(/\s+/).length > 4) return '';
-  
-  // Skip if it contains common job description keywords
-  const jobDescKeywords = ['experience', 'required', 'preferred', 'skills', 'qualifications', 'responsibilities', 'duties', 'requirements', 'candidate', 'applicant', 'position', 'role', 'job', 'work', 'years', 'degree', 'education'];
-  if (jobDescKeywords.some(keyword => lower.includes(keyword))) return '';
-  
-  // Skip if it's a comma-separated list (likely skills)
-  if (lower.includes(',') && lower.split(',').length > 2) {
-    const parts = lower.split(',').map(p => p.trim());
-    if (parts.some(p => KNOWN_TOOLS.some(t => p.includes(t)))) return '';
-  }
-  
-  return trimmed;
-};
-
-const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
+const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode = 'manual', parsedData }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const { jobTitles: jobTitleOptions } = useJobTitles();
 
@@ -465,23 +409,19 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   }>({ type: 'success', message: '', isVisible: false });
 
   // AI Suggestions state
-  const [jobTitleSuggestions, setJobTitleSuggestions] = useState<string[]>([]);
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
-  const [showJobTitleSuggestions, setShowJobTitleSuggestions] = useState(false);
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
   const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [jdTab, setJdTab] = useState<'edit' | 'preview'>('preview');
-  const [isLoadingJobTitles, setIsLoadingJobTitles] = useState(false);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [skillInput, setSkillInput] = useState('');
   const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
-  const skillFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [catOpen, setCatOpen] = useState(false);
   const [catInput, setCatInput] = useState(jobData?.jobCategory || '');
   const [natOpen, setNatOpen] = useState(false);
@@ -489,7 +429,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [langInput, setLangInput] = useState('');
 
   const [salaryModified, setSalaryModified] = useState(() => {
-    const min = getSalaryMin(editJob) || parsedData?.minSalary || parsedData?.salary?.min;
     const max = getSalaryMax(editJob) || parsedData?.maxSalary || parsedData?.salary?.max;
     // Modified if range has both values, OR if only max is set (Maximum amount / upto)
     return !!(max && parseInt(String(max)) > 0);
@@ -748,68 +687,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     };
     fetchCountries();
   }, []);
-
-  // AI-powered job title suggestions
-  const handleJobTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    updateJobData('jobTitle', value);
-
-    // Clear stale AI skills from a previously entered title so the next
-    // section always suggests skills for the CURRENT job title
-    if (aiSuggestedSkills.length > 0) setAiSuggestedSkills([]);
-
-    // Debounced AI skill suggestions for the entered title (works even when
-    // the user types without picking a dropdown suggestion)
-    if (skillFetchTimer.current) clearTimeout(skillFetchTimer.current);
-    if (value.trim().length >= 3) {
-      skillFetchTimer.current = setTimeout(() => {
-        fetchAISkillsForTitle(value.trim());
-      }, 500);
-    }
-
-    if (value.length >= 1) {
-      setIsLoadingJobTitles(true);
-      
-      try {
-        const response = await fetch(`${API_ENDPOINTS.JOBS.replace('/jobs', '/suggest')}?q=${encodeURIComponent(value)}&type=job`);
-        const data = await response.json();
-        console.log('Job title API response:', data);
-        
-        if (data.suggestions && data.suggestions.length > 0) {
-          setJobTitleSuggestions(data.suggestions);
-          setShowJobTitleSuggestions(true);
-        } else {
-          setShowJobTitleSuggestions(false);
-        }
-      } catch (error) {
-        console.error('Job title suggestions failed:', error);
-        setShowJobTitleSuggestions(false);
-      } finally {
-        setIsLoadingJobTitles(false);
-      }
-    } else {
-      setShowJobTitleSuggestions(false);
-      setJobTitleSuggestions([]);
-    }
-  };
-
-  const getFallbackJobTitles = (input: string) => {
-    const key = input.toLowerCase();
-    const fallbacks: { [key: string]: string[] } = {
-      'account': ['Accountant', 'Account Manager', 'Accounting Specialist', 'Account Executive', 'Senior Accountant', 'Accounting Clerk', 'Account Coordinator', 'Accounting Manager'],
-      'software': ['Software Developer', 'Software Engineer', 'Software Tester', 'Software Architect', 'Senior Software Engineer', 'Software Quality Engineer', 'Software Consultant', 'Software Product Manager'],
-      'data': ['Data Scientist', 'Data Analyst', 'Data Engineer', 'Data Architect', 'Senior Data Scientist', 'Data Product Manager', 'Data Visualization Specialist', 'Big Data Engineer'],
-      'marketing': ['Marketing Manager', 'Digital Marketing Specialist', 'Content Marketing Manager', 'Marketing Coordinator', 'Social Media Manager', 'Marketing Analyst', 'Brand Manager', 'Growth Marketing Manager'],
-      'sales': ['Sales Representative', 'Sales Manager', 'Account Executive', 'Sales Coordinator', 'Business Development Manager', 'Sales Analyst', 'Inside Sales Representative', 'Sales Director']
-    };
-    
-    for (const [prefix, suggestions] of Object.entries(fallbacks)) {
-      if (key.includes(prefix) || prefix.includes(key)) {
-        return suggestions;
-      }
-    }
-    return ['Software Developer', 'Marketing Manager', 'Sales Representative', 'Data Analyst', 'Product Manager', 'Business Analyst', 'Project Manager', 'Operations Manager'];
-  };
 
   const handleLocationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -1146,7 +1023,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     const respText = responsibilities.map(r => `- ${r}`).join('\n');
     const reqText = requirements.map(r => `- ${r}`).join('\n');
     const benefitsText = benefits !== 'health insurance, flexible work'
-      ? benefits.split(', ').map(b => `- ${b}`).join('\n')
+      ? benefits.split(', ').map((b: string) => `- ${b}`).join('\n')
       : `- Comprehensive health, dental, and vision insurance\n- Flexible working arrangements and remote work options\n- Annual learning and development budget\n- Performance-based bonuses and incentives\n- Paid time off, public holidays, and wellness days`;
 
     return `Job Summary
@@ -1701,16 +1578,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     }
   };
 
-  // Select suggestions
-  const selectJobTitle = (title: string) => {
-    updateJobData('jobTitle', title);
-    updateJobData('jobDescription', '');  // clear stale JD so it regenerates for new role
-    setShowJobTitleSuggestions(false);
-    setJobTitleSuggestions([]);
-    fetchAISkillsForTitle(title);
-    setTimeout(() => generateJobDescription(title), 500);
-  };
-
   // Handle country input change with suggestions
   const handleCountryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -1749,14 +1616,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         return prev;
       });
     }
-  };
-
-  const addSkill = (skill: string) => {
-    if (!jobData.skills.includes(skill)) {
-      updateJobData('skills', [...jobData.skills, skill]);
-    }
-    setSkillInput('');
-    setShowSkillSuggestions(false);
   };
 
   // Smart skill search in job description
@@ -2404,110 +2263,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     </div>
   );
 
-  const renderStep2 = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Hiring goals & Requirements</h1>
-      
-      <div className="space-y-8">
-        <div>
-          <AutocompleteCombobox
-            label="Hiring timeline for this job *"
-            value={jobData.hiringTimeline}
-            onChange={(val) => updateJobData('hiringTimeline', val)}
-            options={[
-              { value: '1 to 3 days', label: '1 to 3 days' },
-              { value: '3 to 7 days', label: '3 to 7 days' },
-              { value: '1 to 2 weeks', label: '1 to 2 weeks' },
-              { value: '2 to 4 weeks', label: '2 to 4 weeks' },
-              { value: 'More than 4 weeks', label: 'More than 4 weeks' },
-            ]}
-            placeholder="Select an option"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-gray-700 font-medium mb-3">Number of people to hire in the next 30 days *</label>
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={jobData.numberOfPeople || ''}
-            onChange={(e) => updateJobData('numberOfPeople', parseInt(e.target.value) || 0)}
-            placeholder="Enter number of people to hire"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-gray-700 font-medium mb-3">Work Authorization Required</label>
-          <div className="space-y-2">
-            {[
-              'US Citizen',
-              'Green Card Holder',
-              'H1B Visa',
-              'L1 Visa',
-              'OPT/CPT',
-              'TN Visa',
-              'No Sponsorship Required',
-              'Will Sponsor'
-            ].map((auth) => (
-              <label key={auth} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={(jobData.workAuth || []).includes(auth)}
-                  onChange={(e) => {
-                    const currentAuth = jobData.workAuth || [];
-                    const newAuth = e.target.checked
-                      ? [...currentAuth, auth]
-                      : currentAuth.filter(a => a !== auth);
-                    updateJobData('workAuth', newAuth);
-                  }}
-                  className="rounded"
-                />
-                <span className="text-gray-700">{auth}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <h3 className="text-gray-700 font-medium mb-2">Expand your candidate search</h3>
-          <p className="text-gray-500 text-sm mb-4">Over 10 million active job seekers are open to relocating.</p>
-          <label className="flex items-start space-x-3">
-            <input
-              type="checkbox"
-              checked={jobData.expandCandidateSearch}
-              onChange={(e) => updateJobData('expandCandidateSearch', e.target.checked)}
-              className="mt-1"
-            />
-            <div>
-              <span className="text-gray-700">I'm interested in attracting candidates open to relocation</span>
-              <button className="text-blue-600 ml-2 text-sm underline hover:text-blue-700">How it works</button>
-              <p className="text-gray-500 text-sm mt-1">Marking your interest helps improve our recommendations.</p>
-            </div>
-          </label>
-        </div>
-      </div>
-      
-      <div className="flex justify-between items-center mt-12">
-        <button
-          onClick={prevStep}
-          className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
-        >
-          <span>←</span>
-          <span>Back</span>
-        </button>
-        <button
-          onClick={nextStep}
-          className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
-        >
-          <span>Continue</span>
-          <span>→</span>
-        </button>
-      </div>
-    </div>
-  );
-
   const renderStep3 = () => (
     <div className="px-6 py-8">
       <div className="space-y-8">
@@ -3061,31 +2816,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       'Key Responsibilities', 'Requirements', 'What We Offer', 'About Us',
     ];
 
-    const sectionColors: Record<string, string> = {
-      'Job Summary': 'text-blue-700',
-      'About the Company': 'text-gray-700',
-      'What You Will Do': 'text-indigo-700',
-      'Job Responsibilities': 'text-indigo-700',
-      'Key Responsibilities': 'text-indigo-700',
-      'What We Are Looking For': 'text-purple-700',
-      'Qualifications': 'text-purple-700',
-      'Requirements': 'text-purple-700',
-      'Technical Skills & Expertise': 'text-teal-700',
-      'Key Skill Sets': 'text-teal-700',
-      'What Makes You Stand Out': 'text-orange-700',
-      'Behavioral Competencies': 'text-orange-700',
-      'Experience & Education': 'text-green-700',
-      'Experience': 'text-green-700',
-      'Education': 'text-green-700',
-      'Compensation & Benefits': 'text-emerald-700',
-      'Benefits': 'text-emerald-700',
-      'What We Offer': 'text-emerald-700',
-      'How to Apply': 'text-blue-600',
-      'Employment Type': 'text-gray-600',
-      'About the Role': 'text-blue-700',
-      'About Us': 'text-gray-700',
-    };
-
     // Split text into sections
     const lines = text.split('\n');
     type Section = { heading: string | null; lines: string[] };
@@ -3149,7 +2879,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           {sections.map((section, si) => {
             const hasContent = section.lines.some(l => l.trim());
             if (!hasContent && !section.heading) return null;
-            const colorClass = section.heading ? (sectionColors[section.heading] || 'text-gray-800') : 'text-gray-800';
             const hasBullets = section.lines.some(l => /^[-\u2022\u2013\*]\s+/.test(l.trim()));
             return (
               <div key={si}>
@@ -3586,15 +3315,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       }
     }
 
-    // Map experienceRange to experienceLevel enum
-    const mapExperienceLevel = (range: string): string => {
-      if (range.includes('0-1') || range.includes('1-2')) return 'Entry';
-      if (range.includes('2-3') || range.includes('3-5')) return 'Mid';
-      if (range.includes('5-7') || range.includes('7-10')) return 'Senior';
-      if (range.includes('10+')) return 'Lead';
-      return '';
-    };
-
     // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
     const companyTagline = (jobData.companyTagline || user?.tagline || '').trim();
@@ -3613,18 +3333,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       ? parseSalaryNumber(jobData.minSalary)
       : parseSalaryNumber(jobData.maxSalary);
     
-    // Format jobType as simple string - let backend handle PostgreSQL conversion
-    const formatJobType = (field: any): string => {
-      if (Array.isArray(field)) {
-        const cleanArray = field.filter(item => item && item.trim && item.trim() !== '');
-        return cleanArray.length > 0 ? cleanArray[0] : 'Full-time'; // Take first item as string
-      }
-      if (field && typeof field === 'string' && field.trim() !== '') {
-        return field.trim();
-      }
-      return 'Full-time'; // Default
-    };
-
     // Format arrays as JSON arrays for backend processing
     const formatArrayField = (field: any): any[] => {
       if (Array.isArray(field)) {
