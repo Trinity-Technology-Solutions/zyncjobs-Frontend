@@ -156,7 +156,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       if (!currentUserData) return;
       const currentUser = JSON.parse(currentUserData);
       // Only track if viewer is an employer
-      if (currentUser.userType !== 'employer' && currentUser.role !== 'employer') return;
+      const userRole = (currentUser.userType || currentUser.role || currentUser.type || '').toLowerCase();
+      if (userRole !== 'employer') return;
 
       const candidateEmail = effectiveCandidateId.includes('@')
         ? effectiveCandidateId

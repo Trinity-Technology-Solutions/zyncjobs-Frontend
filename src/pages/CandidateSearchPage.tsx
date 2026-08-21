@@ -451,7 +451,8 @@ function useSearchAnalytics() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const track = useCallback((candidates: Candidate[], query: string) => {
-    if (!query || candidates.length === 0) return;
+    const cleanQuery = (query || '').trim();
+    if (!cleanQuery || cleanQuery.length < 2 || candidates.length === 0) return;
     candidates.forEach(c => { if (c.email) pendingRef.current.add(c.email); });
 
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -463,10 +464,11 @@ function useSearchAnalytics() {
         await apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/search-appearances`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emails, searchQuery: query }),
+          body: JSON.stringify({ emails, searchQuery: cleanQuery }),
         });
+        window.dispatchEvent(new CustomEvent('analyticsRefresh'));
       } catch { /* non-critical */ }
-    }, 2_000);
+    }, 1_000);
   }, []);
 
   return track;
@@ -828,6 +830,30 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     }
   }, [candidates, dSearch, dBoolean, filters, selectedJob, employerJobs, sortBy, currentUser, user]);
 
+  // Track search appearances when candidates are returned for an active search query or filter
+  useEffect(() => {
+    if (loading || scoredCandidates.length === 0) return;
+    const q = dSearch.trim();
+    const bq = dBoolean.trim();
+    let queryToTrack = '';
+
+    if (q.length >= 2) {
+      queryToTrack = q;
+    } else if (bq.length >= 2) {
+      queryToTrack = bq;
+    } else if (filters.skills.length > 0) {
+      queryToTrack = filters.skills.join(', ');
+    } else if (filters.locations.length > 0) {
+      queryToTrack = filters.locations.join(', ');
+    } else if (filters.designations.length > 0) {
+      queryToTrack = filters.designations.join(', ');
+    }
+
+    if (queryToTrack && queryToTrack.length >= 2) {
+      trackSearch(scoredCandidates, queryToTrack);
+    }
+  }, [scoredCandidates, dSearch, dBoolean, filters.skills, filters.locations, filters.designations, loading, trackSearch]);
+
   useEffect(() => {
     const loadSkillsAndLocations = async () => {
       try {
@@ -854,16 +880,19 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const handleViewProfile = useCallback((candidate: Candidate) => {
     const cid = candidate.email || candidate._id || '';
     if (!cid) return;
-    if (candidate.email) {
+    const targetEmail = candidate.email || (cid.includes('@') ? cid : '');
+    if (targetEmail) {
       apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/profile-view`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: candidate._id, email: candidate.email, viewedBy: user?.email ?? 'employer' }),
+        body: JSON.stringify({ userId: candidate._id, email: targetEmail, viewedBy: user?.email ?? 'employer' }),
+      }).then(() => {
+        window.dispatchEvent(new CustomEvent('analyticsRefresh'));
       }).catch(() => { });
     }
     sessionStorage.setItem('viewCandidateId', cid);
     sessionStorage.setItem('viewCandidateData', JSON.stringify({
-      name: candidate.fullName ?? candidate.name ?? '', email: candidate.email ?? '', skills: candidate.skills ?? [], resumeUrl: candidate.resumeUrl ?? '',
+      name: candidate.fullName ?? candidate.name ?? '', email: targetEmail, skills: candidate.skills ?? [], resumeUrl: candidate.resumeUrl ?? '',
       openToWork: firstBool(candidate.openToWork),
       visibilityStatus: candidate.visibilityStatus,
     }));

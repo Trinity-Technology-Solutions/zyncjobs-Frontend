@@ -115,8 +115,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       try {
         setLoading(true);
         setJob(null);
+        setHasApplied(false);
+        setApplicationStatus('');
 
-        const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+        let resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+
+        // Fallback: Recover job ID from storage if navigated without query params / slug
+        if (!resolvedJobId && !slug) {
+          try {
+            const stored = sessionStorage.getItem('selectedJob') || localStorage.getItem('selectedJob');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              const sid = parsed._id || parsed.id || parsed.jobData?._id || parsed.jobData?.id;
+              if (sid) resolvedJobId = String(sid);
+            }
+          } catch {}
+        }
 
         console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId, '| slug =', slug);
 

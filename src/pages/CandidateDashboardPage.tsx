@@ -257,11 +257,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         if (Array.isArray(data)) interviews = data;
       }
 
-      // profileViews from analytics endpoint only if backend tracks it
+      // profileViews & searchAppearances from analytics endpoint
       let profileViews = 0;
+      let analyticsSearchAppearances = 0;
       if (analyticsRes.ok) {
         const analytics = await analyticsRes.json();
         profileViews = analytics.profileViews || 0;
+        analyticsSearchAppearances = analytics.searchAppearances || 0;
       }
 
       // applicationsSent = total applications submitted
@@ -273,10 +275,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
           ["reviewed", "shortlisted", "rejected", "hired"].includes(a.status),
         ).length + interviews.length;
 
-      // searchAppearances = applications where recruiter viewed/shortlisted (real signal of appearing in search)
-      const searchAppearances = apps.filter((a: any) =>
+      // searchAppearances = analytics tracked search appearances or reviewed applications
+      const appAppearances = apps.filter((a: any) =>
         ["reviewed", "shortlisted", "hired"].includes(a.status),
       ).length;
+      const searchAppearances = Math.max(analyticsSearchAppearances, appAppearances);
 
       // Build recent activity from real application + interview events
       const recentActivity: Array<{

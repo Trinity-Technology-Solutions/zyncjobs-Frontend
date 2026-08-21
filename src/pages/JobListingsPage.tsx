@@ -572,6 +572,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       };
       
       try {
+        sessionStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
         localStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
         onNavigate('job-application');
       } catch (error) {
@@ -580,6 +581,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         localStorage.removeItem('savedJobDetails_user');
         localStorage.removeItem('userApplications');
         try {
+          sessionStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
           localStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
           onNavigate('job-application');
         } catch (retryError) {
