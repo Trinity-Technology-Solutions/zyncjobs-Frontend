@@ -170,7 +170,6 @@ const JobAlertForm: React.FC<Props> = ({ initial, onSave, onCancel }) => {
           {/* Experience + Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Experience Level</label>
               <AutocompleteCombobox
                 label="Experience Level"
                 value={form.experienceLevel}
@@ -224,11 +223,10 @@ const JobAlertForm: React.FC<Props> = ({ initial, onSave, onCancel }) => {
                   key={t}
                   type="button"
                   onClick={() => toggleWorkType(t)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    form.workType.includes(t)
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${form.workType.includes(t)
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                  }`}
+                    }`}
                 >
                   {t}
                 </button>
@@ -245,11 +243,10 @@ const JobAlertForm: React.FC<Props> = ({ initial, onSave, onCancel }) => {
                   key={f.value}
                   type="button"
                   onClick={() => set('frequency', f.value)}
-                  className={`py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                    form.frequency === f.value
+                  className={`py-2.5 rounded-xl text-sm font-medium border transition-colors ${form.frequency === f.value
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                  }`}
+                    }`}
                 >
                   {f.label}
                 </button>

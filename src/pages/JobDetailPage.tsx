@@ -116,8 +116,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       try {
         setLoading(true);
         setJob(null);
+        setHasApplied(false);
+        setApplicationStatus('');
 
-        const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+        let resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+
+        // Fallback: Recover job ID from storage if navigated without query params / slug
+        if (!resolvedJobId && !slug) {
+          try {
+            const stored = sessionStorage.getItem('selectedJob') || localStorage.getItem('selectedJob');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              const sid = parsed._id || parsed.id || parsed.jobData?._id || parsed.jobData?.id;
+              if (sid) resolvedJobId = String(sid);
+            }
+          } catch {}
+        }
 
         console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId, '| slug =', slug);
 
@@ -588,17 +602,20 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                               return;
                             }
                             
-                            sessionStorage.setItem('selectedJob', JSON.stringify({
-                              _id: jid, id: jid,
-                              jobTitle: job.jobTitle || job.title,
-                              company: job.company,
-                              location: job.location,
-                              description: job.description,
-                              salary: job.salary,
-                              type: job.type,
-                              jobData: job
-                            }));
-                            onNavigate('job-application');
+                            const jobPayload = {
+                               _id: jid, id: jid,
+                               jobTitle: job.jobTitle || job.title,
+                               company: job.company,
+                               location: job.location,
+                               description: job.description,
+                               salary: job.salary,
+                               type: job.type,
+                               slug: job.slug,
+                               jobData: job
+                             };
+                             sessionStorage.setItem('selectedJob', JSON.stringify(jobPayload));
+                             localStorage.setItem('selectedJob', JSON.stringify(jobPayload));
+                             onNavigate('job-application');
                           } else {
                             sessionStorage.setItem('pendingJobApplication', JSON.stringify({
                               jobId: jid,
