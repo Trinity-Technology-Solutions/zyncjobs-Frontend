@@ -8,7 +8,7 @@ import {
   Briefcase, Search, LogIn, UserPlus, ArrowRight, CheckCircle2,
   Bot, CalendarClock, Wallet,
   Building2, Users, Zap, Target, TrendingUp, Phone, Mail,
-  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck
+  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck, HelpCircle
 } from 'lucide-react';
 
 const EmployersPage = ({ onNavigate, user, onLogout }: {
@@ -1090,45 +1090,85 @@ function FAQSection({ go }: { go: (page: string) => void }) {
   ];
 
   return (
-    <section className="py-16 lg:py-24 bg-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative py-20 lg:py-28 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 overflow-hidden">
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-blue-400/10 via-indigo-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <SectionHeader overline="FAQs" title="Frequently asked questions" />
+          <SectionHeader
+            overline="FAQs"
+            title="Frequently asked questions"
+          />
         </Reveal>
-        <div className="space-y-3">
+
+        <div className="space-y-4">
           {faqs.map((f, i) => (
             <Reveal key={f.q} delay={i * 40}>
-              <div className={`border rounded-xl overflow-hidden transition-colors duration-300 ${open === i ? 'border-blue-200 shadow-md shadow-blue-100/60' : 'border-gray-200'}`}>
+              <div
+                className={`group rounded-2xl border transition-all duration-300 overflow-hidden ${open === i
+                  ? 'bg-white border-blue-200/90 shadow-xl shadow-blue-900/5 ring-1 ring-blue-500/10'
+                  : 'bg-white/90 backdrop-blur-sm border-gray-200/80 hover:border-blue-200/80 hover:bg-white hover:shadow-md hover:shadow-gray-200/50'
+                  }`}
+              >
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-5 text-left bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3.5 sm:gap-5 px-5 sm:px-7 py-5 sm:py-6 text-left transition-colors cursor-pointer select-none"
                   aria-expanded={open === i}
                 >
-                  <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${open === i ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                  <span
+                    className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold tracking-tight transition-all duration-300 ${open === i
+                      ? 'bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/25 scale-105'
+                      : 'bg-gray-100/80 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                      }`}
+                  >
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <span className="flex-1 font-semibold text-gray-900">{f.q}</span>
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${open === i ? 'bg-blue-50 text-blue-600 rotate-180' : 'text-gray-400'}`}>
-                    <ChevronDown className="w-4 h-4" />
+
+                  <span
+                    className={`flex-1 text-base sm:text-[17px] leading-snug font-semibold tracking-tight transition-colors duration-200 ${open === i ? 'text-gray-900 font-bold' : 'text-gray-800 group-hover:text-blue-600'
+                      }`}
+                  >
+                    {f.q}
+                  </span>
+
+                  <span
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${open === i
+                      ? 'bg-blue-600 text-white rotate-180 shadow-sm shadow-blue-500/30'
+                      : 'bg-gray-100/80 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                      }`}
+                  >
+                    <ChevronDown className="w-4.5 h-4.5 stroke-[2.2]" />
                   </span>
                 </button>
+
                 <div
                   className="grid transition-[grid-template-rows] duration-300 ease-out"
                   style={{ gridTemplateRows: open === i ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="pl-4 pr-4 sm:pl-[4.25rem] sm:pr-6 pb-6 text-gray-600 leading-relaxed text-[15px]">{f.a}</div>
+                    <div className="border-t border-gray-100/80 mx-5 sm:mx-7" />
+                    <div className="px-5 sm:px-7 pt-4 pb-6 sm:pb-7 text-gray-600 leading-relaxed text-sm sm:text-[15px] sm:pl-[4.25rem]">
+                      {f.a}
+                    </div>
                   </div>
                 </div>
               </div>
             </Reveal>
           ))}
         </div>
+
         <Reveal>
-          <div className="text-center mt-12">
-            <p className="text-gray-500 mb-5">Still have questions? Our hiring experts are here to help.</p>
-            <div className="flex justify-center">
-              <GetStartedButton text="Get Started" onClick={() => go('employer-register')} />
+          <div className="mt-14 sm:mt-16 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-blue-50/80 border border-blue-100/80 rounded-3xl p-8 sm:p-10 text-center relative overflow-hidden shadow-xs">
+            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-44 h-44 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-12 h-12 bg-white rounded-2xl border border-blue-100 shadow-sm flex items-center justify-center mb-4 text-blue-600">
+                <HelpCircle className="w-6 h-6" />
+              </div>
+              <p className="text-gray-600 font-medium text-base sm:text-lg mb-6 max-w-lg">
+                Still have questions? Our hiring experts are here to help.
+              </p>
+              <div className="flex justify-center">
+                <GetStartedButton text="Get Started" onClick={() => go('employer-register')} />
+              </div>
             </div>
           </div>
         </Reveal>
