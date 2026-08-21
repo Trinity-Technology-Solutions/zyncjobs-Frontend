@@ -13,6 +13,7 @@ interface CandidateProfileViewProps {
   candidateId: string;
   onNavigate: (page: string) => void;
   onBack: () => void;
+  onLogout?: () => void;
 }
 
 // Safely convert any value to a displayable string — never throws

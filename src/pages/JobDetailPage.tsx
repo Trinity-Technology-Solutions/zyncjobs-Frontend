@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
+import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle, ExternalLink } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
-import { apiFetch } from '../api/apiFetch';
 import { formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
@@ -451,6 +450,103 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     );
   }
 
+  // Helper function to render apply buttons - avoids deeply nested ternaries
+  const renderApplyButtons = () => {
+    if (job.applyUrl) {
+      return (
+        <a
+          href={job.applyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
+        >
+          <ExternalLink className="w-4 h-4" />
+          <span>Apply on Company Website</span>
+        </a>
+      );
+    }
+    if (hasApplied) {
+      if (applicationStatus === 'withdrawn') {
+        return (
+          <button 
+            onClick={handleReapply}
+            className="bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm"
+          >
+            <CheckCircle className="w-4 h-4" />
+            <span>Reapply</span>
+          </button>
+        );
+      }
+      return (
+        <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-4 py-2.5 rounded-lg font-semibold text-sm">
+          <CheckCircle className="w-4 h-4" />
+          <span>Applied</span>
+        </div>
+      );
+    }
+    // Not applied, no external URL
+    return (
+      <>
+        <QuickApplyButton
+          jobId={job.id || job._id || String(jobId || '')}
+          jobTitle={job.jobTitle || job.title}
+          company={job.company}
+          user={user}
+          onSuccess={async () => {
+            setHasApplied(true);
+            setApplicationStatus('applied');
+            setTimeout(() => {
+              const jid = job.id || job._id || String(jobId || '');
+              if (user?.email && jid) checkApplicationStatus(jid, user.email);
+            }, 1000);
+          }}
+        />
+        <button 
+          onClick={async () => {
+            const jid = job.id || job._id || String(jobId || '');
+            if (user && (user.name || user.fullName)) {
+              try {
+                const resumeValidation = await validateUserResume(user.email);
+                if (!resumeValidation.hasResume) {
+                  handleResumeValidationAlert(resumeValidation, true);
+                  return;
+                }
+              } catch (error) {
+                console.error('Resume validation error:', error);
+                window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
+                onNavigate('dashboard');
+                return;
+              }
+              
+              sessionStorage.setItem('selectedJob', JSON.stringify({
+                _id: jid, id: jid,
+                jobTitle: job.jobTitle || job.title,
+                company: job.company,
+                location: job.location,
+                description: job.description,
+                salary: job.salary,
+                type: job.type,
+                jobData: job
+              }));
+              onNavigate('job-application');
+            } else {
+              sessionStorage.setItem('pendingJobApplication', JSON.stringify({
+                jobId: jid,
+                jobTitle: job.jobTitle || job.title,
+                company: job.company,
+                jobData: job
+              }));
+              onNavigate('login');
+            }
+          }}
+          className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
+        >
+          {user && (user.name || user.fullName) ? 'Apply with Cover Letter' : 'Login to Apply'}
+        </button>
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Notification
@@ -536,85 +632,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 <span>Share</span>
               </button>
               
-              {/* Apply buttons - Hide for employers */}
+{/* Apply buttons - Hide for employers */}
               {user?.type !== 'employer' && user?.userType !== 'employer' && (
                 <div className="flex flex-wrap items-center gap-2">
-                  {hasApplied ? (
-                    applicationStatus === 'withdrawn' ? (
-                      <button 
-                        onClick={handleReapply}
-                        className="bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Reapply</span>
-                      </button>
-                    ) : (
-                      <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-4 py-2.5 rounded-lg font-semibold text-sm">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Applied</span>
-                      </div>
-                    )
-                  ) : (
-                    <>
-                      <QuickApplyButton
-                        jobId={job.id || job._id || String(jobId || '')}
-                        jobTitle={job.jobTitle || job.title}
-                        company={job.company}
-                        user={user}
-                        onSuccess={async () => {
-                          setHasApplied(true);
-                          setApplicationStatus('applied');
-                          setTimeout(() => {
-                            const jid = job.id || job._id || String(jobId || '');
-                            if (user?.email && jid) checkApplicationStatus(jid, user.email);
-                          }, 1000);
-                        }}
-                      />
-                      <button 
-                        onClick={async () => {
-                          const jid = job.id || job._id || String(jobId || '');
-                          if (user && (user.name || user.fullName)) {
-                            // Validate resume before navigating
-                            try {
-                              const resumeValidation = await validateUserResume(user.email);
-                              if (!resumeValidation.hasResume) {
-                                handleResumeValidationAlert(resumeValidation, true);
-                                return;
-                              }
-                            } catch (error) {
-                              console.error('Resume validation error:', error);
-                              window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
-                              onNavigate('dashboard');
-                              return;
-                            }
-                            
-                            sessionStorage.setItem('selectedJob', JSON.stringify({
-                              _id: jid, id: jid,
-                              jobTitle: job.jobTitle || job.title,
-                              company: job.company,
-                              location: job.location,
-                              description: job.description,
-                              salary: job.salary,
-                              type: job.type,
-                              jobData: job
-                            }));
-                            onNavigate('job-application');
-                          } else {
-                            sessionStorage.setItem('pendingJobApplication', JSON.stringify({
-                              jobId: jid,
-                              jobTitle: job.jobTitle || job.title,
-                              company: job.company,
-                              jobData: job
-                            }));
-                            onNavigate('login');
-                          }
-                        }}
-                        className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
-                      >
-                        {user && (user.name || user.fullName) ? 'Apply with Cover Letter' : 'Login to Apply'}
-                      </button>
-                    </>
-                  )}
+                  {renderApplyButtons()}
                 </div>
               )}
             </div>
@@ -771,10 +792,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
                   return (
                     <div className="space-y-7">
-                      {sectionOrder.map(([key, label, colorStr, forceBullet]) => {
+                      {sectionOrder.map(([key, label, , forceBullet]) => {
                         const lines = sections[key];
                         if (!lines?.length) return null;
-                        const [textColor] = colorStr.trim().split(/\s+/);
                         const processedLines = key === 'expEdu' ? lines.flatMap(l => l.split(/\. (?=[A-Z])/).map((s: string) => s.trim()).filter(Boolean)) : lines;
                         const items = forceBullet ? splitIntoBullets(processedLines) : processedLines;
                         return (
