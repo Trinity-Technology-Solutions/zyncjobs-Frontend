@@ -45,14 +45,14 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               <p className="hero-fade-3 text-lg text-gray-500 leading-relaxed mb-8 max-w-xl">
                 Post jobs, search verified candidate profiles, and let AI shortlist the best matches — across every field and industry.
               </p>
-              <div className="hero-fade-4 flex flex-col sm:flex-row gap-3.5">
+              <div className="hero-fade-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
                 <WorkButton text="Explore Our Products" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })} />
                 <button
                   onClick={scrollToCallback}
-                  className="inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 text-gray-700 px-7 py-3.5 rounded-md font-semibold text-[15px] transition-all duration-200 shadow-sm hover:-translate-y-0.5 active:translate-y-0"
+                  className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-full bg-white hover:bg-orange-50/40 border border-gray-200/90 hover:border-orange-200/80 text-gray-700 hover:text-gray-900 font-semibold text-[15px] tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-gray-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
                 >
-                  <Phone className="w-4.5 h-4.5" />
-                  Sales Enquiry
+                  <Phone className="w-4.5 h-4.5 text-gray-500 group-hover:text-orange-600 transition-colors" />
+                  <span>Sales Enquiry</span>
                 </button>
               </div>
               <div className="hero-fade-5 mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -282,7 +282,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       </section>
 
       {/* ── 5b. Testimonials — why recruiters trust us ── */}
-      <section className="py-16 lg:py-24 bg-[#F6F8FF]">
+      <section className="py-16 lg:py-24 bg-[#F6F8FF] md:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeader
@@ -352,13 +352,14 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
             <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
               Join thousands of companies using ZyncJobs to find and hire the right talent — faster.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3.5 justify-center items-stretch sm:items-center">
               <WorkButton text="Create Free Account" onClick={() => go('employer-register')} />
               <button
                 onClick={scrollToCallback}
-                className="inline-flex items-center justify-center gap-2 border border-white/40 text-white hover:bg-white/10 px-8 py-3.5 rounded-md font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-full border border-white/30 hover:border-white/50 bg-white/10 hover:bg-white/20 text-white font-semibold text-[15px] tracking-tight transition-all duration-200 shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
               >
-                <Phone className="w-4 h-4" /> Talk to Sales
+                <Phone className="w-4.5 h-4.5 text-blue-200 group-hover:text-white transition-colors" />
+                <span>Talk to Sales</span>
               </button>
             </div>
           </div>
