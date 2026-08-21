@@ -54,14 +54,6 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                   <Phone className="w-4.5 h-4.5" />
                   Sales Enquiry
                 </button>
-                <button
-                  onClick={() => go('employer-register')}
-                  className="inline-flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 px-4 py-3.5 font-semibold text-[15px] transition-colors group"
-                >
-                  {isEmployer ? <UserPlus className="w-4.5 h-4.5" /> : <LogIn className="w-4.5 h-4.5" />}
-                  {isEmployer ? 'Go to Dashboard' : 'Register / Log in'}
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </button>
               </div>
               <div className="hero-fade-5 mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
                 {[
@@ -564,7 +556,7 @@ function JobTicker() {
           }));
         if (mapped.length) setLiveJobs(mapped);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => { cancelled = true; };
   }, []);
 
@@ -602,12 +594,58 @@ function HeroCallbackCard() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/[^a-zA-Z\s]/.test(val)) {
+      setError('Full name can only contain letters and spaces.');
+    } else if (error === 'Full name can only contain letters and spaces.') {
+      setError('');
+    }
+    setForm((prev) => ({ ...prev, name: val.replace(/[^a-zA-Z\s]/g, '') }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/\D/.test(val)) {
+      setError('Mobile number can only contain digits.');
+    } else if (error === 'Mobile number can only contain digits.') {
+      setError('');
+    }
+    const cleanPhone = val.replace(/\D/g, '').slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: cleanPhone }));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setForm((prev) => ({ ...prev, email: val }));
+    if (val.trim() && !validateEmail(val)) {
+      setError('Please enter a valid email address.');
+    } else if (error === 'Please enter a valid email address.') {
+      setError('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Please fill in all required fields.');
       return;
     }
+    if (/[^a-zA-Z\s]/.test(form.name)) {
+      setError('Full name can only contain letters and spaces.');
+      return;
+    }
+    if (/\D/.test(form.phone) || form.phone.length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!validateEmail(form.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError('');
     try {
       const existing = JSON.parse(localStorage.getItem('employer_callbacks') || '[]');
@@ -639,15 +677,15 @@ function HeroCallbackCard() {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="relative">
           <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className={`${inputCls} pl-10`} />
+          <input type="text" value={form.name} onChange={handleNameChange} placeholder="Full name" className={`${inputCls} pl-10`} />
         </div>
         <div className="relative">
           <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Mobile number" className={`${inputCls} pl-10`} />
+          <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Mobile number" className={`${inputCls} pl-10`} />
         </div>
         <div className="relative">
           <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Work email" className={`${inputCls} pl-10`} />
+          <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Work email" className={`${inputCls} pl-10`} />
         </div>
         <div className="relative">
           <Globe2 className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -726,11 +764,10 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
                 <button
                   key={c.id}
                   onClick={() => setActive(c.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white border-transparent shadow-lg shadow-blue-200'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
-                  }`}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border ${isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white border-transparent shadow-lg shadow-blue-200'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
+                    }`}
                 >
                   <c.icon className="w-4 h-4" />
                   {c.label}
@@ -810,11 +847,10 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
   featured?: boolean;
 }) {
   return (
-    <div className={`group relative bg-white rounded-2xl overflow-hidden border flex flex-col h-full transition-all duration-300 ${
-      featured
-        ? 'border-orange-200 shadow-xl shadow-orange-100 lg:-translate-y-3 hover:-translate-y-4'
-        : 'border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 hover:-translate-y-1.5'
-    }`}>
+    <div className={`group relative bg-white rounded-2xl overflow-hidden border flex flex-col h-full transition-all duration-300 ${featured
+      ? 'border-orange-200 shadow-xl shadow-orange-100 lg:-translate-y-3 hover:-translate-y-4'
+      : 'border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 hover:-translate-y-1.5'
+      }`}>
       <div className={`h-1 bg-gradient-to-r ${grad}`} />
       {featured && (
         <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1 rounded-full shadow-md shadow-orange-200">
@@ -836,11 +872,10 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
         </ul>
         <button
           onClick={onClick}
-          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${
-            featured
-              ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200'
-              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100'
-          }`}
+          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${featured
+            ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200'
+            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100'
+            }`}
         >
           {cta}
         </button>
@@ -855,12 +890,58 @@ function CallbackForm() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/[^a-zA-Z\s]/.test(val)) {
+      setError('Full name can only contain letters and spaces.');
+    } else if (error === 'Full name can only contain letters and spaces.') {
+      setError('');
+    }
+    setForm((prev) => ({ ...prev, name: val.replace(/[^a-zA-Z\s]/g, '') }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/\D/.test(val)) {
+      setError('Mobile number can only contain digits.');
+    } else if (error === 'Mobile number can only contain digits.') {
+      setError('');
+    }
+    const cleanPhone = val.replace(/\D/g, '').slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: cleanPhone }));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setForm((prev) => ({ ...prev, email: val }));
+    if (val.trim() && !validateEmail(val)) {
+      setError('Please enter a valid email address.');
+    } else if (error === 'Please enter a valid email address.') {
+      setError('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Please fill in all required fields.');
       return;
     }
+    if (/[^a-zA-Z\s]/.test(form.name)) {
+      setError('Full name can only contain letters and spaces.');
+      return;
+    }
+    if (/\D/.test(form.phone) || form.phone.length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!validateEmail(form.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError('');
     try {
       const existing = JSON.parse(localStorage.getItem('employer_callbacks') || '[]');
@@ -920,19 +1001,19 @@ function CallbackForm() {
                   <FormField label="Full name" required>
                     <div className="relative">
                       <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter your full name" className={`${inputCls} pl-10`} />
+                      <input type="text" value={form.name} onChange={handleNameChange} placeholder="Enter your full name" className={`${inputCls} pl-10`} />
                     </div>
                   </FormField>
                   <FormField label="Mobile number" required>
                     <div className="relative">
                       <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Enter your mobile number" className={`${inputCls} pl-10`} />
+                      <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Enter your mobile number" className={`${inputCls} pl-10`} />
                     </div>
                   </FormField>
                   <FormField label="Work email" required>
                     <div className="relative">
                       <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Enter your work email" className={`${inputCls} pl-10`} />
+                      <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Enter your work email" className={`${inputCls} pl-10`} />
                     </div>
                   </FormField>
                   <FormField label="Hiring for">
