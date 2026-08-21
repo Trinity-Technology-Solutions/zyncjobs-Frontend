@@ -461,6 +461,74 @@ class ResumeIntelligenceEngine {
     };
   }
 
+  // Extract resume sections from text
+  private extractSections(text: string): ResumeContent['sections'] {
+    const sections: ResumeContent['sections'] = {};
+    const lowerText = text.toLowerCase();
+
+    // Define section heading patterns
+    const sectionPatterns = {
+      contact: /\b(contact|personal details|personal information)\b/i,
+      summary: /\b(summary|objective|profile|professional summary|career summary)\b/i,
+      experience: /\b(experience|work experience|employment|work history|professional experience)\b/i,
+      education: /\b(education|academic|qualifications|degrees)\b/i,
+      skills: /\b(skills|technical skills|core competencies|expertise|technologies)\b/i,
+    };
+
+    // Find section positions
+    const sectionPositions: Array<{ type: keyof ResumeContent['sections']; index: number }> = [];
+    
+    for (const [type, pattern] of Object.entries(sectionPatterns)) {
+      const matches = text.matchAll(new RegExp(pattern.source, 'gi'));
+      for (const match of matches) {
+        if (match.index !== undefined) {
+          sectionPositions.push({ type: type as keyof ResumeContent['sections'], index: match.index });
+        }
+      }
+    }
+
+    // Sort by position
+    sectionPositions.sort((a, b) => a.index - b.index);
+
+    // Extract content between sections
+    for (let i = 0; i < sectionPositions.length; i++) {
+      const { type, index } = sectionPositions[i];
+      const start = index;
+      const end = sectionPositions[i + 1]?.index ?? text.length;
+      const content = text.slice(start, end).trim();
+      if (content) sections[type] = content;
+    }
+
+    // Fallback: if no sections found, use simple keyword search
+    if (Object.keys(sections).length === 0) {
+      if (/\bemail|phone|linkedin|address\b/i.test(text)) sections.contact = text.slice(0, 500);
+      if (/\bsummary|objective|profile\b/i.test(text)) sections.summary = text.slice(0, 500);
+      if (/\bexperience|work|employment\b/i.test(text)) sections.experience = text;
+      if (/\beducation|degree|university|college\b/i.test(text)) sections.education = text;
+      if (/\bskills|technologies|expertise\b/i.test(text)) sections.skills = text;
+    }
+
+    return sections;
+  }
+
+  // Extract metadata from resume text
+  private extractMetadata(text: string): ResumeContent['metadata'] {
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+    const wordCount = words.length;
+    const pageCount = Math.max(1, Math.ceil(wordCount / 350)); // ~350 words per page
+    const hasEmail = /\b[\w.+-]+@[\w-]+\.[\w.]+\b/.test(text);
+    const hasPhone = /[\+]?[\d][\d\s\-().]{7,15}[\d]/.test(text);
+    const hasLinkedIn = /linkedin\.com\/in\/[\w-]+/i.test(text);
+
+    return {
+      wordCount,
+      pageCount,
+      hasEmail,
+      hasPhone,
+      hasLinkedIn,
+    };
+  }
+
   // Utility method to parse resume content from text
   parseResumeContent(text: string): ResumeContent {
     const sections = this.extractSections(text);

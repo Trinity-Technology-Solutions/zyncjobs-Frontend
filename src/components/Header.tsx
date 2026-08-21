@@ -722,18 +722,39 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               </div>
             ) : isEmployerContext ? (
               <>
-                <button 
-                  onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
-                  className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                >
-                  Employer Login
-                </button>
+                {currentPath !== '/employer-login' && (
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
+                    className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  >
+                    Employer Login
+                  </button>
+                )}
                 <button 
                   onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
                 >
-                  Create Account
+                  {currentPath === '/employer-login' ? 'Register' : 'Create Account'}
                 </button>
+              </>
+            ) : isJobSeekerAuthPage ? (
+              <>
+                {currentPath !== '/candidate-register' && currentPath !== '/role-selection' && (
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-register'); }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                  >
+                    Register
+                  </button>
+                )}
+                {(currentPath === '/candidate-register' || currentPath === '/role-selection') && (
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('login'); }}
+                    className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  >
+                    Login
+                  </button>
+                )}
               </>
             ) : (
               <div className="relative" ref={dropdownRef}>

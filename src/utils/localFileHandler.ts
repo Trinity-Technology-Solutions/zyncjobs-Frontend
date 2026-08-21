@@ -95,13 +95,18 @@ export class LocalFileHandler {
     const allowedTypes = [
       'application/pdf',
       'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/bmp',
+      'image/tiff'
     ];
 
     if (!allowedTypes.includes(file.type)) {
       return {
         valid: false,
-        error: 'Invalid file type. Only PDF and DOC files are allowed.'
+        error: 'Invalid file type. Only PDF, DOC, and image files (JPG, PNG, WebP, BMP, TIFF) are allowed.'
       };
     }
 

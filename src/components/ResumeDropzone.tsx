@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Upload, Linkedin } from 'lucide-react';
 
 interface ResumeDropzoneProps {
@@ -9,6 +9,7 @@ interface ResumeDropzoneProps {
 export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange, playgroundView }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [activeTab, setActiveTab] = useState<'resume' | 'linkedin'>('resume');
+  const dropHandledRef = useRef(0);
 
   const handleFileUpload = (file: File) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff',
@@ -23,6 +24,7 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    dropHandledRef.current = Date.now();
     const file = e.dataTransfer.files[0];
     if (file) handleFileUpload(file);
   };
@@ -38,6 +40,7 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
       <div className="flex gap-2">
         <button
           onClick={() => {
+            if (Date.now() - dropHandledRef.current < 100) return;
             setActiveTab('resume');
             setTimeout(() => document.getElementById('resume-file-input')?.click(), 50);
           }}
@@ -89,6 +92,7 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
           />
           <label
             htmlFor="resume-file-input"
+            onClick={(e) => { if (Date.now() - dropHandledRef.current < 100) e.preventDefault(); }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
           >
             Choose File
@@ -148,7 +152,13 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
             className={`border-2 border-dashed rounded-lg p-5 text-center transition-colors ${
               isDragOver ? 'border-blue-500 bg-blue-100' : 'border-blue-300 hover:border-blue-400'
             }`}
-            onDrop={handleDrop}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragOver(false);
+              dropHandledRef.current = Date.now();
+              const file = e.dataTransfer.files[0];
+              if (file) handleFileUpload(file);
+            }}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
           >
@@ -162,6 +172,7 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
             />
             <label
               htmlFor="linkedin-file-input"
+              onClick={(e) => { if (Date.now() - dropHandledRef.current < 100) e.preventDefault(); }}
               className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition-colors cursor-pointer text-sm font-medium"
             >
               Choose LinkedIn PDF

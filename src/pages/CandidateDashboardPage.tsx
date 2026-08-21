@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   TrendingUp,
@@ -61,6 +61,72 @@ interface CandidateDashboardPageProps {
   viewEmail?: string;
 }
 
+// Classify parsed education entries into college / Class XII / Class X profile fields
+const splitEducations = (eduArr: any[]) => {
+  const extractYear = (dateStr: any) => String(dateStr || "").match(/\d{4}/)?.[0] || "";
+  const joined = (e: any) => `${e?.degree || ""} ${e?.school || e?.college || ""}`;
+  const collegeEntry = eduArr.find(e => !/hsc|12th|class\s*x\s*ii|higher secondary|sslc|10th|class\s*x\b|matric/i.test(joined(e)));
+  const class12Entry = eduArr.find(e => /hsc|12th|class\s*x\s*ii|higher secondary/i.test(joined(e)));
+  const class10Entry = eduArr.find(e => /sslc|10th|class\s*x\b|matric/i.test(joined(e)));
+  const toEntry = (e: any, hasBoard: boolean) => {
+    const school = e?.school || e?.college || "";
+    const entry: any = {
+      passingYear: extractYear(e?.endYear || e?.passingYear || e?.date || ""),
+      percentage: e?.percentage || e?.grade || e?.gpa || "",
+    };
+    if (hasBoard) { entry.board = school; entry.school = school; } else { entry.college = school; entry.degree = e?.degree || ""; }
+    return entry;
+  };
+  const result: any = {};
+  if (collegeEntry) result.educationCollege = toEntry(collegeEntry, false);
+  if (class12Entry) result.educationClass12 = toEntry(class12Entry, true);
+  if (class10Entry) result.educationClass10 = toEntry(class10Entry, true);
+  return result;
+};
+
+// Map parsed certifications / internships / languages / awards into profile shapes
+const mapParsedSections = (p: any, old: any) => {
+  const extractYear = (d: any) => String(d || "").match(/\d{4}/)?.[0] || "";
+  const extractMonth = (d: any) =>
+    String(d || "").match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i)?.[0] || "";
+  const certifications =
+    Array.isArray(p?.certifications) && p.certifications.length > 0
+      ? p.certifications.map((c: any) => ({
+          certificationName: c.name || c.certificationName || "",
+          provider: c.provider || "",
+          startYear: extractYear(c.date || c.year || ""),
+          noExpiry: true,
+        }))
+      : (old?.certifications || []);
+  const internships =
+    Array.isArray(p?.internships) && p.internships.length > 0
+      ? p.internships.map((w: any) => {
+          const dateParts = String(w.date || "").split(/\s*[-–]\s*/);
+          return {
+            companyName: w.company || w.companyName || "",
+            designation: w.jobTitle || w.title || w.designation || "",
+            description: Array.isArray(w.descriptions)
+              ? w.descriptions.join(" ")
+              : w.description || "",
+            startMonth: extractMonth(dateParts[0]),
+            startYear: extractYear(dateParts[0]),
+            endMonth: extractMonth(dateParts[1]),
+            endYear: extractYear(dateParts[1]),
+            currentlyWorking: /present|current/i.test(w.date || "") || !!w.current,
+          };
+        })
+      : (old?.internships || []);
+  const languages =
+    Array.isArray(p?.languages) && p.languages.length > 0
+      ? p.languages
+      : (old?.languages || []);
+  const awards =
+    Array.isArray(p?.awards) && p.awards.length > 0
+      ? p.awards.join("\n")
+      : (old?.awards || "");
+  return { certifications, internships, languages, awards };
+};
+
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   user: userProp,
   onNavigate,
@@ -97,6 +163,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
   const [resumePopupError, setResumePopupError] = useState("");
+  const dropHandledRef = useRef(0);
   const [resumePopupDragOver, setResumePopupDragOver] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>({});
@@ -808,12 +875,99 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         'Power BI','Excel','Tableau','Machine Learning','Deep Learning','NLP','OpenCV',
       ];
       const skills = techKeywords.filter(k => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text));
+      
+      // Extract title (first non-name, non-contact line after name)
+      const name = nameMatch?.[1] || '';
+      const nameIdx = text.toLowerCase().indexOf(name.toLowerCase());
+      let title = '';
+      if (nameIdx >= 0) {
+        const afterName = text.substring(nameIdx + name.length);
+        const afterNameLines = afterName.split('\n').map(l => l.trim()).filter(Boolean);
+        for (const line of afterNameLines.slice(0, 6)) {
+          if (line && line !== name && !line.includes('@') && !line.match(/^\+?\d/) && line.length > 3 && line.length < 80 && !line.match(/^(http|www)/i)) {
+            title = line;
+            break;
+          }
+        }
+      }
+      
+      // Extract summary (first paragraph after name/contact)
+      let summary = '';
+      const summaryKeywords = ['summary', 'objective', 'profile', 'about'];
+      for (const kw of summaryKeywords) {
+        const idx = text.toLowerCase().indexOf(kw);
+        if (idx >= 0) {
+          const after = text.substring(idx + kw.length);
+          const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+          summary = lines.slice(0, 3).join(' ');
+          break;
+        }
+      }
+      if (!summary && lines.length > 5) {
+        summary = lines.slice(5, 10).join(' ');
+      }
+      
+      // Extract work experiences (basic)
+      const workExperiences: any[] = [];
+      const expKeywords = ['experience', 'employment', 'work history', 'professional experience'];
+      for (const kw of expKeywords) {
+        const idx = text.toLowerCase().indexOf(kw);
+        if (idx >= 0) {
+          const after = text.substring(idx + kw.length);
+          const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+          let current: any = null;
+          for (const line of lines.slice(0, 20)) {
+            if (line.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4}/i)) {
+              if (current) workExperiences.push(current);
+              current = { jobTitle: '', company: '', date: line, descriptions: [] };
+            } else if (current && line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+              current.descriptions.push(line.replace(/^[•\-\*]\s*/, ''));
+            } else if (current && !current.company && line.length > 3 && line.length < 60) {
+              current.company = line;
+            } else if (current && !current.jobTitle && line.length > 3 && line.length < 80) {
+              current.jobTitle = line;
+            }
+          }
+          if (current) workExperiences.push(current);
+          break;
+        }
+      }
+      
+      // Extract educations (basic)
+      const educations: any[] = [];
+      const eduKeywords = ['education', 'qualification', 'academic', 'degree'];
+      for (const kw of eduKeywords) {
+        const idx = text.toLowerCase().indexOf(kw);
+        if (idx >= 0) {
+          const after = text.substring(idx + kw.length);
+          const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+          let current: any = null;
+          for (const line of lines.slice(0, 10)) {
+            if (line.match(/\b(b\.?tech|m\.?tech|b\.?e|m\.?e|b\.?sc|m\.?sc|mba|bca|mca|b\.?com|m\.?com|phd|diploma|hsc|sslc|10th|12th)\b/i)) {
+              if (current) educations.push(current);
+              current = { degree: line, school: '', date: '', grade: '' };
+            } else if (current && line.length > 3 && line.length < 80 && !current.school) {
+              current.school = line;
+            } else if (current && line.match(/\b(19|20)\d{2}\b/)) {
+              current.date = line.match(/\b(19|20)\d{2}\b/)?.[0] || '';
+            }
+          }
+          if (current) educations.push(current);
+          break;
+        }
+      }
+      
       return {
         name: nameMatch?.[1] || old.name || '',
+        email: emailMatch?.[0] || old.email || '',
         phone: phoneMatch?.[0] || old.phone || '',
         location: location || old.location || '',
+        title: title || old.title || '',
+        summary: summary || old.profileSummary || '',
         skills: skills.length > 0 ? skills : (old.skills || []),
-        email: emailMatch?.[0] || old.email || '',
+        workExperiences: workExperiences.length > 0 ? workExperiences : (old.workExperiences || []),
+        educations: educations.length > 0 ? educations : (old.educations || []),
+        country: old.country || '',
       };
     } catch {
       return {};
@@ -840,22 +994,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       if (fallback.name || fallback.phone || fallback.location || (Array.isArray(fallback.skills) && fallback.skills.length > 0)) {
         p = {
           name: fallback.name,
+          email: fallback.email,
           phone: fallback.phone,
           location: fallback.location,
+          title: fallback.title,
+          summary: fallback.summary,
           skills: fallback.skills,
-          email: fallback.email,
-          title: '',
-          summary: '',
-          workExperiences: [],
-          educations: [],
-          projects: [],
-          certifications: [],
+          workExperiences: fallback.workExperiences,
+          educations: fallback.educations,
+          projects: fallback.projects || [],
+          certifications: fallback.certifications || [],
+          country: fallback.country || '',
         };
       } else {
         p = {};
       }
     }
     const eduArr = Array.isArray(p.educations) ? p.educations : [];
+    const eduSplit = splitEducations(eduArr);
     const old = currentUser || {};
     return {
       name: p.name || old.name || '',
@@ -879,18 +1035,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             };
           })
         : (old.employment || []),
-      educationCollege: eduArr.length > 0 ? {
-        college: eduArr[0].school || eduArr[0].college || '',
-        degree: eduArr[0].degree || '',
-        passingYear: (eduArr[0].endYear || eduArr[0].passingYear || eduArr[0].date || '').match(/\d{4}/)?.[0] || '',
-        percentage: eduArr[0].percentage || eduArr[0].grade || '',
-      } : (old.educationCollege || {}),
+      educationCollege: eduSplit.educationCollege || (old.educationCollege || {}),
+      educationClass12: eduSplit.educationClass12 || (old.educationClass12 || {}),
+      educationClass10: eduSplit.educationClass10 || (old.educationClass10 || {}),
       projects: Array.isArray(p.projects) && p.projects.length > 0
         ? p.projects.map((pr: any) => ({
             projectName: pr.name || pr.projectName || '',
-            description: pr.description || '',
+            description: pr.description || (Array.isArray(pr.descriptions) ? pr.descriptions.join(' ') : '') || '',
           }))
         : (old.projects || []),
+      ...mapParsedSections(p, old),
     };
   };
 
@@ -2189,6 +2343,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 birthday: user?.birthday || "",
                                 location: user?.location || "",
                                 phone: user?.phone || "",
+                                jobTitle: user?.jobTitle || "",
+                                education: user?.education || "",
                               });
                             }}
                             className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
@@ -2208,6 +2364,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             {user.educationCollege.college}
                           </p>
                         )}
+                        {!user?.educationCollege?.college &&
+                          user?.education && (
+                            <p className="text-gray-500 text-sm mb-3">
+                              {user.education}
+                            </p>
+                          )}
 
                         {/* Contact Info */}
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm text-gray-600 mb-3">
@@ -2460,7 +2622,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       </div>
                     ) : (
                       <div className="py-4 text-gray-500 text-sm">
-                        <p>No education details added yet</p>
+                        {user?.education ? (
+                          <p className="text-gray-700">{user.education}</p>
+                        ) : (
+                          <p>No education details added yet</p>
+                        )}
                       </div>
                     )}
                     {user?.educationClass12 &&
@@ -3854,13 +4020,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     e.preventDefault();
                     e.stopPropagation();
                     setResumePopupDragOver(false);
+                    dropHandledRef.current = Date.now();
                     const file = e.dataTransfer.files?.[0];
                     if (file) {
                       setResumePopupFile(file);
                       setResumePopupError("");
                     }
                   }}
-                  onClick={() => document.getElementById('resume-popup-input')?.click()}
+                  onClick={(e) => {
+                    if (Date.now() - dropHandledRef.current < 100) return;
+                    document.getElementById('resume-popup-input')?.click();
+                  }}
                 >
                   <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-700">
@@ -3986,6 +4156,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       : educations && typeof educations === "object"
                         ? [educations]
                         : [];
+                    const eduSplit = splitEducations(eduArr);
                     const extractYear = (dateStr: string) =>
                       String(dateStr || "").match(/\d{4}/)?.[0] || "";
                     const normalizedSkills: string[] = Array.isArray(p.skills)
@@ -4045,28 +4216,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             })
                           : user?.employment || [],
                       educationCollege:
-                        eduArr.length > 0
-                          ? {
-                              college:
-                                eduArr[0].school || eduArr[0].college || "",
-                              degree: eduArr[0].degree || "",
-                              passingYear: extractYear(
-                                eduArr[0].endYear ||
-                                  eduArr[0].passingYear ||
-                                  eduArr[0].date ||
-                                  "",
-                              ),
-                              percentage:
-                                eduArr[0].percentage || eduArr[0].grade || "",
-                            }
-                          : user?.educationCollege || {},
+                        eduSplit.educationCollege || user?.educationCollege || {},
+                      educationClass12:
+                        eduSplit.educationClass12 || user?.educationClass12 || {},
+                      educationClass10:
+                        eduSplit.educationClass10 || user?.educationClass10 || {},
                       projects:
                         p.projects?.length > 0
                           ? p.projects.map((pr: any) => ({
                               projectName: pr.name || pr.projectName || "",
-                              description: pr.description || "",
-                            }))
-                          : user?.projects || [],
+                              description:
+                                pr.description ||
+                                (Array.isArray(pr.descriptions)
+                                  ? pr.descriptions.join(" ")
+                                  : "") ||
+                                "",
+}))
+                            : user?.projects || [],
+                        ...mapParsedSections(p, user),
                     };
                     setUser(merged);
                     localStorage.setItem("user", JSON.stringify(merged));

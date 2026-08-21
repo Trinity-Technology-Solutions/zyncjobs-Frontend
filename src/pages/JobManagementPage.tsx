@@ -56,7 +56,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   usePageSnapshot<{ filter: string; searchTerm: string; sortBy: string }>(
     'zync:list:job-management',
     (snap, scrollY) => {
-      setFilter(snap.filter || 'active');
+      setFilter(snap.filter === 'all' ? 'active' : (snap.filter || 'active'));
       setSearchTerm(snap.searchTerm || '');
       setSortBy(snap.sortBy || 'posted');
       window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
@@ -415,9 +415,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               
               <div className="flex flex-wrap gap-2 sm:gap-4">
                 <button
-                  onClick={() => setFilter('all')}
+                  onClick={() => setFilter('active')}
                   className={`text-xs sm:text-sm font-medium ${
-                    filter === 'all' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                    filter === 'active' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Active Jobs {statusCounts.active}
@@ -554,20 +554,18 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     </button>
                   )}
                   
-                  {false && (
-                    <button
-                      onClick={handleCloseSelectedJobs}
-                      disabled={selectedJobs.length === 0}
-                      className={`flex items-center space-x-2 text-sm transition-colors ${
-                        selectedJobs.length === 0
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-600 hover:text-red-600 cursor-pointer'
-                      }`}
-                      title="Close selected jobs"
-                    >
-                      <span className="font-medium">Close Selected</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={handleCloseSelectedJobs}
+                    disabled={selectedJobs.length === 0}
+                    className={`flex items-center space-x-2 text-sm transition-colors ${
+                      selectedJobs.length === 0
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-red-600 cursor-pointer'
+                    }`}
+                    title="Close selected jobs"
+                  >
+                    <span className="font-medium">Close Selected</span>
+                  </button>
                 </div>
                 <span className="text-xs sm:text-sm text-gray-500 self-start sm:self-center">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>

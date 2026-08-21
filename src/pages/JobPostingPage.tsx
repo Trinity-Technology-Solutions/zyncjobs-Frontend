@@ -1,7 +1,7 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Pencil, Eye } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
-import EmptyState from '../components/EmptyState';
 import { sendAIMessage } from '../services/aiChatService';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { API_ENDPOINTS } from '../config/constants';
@@ -10,7 +10,6 @@ import { getCompanyLogo } from '../utils/logoUtils';
 import { getCategoryBanner, getCategoryBannerOptions } from '../utils/categoryBannerImages';
 import JobBannerUploader from '../components/JobBannerUploader';
 import mistralAIService from '../services/mistralAIService';
-import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
@@ -79,18 +78,33 @@ interface JobData {
   companyTagline: string;
 }
 
+// Normalize any supported salary input into a real numeric value.
+// Handles plain numbers, commas, decimals, and K / L / Cr suffixes (case-insensitive).
+// Examples: "6.7K" -> 6700, "800" -> 800, "5" -> 5, "6,700" -> 6700, "5L" -> 500000, "1.2Cr" -> 12000000
+const parseSalaryNumber = (value: string): number => {
+  const s = String(value || '').trim().toLowerCase().replace(/,/g, '');
+  if (!s) return 0;
+  const match = s.match(/^(\d+(?:\.\d+)?)\s*(k|l|cr)?$/);
+  if (!match) return 0;
+  const num = parseFloat(match[1]);
+  if (isNaN(num)) return 0;
+  const unit = match[2] || '';
+  if (unit === 'k') return num * 1000;
+  if (unit === 'l') return num * 100000;
+  if (unit === 'cr') return num * 10000000;
+  return num;
+};
+
+// Format a salary for display only — never used for validation.
+// Small values (e.g. 800) stay exact; large values are abbreviated with K / L / Cr.
 const formatSalary = (value: string): string => {
-  const num = parseInt(value.replace(/,/g, ''));
-  if (isNaN(num)) return value;
-  // If user enters small numbers (1-999), treat as Lakhs (LPA)
-  if (num < 1000) return `${num}L`;
+  const num = parseSalaryNumber(value);
+  if (num <= 0) return value;
   if (num >= 10000000) return `${(num / 10000000).toFixed(num % 10000000 === 0 ? 0 : 1)}Cr`;
   if (num >= 100000) return `${(num / 100000).toFixed(num % 100000 === 0 ? 0 : 1)}L`;
   if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}K`;
-  return value;
+  return `${num}`;
 };
-
-const parseSalaryNumber = (value: string): number => parseInt((value || '').replace(/,/g, '')) || 0;
 
 // Snap a raw number to the nearest available dropdown option value
 const snapToDropdownYear = (n: number, isMax: boolean): string => {
@@ -128,61 +142,7 @@ const extractExperienceFromText = (text: string): string => {
   return '';
 };
 
-const KNOWN_TOOLS = [
-  'postman', 'rest assured', 'selenium', 'jira', 'confluence', 'jenkins',
-  'docker', 'kubernetes', 'git', 'github', 'gitlab', 'bitbucket',
-  'react', 'angular', 'vue', 'node', 'nodejs', 'express', 'django', 'flask',
-  'spring', 'hibernate', 'maven', 'gradle', 'junit', 'pytest', 'jest',
-  'aws', 'azure', 'gcp', 'terraform', 'ansible', 'linux', 'ubuntu',
-  'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch',
-  'python', 'java', 'javascript', 'typescript', 'kotlin', 'swift', 'golang',
-  'html', 'css', 'sass', 'tailwind', 'bootstrap', 'figma', 'sketch',
-  'tableau', 'power bi', 'excel', 'salesforce', 'sap', 'erp',
-  'agile', 'scrum', 'kanban', 'devops', 'ci/cd', 'microservices',
-  'machine learning', 'tensorflow', 'pytorch', 'rest', 'graphql', 'soap', 'api', 'sql'
-];
-
-const INVALID_COMPANY_PHRASES = [
-  'good to have', 'must have', 'nice to have', 'required skills', 'preferred skills',
-  'key skills', 'technical skills', 'soft skills', 'job description',
-  'job requirements', 'what we offer', 'who we are', 'not mentioned',
-  'not specified', 'not provided', 'n/a', 'none', 'responsibilities include',
-  'duties include', 'candidate should', 'applicant must', 'looking for',
-  'we are seeking', 'ideal candidate', 'successful candidate'
-];
-
-const sanitizeParsedCompany = (company?: string): string => {
-  if (!company || company.trim().length < 2) return '';
-  
-  const trimmed = company.trim();
-  const lower = trimmed.toLowerCase();
-  
-  // Skip obvious invalid phrases
-  if (INVALID_COMPANY_PHRASES.some(p => lower.includes(p))) return '';
-  
-  // Skip if it's just a known tool/technology
-  if (KNOWN_TOOLS.some(t => lower === t)) return '';
-  
-  // Skip if it starts with a number
-  if (/^\d/.test(trimmed)) return '';
-  
-  // Skip if it's all caps and more than 4 words (likely a description)
-  if (/^[A-Z\s&]+$/.test(trimmed) && trimmed.split(/\s+/).length > 4) return '';
-  
-  // Skip if it contains common job description keywords
-  const jobDescKeywords = ['experience', 'required', 'preferred', 'skills', 'qualifications', 'responsibilities', 'duties', 'requirements', 'candidate', 'applicant', 'position', 'role', 'job', 'work', 'years', 'degree', 'education'];
-  if (jobDescKeywords.some(keyword => lower.includes(keyword))) return '';
-  
-  // Skip if it's a comma-separated list (likely skills)
-  if (lower.includes(',') && lower.split(',').length > 2) {
-    const parts = lower.split(',').map(p => p.trim());
-    if (parts.some(p => KNOWN_TOOLS.some(t => p.includes(t)))) return '';
-  }
-  
-  return trimmed;
-};
-
-const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
+const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode = 'manual', parsedData }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const { jobTitles: jobTitleOptions } = useJobTitles();
 
@@ -449,22 +409,19 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   }>({ type: 'success', message: '', isVisible: false });
 
   // AI Suggestions state
-  const [jobTitleSuggestions, setJobTitleSuggestions] = useState<string[]>([]);
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
-  const [showJobTitleSuggestions, setShowJobTitleSuggestions] = useState(false);
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
   const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-  const [isLoadingJobTitles, setIsLoadingJobTitles] = useState(false);
+  const [jdTab, setJdTab] = useState<'edit' | 'preview'>('preview');
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [skillInput, setSkillInput] = useState('');
   const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
-  const skillFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [catOpen, setCatOpen] = useState(false);
   const [catInput, setCatInput] = useState(jobData?.jobCategory || '');
   const [natOpen, setNatOpen] = useState(false);
@@ -472,7 +429,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [langInput, setLangInput] = useState('');
 
   const [salaryModified, setSalaryModified] = useState(() => {
-    const min = getSalaryMin(editJob) || parsedData?.minSalary || parsedData?.salary?.min;
     const max = getSalaryMax(editJob) || parsedData?.maxSalary || parsedData?.salary?.max;
     // Modified if range has both values, OR if only max is set (Maximum amount / upto)
     return !!(max && parseInt(String(max)) > 0);
@@ -683,6 +639,18 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     }
   }, []);
 
+  // When job title changes while on step 6, clear and regenerate JD for the new role
+  const prevJobTitleRef = React.useRef(jobData.jobTitle);
+  useEffect(() => {
+    const prev = prevJobTitleRef.current;
+    prevJobTitleRef.current = jobData.jobTitle;
+    if (jobData.jobTitle && jobData.jobTitle !== prev && currentStep === 6) {
+      updateJobData('jobDescription', '');
+      setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobData.jobTitle]);
+
   // Auto-extract experience range from job description — only in manual mode when not already set
   useEffect(() => {
     if (mode === 'parse') return;
@@ -719,68 +687,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     };
     fetchCountries();
   }, []);
-
-  // AI-powered job title suggestions
-  const handleJobTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    updateJobData('jobTitle', value);
-
-    // Clear stale AI skills from a previously entered title so the next
-    // section always suggests skills for the CURRENT job title
-    if (aiSuggestedSkills.length > 0) setAiSuggestedSkills([]);
-
-    // Debounced AI skill suggestions for the entered title (works even when
-    // the user types without picking a dropdown suggestion)
-    if (skillFetchTimer.current) clearTimeout(skillFetchTimer.current);
-    if (value.trim().length >= 3) {
-      skillFetchTimer.current = setTimeout(() => {
-        fetchAISkillsForTitle(value.trim());
-      }, 500);
-    }
-
-    if (value.length >= 1) {
-      setIsLoadingJobTitles(true);
-      
-      try {
-        const response = await fetch(`${API_ENDPOINTS.JOBS.replace('/jobs', '/suggest')}?q=${encodeURIComponent(value)}&type=job`);
-        const data = await response.json();
-        console.log('Job title API response:', data);
-        
-        if (data.suggestions && data.suggestions.length > 0) {
-          setJobTitleSuggestions(data.suggestions);
-          setShowJobTitleSuggestions(true);
-        } else {
-          setShowJobTitleSuggestions(false);
-        }
-      } catch (error) {
-        console.error('Job title suggestions failed:', error);
-        setShowJobTitleSuggestions(false);
-      } finally {
-        setIsLoadingJobTitles(false);
-      }
-    } else {
-      setShowJobTitleSuggestions(false);
-      setJobTitleSuggestions([]);
-    }
-  };
-
-  const getFallbackJobTitles = (input: string) => {
-    const key = input.toLowerCase();
-    const fallbacks: { [key: string]: string[] } = {
-      'account': ['Accountant', 'Account Manager', 'Accounting Specialist', 'Account Executive', 'Senior Accountant', 'Accounting Clerk', 'Account Coordinator', 'Accounting Manager'],
-      'software': ['Software Developer', 'Software Engineer', 'Software Tester', 'Software Architect', 'Senior Software Engineer', 'Software Quality Engineer', 'Software Consultant', 'Software Product Manager'],
-      'data': ['Data Scientist', 'Data Analyst', 'Data Engineer', 'Data Architect', 'Senior Data Scientist', 'Data Product Manager', 'Data Visualization Specialist', 'Big Data Engineer'],
-      'marketing': ['Marketing Manager', 'Digital Marketing Specialist', 'Content Marketing Manager', 'Marketing Coordinator', 'Social Media Manager', 'Marketing Analyst', 'Brand Manager', 'Growth Marketing Manager'],
-      'sales': ['Sales Representative', 'Sales Manager', 'Account Executive', 'Sales Coordinator', 'Business Development Manager', 'Sales Analyst', 'Inside Sales Representative', 'Sales Director']
-    };
-    
-    for (const [prefix, suggestions] of Object.entries(fallbacks)) {
-      if (key.includes(prefix) || prefix.includes(key)) {
-        return suggestions;
-      }
-    }
-    return ['Software Developer', 'Marketing Manager', 'Sales Representative', 'Data Analyst', 'Product Manager', 'Business Analyst', 'Project Manager', 'Operations Manager'];
-  };
 
   const handleLocationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -1114,35 +1020,43 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       ];
     }
 
-    const respText = responsibilities.map(r => `• ${r}`).join('\n');
-    const reqText = requirements.map(r => `• ${r}`).join('\n');
+    const respText = responsibilities.map(r => `- ${r}`).join('\n');
+    const reqText = requirements.map(r => `- ${r}`).join('\n');
+    const benefitsText = benefits !== 'health insurance, flexible work'
+      ? benefits.split(', ').map((b: string) => `- ${b}`).join('\n')
+      : `- Comprehensive health, dental, and vision insurance\n- Flexible working arrangements and remote work options\n- Annual learning and development budget\n- Performance-based bonuses and incentives\n- Paid time off, public holidays, and wellness days`;
 
     return `Job Summary
-We are looking for a talented and experienced ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring a strong background in ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting. You will work closely with cross-functional teams to deliver high-quality outcomes and contribute to the long-term success of the organization.
+We are looking for a talented and experienced ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring a strong background in ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting.
 
-About the Role
-As a ${jobTitle} at ${co}, you will be responsible for driving key initiatives, collaborating with stakeholders, and delivering results that align with our strategic goals. We are looking for someone who is proactive, detail-oriented, and committed to continuous improvement. This role offers significant growth potential and the opportunity to work on challenging, meaningful projects.
+About the Company
+${co} is a forward-thinking organisation committed to excellence and innovation, hiring through ZyncJobs to connect with top talent.
 
-Key Responsibilities
+What You Will Do
 ${respText}
 
-Requirements
+What We Are Looking For
 ${reqText}
 
-What We Offer
-• Competitive compensation package${salary}
-• ${benefits}
-• Professional development and continuous learning opportunities
-• Collaborative, inclusive, and innovative work culture
-• Opportunity to work on impactful projects with a talented team
-• Flexible working arrangements and work-life balance
-• Regular performance reviews and career growth pathways
+Technical Skills & Expertise
+${skills}
 
-About ${co}
-${co} is a forward-thinking organization committed to excellence, innovation, and creating value for our clients and stakeholders. We believe in empowering our employees to do their best work and fostering a culture of respect, collaboration, and continuous improvement. Join us and be part of a team that is shaping the future.
+What Makes You Stand Out
+- Strong attention to detail with a commitment to delivering high-quality work
+- Ability to work effectively both independently and as part of a collaborative team
+- Clear and confident communication with stakeholders at all levels
+- Ownership mindset with a results-driven, proactive approach
+- Adaptability and eagerness to learn in a fast-paced environment
+
+Experience & Education
+${education}
+
+Compensation & Benefits
+Salary: ${salary ? salary : 'Competitive compensation package commensurate with experience'}
+${benefitsText}
 
 How to Apply
-If you are passionate about ${jobTitle.toLowerCase()} and meet the above requirements, we would love to hear from you. Apply now through ZyncJobs and take the next step in your career journey.`;
+Interested candidates are invited to apply directly through this ZyncJobs job posting. Click the Apply button to submit your application. We look forward to hearing from you.`;
   };
 
   // Extract bullet points from a named section in JD text
@@ -1153,7 +1067,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       if (match) {
         return match[1]
           .split('\n')
-          .map(l => l.replace(/^[\u2022\-\*\d+\.\)\s]+/, '').trim())
+          .map(l => l.replace(/^[-\u2022\u2013\*\d+\.\)\s]+/, '').trim())
           .filter(l => l.length > 10);
       }
     }
@@ -1162,7 +1076,10 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
   // Auto-generate job description and populate skills/education
   const generateJobDescription = async (jobTitle: string, forceUpdate = false) => {
-    if (!jobTitle || jobTitle.length < 3) return;
+    if (!jobTitle) {
+      setNotification({ type: 'error', message: 'Please enter a job title', isVisible: true });
+      return;
+    }
     setIsGeneratingDescription(true);
     try {
       const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
@@ -1172,7 +1089,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         salary: shouldIncludeSalary ? `${jobData.currency} ${formatSalary(jobData.minSalary)} - ${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
         benefits: jobData.benefits,
         educationLevel: jobData.educationLevel,
-        existingDescription: (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') ? '' : jobData.jobDescription,
+        existingDescription: '',  // always generate fresh — never recycle old JD
         responsibilities: jobData.responsibilities.filter(Boolean),
         requirements: jobData.requirements.filter(Boolean),
       };
@@ -1195,6 +1112,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         jdText = generateLocalJD(jobTitle, jobData.companyName || '', jobData.jobLocation || '', context);
       }
       updateJobData('jobDescription', jdText);
+      setJdTab('preview');
 
       const parsedSkills = parseSkillsFromJobDescription(jdText, jobTitle);
       if (!forceUpdate) {
@@ -1210,8 +1128,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       } else {
         updateJobData('skills', [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15));
         // On regenerate, also extract responsibilities and requirements from the new JD
-        const extractedResp = extractSectionFromJD(jdText, ['Key Responsibilities', 'Responsibilities']);
-        const extractedReq = extractSectionFromJD(jdText, ['Requirements', 'Qualifications']);
+        const extractedResp = extractSectionFromJD(jdText, ['What You Will Do', 'Key Responsibilities', 'Job Responsibilities', 'Responsibilities']);
+        const extractedReq = extractSectionFromJD(jdText, ['What We Are Looking For', 'Requirements', 'Qualifications']);
         if (extractedResp.length > 0) updateJobData('responsibilities', extractedResp);
         if (extractedReq.length > 0) updateJobData('requirements', extractedReq);
       }
@@ -1660,15 +1578,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     }
   };
 
-  // Select suggestions
-  const selectJobTitle = (title: string) => {
-    updateJobData('jobTitle', title);
-    setShowJobTitleSuggestions(false);
-    setJobTitleSuggestions([]);
-    fetchAISkillsForTitle(title);
-    setTimeout(() => generateJobDescription(title), 500);
-  };
-
   // Handle country input change with suggestions
   const handleCountryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -1707,14 +1616,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         return prev;
       });
     }
-  };
-
-  const addSkill = (skill: string) => {
-    if (!jobData.skills.includes(skill)) {
-      updateJobData('skills', [...jobData.skills, skill]);
-    }
-    setSkillInput('');
-    setShowSkillSuggestions(false);
   };
 
   // Smart skill search in job description
@@ -2362,110 +2263,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     </div>
   );
 
-  const renderStep2 = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Hiring goals & Requirements</h1>
-      
-      <div className="space-y-8">
-        <div>
-          <AutocompleteCombobox
-            label="Hiring timeline for this job *"
-            value={jobData.hiringTimeline}
-            onChange={(val) => updateJobData('hiringTimeline', val)}
-            options={[
-              { value: '1 to 3 days', label: '1 to 3 days' },
-              { value: '3 to 7 days', label: '3 to 7 days' },
-              { value: '1 to 2 weeks', label: '1 to 2 weeks' },
-              { value: '2 to 4 weeks', label: '2 to 4 weeks' },
-              { value: 'More than 4 weeks', label: 'More than 4 weeks' },
-            ]}
-            placeholder="Select an option"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-gray-700 font-medium mb-3">Number of people to hire in the next 30 days *</label>
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={jobData.numberOfPeople || ''}
-            onChange={(e) => updateJobData('numberOfPeople', parseInt(e.target.value) || 0)}
-            placeholder="Enter number of people to hire"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-gray-700 font-medium mb-3">Work Authorization Required</label>
-          <div className="space-y-2">
-            {[
-              'US Citizen',
-              'Green Card Holder',
-              'H1B Visa',
-              'L1 Visa',
-              'OPT/CPT',
-              'TN Visa',
-              'No Sponsorship Required',
-              'Will Sponsor'
-            ].map((auth) => (
-              <label key={auth} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={(jobData.workAuth || []).includes(auth)}
-                  onChange={(e) => {
-                    const currentAuth = jobData.workAuth || [];
-                    const newAuth = e.target.checked
-                      ? [...currentAuth, auth]
-                      : currentAuth.filter(a => a !== auth);
-                    updateJobData('workAuth', newAuth);
-                  }}
-                  className="rounded"
-                />
-                <span className="text-gray-700">{auth}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <h3 className="text-gray-700 font-medium mb-2">Expand your candidate search</h3>
-          <p className="text-gray-500 text-sm mb-4">Over 10 million active job seekers are open to relocating.</p>
-          <label className="flex items-start space-x-3">
-            <input
-              type="checkbox"
-              checked={jobData.expandCandidateSearch}
-              onChange={(e) => updateJobData('expandCandidateSearch', e.target.checked)}
-              className="mt-1"
-            />
-            <div>
-              <span className="text-gray-700">I'm interested in attracting candidates open to relocation</span>
-              <button className="text-blue-600 ml-2 text-sm underline hover:text-blue-700">How it works</button>
-              <p className="text-gray-500 text-sm mt-1">Marking your interest helps improve our recommendations.</p>
-            </div>
-          </label>
-        </div>
-      </div>
-      
-      <div className="flex justify-between items-center mt-12">
-        <button
-          onClick={prevStep}
-          className="flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-700"
-        >
-          <span>←</span>
-          <span>Back</span>
-        </button>
-        <button
-          onClick={nextStep}
-          className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 hover:bg-blue-700"
-        >
-          <span>Continue</span>
-          <span>→</span>
-        </button>
-      </div>
-    </div>
-  );
-
   const renderStep3 = () => (
     <div className="px-6 py-8">
       <div className="space-y-8">
@@ -2579,7 +2376,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   value={salaryFocused === 'min' ? jobData.minSalary : (jobData.minSalary ? formatSalary(jobData.minSalary) : '')}
                   onFocus={() => setSalaryFocused('min')}
                   onChange={(e) => {
-                    updateJobData('minSalary', e.target.value.replace(/[^0-9]/g, ''));
+                    updateJobData('minSalary', e.target.value.replace(/[^0-9.,kKcClLrR\s]/g, ''));
                     setSalaryModified(true);
                   }}
                   onBlur={() => setSalaryFocused(null)}
@@ -2605,7 +2402,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   value={salaryFocused === 'max' ? jobData.maxSalary : (jobData.maxSalary ? formatSalary(jobData.maxSalary) : '')}
                   onFocus={() => setSalaryFocused('max')}
                   onChange={(e) => {
-                    updateJobData('maxSalary', e.target.value.replace(/[^0-9]/g, ''));
+                    updateJobData('maxSalary', e.target.value.replace(/[^0-9.,kKcClLrR\s]/g, ''));
                     setSalaryModified(true);
                   }}
                   onBlur={() => setSalaryFocused(null)}
@@ -3005,6 +2802,108 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     </svg>
   );
 
+  // Styled JD preview — LinkedIn/Naukri style
+  const JDPreview: React.FC<{ text: string }> = ({ text }) => {
+    if (!text?.trim()) return null;
+
+    const SECTION_HEADINGS = [
+      'Job Summary', 'About the Company', 'What You Will Do', 'What We Are Looking For',
+      'Technical Skills & Expertise', 'What Makes You Stand Out', 'Experience & Education',
+      'Compensation & Benefits', 'How to Apply',
+      // legacy headings (fallback / old AI output)
+      'Job Responsibilities', 'Qualifications', 'Key Skill Sets', 'Behavioral Competencies',
+      'Experience', 'Education', 'Employment Type', 'Benefits', 'About the Role',
+      'Key Responsibilities', 'Requirements', 'What We Offer', 'About Us',
+    ];
+
+    // Split text into sections
+    const lines = text.split('\n');
+    type Section = { heading: string | null; lines: string[] };
+    const sections: Section[] = [];
+    let current: Section = { heading: null, lines: [] };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const isHeading = SECTION_HEADINGS.some(
+        h => trimmed === h || trimmed === h + ':' || trimmed.toLowerCase() === h.toLowerCase()
+      );
+      if (isHeading) {
+        if (current.heading !== null || current.lines.some(l => l.trim())) {
+          sections.push(current);
+        }
+        current = { heading: trimmed.replace(/:$/, ''), lines: [] };
+      } else {
+        current.lines.push(line);
+      }
+    }
+    if (current.heading !== null || current.lines.some(l => l.trim())) {
+      sections.push(current);
+    }
+
+    const renderLines = (sectionLines: string[]) =>
+      sectionLines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        const isBullet = /^[-\u2022\u2013\*]\s+/.test(trimmed);
+        const content = isBullet ? trimmed.replace(/^[-\u2022\u2013\*]\s+/, '') : trimmed;
+        if (isBullet) {
+          return (
+            <li key={i} className="flex items-start gap-2 text-gray-700 text-sm leading-relaxed">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              <span>{content}</span>
+            </li>
+          );
+        }
+        return <p key={i} className="text-gray-700 text-sm leading-relaxed">{content}</p>;
+      }).filter(Boolean);
+
+    return (
+      <div className="bg-white">
+        {/* Header bar */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-6 py-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-white font-semibold text-base">{jobData.jobTitle || 'Job Description'}</p>
+              <p className="text-blue-100 text-xs">{[jobData.companyName, jobData.jobLocation].filter(Boolean).join(' • ')}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sections — no boxes, just headings + content */}
+        <div className="space-y-7">
+          {sections.map((section, si) => {
+            const hasContent = section.lines.some(l => l.trim());
+            if (!hasContent && !section.heading) return null;
+            const hasBullets = section.lines.some(l => /^[-\u2022\u2013\*]\s+/.test(l.trim()));
+            return (
+              <div key={si}>
+                {section.heading && (
+                  <h3 className={`font-semibold text-sm uppercase tracking-wide text-gray-800 mb-3 pb-1.5 border-b border-gray-100`}>
+                    {section.heading}
+                  </h3>
+                )}
+                {hasContent && (
+                  hasBullets ? (
+                    <ul className="space-y-2">
+                      {renderLines(section.lines)}
+                    </ul>
+                  ) : (
+                    <div className="space-y-1.5">{renderLines(section.lines)}</div>
+                  )
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderJobDescription = () => (
     <div className="px-6 py-8">
       <div className="space-y-6">
@@ -3018,14 +2917,57 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </span>
             )}
           </div>
-          <p className="text-gray-500 text-sm mb-4">AI-powered job description. You can edit or replace it.</p>
-          
-          <textarea
-            value={jobData.jobDescription}
-            onChange={(e) => updateJobData('jobDescription', e.target.value)}
-            placeholder="Enter job description here..."
-            className="w-full p-4 min-h-[200px] resize-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          <p className="text-gray-500 text-sm mb-4">AI-powered job description. Edit the raw text below or view the formatted preview.</p>
+
+          {/* Tabs: Edit / Preview */}
+          <>
+            <div className="flex border-b border-gray-200 mb-4">
+              <button
+                type="button"
+                onClick={() => setJdTab('edit')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  jdTab === 'edit'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Pencil className="w-4 h-4 inline mr-1" /> Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setJdTab('preview')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  jdTab === 'preview'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Eye className="w-4 h-4 inline mr-1" /> Preview
+              </button>
+            </div>
+
+            {jdTab === 'edit' ? (
+              <textarea
+                value={jobData.jobDescription}
+                onChange={(e) => updateJobData('jobDescription', e.target.value)}
+                placeholder="Enter job description here..."
+                className="w-full p-4 min-h-[400px] resize-y border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm leading-relaxed"
+              />
+            ) : (
+              <div className="min-h-[400px]">
+                {jobData.jobDescription ? (
+                  <JDPreview text={jobData.jobDescription} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                    <svg className="w-10 h-10 mb-3 text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm">No description yet. Generate one with AI or switch to Edit tab.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         </div>
         
         {/* Key Responsibilities Section */}
@@ -3373,15 +3315,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       }
     }
 
-    // Map experienceRange to experienceLevel enum
-    const mapExperienceLevel = (range: string): string => {
-      if (range.includes('0-1') || range.includes('1-2')) return 'Entry';
-      if (range.includes('2-3') || range.includes('3-5')) return 'Mid';
-      if (range.includes('5-7') || range.includes('7-10')) return 'Senior';
-      if (range.includes('10+')) return 'Lead';
-      return '';
-    };
-
     // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
     const companyTagline = (jobData.companyTagline || user?.tagline || '').trim();
@@ -3393,18 +3326,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
     
-    // Format jobType as simple string - let backend handle PostgreSQL conversion
-    const formatJobType = (field: any): string => {
-      if (Array.isArray(field)) {
-        const cleanArray = field.filter(item => item && item.trim && item.trim() !== '');
-        return cleanArray.length > 0 ? cleanArray[0] : 'Full-time'; // Take first item as string
-      }
-      if (field && typeof field === 'string' && field.trim() !== '') {
-        return field.trim();
-      }
-      return 'Full-time'; // Default
-    };
-
+    // Normalize salary inputs to real numeric values for the API payload.
+    // "6.7K" -> 6700, "800" -> 800, "5L" -> 500000. Empty inputs stay 0.
+    const salaryMinValue = parseSalaryNumber(jobData.minSalary);
+    const salaryMaxValue = jobData.payType === 'Exact amount'
+      ? parseSalaryNumber(jobData.minSalary)
+      : parseSalaryNumber(jobData.maxSalary);
+    
     // Format arrays as JSON arrays for backend processing
     const formatArrayField = (field: any): any[] => {
       if (Array.isArray(field)) {
@@ -3451,27 +3379,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       experienceRange: jobData.experienceRange || '',
       ...(shouldIncludeSalary && {
         salary: {
-          min: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-          max: (() => {
-            if (jobData.payType === 'Exact amount') {
-              const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
-              return v > 0 && v < 1000 ? v * 100000 : v;
-            }
-            const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
-            return v > 0 && v < 1000 ? v * 100000 : v;
-          })(),
+          min: salaryMinValue,
+          max: salaryMaxValue,
           currency: jobData.currency,
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
         },
-        salaryMin: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-        salaryMax: (() => {
-          if (jobData.payType === 'Exact amount') {
-            const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
-            return v > 0 && v < 1000 ? v * 100000 : v;
-          }
-          const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
-          return v > 0 && v < 1000 ? v * 100000 : v;
-        })(),
+        salaryMin: salaryMinValue,
+        salaryMax: salaryMaxValue,
         currency: jobData.currency,
         payRate: jobData.payRate,
         payType: jobData.payType
@@ -3753,4 +3667,3 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 };
 
 export default JobPostingPage;
-

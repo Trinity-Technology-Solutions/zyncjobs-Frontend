@@ -125,14 +125,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
 
   const jobLocations = useMemo(() => [...new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))], [jobs]);
-  const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim()).filter(Boolean))], [jobs]);
+  const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim().toLowerCase()).filter(Boolean))], [jobs]);
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
       if (selectedLocation && !(job.location || '').toLowerCase().includes(selectedLocation.toLowerCase())) return false;
       if (selectedDepartment) {
-        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim();
-        if (deptVal.toLowerCase() !== selectedDepartment.toLowerCase()) return false;
+        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim().toLowerCase();
+        if (deptVal !== selectedDepartment.toLowerCase()) return false;
       }
       return true;
     });
@@ -606,7 +606,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-green-600 font-semibold text-xs sm:text-sm">Verified Employer</span>
+                        <span className="text-green-600 font-semibold text-xs sm:text-sm">Verified Company</span>
                       </div>
                     )}
                   </div>
@@ -1270,7 +1270,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     onChange={(val) => setSelectedDepartment(val)}
                     options={[
                       { value: '', label: 'All Departments' },
-                      ...jobCategories.map(cat => ({ value: cat, label: cat })),
+                      ...jobCategories.map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) })),
                     ]}
                     placeholder="Select department"
                     className="w-full sm:w-auto"

@@ -6,9 +6,9 @@ import WorkButton from '../components/animata/button/work-button';
 import { API_ENDPOINTS } from '../config/env';
 import {
   Briefcase, Search, LogIn, UserPlus, ArrowRight, CheckCircle2,
-  Bot, ClipboardCheck, CalendarClock, Wallet,
+  Bot, CalendarClock, Wallet,
   Building2, Users, Zap, Target, TrendingUp, Phone, Mail,
-  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock
+  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck
 } from 'lucide-react';
 
 const EmployersPage = ({ onNavigate, user, onLogout }: {
@@ -38,7 +38,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 <Sparkles className="w-3.5 h-3.5 animate-pulse-soft" />
                 AI-Powered Hiring Platform
               </div>
-              <h1 className="hero-fade-2 text-5xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-6">
+              <h1 className="hero-fade-2 text-4xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-6">
                 Hire the right talent,<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-blue-500 bg-[length:200%_auto] animate-gradient-shift">decoded by AI</span>
               </h1>
@@ -77,7 +77,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
             </div>
 
             {/* Hero visual — quick callback form */}
-            <div className="lg:col-span-5 hidden md:block">
+            <div className="lg:col-span-5 hidden sm:block">
               <HeroCallbackCard />
             </div>
           </div>
@@ -177,13 +177,6 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 grad: 'from-orange-500 to-rose-400', tile: 'bg-orange-50', text: 'text-orange-500', cta: 'Try AI Assistant',
               },
               {
-                icon: ClipboardCheck, title: 'Skill Assessments', target: 'skill-assessment',
-                desc: 'Let candidates prove their skills with scored, role-specific tests.',
-                bullets: ['Role-specific test libraries', 'Automatic scoring & reporting', 'Shortlist by assessment results'],
-                variant: 'skill-assessment', url: 'zyncjobs.ai/skill-assessment',
-                grad: 'from-emerald-500 to-teal-400', tile: 'bg-emerald-50', text: 'text-emerald-600', cta: 'Explore Assessments',
-              },
-              {
                 icon: CalendarClock, title: 'Interview Scheduling', target: 'interviews',
                 desc: 'Plan and manage interviews with one-click scheduling.',
                 bullets: ['No back-and-forth emails', 'Automated confirmations & reminders', 'Built-in video meeting links'],
@@ -235,7 +228,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                       </div>
                       <div className="aspect-[16/10] overflow-hidden">
                         <div className="h-full transition-transform duration-700 ease-out group-hover:scale-[1.06]">
-                          <SitePreview variant={f.variant} />
+                          <SitePreview variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights'} />
                         </div>
                       </div>
                     </div>
@@ -257,7 +250,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               sub="Whether you're an enterprise, an SMB, or a consultancy — there's a plan that fits."
             />
           </Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             <Reveal delay={0}>
               <SegmentCard
                 icon={Building2}
@@ -306,7 +299,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               sub="Testimonials from valued clients who've elevated their hiring with ZyncJobs."
             />
           </Reveal>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
                 quote: 'The AI shortlists are spot on. We cut our time-to-hire by half and every shortlist candidate came interview-ready.',
@@ -603,7 +596,7 @@ function JobTicker() {
   );
 }
 
-/* -- Hero callback card � quick request form (Naukri-style) -- */
+/* -- Hero callback card — quick request form (Naukri-style) -- */
 function HeroCallbackCard() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', hiringFor: 'Your company' });
   const [submitted, setSubmitted] = useState(false);
@@ -672,7 +665,7 @@ function HeroCallbackCard() {
   );
 }
 
-/* -- One-Stop Solution � product categories with sub-products -- */
+/* -- One-Stop Solution — product categories with sub-products -- */
 const PRODUCT_CATEGORIES = [
   { id: 'sourcing', label: 'Talent Sourcing', icon: Users },
   { id: 'screening', label: 'Screening & Evaluation', icon: ClipboardCheck },
@@ -692,7 +685,6 @@ const PRODUCTS: Record<ProductCategoryId, {
     { name: 'Resume Parser & Ranking', tag: 'Automatic resume scoring', bullets: ['Parse & score every resume', 'Skill & experience extraction', 'Ranked shortlists in seconds'], stats: [{ v: '100%', l: 'resumes parsed' }, { v: 'Auto', l: 'scoring' }], grad: 'from-cyan-500 to-sky-400', initials: 'RP', target: 'job-parsing' },
   ],
   screening: [
-    { name: 'Skill Assessments', tag: 'Role-specific tests', bullets: ['Role-specific test libraries', 'Automatic scoring & reporting', 'Shortlist by assessment results'], stats: [{ v: '20+', l: 'test libraries' }, { v: 'Auto', l: 'scored' }], grad: 'from-emerald-500 to-teal-400', initials: 'SA', target: 'skill-assessment' },
     { name: 'Verified Candidates', tag: 'Credential-checked profiles', bullets: ['Email & identity verification', 'Skill validation checks', 'Clearly marked verified profiles'], stats: [{ v: '100%', l: 'verified profiles' }, { v: '24h', l: 'verification' }], grad: 'from-blue-600 to-indigo-500', initials: 'VC', target: 'candidate-search' },
   ],
   automation: [
@@ -749,7 +741,7 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
         </Reveal>
 
         {/* Product cards for active category */}
-        <div key={active} className="suite-panel-in grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div key={active} className="suite-panel-in grid grid-cols-1 sm:grid-cols-2 gap-6">
           {PRODUCTS[active].map((p, i) => (
             <Reveal key={p.name} delay={i * 80}>
               <div className="group relative bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:border-blue-200 hover:-translate-y-1.5 transition-all duration-300 p-7 h-full flex flex-col overflow-hidden">
@@ -884,7 +876,7 @@ function CallbackForm() {
     <section id="request-callback" className="py-16 lg:py-24 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-2 shadow-2xl shadow-blue-100/70 rounded-2xl overflow-hidden border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 shadow-2xl shadow-blue-100/70 rounded-2xl overflow-hidden border border-gray-100">
             <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden p-8 lg:p-12 text-white">
               <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 55%)' }}></div>
               <div className="relative">
@@ -1027,7 +1019,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
               <div className={`border rounded-xl overflow-hidden transition-colors duration-300 ${open === i ? 'border-blue-200 shadow-md shadow-blue-100/60' : 'border-gray-200'}`}>
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="w-full flex items-center gap-4 px-6 py-5 text-left bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-5 text-left bg-white hover:bg-gray-50 transition-colors"
                   aria-expanded={open === i}
                 >
                   <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${open === i ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
@@ -1043,7 +1035,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
                   style={{ gridTemplateRows: open === i ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="pl-[4.25rem] pr-6 pb-6 text-gray-600 leading-relaxed text-[15px]">{f.a}</div>
+                    <div className="pl-4 pr-4 sm:pl-[4.25rem] sm:pr-6 pb-6 text-gray-600 leading-relaxed text-[15px]">{f.a}</div>
                   </div>
                 </div>
               </div>
@@ -1065,7 +1057,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
 
 
 /* ── Site preview — mini replica of the real ZyncJobs page UI ── */
-function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'skill-assessment' | 'interviews' | 'salary-insights' }) {
+function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' }) {
   const Bar = () => (
     <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100">
       <div className="flex items-center gap-1.5">
@@ -1188,35 +1180,6 @@ function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' 
           <div className="flex gap-1.5 mt-auto">
             <div className="flex-1 bg-white border border-gray-200 rounded-full px-3 py-1.5 text-[8px] text-gray-400">Ask anything about hiring…</div>
             <span className="w-7 h-6 rounded-lg bg-orange-500 text-white text-[9px] flex items-center justify-center">➤</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'skill-assessment') {
-    return (
-      <div className="bg-gray-50 h-full flex flex-col">
-        <Bar />
-        <div className="p-4 flex-1">
-          <p className="text-[12px] font-bold text-gray-900 mb-1">Skill Assessments</p>
-          <p className="text-[9px] text-gray-400 mb-3">Validate candidates before you interview</p>
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { name: 'Frontend Development', q: '30 questions', min: '25 min', lvl: 'Intermediate', bar: 'w-3/4' },
-              { name: 'Data Analysis', q: '25 questions', min: '20 min', lvl: 'Advanced', bar: 'w-1/2' },
-              { name: 'Communication Skills', q: '20 questions', min: '15 min', lvl: 'Beginner', bar: 'w-1/4' },
-              { name: 'SQL & Databases', q: '28 questions', min: '22 min', lvl: 'Intermediate', bar: 'w-2/3' },
-            ].map((a) => (
-              <div key={a.name} className="bg-white border border-gray-200 rounded-lg p-3">
-                <p className="text-[9px] font-bold text-gray-900">{a.name}</p>
-                <p className="text-[7.5px] text-gray-400 mt-0.5">{a.q} · {a.min} · {a.lvl}</p>
-                <div className="h-1 bg-gray-100 rounded-full mt-2.5 mb-2.5 overflow-hidden">
-                  <div className={`h-full ${a.bar} bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full`} />
-                </div>
-                <div className="text-[8px] font-bold text-white bg-emerald-500 px-2 py-1 rounded-md text-center">Start Test</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

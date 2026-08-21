@@ -52,6 +52,27 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
+  const getCurrentUserEmail = () => {
+    if (user?.email) return user.email;
+    try {
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      return stored.email || '';
+    } catch {
+      return '';
+    }
+  };
+
+  const getMyPostedJobs = (jobs: any[]) => {
+    const myEmail = (getCurrentUserEmail() || '').toLowerCase();
+    if (!myEmail) return jobs;
+    return jobs.filter((job: any) => {
+      const jobEmails = [job.employerEmail, job.postedBy, job.postedByEmail]
+        .filter(Boolean)
+        .map((e: any) => String(e).toLowerCase());
+      return jobEmails.includes(myEmail);
+    });
+  };
+
   const fetchCompanyLogos = async (jobList: any[]) => {
     try {
       const res = await fetch(API_ENDPOINTS.COMPANIES);
@@ -161,9 +182,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       if (response.ok) {
         const jobs: any[] = await response.json();
-        console.log('Fetched posted jobs count:', jobs.length);
+        const myJobs = getMyPostedJobs(jobs);
+        console.log('Fetched posted jobs count:', myJobs.length);
         
-        const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sorted = myJobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPostedJobs(sorted);
         setPostedJobsPage(1);
         fetchCompanyLogos(sorted);
@@ -224,7 +246,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         return;
       }
       
-      const employerJobs = await jobsResponse.json();
+      const employerJobs = getMyPostedJobs(await jobsResponse.json());
       const employerJobIds = employerJobs.map((job: any) => getId(job));
       
       console.log('Employer jobs:', employerJobIds.length);
@@ -344,17 +366,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
           const verifyResponse = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${encodeURIComponent(ownerEmail)}`);
           
           if (verifyResponse.ok) {
-            const jobs = await verifyResponse.json();
-            const stillExists = jobs.some((j: any) => getId(j) === jobId);
+            const myJobs = getMyPostedJobs(await verifyResponse.json());
+            const stillExists = myJobs.some((j: any) => getId(j) === jobId);
             
             if (stillExists) {
               console.error('❌ BACKEND ISSUE: Job still exists after delete! JobId:', jobId);
               showNotification('⚠️ Warning: Job may not be deleted from database. Contact support.', 'error');
               // Force remove from UI anyway
-              setPostedJobs(jobs.filter((j: any) => getId(j) !== jobId));
+              setPostedJobs(myJobs.filter((j: any) => getId(j) !== jobId));
             } else {
               console.log('✅ Verified: Job successfully deleted from backend');
-              setPostedJobs(jobs);
+              setPostedJobs(myJobs);
             }
           }
         }, 2000);
@@ -734,7 +756,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Applications ({employerApplications.length})
+                    My Applications ({employerApplications.length})
                   </button>
                 </>
               ) : (
@@ -819,7 +841,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-              {activeTab}
+              {activeTab === 'Applications' ? 'My Applications' : activeTab}
             </h2>
           </div>
 

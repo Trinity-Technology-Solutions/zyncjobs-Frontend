@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Building2, BarChart2,
   Settings, LogOut, Menu, X, TrendingUp, UserCheck, FileText,
   Bell, RefreshCw, AlertCircle, CheckCircle, XCircle, Shield, ShieldOff,
-  Mail, Activity, ChevronDown, User, Crown, Trash2, Send, Cpu
+  Mail, Activity, ChevronDown, User, Crown, Trash2, Send, Cpu, UserSearch
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -26,6 +26,7 @@ import TalentPoolSection from './sections/TalentPoolSection';
 import AdminManagementSection from './sections/AdminManagementSection';
 import AllUsersSection from './sections/AllUsersSection';
 import ReminderEmailSection from './sections/ReminderEmailSection';
+import RecruiterSearchSection from './sections/RecruiterSearchSection';
 // import AIMonitoringSection from './sections/AIMonitoringSection';
 
 interface Props {
@@ -75,6 +76,7 @@ const navItems: NavItem[] = [
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
   { id: 'reminder-email', label: 'Reminder Email', icon: Send,            section: 'communication' },
   { id: 'talent',        label: 'Talent Pool',     icon: Users,           section: 'talent' },
+  { id: 'recruiter-search', label: 'Recruiter Search', icon: UserSearch,  section: 'talent' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
   { id: 'ai-monitor',    label: 'AI Monitoring',   icon: Cpu,             section: 'system' },
   { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
@@ -343,6 +345,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids, type) => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
       case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
+      case 'recruiter-search': return <RecruiterSearchSection onUnauthorized={handleUnauthorized} onNavigateToTalentPool={() => { setActiveNav('talent'); localStorage.setItem('adminActiveNav', 'talent'); }} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
       case 'ai-monitor':    return <div className="p-6 text-center text-gray-500">AI Monitoring — component removed</div>;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;

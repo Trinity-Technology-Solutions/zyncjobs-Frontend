@@ -7,12 +7,13 @@ import BackButton from '../components/BackButton';
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { EmploymentDisplay } from '../components/ProfileDisplayHelpers';
+import { EmploymentDisplay, ProjectDisplay } from '../components/ProfileDisplayHelpers';
 
 interface CandidateProfileViewProps {
   candidateId: string;
   onNavigate: (page: string) => void;
   onBack: () => void;
+  onLogout?: () => void;
 }
 
 // Safely convert any value to a displayable string — never throws
@@ -56,6 +57,43 @@ function parseCertifications(raw: unknown): CertItem[] {
   }
 }
 
+// Parse projects into a structured array of project objects — never throws.
+// Handles arrays of objects, a single object, and serialized JSON strings.
+function parseProjects(raw: unknown): any[] {
+  if (!raw) return [];
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      parsed = JSON.parse(t);
+    } catch {
+      // Legacy plain-text value — treat as a single project name
+      return [{ projectName: t }];
+    }
+  }
+  const normalize = (item: unknown): any | null => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const obj = item as Record<string, any>;
+      return {
+        ...obj,
+        projectName: String(obj.projectName || obj.name || obj.title || obj.project_title || '').trim(),
+        projectUrl: obj.projectUrl || obj.project_url || obj.url || obj.githubUrl || '',
+        skills: Array.isArray(obj.skills) ? obj.skills.filter(Boolean).join(', ') : obj.skills,
+      };
+    }
+    if (typeof item === 'string' && item.trim()) return { projectName: item };
+    return null;
+  };
+  if (Array.isArray(parsed)) return parsed.map(normalize).filter(Boolean);
+  if (typeof parsed === 'string' && parsed.trim()) return [{ projectName: parsed }];
+  if (parsed && typeof parsed === 'object') {
+    const out = normalize(parsed);
+    return out ? [out] : [];
+  }
+  return [];
+}
+
 // Safely extract skills array — never throws
 function safeSkills(raw: unknown): string[] {
   if (!raw) return [];
@@ -75,7 +113,7 @@ function firstBool(...vals: unknown[]): boolean {
   return false;
 }
 
-const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack }) => {
+const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack, onLogout }) => {
   const [searchParams] = useSearchParams();
   const [candidate, setCandidate] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -257,7 +295,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       profileSummary: safeStr(data.profileSummary || data.bio || data.summary || ''),
       education: safeStr(data.educationCollege || data.education || ''),
       employment: emp,
-      projects: safeStr(data.projects || ''),
+      projects: parseProjects(data.projects || storedData.projects),
       internships: safeStr(data.internships || ''),
       languages: safeStr(data.languages || ''),
       certifications: data.certifications || '',
@@ -287,7 +325,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       profileSummary: '',
       education: '',
       employment: '',
-      projects: '',
+      projects: parseProjects(storedData.projects),
       internships: '',
       languages: '',
       certifications: '',
@@ -332,7 +370,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   return (
     <div className="min-h-screen bg-[#f0f2f7]">
-      <Header onNavigate={onNavigate} user={currentUser} onLogout={() => {}} />
+      <Header onNavigate={onNavigate} user={currentUser} onLogout={onLogout} />
       {/* Sticky back bar */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-3">
@@ -493,13 +531,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           </div>
         )}
 
-        {candidate.projects && (
+        {Array.isArray(candidate.projects) && candidate.projects.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
             <div className="flex items-center gap-2 mb-3 text-purple-500">
               <Star className="w-4 h-4" />
               <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Projects</h2>
             </div>
-            <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{candidate.projects}</p>
+            <div className="space-y-4">
+              {candidate.projects.map((proj: any, idx: number) => (
+                <ProjectDisplay key={idx} proj={proj} />
+              ))}
+            </div>
           </div>
         )}
 
