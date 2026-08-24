@@ -957,12 +957,12 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                   <div className="flex items-end gap-1.5 px-3 py-2.5">
                     <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,image/*" className="hidden" onChange={handleFileUpload} />
                     <button onClick={() => fileInputRef.current?.click()} title="Upload resume or image" className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all flex-shrink-0"><Paperclip className="w-4 h-4" /></button>
-                    <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
+                    {/* <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
                     <button onClick={() => { if (isSpeaking) { window.speechSynthesis?.cancel(); setIsSpeaking(false); } setSpeakerEnabled(p => !p); }}
                       title={speakerEnabled ? 'Speaker on — click to mute' : 'Speaker off — click to enable'}
                       className={`flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 ${speakerEnabled ? 'text-violet-600 bg-violet-50' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>
                       <Volume2 className="w-4 h-4" />
-                    </button>
+                    </button> */}
                     <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
                       placeholder={isListening ? '🎤 Listening...' : 'Ask anything about your career...'} rows={1}
                       className="flex-1 resize-none outline-none text-sm text-gray-800 placeholder-gray-400 bg-transparent py-2 min-h-[40px]"
@@ -1023,19 +1023,19 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Career Readiness</p>
-                  {(() => { const done = [!!currentRole,!!targetRole,skills.length>0,!!atsScore].filter(Boolean).length; const pct = Math.round(done/4*100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct===100?'text-emerald-600 bg-emerald-50':pct>=50?'text-violet-600 bg-violet-50':'text-amber-600 bg-amber-50'}`}>{pct}% complete</span>; })()}
+                  {(() => { const done = [!!currentRole, !!targetRole, skills.length > 0, !!atsScore].filter(Boolean).length; const pct = Math.round(done / 4 * 100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct === 100 ? 'text-emerald-600 bg-emerald-50' : pct >= 50 ? 'text-violet-600 bg-violet-50' : 'text-amber-600 bg-amber-50'}`}>{pct}% complete</span>; })()}
                 </div>
                 <div className="space-y-1.5">
                   {[
-                    {label:'Current role set',done:!!currentRole,detail:currentRole},
-                    {label:'Target role set',done:!!targetRole,detail:targetRole},
-                    {label:'Skills on profile',done:skills.length>0,detail:skills.length>0?`${skills.length} skills`:null},
-                    {label:'Resume analyzed',done:!!atsScore,detail:atsScore?`ATS ${atsScore}%`:null},
-                  ].map((item,i)=>(
+                    { label: 'Current role set', done: !!currentRole, detail: currentRole },
+                    { label: 'Target role set', done: !!targetRole, detail: targetRole },
+                    { label: 'Skills on profile', done: skills.length > 0, detail: skills.length > 0 ? `${skills.length} skills` : null },
+                    { label: 'Resume analyzed', done: !!atsScore, detail: atsScore ? `ATS ${atsScore}%` : null },
+                  ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      {item.done?<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"/>:<Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0"/>}
-                      <span className={`text-[12px] flex-1 truncate ${item.done?'text-gray-700':'text-gray-400'}`}>{item.label}</span>
-                      {item.detail&&<span className="text-[10px] text-gray-400 truncate max-w-[80px]">{item.detail}</span>}
+                      {item.done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />}
+                      <span className={`text-[12px] flex-1 truncate ${item.done ? 'text-gray-700' : 'text-gray-400'}`}>{item.label}</span>
+                      {item.detail && <span className="text-[10px] text-gray-400 truncate max-w-[80px]">{item.detail}</span>}
                     </div>
                   ))}
                 </div>
