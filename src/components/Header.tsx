@@ -448,8 +448,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           {/* Right side items */}
           <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto">
 
-            {/* For Employers Button - only outside employer context */}
-            {!isEmployerContext ? (
+            {/* For Employers Button - only when not logged in and outside employer context */}
+            {!isEmployerContext && !user ? (
               <button 
                 onClick={handleEmployerPageClick}
                 className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"

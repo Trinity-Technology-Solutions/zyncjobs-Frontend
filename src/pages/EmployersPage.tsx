@@ -8,7 +8,7 @@ import {
   Briefcase, Search, LogIn, UserPlus, ArrowRight, CheckCircle2,
   Bot, CalendarClock, Wallet,
   Building2, Users, Zap, Target, TrendingUp, Phone, Mail,
-  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck
+  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck, HelpCircle
 } from 'lucide-react';
 
 const EmployersPage = ({ onNavigate, user, onLogout }: {
@@ -45,22 +45,14 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               <p className="hero-fade-3 text-lg text-gray-500 leading-relaxed mb-8 max-w-xl">
                 Post jobs, search verified candidate profiles, and let AI shortlist the best matches — across every field and industry.
               </p>
-              <div className="hero-fade-4 flex flex-col sm:flex-row gap-3.5">
+              <div className="hero-fade-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
                 <WorkButton text="Explore Our Products" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })} />
                 <button
                   onClick={scrollToCallback}
-                  className="inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 text-gray-700 px-7 py-3.5 rounded-md font-semibold text-[15px] transition-all duration-200 shadow-sm hover:-translate-y-0.5 active:translate-y-0"
+                  className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-full bg-white hover:bg-orange-50/40 border border-gray-200/90 hover:border-orange-200/80 text-gray-700 hover:text-gray-900 font-semibold text-[15px] tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-gray-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
                 >
-                  <Phone className="w-4.5 h-4.5" />
-                  Sales Enquiry
-                </button>
-                <button
-                  onClick={() => go('employer-register')}
-                  className="inline-flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 px-4 py-3.5 font-semibold text-[15px] transition-colors group"
-                >
-                  {isEmployer ? <UserPlus className="w-4.5 h-4.5" /> : <LogIn className="w-4.5 h-4.5" />}
-                  {isEmployer ? 'Go to Dashboard' : 'Register / Log in'}
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  <Phone className="w-4.5 h-4.5 text-gray-500 group-hover:text-orange-600 transition-colors" />
+                  <span>Sales Enquiry</span>
                 </button>
               </div>
               <div className="hero-fade-5 mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -290,7 +282,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       </section>
 
       {/* ── 5b. Testimonials — why recruiters trust us ── */}
-      <section className="py-16 lg:py-24 bg-[#F6F8FF]">
+      <section className="py-16 lg:py-24 bg-[#F6F8FF] md:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeader
@@ -360,13 +352,14 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
             <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
               Join thousands of companies using ZyncJobs to find and hire the right talent — faster.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3.5 justify-center items-stretch sm:items-center">
               <WorkButton text="Create Free Account" onClick={() => go('employer-register')} />
               <button
                 onClick={scrollToCallback}
-                className="inline-flex items-center justify-center gap-2 border border-white/40 text-white hover:bg-white/10 px-8 py-3.5 rounded-md font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-full border border-white/30 hover:border-white/50 bg-white/10 hover:bg-white/20 text-white font-semibold text-[15px] tracking-tight transition-all duration-200 shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
               >
-                <Phone className="w-4 h-4" /> Talk to Sales
+                <Phone className="w-4.5 h-4.5 text-blue-200 group-hover:text-white transition-colors" />
+                <span>Talk to Sales</span>
               </button>
             </div>
           </div>
@@ -564,7 +557,7 @@ function JobTicker() {
           }));
         if (mapped.length) setLiveJobs(mapped);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => { cancelled = true; };
   }, []);
 
@@ -602,12 +595,58 @@ function HeroCallbackCard() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/[^a-zA-Z\s]/.test(val)) {
+      setError('Full name can only contain letters and spaces.');
+    } else if (error === 'Full name can only contain letters and spaces.') {
+      setError('');
+    }
+    setForm((prev) => ({ ...prev, name: val.replace(/[^a-zA-Z\s]/g, '') }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/\D/.test(val)) {
+      setError('Mobile number can only contain digits.');
+    } else if (error === 'Mobile number can only contain digits.') {
+      setError('');
+    }
+    const cleanPhone = val.replace(/\D/g, '').slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: cleanPhone }));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setForm((prev) => ({ ...prev, email: val }));
+    if (val.trim() && !validateEmail(val)) {
+      setError('Please enter a valid email address.');
+    } else if (error === 'Please enter a valid email address.') {
+      setError('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Please fill in all required fields.');
       return;
     }
+    if (/[^a-zA-Z\s]/.test(form.name)) {
+      setError('Full name can only contain letters and spaces.');
+      return;
+    }
+    if (/\D/.test(form.phone) || form.phone.length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!validateEmail(form.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError('');
     try {
       const existing = JSON.parse(localStorage.getItem('employer_callbacks') || '[]');
@@ -639,15 +678,15 @@ function HeroCallbackCard() {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="relative">
           <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className={`${inputCls} pl-10`} />
+          <input type="text" value={form.name} onChange={handleNameChange} placeholder="Full name" className={`${inputCls} pl-10`} />
         </div>
         <div className="relative">
           <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Mobile number" className={`${inputCls} pl-10`} />
+          <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Mobile number" className={`${inputCls} pl-10`} />
         </div>
         <div className="relative">
           <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Work email" className={`${inputCls} pl-10`} />
+          <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Work email" className={`${inputCls} pl-10`} />
         </div>
         <div className="relative">
           <Globe2 className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -726,11 +765,10 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
                 <button
                   key={c.id}
                   onClick={() => setActive(c.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white border-transparent shadow-lg shadow-blue-200'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
-                  }`}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border ${isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white border-transparent shadow-lg shadow-blue-200'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
+                    }`}
                 >
                   <c.icon className="w-4 h-4" />
                   {c.label}
@@ -810,11 +848,10 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
   featured?: boolean;
 }) {
   return (
-    <div className={`group relative bg-white rounded-2xl overflow-hidden border flex flex-col h-full transition-all duration-300 ${
-      featured
-        ? 'border-orange-200 shadow-xl shadow-orange-100 lg:-translate-y-3 hover:-translate-y-4'
-        : 'border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 hover:-translate-y-1.5'
-    }`}>
+    <div className={`group relative bg-white rounded-2xl overflow-hidden border flex flex-col h-full transition-all duration-300 ${featured
+      ? 'border-orange-200 shadow-xl shadow-orange-100 lg:-translate-y-3 hover:-translate-y-4'
+      : 'border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 hover:-translate-y-1.5'
+      }`}>
       <div className={`h-1 bg-gradient-to-r ${grad}`} />
       {featured && (
         <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1 rounded-full shadow-md shadow-orange-200">
@@ -836,11 +873,10 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
         </ul>
         <button
           onClick={onClick}
-          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${
-            featured
-              ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200'
-              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100'
-          }`}
+          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${featured
+            ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200'
+            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100'
+            }`}
         >
           {cta}
         </button>
@@ -855,12 +891,58 @@ function CallbackForm() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/[^a-zA-Z\s]/.test(val)) {
+      setError('Full name can only contain letters and spaces.');
+    } else if (error === 'Full name can only contain letters and spaces.') {
+      setError('');
+    }
+    setForm((prev) => ({ ...prev, name: val.replace(/[^a-zA-Z\s]/g, '') }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (/\D/.test(val)) {
+      setError('Mobile number can only contain digits.');
+    } else if (error === 'Mobile number can only contain digits.') {
+      setError('');
+    }
+    const cleanPhone = val.replace(/\D/g, '').slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: cleanPhone }));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setForm((prev) => ({ ...prev, email: val }));
+    if (val.trim() && !validateEmail(val)) {
+      setError('Please enter a valid email address.');
+    } else if (error === 'Please enter a valid email address.') {
+      setError('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Please fill in all required fields.');
       return;
     }
+    if (/[^a-zA-Z\s]/.test(form.name)) {
+      setError('Full name can only contain letters and spaces.');
+      return;
+    }
+    if (/\D/.test(form.phone) || form.phone.length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!validateEmail(form.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError('');
     try {
       const existing = JSON.parse(localStorage.getItem('employer_callbacks') || '[]');
@@ -920,19 +1002,19 @@ function CallbackForm() {
                   <FormField label="Full name" required>
                     <div className="relative">
                       <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter your full name" className={`${inputCls} pl-10`} />
+                      <input type="text" value={form.name} onChange={handleNameChange} placeholder="Enter your full name" className={`${inputCls} pl-10`} />
                     </div>
                   </FormField>
                   <FormField label="Mobile number" required>
                     <div className="relative">
                       <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Enter your mobile number" className={`${inputCls} pl-10`} />
+                      <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Enter your mobile number" className={`${inputCls} pl-10`} />
                     </div>
                   </FormField>
                   <FormField label="Work email" required>
                     <div className="relative">
                       <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Enter your work email" className={`${inputCls} pl-10`} />
+                      <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Enter your work email" className={`${inputCls} pl-10`} />
                     </div>
                   </FormField>
                   <FormField label="Hiring for">
@@ -1008,45 +1090,85 @@ function FAQSection({ go }: { go: (page: string) => void }) {
   ];
 
   return (
-    <section className="py-16 lg:py-24 bg-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative py-20 lg:py-28 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 overflow-hidden">
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-blue-400/10 via-indigo-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <SectionHeader overline="FAQs" title="Frequently asked questions" />
+          <SectionHeader
+            overline="FAQs"
+            title="Frequently asked questions"
+          />
         </Reveal>
-        <div className="space-y-3">
+
+        <div className="space-y-4">
           {faqs.map((f, i) => (
             <Reveal key={f.q} delay={i * 40}>
-              <div className={`border rounded-xl overflow-hidden transition-colors duration-300 ${open === i ? 'border-blue-200 shadow-md shadow-blue-100/60' : 'border-gray-200'}`}>
+              <div
+                className={`group rounded-2xl border transition-all duration-300 overflow-hidden ${open === i
+                  ? 'bg-white border-blue-200/90 shadow-xl shadow-blue-900/5 ring-1 ring-blue-500/10'
+                  : 'bg-white/90 backdrop-blur-sm border-gray-200/80 hover:border-blue-200/80 hover:bg-white hover:shadow-md hover:shadow-gray-200/50'
+                  }`}
+              >
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-5 text-left bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3.5 sm:gap-5 px-5 sm:px-7 py-5 sm:py-6 text-left transition-colors cursor-pointer select-none"
                   aria-expanded={open === i}
                 >
-                  <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${open === i ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                  <span
+                    className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold tracking-tight transition-all duration-300 ${open === i
+                      ? 'bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/25 scale-105'
+                      : 'bg-gray-100/80 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                      }`}
+                  >
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <span className="flex-1 font-semibold text-gray-900">{f.q}</span>
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${open === i ? 'bg-blue-50 text-blue-600 rotate-180' : 'text-gray-400'}`}>
-                    <ChevronDown className="w-4 h-4" />
+
+                  <span
+                    className={`flex-1 text-base sm:text-[17px] leading-snug font-semibold tracking-tight transition-colors duration-200 ${open === i ? 'text-gray-900 font-bold' : 'text-gray-800 group-hover:text-blue-600'
+                      }`}
+                  >
+                    {f.q}
+                  </span>
+
+                  <span
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${open === i
+                      ? 'bg-blue-600 text-white rotate-180 shadow-sm shadow-blue-500/30'
+                      : 'bg-gray-100/80 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                      }`}
+                  >
+                    <ChevronDown className="w-4.5 h-4.5 stroke-[2.2]" />
                   </span>
                 </button>
+
                 <div
                   className="grid transition-[grid-template-rows] duration-300 ease-out"
                   style={{ gridTemplateRows: open === i ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="pl-4 pr-4 sm:pl-[4.25rem] sm:pr-6 pb-6 text-gray-600 leading-relaxed text-[15px]">{f.a}</div>
+                    <div className="border-t border-gray-100/80 mx-5 sm:mx-7" />
+                    <div className="px-5 sm:px-7 pt-4 pb-6 sm:pb-7 text-gray-600 leading-relaxed text-sm sm:text-[15px] sm:pl-[4.25rem]">
+                      {f.a}
+                    </div>
                   </div>
                 </div>
               </div>
             </Reveal>
           ))}
         </div>
+
         <Reveal>
-          <div className="text-center mt-12">
-            <p className="text-gray-500 mb-5">Still have questions? Our hiring experts are here to help.</p>
-            <div className="flex justify-center">
-              <GetStartedButton text="Get Started" onClick={() => go('employer-register')} />
+          <div className="mt-14 sm:mt-16 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-blue-50/80 border border-blue-100/80 rounded-3xl p-8 sm:p-10 text-center relative overflow-hidden shadow-xs">
+            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-44 h-44 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-12 h-12 bg-white rounded-2xl border border-blue-100 shadow-sm flex items-center justify-center mb-4 text-blue-600">
+                <HelpCircle className="w-6 h-6" />
+              </div>
+              <p className="text-gray-600 font-medium text-base sm:text-lg mb-6 max-w-lg">
+                Still have questions? Our hiring experts are here to help.
+              </p>
+              <div className="flex justify-center">
+                <GetStartedButton text="Get Started" onClick={() => go('employer-register')} />
+              </div>
             </div>
           </div>
         </Reveal>
