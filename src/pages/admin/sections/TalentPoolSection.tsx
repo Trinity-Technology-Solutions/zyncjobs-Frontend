@@ -890,6 +890,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
   };
 
   return (
+    <>
     <div className="space-y-4">
       {/* Processing active banner */}
       {isProcessing && (
@@ -1277,14 +1278,15 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         </div>
       )}
     </div>
-      <ConfirmModal
-        open={confirmState.open}
-        title="Delete Candidate"
-        message={confirmState.message}
-        confirmLabel="Delete"
-        onConfirm={confirmState.onConfirm}
-        onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
-      />
+    <ConfirmModal
+      open={confirmState.open}
+      title="Delete Candidate"
+      message={confirmState.message}
+      confirmLabel="Delete"
+      onConfirm={confirmState.onConfirm}
+      onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+    />
+    </>
   );
 }
 
@@ -1348,6 +1350,7 @@ function InternalPage() {
   };
 
   return (
+    <>
     <div className="space-y-4">
       {/* Notice Banner */}
       <div className="flex items-start gap-3 bg-amber-900/20 border border-amber-700/40 rounded-xl px-5 py-4">
@@ -1519,14 +1522,15 @@ function InternalPage() {
         </div>
       )}
     </div>
-      <ConfirmModal
-        open={confirmStateI.open}
-        title="Delete Candidate"
-        message={confirmStateI.message}
-        confirmLabel="Delete"
-        onConfirm={confirmStateI.onConfirm}
-        onCancel={() => setConfirmStateI(s => ({ ...s, open: false }))}
-      />
+    <ConfirmModal
+      open={confirmStateI.open}
+      title="Delete Candidate"
+      message={confirmStateI.message}
+      confirmLabel="Delete"
+      onConfirm={confirmStateI.onConfirm}
+      onCancel={() => setConfirmStateI(s => ({ ...s, open: false }))}
+    />
+    </>
   );
 }
 

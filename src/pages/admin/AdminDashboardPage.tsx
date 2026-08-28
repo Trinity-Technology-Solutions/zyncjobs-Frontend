@@ -345,7 +345,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'verifications': return <VerificationsSection onUnauthorized={handleUnauthorized} />;
       case 'notifications': return <NotificationsSection onUnauthorized={handleUnauthorized} />;
       case 'email':         return <EmailControlSection onUnauthorized={handleUnauthorized} />;
-      case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids, type) => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
+      case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids: string[], type: 'candidates' | 'employers' | 'both') => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
       case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
       case 'recruiter-search': return <RecruiterSearchSection onUnauthorized={handleUnauthorized} onNavigateToTalentPool={() => { setActiveNav('talent'); localStorage.setItem('adminActiveNav', 'talent'); }} />;

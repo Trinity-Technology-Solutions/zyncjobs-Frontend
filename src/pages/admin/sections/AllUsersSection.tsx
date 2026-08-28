@@ -3,7 +3,8 @@ import { Search, Users, Building2, RefreshCw, AlertCircle, Shield, ShieldOff, Tr
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
-import UserDetailsModal from \x27./UserDetailsModal\x27;`nimport ConfirmModal from \x27../../../components/ConfirmModal\x27;
+import UserDetailsModal from './UserDetailsModal';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
