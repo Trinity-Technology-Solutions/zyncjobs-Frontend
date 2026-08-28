@@ -43,7 +43,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
 
     const currentJobId = jobData._id || jobData.id || jobData.jobData?._id || jobData.jobData?.id;
     if (currentJobId && userData.email) {
-      fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(userData.email)}`)
+      fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userData.email)}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => {
           const list: any[] = Array.isArray(data) ? data : (data.applications || []);

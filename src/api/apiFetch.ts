@@ -22,6 +22,19 @@ function resolveSafeUrl(url: string): string {
 let isRefreshing = false;
 let refreshQueue: Array<(token: string) => void> = [];
 
+// Proactive token refresh: refresh 5 minutes before expiry
+const TOKEN_REFRESH_BUFFER = 5 * 60 * 1000; // 5 minutes
+
+function isTokenNearExpiry(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiry = payload.exp * 1000; // Convert to milliseconds
+    return Date.now() + 5 * 60 * 1000 >= expiry; // 5 min buffer
+  } catch {
+    return true; // If can't parse, assume expired
+  }
+}
+
 function onRefreshed(newToken: string) {
   refreshQueue.forEach(cb => cb(newToken));
   refreshQueue = [];
@@ -74,6 +87,15 @@ async function refreshAccessToken(): Promise<string | null> {
 
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const accessToken = tokenStorage.getAccess();
+
+  // Proactive token refresh: refresh if token is near expiry (within 5 minutes)
+  if (accessToken && isTokenNearExpiry(accessToken)) {
+    console.log('Access token near expiry, proactively refreshing...');
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      console.log('Proactively refreshed access token');
+    }
+  }
 
   // Inject Authorization header
   const headers = new Headers(options.headers || {});

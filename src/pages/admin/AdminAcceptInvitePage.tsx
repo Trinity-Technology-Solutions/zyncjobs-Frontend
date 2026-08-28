@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader, Eye, EyeOff } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
@@ -11,10 +11,12 @@ type Step = 'loading' | 'set-password' | 'success' | 'error';
 interface Props {
   onNavigate: (page: string) => void;
   onLogin: (user: any) => void;
+  onLogout?: () => void;
 }
 
-const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
+const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin, onLogout }) => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>('loading');
   const [error, setError] = useState('');
   const [invite, setInvite] = useState<{ name: string; email: string; role: string } | null>(null);
@@ -26,16 +28,18 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
   const token = searchParams.get('token');
 
   // Clear any existing user session when accessing admin invite
+  // NOTE: do NOT call onLogout() here — it navigates to /login which breaks the flow.
+  // Instead, clear storage directly and invalidate the httpOnly cookie silently.
   useEffect(() => {
-    console.log('🔑 Admin invite page loaded, clearing any existing session...');
-    
-    // Clear any existing user data to prevent conflicts
+    fetch(`${API_ENDPOINTS.BASE_URL}/users/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(() => {});
     localStorage.removeItem('user');
     localStorage.removeItem('lastUserType');
+    localStorage.removeItem('zync:logged_out');
     tokenStorage.clear();
     sessionStorage.clear();
-    
-    console.log('🔑 Existing session cleared');
   }, []);
 
   useEffect(() => {
@@ -45,22 +49,12 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
       return;
     }
     
-    console.log('🔑 Verifying invitation token:', token);
-    console.log('🔑 API Base URL:', API_ENDPOINTS.BASE_URL);
-    
-    const verifyUrl = `${API_ENDPOINTS.BASE_URL}/admin/users/accept-invite/info/${token}`;
-    console.log('🔑 Verification URL:', verifyUrl);
-    
-    fetch(verifyUrl)
+    fetch(`${API_ENDPOINTS.BASE_URL}/admin/users/accept-invite/info/${token}`)
       .then(r => {
-        console.log('🔑 Verification response status:', r.status);
-        if (!r.ok) {
-          throw new Error(`HTTP ${r.status}`);
-        }
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then(data => {
-        console.log('🔑 Verification response data:', data);
         if (data.success) {
           setInvite({ name: data.name, email: data.email, role: data.role || 'admin' });
           setStep('set-password');
@@ -70,7 +64,6 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
         }
       })
       .catch((err) => { 
-        console.error('🔑 Verification error:', err);
         setError(`Network error: ${err.message}. Please check if the backend is running.`); 
         setStep('error'); 
       });
@@ -82,8 +75,6 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
     setError('');
     setSubmitting(true);
     
-    console.log('🔑 Starting admin activation process...');
-    
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/admin/users/accept-invite`, {
         method: 'POST',
@@ -91,30 +82,21 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
         body: JSON.stringify({ token, password }),
       });
       
-      console.log('🔑 Activation response status:', res.status);
-      
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('🔑 Activation failed:', errorText);
         throw new Error(`Activation failed: ${res.status}`);
       }
       
       const data = await res.json();
-      console.log('🔑 Activation response data:', data);
       
       if (data.success) {
-        console.log('🔑 Activation successful, setting up admin user...');
         
-        // Clear any existing user data first
-        console.log('🔑 Clearing existing user data...');
         localStorage.removeItem('user');
         localStorage.removeItem('lastUserType');
         tokenStorage.clear();
         
-        // Set tokens - use both access and admin tokens for admin users
-        console.log('🔑 Setting tokens...');
         tokenStorage.setAccess(data.accessToken);
-        tokenStorage.setAdmin(data.accessToken); // Also set as admin token
+        tokenStorage.setAdmin(data.accessToken);
         if (data.refreshToken) {
           tokenStorage.setRefresh(data.refreshToken);
         }
@@ -151,15 +133,15 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
         // Debug info
         debugAdminFlow();
         
-        // Wait longer to ensure all state is set before redirect
+        // Wait briefly to show success state, then navigate via React Router
         setTimeout(() => {
-          console.log('🎯 Redirecting to admin dashboard...');
+          console.log('🎯 Navigating to admin dashboard...');
           // Clear any candidate/employer specific data that might interfere
           sessionStorage.clear();
           
-          // Force a complete page reload to ensure clean state
-          window.location.replace('/admin/dashboard');
-        }, 2500);
+          // Use React Router navigate to keep app mounted and preserve user state
+          navigate('/admin/dashboard', { replace: true });
+        }, 1500);
       } else {
         console.error('🔑 Activation failed:', data.error);
         setError(data.error || 'Failed to activate account.');
@@ -290,7 +272,7 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
               <h2 className="text-2xl font-bold text-gray-800 mb-3">Invitation Failed</h2>
               <p className="text-gray-600 text-sm mb-6">{error}</p>
               <button
-                onClick={() => onNavigate('admin/login')}
+                onClick={() => navigate('/admin/login', { replace: true })}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-3 rounded-lg font-semibold text-sm transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Go to Admin Login
@@ -300,7 +282,7 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
 
           {step !== 'loading' && (
             <p className="text-center text-gray-500 text-sm mt-6">
-              <button onClick={() => onNavigate('home')} className="hover:text-blue-600 transition-colors">
+              <button onClick={() => navigate('/', { replace: true })} className="hover:text-blue-600 transition-colors">
                 ← Back to ZyncJobs
               </button>
             </p>

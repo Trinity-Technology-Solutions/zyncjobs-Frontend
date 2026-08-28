@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Users, UserX, Mail, ChevronRight, Copy } from 'lucide-react';
+import { Upload, Users, UserX, Mail, ChevronRight, Copy, FileSpreadsheet, Search, RotateCcw, Brain, Zap, AlertCircle, X, Check, Loader2, Eye, ArrowRight, MapPin, Phone, Building2, FileText, Briefcase } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { S3Service } from '../../../services/s3Service';
 import { apiFetch } from '../../../api/apiFetch';
 import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
@@ -11,7 +12,7 @@ const getToken = () =>
   localStorage.getItem('accessToken') ||
   localStorage.getItem('adminToken') || '';
 
-type SubPage = 'upload' | 'extracted' | 'internal' | 'email';
+type SubPage = 'upload' | 'extracted' | 'internal' | 'compare' | 'email';
 
 interface Props {
   onUnauthorized: () => void;
@@ -58,6 +59,7 @@ export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: P
     { id: 'upload',    label: 'Upload Resumes',       icon: Upload },
     { id: 'extracted', label: 'Extracted Candidates', icon: Users },
     { id: 'internal',  label: 'Internal Candidates',  icon: UserX },
+    { id: 'compare',   label: 'Client Compare',       icon: FileSpreadsheet },
     { id: 'email',     label: 'Bulk Email',           icon: Mail },
   ];
 
@@ -120,12 +122,169 @@ export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: P
       <div className={subPage === 'upload'    ? '' : 'hidden'}><UploadPage onUploadDone={() => setLastUploadAt(Date.now())} /></div>
       <div className={subPage === 'extracted' ? '' : 'hidden'}><ExtractedPage lastUploadAt={lastUploadAt} /></div>
       <div className={subPage === 'internal'  ? '' : 'hidden'}><InternalPage /></div>
+      <div className={subPage === 'compare'   ? '' : 'hidden'}><ComparePage /></div>
       <div className={subPage === 'email'     ? '' : 'hidden'}><BulkEmailPage /></div>
     </div>
   );
 }
 
 const PROCESSING_KEY = 'talentPool_processing';
+
+/* ─── Compare Page: Client Shortlist vs Talent Pool ────────────────── */
+function ComparePage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) setFile(f);
+  };
+
+  const handleAnalyze = async () => {
+    if (!file) { setError('Select a CSV file'); return; }
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const text = await file.text();
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/submissions/smart-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ csvText: text })
+      });
+      if (!res.ok) throw new Error('Analysis failed');
+      const data = await res.json();
+      setMatches(data.matches);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const getConfidenceColor = (conf: number) => {
+    if (conf >= 95) return 'text-emerald-400 bg-emerald-900/30 border-emerald-700/50';
+    if (conf >= 85) return 'text-blue-400 bg-blue-900/30 border-blue-700/50';
+    if (conf >= 70) return 'text-amber-400 bg-amber-900/30 border-amber-700/50';
+    return 'text-red-400 bg-red-900/30 border-red-700/50';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <FileSpreadsheet className="w-5 h-5 text-purple-400" /> Client Shortlist Compare
+        </h3>
+        <p className="text-sm text-gray-400 mt-1">
+          Upload client shortlist CSV (Name, Email, Phone, Status) — auto-match against talent pool.
+        </p>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-sm text-red-300">
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+
+      {matches.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
+          <FileSpreadsheet className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+          <p className="text-gray-400 mb-4">Upload a client shortlist CSV to find matches in your talent pool.</p>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="mx-auto text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+          />
+          <p className="text-xs text-gray-500 mt-3">CSV should have: Name, Email, Phone, Status (optional: Client ID)</p>
+          <button onClick={handleAnalyze} disabled={!file || analyzing}
+            className="mt-4 px-6 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2 mx-auto">
+            {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search size={15} />} Analyze & Match
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-white">{matches.length} rows analyzed</h4>
+            <div className="flex gap-2">
+              <span className="text-xs px-2 py-0.5 bg-emerald-900/30 text-emerald-400 rounded">
+                {matches.filter(m => m.confidence >= 85).length} High Confidence
+              </span>
+              <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded">
+                {matches.filter(m => m.confidence < 85 && m.confidence > 0).length} Review
+              </span>
+              <span className="text-xs px-2 py-0.5 bg-red-900/30 text-red-400 rounded">
+                {matches.filter(m => m.confidence === 0).length} No Match
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-gray-400 border-b border-gray-800 bg-gray-800/50">
+                    <th className="px-4 py-3 text-left">Client Row</th>
+                    <th className="px-4 py-3 text-left">Confidence</th>
+                    <th className="px-4 py-3 text-left">Match Type</th>
+                    <th className="px-4 py-3 text-left">Talent Pool Match</th>
+                    <th className="px-4 py-3 text-left">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {matches.map((m, i) => (
+                    <tr key={i} className="border-b border-gray-800 hover:bg-gray-800/40">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-200">{m.clientRow.name}</div>
+                        <div className="text-xs text-gray-400">{m.clientRow.email}</div>
+                        <div className="text-xs text-gray-500">{m.clientRow.phone}</div>
+                        <div className="text-xs text-gray-500">{m.clientRow.status}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 text-xs rounded-full border ${getConfidenceColor(m.confidence)}`}>
+                          {m.confidence}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400">{m.matchType}</td>
+                      <td className="px-4 py-3">
+                        {m.matchedCandidate ? (
+                          <div className="text-emerald-400 text-sm">
+                            {m.matchedCandidate.name} ({m.matchedCandidate.candidateId})
+                          </div>
+                        ) : (
+                          <span className="text-red-400 text-sm">No match found</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 text-xs rounded-full border ${
+                          m.confidence >= 85 ? 'text-emerald-400 border-emerald-700/50 bg-emerald-900/30' :
+                          m.confidence > 0 ? 'text-amber-400 border-amber-700/50 bg-amber-900/30' :
+                          'text-red-400 border-red-700/50 bg-red-900/30'
+                        }`}>
+                          {m.confidence >= 85 ? 'Auto Match' : m.confidence > 0 ? 'Review' : 'No Match'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button className="flex-1 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2">
+              <Zap size={15} /> Create Submissions for Matched
+            </button>
+            <button className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 flex items-center justify-center gap-2">
+              <RotateCcw size={15} /> Export Unmatched for Manual Review
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface ProcessingState {
   isProcessing: boolean;
@@ -572,8 +731,18 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [viewResume, setViewResume] = useState<any | null>(null);
+  const [viewCandidate, setViewCandidate] = useState<any | null>(null);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
   const isProcessing = loadProcessingState()?.isProcessing ?? false;
+
+  // Helper to safely parse JSON fields
+  const parseJSON = (val: any, fallback: any = []) => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch { return fallback; }
+    }
+    return fallback;
+  };
 
   // Group duplicates by email (primary) or name+phone (fallback)
   const duplicateGroups = useMemo(() => {
@@ -597,7 +766,6 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
   }, [candidates]);
 
   const duplicateIds = useMemo(() => {
-    // For each group keep the first (oldest), mark rest as duplicates
     const ids = new Set<string>();
     duplicateGroups.forEach(g => g.slice(1).forEach(c => ids.add(c.id)));
     return ids;
@@ -605,21 +773,27 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
 
   const deleteSingleDuplicate = async (id: string) => {
     setDeletingIds(prev => new Set(prev).add(id));
-    const token = getToken();
-    await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    setCandidates(prev => prev.filter(c => c.id !== id));
-    setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' });
+      if (res.ok) setCandidates(prev => prev.filter(c => c.id !== id));
+    } catch { /* ignore */ } finally {
+      setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
   };
 
-  const deleteAllDuplicates = async () => {
+  const deleteAllDuplicates = () => {
     if (!duplicateIds.size) return;
-    if (!confirm(`Delete ${duplicateIds.size} duplicate entries? The first occurrence of each will be kept.`)) return;
-    const token = getToken();
+    setConfirmState({ open: true, message: `Delete ${duplicateIds.size} duplicate entries? The first occurrence of each will be kept.`, onConfirm: () => execDeleteAllDuplicates() });
+  };
+
+  const execDeleteAllDuplicates = async () => {
+    setConfirmState(s => ({ ...s, open: false }));
     setDeletingIds(new Set(duplicateIds));
-    await Promise.all(Array.from(duplicateIds).map(id =>
-      apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    const results = await Promise.all(Array.from(duplicateIds).map(id =>
+      apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' }).then(r => ({ id, ok: r.ok })).catch(() => ({ id, ok: false }))
     ));
-    setCandidates(prev => prev.filter(c => !duplicateIds.has(c.id)));
+    const deleted = new Set(results.filter(r => r.ok).map(r => r.id));
+    setCandidates(prev => prev.filter(c => !deleted.has(c.id)));
     setDeletingIds(new Set());
   };
 
@@ -629,7 +803,19 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ ...c, id: c.id || c._id }))))
+      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ 
+        ...c, 
+        id: c.id || c._id,
+        // Ensure all parsed JSON fields are arrays
+        skills: Array.isArray(c.skills) ? c.skills : (c.skills || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+        workExperiences: parseJSON(c.workExperiences),
+        internships: parseJSON(c.internships),
+        educations: parseJSON(c.educations),
+        projects: parseJSON(c.projects),
+        certifications: parseJSON(c.certifications),
+        languages: Array.isArray(c.languages) ? c.languages : (c.languages || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+        awards: parseJSON(c.awards),
+      }))))
       .catch((err) => console.error('ExtractedPage fetch error:', err))
       .finally(() => setLoading(false));
   };
@@ -652,7 +838,9 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
     return !search ||
       (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.skills || '').toLowerCase().includes(search.toLowerCase());
+      (c.skills || []).join(',').toLowerCase().includes(search.toLowerCase()) ||
+      (c.jobTitle || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.location || '').toLowerCase().includes(search.toLowerCase());
   });
 
   const toggleSelect = (id: string) =>
@@ -680,17 +868,25 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
     }
   };
 
-  const deleteCandidate = async (id: string) => {
-    if (!confirm('Delete this candidate? This cannot be undone.')) return;
-    const token = getToken();
-    await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    setCandidates(prev => prev.filter(c => c.id !== id));
+  const deleteCandidate = (id: string) => {
+    setConfirmState({ open: true, message: 'Delete this candidate? This cannot be undone.', onConfirm: () => execDeleteCandidate(id) });
+  };
+
+  const execDeleteCandidate = async (id: string) => {
+    setConfirmState(s => ({ ...s, open: false }));
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' });
+      if (res.ok) setCandidates(prev => prev.filter(c => c.id !== id));
+    } catch { /* ignore */ }
   };
 
   const moveToInternal = () => {
-    // Just select them — they are already in backend. Navigate user to email tab.
     alert(`${selected.size} candidate(s) selected. Go to Bulk Email tab to send emails.`);
     setSelected(new Set());
+  };
+
+  const getResumeUrl = (candidate: any) => {
+    return `${API_ENDPOINTS.BASE_URL}/admin/talent/resume/${candidate.id}`;
   };
 
   return (
@@ -826,16 +1022,13 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
             </button>
             <button
               onClick={async () => {
-                if (!confirm(`Delete ${selected.size} selected candidate(s)? This cannot be undone.`)) return;
-                const token = getToken();
+                // confirm handled by modal — proceed directly
                 const ids = Array.from(selected);
-                await Promise.all(ids.map(id => 
-                  apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { 
-                    method: 'DELETE', 
-                    headers: { Authorization: `Bearer ${token}` } 
-                  })
+                const results = await Promise.all(ids.map(id =>
+                  apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' }).then(r => ({ id, ok: r.ok })).catch(() => ({ id, ok: false }))
                 ));
-                setCandidates(prev => prev.filter(c => !selected.has(c.id)));
+                const deleted = new Set(results.filter(r => r.ok).map(r => r.id));
+                setCandidates(prev => prev.filter(c => !deleted.has(c.id)));
                 setSelected(new Set());
               }}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -857,8 +1050,12 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
                     onChange={toggleAll} className="accent-blue-500" />
                 </th>
                 <th className="text-left px-4 py-3 font-medium">Name</th>
+                <th className="text-left px-4 py-3 font-medium">Job Title</th>
+                <th className="text-left px-4 py-3 font-medium">Company</th>
+                <th className="text-left px-4 py-3 font-medium">Location</th>
                 <th className="text-left px-4 py-3 font-medium">Email</th>
                 <th className="text-left px-4 py-3 font-medium">Phone</th>
+                <th className="text-left px-4 py-3 font-medium">Experience</th>
                 <th className="text-left px-4 py-3 font-medium">Skills</th>
                 <th className="text-left px-4 py-3 font-medium">Status</th>
                 <th className="text-left px-4 py-3 font-medium">Actions</th>
@@ -868,13 +1065,13 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-800 animate-pulse">
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 11 }).map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-700 rounded w-20" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-gray-500 py-10 text-sm">
+                <tr><td colSpan={11} className="text-center text-gray-500 py-10 text-sm">
                   {isProcessing ? '⏳ Parsing resumes... candidates will appear shortly.' : 'No candidates found.'}
                 </td></tr>
               ) : filtered.map(c => (
@@ -883,13 +1080,26 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} className="accent-blue-500" />
                   </td>
                   <td className="px-4 py-3 text-gray-200 font-medium">{c.name || '—'}</td>
+                  <td className="px-4 py-3 text-gray-300">{c.jobTitle || '—'}</td>
+                  <td className="px-4 py-3 text-gray-400">{c.currentCompany || '—'}</td>
+                  <td className="px-4 py-3 text-gray-400">{c.location || '—'}{c.country ? `, ${c.country}` : ''}</td>
                   <td className="px-4 py-3 text-gray-400">{c.email || '—'}</td>
                   <td className="px-4 py-3 text-gray-400">{c.phone || '—'}</td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1 max-w-[180px]">
-                      {(c.skills || '').split(',').slice(0, 3).map((s: string) => s.trim()).filter(Boolean).map((s: string) => (
+                    {c.totalExperience !== null && c.totalExperience !== undefined ? (
+                      <span className="px-2 py-0.5 bg-emerald-900/40 border border-emerald-700/50 text-emerald-400 text-xs font-semibold rounded-full">
+                        {c.totalExperience} yrs
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1 max-w-[200px]">
+                      {(c.skills || []).slice(0, 4).map((s: string) => (
                         <span key={s} className="px-2 py-0.5 bg-blue-900/40 text-blue-300 text-xs rounded-full">{s}</span>
                       ))}
+                      {(c.skills || []).length > 4 && (
+                        <span className="px-2 py-0.5 text-xs text-gray-500">+{(c.skills || []).length - 4} more</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -899,8 +1109,12 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setViewResume(c)}
-                        className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition-colors">View</button>
+                      <button onClick={() => setViewCandidate(c)}
+                        className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition-colors">View Profile</button>
+                      <a href={getResumeUrl(c)} target="_blank" rel="noopener noreferrer"
+                        className="text-xs px-2 py-1 bg-blue-900/40 border border-blue-700/50 text-blue-300 rounded hover:bg-blue-900/60 flex items-center gap-1">
+                        <FileText size={11} /> Resume
+                      </a>
                       {c.status === 'Error' && (
                         <button
                           onClick={() => retryCandidate(c)}
@@ -921,28 +1135,156 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         </div>
       </div>
 
-      {/* View Resume Modal */}
-      {viewResume && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-              <h3 className="font-semibold text-white">Candidate Details</h3>
-              <button onClick={() => setViewResume(null)} className="text-gray-400 hover:text-white text-xl">×</button>
-            </div>
-            <div className="p-6 space-y-3">
-              {[['Name', viewResume.name], ['Email', viewResume.email], ['Phone', viewResume.phone],
-                ['Skills', viewResume.skills], ['Experience', viewResume.experience], ['Job Title', viewResume.jobTitle]
-              ].map(([label, val]) => (
-                <div key={label} className="flex gap-3">
-                  <span className="text-gray-500 text-sm w-24 shrink-0">{label}</span>
-                  <span className="text-gray-200 text-sm">{val || '—'}</span>
+      {/* View Candidate Profile Modal - Full parsed data like Recruiter Search */}
+      {viewCandidate && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setViewCandidate(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between px-5 py-4 border-b border-gray-800">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-white">{viewCandidate.name || 'Unnamed candidate'}</h3>
+                <p className="text-sm text-blue-400">{viewCandidate.jobTitle || 'Title not found'}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-400">
+                  {viewCandidate.location && <span className="flex items-center gap-1"><MapPin size={11} /> {viewCandidate.location}{viewCandidate.country ? `, ${viewCandidate.country}` : ''}</span>}
+                  {viewCandidate.email && <span className="flex items-center gap-1"><Mail size={11} /> {viewCandidate.email}</span>}
+                  {viewCandidate.phone && <span className="flex items-center gap-1"><Phone size={11} /> {viewCandidate.phone}</span>}
+                  {viewCandidate.currentCompany && <span className="flex items-center gap-1"><Building2 size={11} /> {viewCandidate.currentCompany}</span>}
+                  {viewCandidate.totalExperience !== null && viewCandidate.totalExperience !== undefined && <span>{viewCandidate.totalExperience} yrs exp</span>}
+                  {viewCandidate.gender && <span>{viewCandidate.gender}</span>}
+                  {viewCandidate.dob && <span>DOB: {viewCandidate.dob}</span>}
+                  {viewCandidate.parserStatus && <span className={`px-2 py-0.5 rounded text-[10px] ${viewCandidate.parserStatus === 'Parsed' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>{viewCandidate.parserStatus}</span>}
                 </div>
-              ))}
+              </div>
+              <button onClick={() => setViewCandidate(null)} className="text-gray-400 hover:text-white shrink-0"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto p-5 space-y-5">
+              {viewCandidate.summary && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Summary</h4>
+                  <p className="text-sm text-gray-300">{viewCandidate.summary}</p>
+                </div>
+              )}
+              {viewCandidate.skills && viewCandidate.skills.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Skills</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewCandidate.skills.map((s: string) => (
+                      <span key={s} className="px-2 py-0.5 bg-blue-900/40 border border-blue-700/50 text-blue-300 text-xs rounded">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.workExperiences && viewCandidate.workExperiences.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Work Experience</h4>
+                  <div className="space-y-3">
+                    {viewCandidate.workExperiences.map((exp: any, i: number) => (
+                      <div key={i} className="border-l-2 border-blue-700 pl-3">
+                        <p className="text-sm font-medium text-gray-100">{exp.jobTitle || 'Role'}{exp.company ? ` · ${exp.company}` : ''}</p>
+                        {exp.date && <p className="text-xs text-gray-500">{exp.date}</p>}
+                        {exp.descriptions && exp.descriptions.length > 0 && (
+                          <ul className="list-disc ml-4 mt-1 text-xs text-gray-400 space-y-0.5">
+                            {exp.descriptions.slice(0, 5).map((d: string, j: number) => <li key={j}>{d}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.internships && viewCandidate.internships.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Internships</h4>
+                  <div className="space-y-3">
+                    {viewCandidate.internships.map((exp: any, i: number) => (
+                      <div key={i} className="border-l-2 border-orange-700/70 pl-3">
+                        <p className="text-sm font-medium text-gray-100">{exp.jobTitle || 'Role'}{exp.company ? ` · ${exp.company}` : ''}</p>
+                        {exp.date && <p className="text-xs text-gray-500">{exp.date}</p>}
+                        {exp.descriptions && exp.descriptions.length > 0 && (
+                          <ul className="list-disc ml-4 mt-1 text-xs text-gray-400 space-y-0.5">
+                            {exp.descriptions.slice(0, 5).map((d: string, j: number) => <li key={j}>{d}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.educations && viewCandidate.educations.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Education</h4>
+                  <div className="space-y-1.5">
+                    {viewCandidate.educations.map((edu: any, i: number) => (
+                      <p key={i} className="text-sm text-gray-300">
+                        {edu.degree}{edu.school ? ` — ${edu.school}` : ''}{edu.date ? ` (${edu.date})` : ''}{edu.gpa ? ` · ${edu.gpa}` : ''}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.projects && viewCandidate.projects.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Projects</h4>
+                  <div className="space-y-1.5">
+                    {viewCandidate.projects.map((p: any, i: number) => (
+                      <p key={i} className="text-sm text-gray-300"><span className="font-medium text-white">{p.name}</span>{p.description ? ` — ${p.description}` : ''}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.certifications && viewCandidate.certifications.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Certifications</h4>
+                  <div className="space-y-1.5">
+                    {viewCandidate.certifications.map((cert: any, i: number) => (
+                      <p key={i} className="text-sm text-gray-300">
+                        {cert.name}{cert.provider ? ` — ${cert.provider}` : ''}{cert.date ? ` (${cert.date})` : ''}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.languages && viewCandidate.languages.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Languages</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewCandidate.languages.map((l: string) => (
+                      <span key={l} className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded">{l}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewCandidate.awards && viewCandidate.awards.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Awards</h4>
+                  <div className="space-y-1.5">
+                    {viewCandidate.awards.map((a: string, i: number) => (
+                      <p key={i} className="text-sm text-gray-300">• {a}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <a href={getResumeUrl(viewCandidate)} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 mt-4">
+                <FileText size={15} /> View Original Resume
+              </a>
+              {viewCandidate.parserError && (
+                <div className="flex items-center gap-2 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg text-xs text-amber-300">
+                  <AlertCircle size={14} /> {viewCandidate.parserError} (retries: {viewCandidate.retryCount || 0})
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete Candidate"
+        message={confirmState.message}
+        confirmLabel="Delete"
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+      />
   );
 }
 
@@ -981,11 +1323,18 @@ function InternalPage() {
   const toggleAll = () =>
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
 
-  const deleteCandidate = async (id: string) => {
-    if (!confirm('Delete this candidate? This cannot be undone.')) return;
-    const token = getToken();
-    await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    setCandidates(prev => prev.filter(c => c.id !== id));
+  const [confirmStateI, setConfirmStateI] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
+
+  const deleteCandidate = (id: string) => {
+    setConfirmStateI({ open: true, message: 'Delete this candidate? This cannot be undone.', onConfirm: () => execDeleteCandidateI(id) });
+  };
+
+  const execDeleteCandidateI = async (id: string) => {
+    setConfirmStateI(s => ({ ...s, open: false }));
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' });
+      if (res.ok) setCandidates(prev => prev.filter(c => c.id !== id));
+    } catch { /* ignore */ }
   };
 
   const markEmailSent = (id: string) => {
@@ -1170,6 +1519,14 @@ function InternalPage() {
         </div>
       )}
     </div>
+      <ConfirmModal
+        open={confirmStateI.open}
+        title="Delete Candidate"
+        message={confirmStateI.message}
+        confirmLabel="Delete"
+        onConfirm={confirmStateI.onConfirm}
+        onCancel={() => setConfirmStateI(s => ({ ...s, open: false }))}
+      />
   );
 }
 

@@ -1,43 +1,93 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Download, X, ChevronLeft, ChevronRight, MapPin,
   Briefcase, Mail, Phone, Building2, FileText, User, AlertCircle, Loader2, Upload,
-  CheckSquare, Send, Trash2,
+  CheckSquare, Send,
   RotateCcw as RotateCcwIcon
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { apiFetch } from '../../../api/apiFetch';
-import ConfirmModal from '../../../components/ConfirmModal';
 
 interface Props {
   onUnauthorized: () => void;
   onNavigateToTalentPool?: () => void;
 }
 
-interface SkillCount { name: string; count: number; }
-interface WorkExp { jobTitle?: string; company?: string; date?: string; descriptions?: string[]; }
-interface Education { degree?: string; school?: string; date?: string; grade?: string; }
-interface Project { name?: string; description?: string; }
-
-interface Candidate {
-  id: string; name: string; email: string; phone: string; gender: string; dob: string;
-  jobTitle: string; currentCompany: string; location: string; country: string; summary: string;
-  skills: string[]; totalExperience: number | null; workExperiences: WorkExp[];
-  internships: WorkExp[]; languages: string[]; awards: string[]; educations: Education[];
-  projects: Project[]; resumeUrl: string; resumeFile: string; resumeOriginalName: string;
-  parserStatus: string; parserError: string; retryCount: number; addedDate: string | null;
+interface SkillCount {
+  name: string;
+  count: number;
 }
 
-interface SearchResponse { candidates: Candidate[]; total: number; page: number; limit: number; }
+interface WorkExp {
+  jobTitle?: string;
+  company?: string;
+  date?: string;
+  descriptions?: string[];
+}
+
+interface Education {
+  degree?: string;
+  school?: string;
+  date?: string;
+  grade?: string;
+}
+
+interface Project {
+  name?: string;
+  description?: string;
+}
+
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  gender: string;
+  dob: string;
+  jobTitle: string;
+  currentCompany: string;
+  location: string;
+  country: string;
+  summary: string;
+  skills: string[];
+  totalExperience: number | null;
+  workExperiences: WorkExp[];
+  internships: WorkExp[];
+  languages: string[];
+  awards: string[];
+  educations: Education[];
+  projects: Project[];
+  resumeUrl: string;
+  resumeFile: string;
+  resumeOriginalName: string;
+  parserStatus: string;
+  parserError: string;
+  retryCount: number;
+  addedDate: string | null;
+}
+
+interface SearchResponse {
+  candidates: Candidate[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 const EXPORT_FIELDS = [
-  { key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' },
-  { key: 'email', label: 'Email' }, { key: 'location', label: 'Location' },
-  { key: 'jobTitle', label: 'Job Title' }, { key: 'currentCompany', label: 'Current Company' },
-  { key: 'skills', label: 'Skills' }, { key: 'totalExperience', label: 'Experience (Years)' },
-  { key: 'gender', label: 'Gender' }, { key: 'dob', label: 'Date of Birth' },
-  { key: 'summary', label: 'Summary' }, { key: 'resumeUrl', label: 'Resume URL' }
+  { key: 'name', label: 'Name' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'email', label: 'Email' },
+  { key: 'location', label: 'Location' },
+  { key: 'jobTitle', label: 'Job Title' },
+  { key: 'currentCompany', label: 'Current Company' },
+  { key: 'skills', label: 'Skills' },
+  { key: 'totalExperience', label: 'Experience (Years)' },
+  { key: 'gender', label: 'Gender' },
+  { key: 'dob', label: 'Date of Birth' },
+  { key: 'summary', label: 'Summary' },
+  { key: 'resumeUrl', label: 'Resume URL' }
 ];
+
 const DEFAULT_EXPORT_FIELDS = ['name', 'phone', 'email', 'location', 'jobTitle', 'skills', 'totalExperience'];
 
 const inputCls = "w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none";
@@ -45,46 +95,23 @@ const btnPrimary = "flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-
 const btnSecondary = "flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors";
 const card = "bg-gray-900 border border-gray-800 rounded-xl";
 
-async function openResume(id: string, baseUrl: string) {
-  try {
-    const res = await apiFetch(`${baseUrl}/admin/talent/resume/${id}`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch { /* ignore */ }
-}
-
-async function downloadResume(id: string, name: string, baseUrl: string) {
-  try {
-    const res = await apiFetch(`${baseUrl}/admin/talent/resume/${id}`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const ext = blob.type.includes('pdf') ? 'pdf' : blob.type.includes('word') ? 'docx' : 'pdf';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name || 'resume'}.${ext}`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  } catch { /* ignore */ }
-}
-
 function CandidateCard({
-  c, selected, onToggle, onView, onDelete, deleting
+  c, selected, onToggle, onView
 }: {
-  c: Candidate; selected: boolean;
+  c: Candidate;
+  selected: boolean;
   onToggle: (id: string) => void;
   onView: (c: Candidate) => void;
-  onDelete?: (id: string) => void;
-  deleting?: boolean;
 }) {
   return (
     <div className={`${card} p-4 hover:border-gray-700 transition-colors ${selected ? 'border-emerald-600/50 bg-emerald-900/10' : ''}`}>
       <div className="flex items-start gap-2">
-        <input type="checkbox" checked={selected} onChange={() => onToggle(c.id)}
-          className="w-4 h-4 mt-0.5 accent-emerald-500 shrink-0" />
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggle(c.id)}
+          className="w-4 h-4 mt-0.5 accent-emerald-500 shrink-0"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -107,6 +134,7 @@ function CandidateCard({
               </span>
             )}
           </div>
+
           {c.skills.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {c.skills.slice(0, 8).map(s => (
@@ -117,35 +145,23 @@ function CandidateCard({
               )}
             </div>
           )}
+
           {c.addedDate && (
             <p className="text-xs text-gray-600 mt-2">
               Added {new Date(c.addedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
           )}
+
           <div className="flex items-center gap-2 mt-3">
             <button onClick={() => onView(c)}
               className="flex-1 px-3 py-1.5 bg-blue-900/40 border border-blue-700/50 text-blue-300 text-xs font-medium rounded-lg hover:bg-blue-900/60">
               View Profile
             </button>
             {c.resumeUrl && (
-              <>
-                <button onClick={() => openResume(c.id, API_ENDPOINTS.BASE_URL)}
-                  className="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-700 text-center flex items-center justify-center gap-1">
-                  <FileText size={13} /> View
-                </button>
-                <button onClick={() => downloadResume(c.id, c.name, API_ENDPOINTS.BASE_URL)}
-                  className="px-2.5 py-1.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg hover:bg-gray-700 flex items-center justify-center"
-                  title="Download Resume">
-                  <Download size={13} />
-                </button>
-              </>
-            )}
-            {onDelete && (
-              <button onClick={() => onDelete(c.id)} disabled={deleting}
-                className="px-2.5 py-1.5 bg-red-900/30 border border-red-800/50 text-red-400 text-xs rounded-lg hover:bg-red-900/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title="Delete candidate">
-                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-              </button>
+              <a href={`${API_ENDPOINTS.BASE_URL}/admin/talent/resume/${c.id}`} target="_blank" rel="noopener noreferrer"
+                className="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-700 text-center flex items-center justify-center gap-1">
+                <FileText size={13} /> View Resume
+              </a>
             )}
           </div>
         </div>
@@ -174,8 +190,6 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [confirmState, setConfirmState] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
 
   const [profileCandidate, setProfileCandidate] = useState<Candidate | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -183,6 +197,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
   const [exporting, setExporting] = useState(false);
   const [processing, setProcessing] = useState<{ isProcessing: boolean; processed: number; total: number; success: number; failed: number; progress: number } | null>(null);
 
+  // Selection & Submit
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitClient, setSubmitClient] = useState('');
@@ -191,6 +206,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Compare Client CSV vs Search Results
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareFile, setCompareFile] = useState<File | null>(null);
   const [compareAnalyzing, setCompareAnalyzing] = useState(false);
@@ -219,8 +235,14 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
           const data = await res.json();
           let list: Candidate[] = [];
           let tot = 0;
-          if (Array.isArray(data)) { list = data; tot = data.length; }
-          else if (data.candidates) { list = data.candidates; tot = data.total || data.candidates.length; }
+          if (Array.isArray(data)) {
+            list = data;
+            tot = data.length;
+          } else if (data.candidates) {
+            list = data.candidates;
+            tot = data.total || data.candidates.length;
+          }
+          // Sort by addedDate desc (FIFO â€” latest first)
           list.sort((a, b) => {
             const da = a.addedDate ? new Date(a.addedDate).getTime() : 0;
             const db = b.addedDate ? new Date(b.addedDate).getTime() : 0;
@@ -240,13 +262,17 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
         const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/processing-status`, { headers: {} });
         if (!res.ok) return;
         const data = await res.json();
-        setProcessing(data.isProcessing ? data : null);
+        if (data.isProcessing) {
+          setProcessing(data);
+        } else if (processing) {
+          setProcessing(null);
+        }
       } catch { /* ignore */ }
     };
     poll();
     const timer = setInterval(poll, 5000);
     return () => clearInterval(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const runSearch = useCallback(async (targetPage: number) => {
@@ -293,57 +319,24 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
     setSkillInput('');
   };
 
-  const handleRemoveSkill = (skill: string) => setSelectedSkills(selectedSkills.filter(s => s !== skill));
-
-  const resetFilters = useCallback(async () => {
-    setQ(''); setJobTitle(''); setLocation(''); setGender(''); setExpMin(''); setExpMax('');
-    setSelectedSkills([]); setSkillInput('');
-    setSearched(false); setCandidates([]); setTotal(0); setPage(1); setError(null);
-    setInitialLoading(true);
-    try {
-      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates?page=1&limit=20`, { headers: {} });
-      if (res.ok) {
-        const data = await res.json();
-        let list: Candidate[] = [];
-        let tot = 0;
-        if (Array.isArray(data)) { list = data; tot = data.length; }
-        else if (data.candidates) { list = data.candidates; tot = data.total || data.candidates.length; }
-        list.sort((a, b) => {
-          const da = a.addedDate ? new Date(a.addedDate).getTime() : 0;
-          const db = b.addedDate ? new Date(b.addedDate).getTime() : 0;
-          return db - da;
-        });
-        setRecentCandidates(list);
-        setRecentTotal(tot);
-      }
-    } catch { /* ignore */ } finally {
-      setInitialLoading(false);
-    }
-  }, []);
-
-  const handleDeleteCandidate = (id: string) => {
-    setConfirmState({ open: true, id });
+  const handleRemoveSkill = (skill: string) => {
+    setSelectedSkills(selectedSkills.filter(s => s !== skill));
   };
 
-  const execDeleteCandidate = async (id: string) => {
-    setConfirmState({ open: false, id: '' });
-    setDeletingIds(prev => new Set(prev).add(id));
-    try {
-      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates/${id}`, { method: 'DELETE' });
-      if (res.status === 401) { onUnauthorized(); return; }
-      if (res.ok) {
-        setRecentCandidates(prev => prev.filter(c => c.id !== id));
-        setCandidates(prev => prev.filter(c => c.id !== id));
-        setRecentTotal(prev => Math.max(0, prev - 1));
-      }
-    } catch { /* ignore */ } finally {
-      setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
-    }
+  const resetFilters = () => {
+    setQ(''); setJobTitle(''); setLocation(''); setGender(''); setExpMin(''); setExpMax('');
+    setSelectedSkills([]); setSkillInput('');
+    setSearched(false);
+    setCandidates([]);
+    setTotal(0);
+    setPage(1);
+    setError(null);
   };
 
   const handleExport = async () => {
     if (!exportFields.length) return;
-    setExporting(true); setError(null);
+    setExporting(true);
+    setError(null);
     const filters: Record<string, string> = {};
     if (q.trim()) filters.q = q.trim();
     if (jobTitle.trim()) filters.jobTitle = jobTitle.trim();
@@ -358,69 +351,121 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filters, fields: exportFields })
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || 'Export failed'); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Export failed');
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `recruiter-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a); a.click(); a.remove();
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `recruiter-export-${date}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       setExportOpen(false);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Export failed'); }
-    finally { setExporting(false); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const toggleExportField = (key: string) =>
+  const toggleExportField = (key: string) => {
     setExportFields(prev => prev.includes(key) ? prev.filter(f => f !== key) : [...prev, key]);
+  };
 
-  const toggleCandidateSelection = (id: string) =>
-    setSelectedCandidates(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  // Selection handlers
+  const toggleCandidateSelection = (candidateId: string) => {
+    setSelectedCandidates(prev => {
+      const next = new Set(prev);
+      if (next.has(candidateId)) next.delete(candidateId);
+      else next.add(candidateId);
+      return next;
+    });
+  };
 
-  const toggleSelectAll = () =>
-    setSelectedCandidates(selectedCandidates.size === candidates.length
-      ? new Set() : new Set(candidates.map(c => c.id)));
+  const toggleSelectAll = () => {
+    if (selectedCandidates.size === candidates.length) {
+      setSelectedCandidates(new Set());
+    } else {
+      setSelectedCandidates(new Set(candidates.map(c => c.id)));
+    }
+  };
 
   const clearSelection = () => setSelectedCandidates(new Set());
 
+  // Submit handler
   const handleSubmit = async () => {
     if (!submitClient.trim()) { setSubmitError('Client name required'); return; }
     if (selectedCandidates.size === 0) { setSubmitError('No candidates selected'); return; }
-    setSubmitting(true); setSubmitError(null);
+    
+    setSubmitting(true);
+    setSubmitError(null);
     try {
+      const candidateIds = Array.from(selectedCandidates);
       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/submissions/create`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ candidateIds: Array.from(selectedCandidates), clientName: submitClient.trim(), jobTitle: submitJobTitle.trim() })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateIds, clientName: submitClient.trim(), jobTitle: submitJobTitle.trim() })
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Submission failed'); }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Submission failed');
+      }
       const data = await res.json();
-      setSubmitOpen(false); clearSelection();
+      setSubmitOpen(false);
+      clearSelection();
       alert(`Submission created: ${data.batch.batchId} with ${data.submissionsCount} candidates`);
-    } catch (err) { setSubmitError(err instanceof Error ? err.message : 'Submission failed'); }
-    finally { setSubmitting(false); }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Submission failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  // Compare Client CSV vs Current Search Results
   const handleOpenCompare = () => {
     if (candidates.length === 0) { setError('No search results to compare against'); return; }
-    setCompareFile(null); setCompareMatches([]); setCompareError(null); setCompareOpen(true);
+    setCompareFile(null);
+    setCompareMatches([]);
+    setCompareError(null);
+    setCompareOpen(true);
+  };
+
+  const handleCompareFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setCompareFile(file);
   };
 
   const handleAnalyzeCompare = async () => {
     if (!compareFile) { setCompareError('Select a CSV file'); return; }
-    setCompareAnalyzing(true); setCompareError(null);
+    setCompareAnalyzing(true);
+    setCompareError(null);
     try {
       const text = await compareFile.text();
       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/submissions/smart-import`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csvText: text })
       });
       if (!res.ok) throw new Error('Analysis failed');
       const data = await res.json();
-      const ids = new Set(candidates.map(c => c.id));
-      setCompareMatches(data.matches.map((m: any) => ({
-        ...m, inSearchResults: m.matchedCandidate ? ids.has(m.matchedCandidate.candidateId) : false
-      })));
-    } catch (err) { setCompareError(err instanceof Error ? err.message : 'Analysis failed'); }
-    finally { setCompareAnalyzing(false); }
+      // Filter matches to only those in current search results
+      const searchCandidateIds = new Set(candidates.map(c => c.id));
+      const filteredMatches = data.matches.map((m: any) => ({
+        ...m,
+        inSearchResults: m.matchedCandidate ? searchCandidateIds.has(m.matchedCandidate.candidateId) : false
+      }));
+      setCompareMatches(filteredMatches);
+    } catch (err) {
+      setCompareError(err instanceof Error ? err.message : 'Analysis failed');
+    } finally {
+      setCompareAnalyzing(false);
+    }
   };
 
   const getConfidenceColor = (conf: number) => {
@@ -475,7 +520,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
         <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-700/50 rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap text-sm text-blue-300">
             <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Processing resumes...</span>
-            <span>{processing.processed}/{processing.total} · {processing.success} ok · {processing.failed} failed</span>
+            <span>{processing.processed}/{processing.total} Â· {processing.success} ok Â· {processing.failed} failed</span>
           </div>
           <div className="h-1.5 bg-blue-900/50 rounded-full overflow-hidden mt-3">
             <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all" style={{ width: `${processing.progress}%` }} />
@@ -488,16 +533,21 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1 relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input value={q} onChange={e => { setQ(e.target.value); if (!e.target.value.trim() && !jobTitle && !location && !gender && !expMin && !expMax && !selectedSkills.length) resetFilters(); }}
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') runSearch(1); }}
-              placeholder="Search keyword — e.g. Java Developer, Spring Boot, AWS..."
-              className={`${inputCls} pl-9`} />
+              placeholder="Search keyword â€” e.g. Java Developer, Spring Boot, AWS..."
+              className={`${inputCls} pl-9`}
+            />
           </div>
           <div className="flex gap-2">
             <button onClick={() => runSearch(1)} disabled={loading} className={btnPrimary}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search size={16} />} Search
             </button>
-            <button onClick={resetFilters} className={btnSecondary}>Reset</button>
+            <button onClick={resetFilters} className={btnSecondary}>
+              Reset
+            </button>
           </div>
         </div>
 
@@ -519,20 +569,21 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Exp Min (yrs)</label>
+            <label className="block text-xs text-gray-400 mb-1">Experience Min (yrs)</label>
             <input type="number" min={0} value={expMin} onChange={e => setExpMin(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Exp Max (yrs)</label>
+            <label className="block text-xs text-gray-400 mb-1">Experience Max (yrs)</label>
             <input type="number" min={0} value={expMax} onChange={e => setExpMax(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Skills</label>
+            <label className="block text-xs text-gray-400 mb-1">Skills (normalized)</label>
             <div className="flex gap-1">
               <input list="skill-suggestions" value={skillInput}
                 onChange={e => setSkillInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSkill(); } }}
-                placeholder="Add skill..." className={`${inputCls} flex-1 min-w-0`} />
+                placeholder="Add skill..."
+                className={`${inputCls} flex-1 min-w-0`} />
               <button onClick={handleAddSkill} className="px-2.5 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-200 hover:bg-gray-600">+</button>
             </div>
             <datalist id="skill-suggestions">
@@ -553,7 +604,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
         )}
       </div>
 
-      {error && (
+{error && (
         <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-sm text-red-300">
           <AlertCircle size={16} /> {error}
         </div>
@@ -571,26 +622,31 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
         </div>
       ) : searched && candidates.length > 0 ? (
         <>
+          {/* Search results header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-white">{total} candidates found</span>
               <span className="text-xs px-2 py-0.5 bg-blue-900/40 border border-blue-700/50 text-blue-300 rounded-full">Search Results</span>
             </div>
             <label className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 cursor-pointer">
-              <input type="checkbox"
+              <input
+                type="checkbox"
                 checked={selectedCandidates.size === candidates.length && candidates.length > 0}
-                onChange={toggleSelectAll} className="w-4 h-4 accent-emerald-500" />
+                onChange={toggleSelectAll}
+                className="w-4 h-4 accent-emerald-500"
+              />
               Select all {candidates.length}
             </label>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {candidates.map(c => (
-              <CandidateCard key={c.id} c={c}
+              <CandidateCard
+                key={c.id}
+                c={c}
                 selected={selectedCandidates.has(c.id)}
                 onToggle={toggleCandidateSelection}
                 onView={setProfileCandidate}
-                onDelete={handleDeleteCandidate}
-                deleting={deletingIds.has(c.id)} />
+              />
             ))}
           </div>
           {total > limit && (
@@ -612,49 +668,51 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
           <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading recent candidates...
         </div>
       ) : recentCandidates.length === 0 ? (
-        <div className="border border-dashed border-gray-700 rounded-2xl p-10 text-center bg-gray-900/50">
-          <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-gray-500" />
-          </div>
-          <h3 className="text-white font-semibold text-base mb-1">No candidates in the pool yet</h3>
-          <p className="text-gray-500 text-sm mb-5">Upload resumes to start building your talent pool. Parsed candidates will appear here automatically.</p>
-          <button onClick={onNavigateToTalentPool}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-orange-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-lg">
-            <Upload size={15} /> Upload Resumes Now
-          </button>
-          <p className="text-xs text-gray-600 mt-4">Supports PDF, DOC, DOCX — bulk upload up to 1500+ files</p>
+        <div className="text-center py-16 text-gray-500 border border-dashed border-gray-800 rounded-xl">
+          <User className="w-10 h-10 mx-auto mb-2 text-gray-600" />
+          <p className="mb-2">No parsed candidates found.</p>
+          <button onClick={onNavigateToTalentPool} className="text-sm text-blue-400 hover:text-blue-300 underline">Upload resumes â†’</button>
         </div>
       ) : (
         <>
+          {/* Recently parsed header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-white">Recently Parsed</span>
               <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded-full">{recentCandidates.length} of {recentTotal}</span>
-              <span className="text-xs text-gray-500">— use filters above to search all</span>
+              <span className="text-xs text-gray-500">â€” use filters above to search all</span>
             </div>
             <label className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 cursor-pointer">
-              <input type="checkbox"
+              <input
+                type="checkbox"
                 checked={selectedCandidates.size === recentCandidates.length && recentCandidates.length > 0}
                 onChange={() => {
-                  if (selectedCandidates.size === recentCandidates.length) setSelectedCandidates(new Set());
-                  else setSelectedCandidates(new Set(recentCandidates.map(c => c.id)));
+                  if (selectedCandidates.size === recentCandidates.length) {
+                    setSelectedCandidates(new Set());
+                  } else {
+                    setSelectedCandidates(new Set(recentCandidates.map(c => c.id)));
+                  }
                 }}
-                className="w-4 h-4 accent-emerald-500" />
+                className="w-4 h-4 accent-emerald-500"
+              />
               Select all {recentCandidates.length}
             </label>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {recentCandidates.map(c => (
-              <CandidateCard key={c.id} c={c}
+              <CandidateCard
+                key={c.id}
+                c={c}
                 selected={selectedCandidates.has(c.id)}
                 onToggle={toggleCandidateSelection}
                 onView={setProfileCandidate}
-                onDelete={handleDeleteCandidate}
-                deleting={deletingIds.has(c.id)} />
+              />
             ))}
           </div>
         </>
       )}
+
+
 
       {/* Profile modal */}
       {profileCandidate && (
@@ -698,7 +756,25 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   <div className="space-y-3">
                     {profileCandidate.workExperiences.map((exp, i) => (
                       <div key={i} className="border-l-2 border-blue-700 pl-3">
-                        <p className="text-sm font-medium text-gray-100">{exp.jobTitle || 'Role'}{exp.company ? ` · ${exp.company}` : ''}</p>
+                        <p className="text-sm font-medium text-gray-100">{exp.jobTitle || 'Role'}{exp.company ? ` Â· ${exp.company}` : ''}</p>
+                        {exp.date && <p className="text-xs text-gray-500">{exp.date}</p>}
+                        {exp.descriptions && exp.descriptions.length > 0 && (
+                          <ul className="list-disc ml-4 mt-1 text-xs text-gray-400 space-y-0.5">
+                            {exp.descriptions.slice(0, 5).map((d, j) => <li key={j}>{d}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {profileCandidate.internships.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Internships</h4>
+                  <div className="space-y-3">
+                    {profileCandidate.internships.map((exp, i) => (
+                      <div key={i} className="border-l-2 border-orange-700/70 pl-3">
+                        <p className="text-sm font-medium text-gray-100">{exp.jobTitle || 'Role'}{exp.company ? ` Â· ${exp.company}` : ''}</p>
                         {exp.date && <p className="text-xs text-gray-500">{exp.date}</p>}
                         {exp.descriptions && exp.descriptions.length > 0 && (
                           <ul className="list-disc ml-4 mt-1 text-xs text-gray-400 space-y-0.5">
@@ -716,7 +792,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   <div className="space-y-1.5">
                     {profileCandidate.educations.map((edu, i) => (
                       <p key={i} className="text-sm text-gray-300">
-                        {edu.degree}{edu.school ? ` — ${edu.school}` : ''}{edu.date ? ` (${edu.date})` : ''}
+                        {edu.degree}{edu.school ? ` â€” ${edu.school}` : ''}{edu.date ? ` (${edu.date})` : ''}
                       </p>
                     ))}
                   </div>
@@ -727,7 +803,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Projects</h4>
                   <div className="space-y-1.5">
                     {profileCandidate.projects.map((p, i) => (
-                      <p key={i} className="text-sm text-gray-300"><span className="font-medium text-white">{p.name}</span>{p.description ? ` — ${p.description}` : ''}</p>
+                      <p key={i} className="text-sm text-gray-300"><span className="font-medium text-white">{p.name}</span>{p.description ? ` â€” ${p.description}` : ''}</p>
                     ))}
                   </div>
                 </div>
@@ -747,22 +823,16 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Awards</h4>
                   <div className="space-y-1.5">
                     {profileCandidate.awards.map((a, i) => (
-                      <p key={i} className="text-sm text-gray-300">• {a}</p>
+                      <p key={i} className="text-sm text-gray-300">â€¢ {a}</p>
                     ))}
                   </div>
                 </div>
               )}
               {profileCandidate.resumeUrl && (
-                <div className="flex gap-2">
-                  <button onClick={() => openResume(profileCandidate.id, API_ENDPOINTS.BASE_URL)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-                    <FileText size={15} /> View Resume
-                  </button>
-                  <button onClick={() => downloadResume(profileCandidate.id, profileCandidate.name, API_ENDPOINTS.BASE_URL)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg hover:bg-gray-600">
-                    <Download size={15} /> Download
-                  </button>
-                </div>
+                <a href={`${API_ENDPOINTS.BASE_URL}/admin/talent/resume/${profileCandidate.id}`} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                  <FileText size={15} /> View Original Resume
+                </a>
               )}
               {profileCandidate.parserError && (
                 <div className="flex items-center gap-2 p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg text-xs text-amber-300">
@@ -787,22 +857,42 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                 <CheckSquare size={18} className="text-emerald-400" />
                 <span className="text-sm text-emerald-300 font-medium">{selectedCandidates.size} candidates selected</span>
               </div>
+
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Client Company *</label>
-                <input value={submitClient} onChange={e => setSubmitClient(e.target.value)}
-                  placeholder="e.g. Infosys, TCS..." className={`${inputCls} w-full`} list="client-suggestions" />
+                <input
+                  value={submitClient}
+                  onChange={e => setSubmitClient(e.target.value)}
+                  placeholder="e.g. Infosys, TCS, Infoyse..."
+                  className={`${inputCls} w-full`}
+                  list="client-suggestions"
+                />
                 <datalist id="client-suggestions">
-                  <option value="Infosys" /><option value="TCS" /><option value="Wipro" />
-                  <option value="HCL" /><option value="Tech Mahindra" /><option value="Cognizant" />
-                  <option value="Accenture" /><option value="Capgemini" /><option value="Google" />
-                  <option value="Microsoft" /><option value="Amazon" />
+                  <option value="Infosys" />
+                  <option value="TCS" />
+                  <option value="Wipro" />
+                  <option value="HCL" />
+                  <option value="Tech Mahindra" />
+                  <option value="Cognizant" />
+                  <option value="Accenture" />
+                  <option value="Capgemini" />
+                  <option value="Infoyse" />
+                  <option value="Google" />
+                  <option value="Microsoft" />
+                  <option value="Amazon" />
                 </datalist>
               </div>
+
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Job Title</label>
-                <input value={submitJobTitle} onChange={e => setSubmitJobTitle(e.target.value)}
-                  placeholder="e.g. Java Developer..." className={`${inputCls} w-full`} />
+                <input
+                  value={submitJobTitle}
+                  onChange={e => setSubmitJobTitle(e.target.value)}
+                  placeholder="e.g. Java Developer, React Developer..."
+                  className={`${inputCls} w-full`}
+                />
               </div>
+
               <div>
                 <label className="block text-xs text-gray-400 mb-2">CSV Fields</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-gray-800/50 rounded-lg border border-gray-700">
@@ -816,24 +906,28 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   ))}
                 </div>
               </div>
+
               {submitError && (
                 <div className="flex items-center gap-2 p-2.5 bg-red-900/30 border border-red-700/50 rounded-lg text-xs text-red-300">
                   <AlertCircle size={13} /> {submitError}
                 </div>
               )}
+
               <div className="flex gap-2 pt-2">
                 <button onClick={handleSubmit} disabled={submitting}
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send size={15} />} Create Submission
                 </button>
-                <button onClick={() => setSubmitOpen(false)} className={btnSecondary}>Cancel</button>
+                <button onClick={() => setSubmitOpen(false)} className={btnSecondary}>
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Compare modal */}
+      {/* Compare Client CSV Modal */}
       {compareOpen && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => { setCompareOpen(false); setCompareMatches([]); setCompareFile(null); }}>
           <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -846,11 +940,14 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                 <div className="space-y-4">
                   <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
                     <label className="block text-xs text-gray-400 mb-2">Upload Client Shortlist CSV</label>
-                    <input type="file" accept=".csv" onChange={e => { const f = e.target.files?.[0]; if (f) setCompareFile(f); }}
-                      className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
-                    <p className="text-xs text-gray-500 mt-2">CSV should have: Name, Email, Phone, Status</p>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCompareFileChange}
+                      className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">CSV should have: Name, Email, Phone, Status (optional: Client ID)</p>
                   </div>
-                  {compareError && <div className="flex items-center gap-2 p-2.5 bg-red-900/30 border border-red-700/50 rounded-lg text-xs text-red-300"><AlertCircle size={13} /> {compareError}</div>}
                   <button onClick={handleAnalyzeCompare} disabled={!compareFile || compareAnalyzing}
                     className="w-full px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2">
                     {compareAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search size={15} />} Analyze & Match
@@ -861,27 +958,49 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-white">{compareMatches.length} rows analyzed</h4>
                     <div className="flex gap-2">
-                      <span className="text-xs px-2 py-0.5 bg-emerald-900/30 text-emerald-400 rounded">{compareMatches.filter(m => m.confidence >= 85 && m.inSearchResults).length} In Results</span>
-                      <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded">{compareMatches.filter(m => m.confidence < 85 && m.confidence > 0).length} Review</span>
-                      <span className="text-xs px-2 py-0.5 bg-red-900/30 text-red-400 rounded">{compareMatches.filter(m => m.confidence === 0).length} No Match</span>
+                      <span className="text-xs px-2 py-0.5 bg-emerald-900/30 text-emerald-400 rounded">
+                        {compareMatches.filter(m => m.confidence >= 85 && m.inSearchResults).length} In Results
+                      </span>
+                      <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded">
+                        {compareMatches.filter(m => m.confidence < 85 && m.confidence > 0).length} Review
+                      </span>
+                      <span className="text-xs px-2 py-0.5 bg-red-900/30 text-red-400 rounded">
+                        {compareMatches.filter(m => m.confidence === 0).length} No Match
+                      </span>
                     </div>
                   </div>
+
                   <div className="max-h-60 overflow-y-auto space-y-2">
                     {compareMatches.map((m, i) => (
                       <div key={i} className={`${card} p-3 ${!m.inSearchResults ? 'opacity-50' : ''}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 text-xs rounded-full border ${getConfidenceColor(m.confidence)}`}>{m.confidence}%</span>
-                          {!m.inSearchResults && <span className="text-xs px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">Not in Results</span>}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 text-xs rounded-full border ${getConfidenceColor(m.confidence)}`}>
+                                {m.confidence}%
+                              </span>
+                              <span className="text-xs text-gray-500">{m.clientRow.clientId || 'N/A'}</span>
+                              {!m.inSearchResults && <span className="text-xs px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">Not in Results</span>}
+                            </div>
+                            <div className="grid grid-cols-2 gap-1 mt-1 text-xs">
+                              <div className="flex items-center gap-1 text-gray-500"><span className="font-medium text-gray-300">Client:</span> {m.clientRow.name}</div>
+                              <div className="flex items-center gap-1 text-gray-500"><span className="font-medium text-gray-300">Status:</span> {m.clientRow.status}</div>
+                              <div className="flex items-center gap-1 text-gray-500"><span className="font-medium text-gray-300">Email:</span> {m.clientRow.email}</div>
+                              <div className="flex items-center gap-1 text-gray-500"><span className="font-medium text-gray-300">Phone:</span> {m.clientRow.phone}</div>
+                            </div>
+                            {m.matchedCandidate && (
+                              <div className="mt-1 pt-1 border-t border-gray-700 grid grid-cols-2 gap-1 text-xs">
+                                <div className="flex items-center gap-1 text-emerald-400"><span className="font-medium text-gray-300">Matched:</span> {m.matchedCandidate.name}</div>
+                                <div className="flex items-center gap-1 text-emerald-400"><span className="font-medium text-gray-300">Email:</span> {m.matchedCandidate.email}</div>
+                                <div className="flex items-center gap-1 text-emerald-400"><span className="font-medium text-gray-300">Phone:</span> {m.matchedCandidate.phone}</div>
+                                <div className="flex items-center gap-1 text-emerald-400"><span className="font-medium text-gray-300">ID:</span> {m.matchedCandidate.candidateId}</div>
+                              </div>
+                            )}
+                            {!m.matchedCandidate && (
+                              <div className="mt-1 pt-1 border-t border-gray-700 text-xs text-red-400">No match found</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-1 text-xs">
-                          <div className="text-gray-500"><span className="text-gray-300">Client:</span> {m.clientRow.name}</div>
-                          <div className="text-gray-500"><span className="text-gray-300">Email:</span> {m.clientRow.email}</div>
-                        </div>
-                        {m.matchedCandidate ? (
-                          <div className="mt-1 pt-1 border-t border-gray-700 text-xs text-emerald-400">Matched: {m.matchedCandidate.name}</div>
-                        ) : (
-                          <div className="mt-1 pt-1 border-t border-gray-700 text-xs text-red-400">No match found</div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -901,7 +1020,7 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
               <button onClick={() => setExportOpen(false)} className="text-gray-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto p-5">
-              <p className="text-sm text-gray-400 mb-3">Select fields to include ({total} matching candidates):</p>
+              <p className="text-sm text-gray-400 mb-3">Select fields to include in the export ({total} matching candidates):</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {EXPORT_FIELDS.map(f => (
                   <label key={f.key} className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm cursor-pointer ${exportFields.includes(f.key) ? 'border-blue-600 bg-blue-900/30' : 'border-gray-700 bg-gray-800/50'}`}>
@@ -920,20 +1039,14 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
                   className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
                   {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download size={15} />} Download CSV
                 </button>
-                <button onClick={() => setExportOpen(false)} className={btnSecondary}>Cancel</button>
+                <button onClick={() => setExportOpen(false)} className={btnSecondary}>
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
     </div>
-      <ConfirmModal
-        open={confirmState.open}
-        title="Delete Candidate"
-        message="Delete this candidate? This cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={() => execDeleteCandidate(confirmState.id)}
-        onCancel={() => setConfirmState({ open: false, id: '' })}
-      />
   );
 }
