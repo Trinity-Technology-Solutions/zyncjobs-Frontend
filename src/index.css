@@ -1,13 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* Prevent horizontal scroll - aggressive approach */
+/* Prevent horizontal scroll without breaking position: sticky */
 html, body {
   width: 100%;
   height: 100%;
   max-width: 100%;
-  overflow-x: clip !important;
 }
 
 /* Box sizing for all elements */
@@ -23,7 +23,6 @@ html, body {
 
 html {
   font-family: 'IBM Plex Sans', sans-serif !important;
-  overflow-x: clip !important;
   width: 100%;
   max-width: 100%;
 }
@@ -35,7 +34,6 @@ body {
   font-size: 16px;
   margin: 0;
   padding: 0;
-  overflow-x: clip !important;
   width: 100%;
   max-width: 100%;
   position: relative;
@@ -45,7 +43,6 @@ body {
 #root, .root, [data-theme] {
   width: 100%;
   max-width: 100%;
-  overflow-x: clip !important;
 }
 
 /* Mobile-specific overrides */

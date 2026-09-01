@@ -173,13 +173,23 @@
     <link rel="preconnect" href="https://www.googletagmanager.com">
     <link rel="dns-prefetch" href="https://unpkg.com">
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
-    <style>#root{background-color:#f9fafb;min-height:100vh;} body{font-family:'IBM Plex Sans',system-ui,sans-serif;}</style>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>#root{background-color:#f9fafb;min-height:100vh;} </style>
     <!-- Tailwind CDN for development - will be replaced by Vite plugin in production -->
     <script src="https://cdn.tailwindcss.com"></script>
-  <body style="font-family: 'IBM Plex Sans', sans-serif !important; background-color: #f9fafb;">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"IBM Plex Sans"', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+  </head>
+  <body style="background-color: #f9fafb;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script defer src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.10/dist/dotlottie-wc.js" type="module"></script>

@@ -782,7 +782,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         <BackButton
           fallback="/"
           position="top-left"
-          className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md"
+          className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md mt-24 z-40"
         />
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
@@ -797,7 +797,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         <div className="absolute top-16 right-16 w-24 h-24 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
         <div className="absolute bottom-8 left-1/3 w-12 h-12 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-6 sm:pt-28 sm:pb-8">
           {/* Header Content */}
           <div className="text-center mb-6 sm:mb-8">
             <div className="flex justify-center items-center mb-4">
