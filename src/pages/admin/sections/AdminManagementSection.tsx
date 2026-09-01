@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
 import { isSuperAdmin, getRoleDisplayName } from '../../../utils/rolePermissions';
+import ConfirmModal from '../../../components/ConfirmModal';
 import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 import { debugAdminFlow, debugInviteEmail } from '../../../utils/adminDebug';
 
@@ -42,7 +43,7 @@ interface Admin {
   id?: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'admin';
+  role: 'super_admin' | 'admin' | 'recruiter';
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
@@ -51,7 +52,7 @@ interface Admin {
 interface AddAdminForm {
   name: string;
   email: string;
-  role: 'admin' | 'super_admin';
+  role: 'admin' | 'super_admin' | 'recruiter';
 }
 
 export default function AdminManagementSection({ 
@@ -152,10 +153,13 @@ export default function AdminManagementSection({
       endpoint: API_ENDPOINTS.ADMIN_INVITE
     });
     
+    const headers = authHeaders();
+    console.log('📧 Request headers:', { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : 'none' });
+    
     try {
       const response = await apiFetch(`${API_ENDPOINTS.ADMIN_INVITE}`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers,
         body: JSON.stringify({
           name: addForm.name.trim(),
           email: addForm.email.trim().toLowerCase(),
@@ -166,17 +170,27 @@ export default function AdminManagementSection({
       console.log('📧 Invite response status:', response.status);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('📧 Invite error:', errorData);
+        let errorData: any = {};
+        let errorText = '';
+        try {
+          const clonedResponse = response.clone();
+          errorText = await clonedResponse.text();
+          console.error('📧 Invite raw error response:', errorText);
+          errorData = JSON.parse(errorText);
+        } catch {
+          console.error('📧 Invite error response is not valid JSON');
+        }
+        console.error('📧 Invite parsed error:', errorData);
         
         if (response.status === 409) {
           throw new Error('An admin with this email already exists. Please use a different email address.');
         } else if (response.status === 400) {
-          throw new Error(errorData.message || 'Invalid request. Please check the form data.');
+          throw new Error(errorData.message || errorData.error || 'Invalid request. Please check the form data.');
         } else if (response.status === 403) {
           throw new Error('You do not have permission to invite administrators.');
         } else {
-          throw new Error(errorData.message || `Server error (${response.status}). Please try again.`);
+          const message = errorData.message || errorData.error || errorText || `Server error (${response.status}). Please try again.`;
+          throw new Error(message);
         }
       }
       
@@ -194,7 +208,7 @@ export default function AdminManagementSection({
     }
   };
 
-  const updateAdminRole = async (adminId: string, newRole: 'admin' | 'super_admin') => {
+  const updateAdminRole = async (adminId: string, newRole: 'admin' | 'super_admin' | 'recruiter') => {
     setActionLoading(adminId + 'role');
     setError('');
     setSuccess('');
@@ -238,13 +252,14 @@ export default function AdminManagementSection({
     }
   };
 
-  const deleteAdmin = async (adminId: string, adminName: string) => {
-    // Use standard confirm instead of non-existent confirmAsync
-    const confirmed = confirm(
-      `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
+const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
 
+  const deleteAdmin = (adminId: string, adminName: string) => {
+    setConfirmState({ open: true, message: `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`, onConfirm: () => execDeleteAdmin(adminId) });
+  };
+
+  const execDeleteAdmin = async (adminId: string) => {
+    setConfirmState(s => ({ ...s, open: false }));
     setActionLoading(adminId + 'delete');
     setError('');
     setSuccess('');
@@ -423,9 +438,10 @@ export default function AdminManagementSection({
               <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
               <AutocompleteCombobox
                 value={addForm.role}
-                onChange={(val) => setAddForm(prev => ({ ...prev, role: val as 'admin' | 'super_admin' }))}
+                onChange={(val) => setAddForm(prev => ({ ...prev, role: val as 'admin' | 'super_admin' | 'recruiter' }))}
                 options={[
                   { value: 'admin', label: 'Administrator' },
+                  { value: 'recruiter', label: 'Recruiter (Talent Pool & Submissions)' },
                   { value: 'super_admin', label: 'Super Administrator' },
                 ]}
                 placeholder="Select role..."
@@ -602,5 +618,21 @@ export default function AdminManagementSection({
         </div>
       </div>
     </div>
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete Admin"
+        message={confirmState.message}
+        confirmLabel="Delete"
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+      />
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete Admin"
+        message={confirmState.message}
+        confirmLabel="Delete"
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+      />
   );
 }

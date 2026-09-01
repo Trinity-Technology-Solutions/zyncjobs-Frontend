@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
 import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
@@ -86,9 +87,14 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
     }
   };
 
-  const deleteVerification = async (id: string, companyName: string) => {
-    const confirmed = confirm(`Are you sure you want to delete verification for "${companyName}"? This action cannot be undone.`);
-    if (!confirmed) return;
+  const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
+
+  const deleteVerification = (id: string, companyName: string) => {
+    setConfirmState({ open: true, message: `Are you sure you want to delete verification for "${companyName}"? This action cannot be undone.`, onConfirm: () => execDeleteVerification(id) });
+  };
+
+  const execDeleteVerification = async (id: string) => {
+    setConfirmState(s => ({ ...s, open: false }));
     
     setActionLoading(id + 'delete');
     try {
@@ -239,5 +245,13 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
         })}
       </div>
     </div>
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete Verification"
+        message={confirmState.message}
+        confirmLabel="Delete"
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+      />
   );
 }

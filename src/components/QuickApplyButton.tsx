@@ -48,7 +48,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
   const checkIfAlreadyApplied = async () => {
     if (!user?.email || !jobId) return;
     try {
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${user.email}&jobId=${jobId}`);
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${user.email}`);
       if (response.ok) {
         const data = await response.json();
         const applications = Array.isArray(data) ? data : (data.applications || []);

@@ -314,9 +314,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
     try {
-      // Always fetch ALL applications for this candidate — jobId filter on server
-      // can miss if employer was deleted and jobId reference changed.
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(userEmail)}`);
+      // Use candidate-specific endpoint which doesn't require auth
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`);
       if (!response.ok) return;
       const data = await response.json();
       const list: any[] = Array.isArray(data) ? data : (data.applications || []);
@@ -544,12 +543,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               }));
               onNavigate('job-application');
             } else {
-              sessionStorage.setItem('pendingJobApplication', JSON.stringify({
+              // Store in BOTH sessionStorage and localStorage for LoginPage compatibility
+              const pendingData = JSON.stringify({
                 jobId: jid,
                 jobTitle: job.jobTitle || job.title,
                 company: job.company,
                 jobData: job
-              }));
+              });
+              sessionStorage.setItem('pendingJobApplication', pendingData);
+              localStorage.setItem('pendingJobApplication', pendingData);
               onNavigate('login');
             }
           }}
@@ -1097,12 +1099,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             }));
                             onNavigate('job-application');
                           } else {
-                            sessionStorage.setItem('pendingJobApplication', JSON.stringify({
+                            // Store in BOTH sessionStorage and localStorage for LoginPage compatibility
+                            const pendingData = JSON.stringify({
                               jobId: jid2,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
                               jobData: job
-                            }));
+                            });
+                            sessionStorage.setItem('pendingJobApplication', pendingData);
+                            localStorage.setItem('pendingJobApplication', pendingData);
                             onNavigate('login');
                           }
                         }}

@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw, Home, RotateCcw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -51,7 +52,7 @@ class ErrorBoundary extends Component<Props, State> {
               <div className="text-[100px] font-black text-gray-100 leading-none select-none">500</div>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="bg-gray-50 px-4">
-                  <div className="text-5xl">⚠️</div>
+                  <AlertTriangle className="w-12 h-12 text-amber-400" />
                 </div>
               </div>
             </div>
@@ -70,21 +71,21 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="flex flex-wrap gap-3 justify-center mb-8">
               <button
                 onClick={this.handleReset}
-                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium transition-colors inline-flex items-center gap-2"
               >
-                🔄 Try Again
+                <RefreshCw className="w-4 h-4" /> Try Again
               </button>
               <button
                 onClick={() => window.location.href = '/'}
-                className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-100 font-medium transition-colors"
+                className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-100 font-medium transition-colors inline-flex items-center gap-2"
               >
-                🏠 Go Home
+                <Home className="w-4 h-4" /> Go Home
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-100 font-medium transition-colors"
+                className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-100 font-medium transition-colors inline-flex items-center gap-2"
               >
-                ↺ Reload Page
+                <RotateCcw className="w-4 h-4" /> Reload Page
               </button>
             </div>
 

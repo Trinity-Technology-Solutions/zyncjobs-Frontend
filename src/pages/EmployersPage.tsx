@@ -229,7 +229,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               </Reveal>
             ))}
           </div>
-        </div>
+     </div>
       </section>
 
       {/* ── 4. Hiring made simple ── */}
