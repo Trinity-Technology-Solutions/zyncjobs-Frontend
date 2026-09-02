@@ -19,6 +19,7 @@ const LatestJobs = lazy(() => import('./components/LatestJobs'));
 const HowItWorks = lazy(() => import('./components/HowItWorks'));
 const TalentedPeople = lazy(() => import('./components/TalentedPeople'));
 const CallToAction = lazy(() => import('./components/CallToAction'));
+const CompanyCarousel = lazy(() => import('./components/CompanyCarousel'));
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
@@ -744,6 +745,7 @@ function App() {
               <div className="min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
                 <NewHero onNavigate={handleNavigation} user={user as any} />
+                <CompanyCarousel />
                 <LatestJobs onNavigate={handleNavigation} />
                 <HowItWorks onNavigate={handleNavigation} />
                 <JobCategories onNavigate={handleNavigation} />
