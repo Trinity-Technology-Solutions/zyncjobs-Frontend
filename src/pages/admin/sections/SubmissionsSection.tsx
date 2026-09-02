@@ -51,7 +51,7 @@ interface BatchDetail {
   candidates: CandidateSubmission[];
 }
 
-const inputCls = "w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none";
+const inputCls = "w-full h-10 bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none";
 const btnPrimary = "flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const btnSecondary = "flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors";
 const card = "bg-gray-900 border border-gray-800 rounded-xl";
@@ -282,9 +282,9 @@ export default function SubmissionsSection({ onUnauthorized }: Props) {
       )}
 
       {/* Filters */}
-      <div className={`${card} p-4 space-y-3`}>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
+      <div className={`${card} p-3 sm:p-4`}>
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_11rem_auto] items-end gap-3">
+          <div className="relative min-w-0">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               value={search}
@@ -294,7 +294,7 @@ export default function SubmissionsSection({ onUnauthorized }: Props) {
               className={`${inputCls} pl-9`}
             />
           </div>
-          <div className="w-48">
+          <div className="w-full">
             <label className="block text-xs text-gray-400 mb-1">Status</label>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${inputCls} appearance-none`}>
               <option value="">All</option>
@@ -303,7 +303,7 @@ export default function SubmissionsSection({ onUnauthorized }: Props) {
               <option value="Completed">Completed</option>
             </select>
           </div>
-          <button onClick={() => fetchBatches(1)} disabled={loading} className={btnPrimary}>
+          <button onClick={() => fetchBatches(1)} disabled={loading} className={`${btnPrimary} h-10 justify-center px-5`}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search size={16} />} Search
           </button>
         </div>
@@ -315,9 +315,9 @@ export default function SubmissionsSection({ onUnauthorized }: Props) {
           <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading...
         </div>
       ) : batches.length === 0 ? (
-        <div className="text-center py-16 text-gray-500 border border-dashed border-gray-800 rounded-xl">
-          <FileSpreadsheet className="w-12 h-12 mx-auto mb-2 text-gray-600" />
-          <p>No submissions found. Create one from Recruiter Search.</p>
+        <div className="min-h-[220px] flex flex-col items-center justify-center text-center px-4 py-10 text-gray-500 border border-dashed border-gray-800 rounded-xl">
+          <FileSpreadsheet className="w-10 h-10 mb-3 text-gray-600" />
+          <p className="text-sm">No submissions found. Create one from Recruiter Search.</p>
         </div>
       ) : (
         <div className="space-y-3">

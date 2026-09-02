@@ -1,5 +1,5 @@
 // Frontend role and permission utilities
-export type UserRole = 'super_admin' | 'admin' | 'manager' | 'employer' | 'candidate' | 'moderator';
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'recruiter' | 'employer' | 'candidate' | 'moderator';
 export type AccountStatus = 'active' | 'suspended' | 'deleted';
 
 // Paths that belong to the employer experience (employer landing + auth pages)
@@ -96,6 +96,15 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     PERMISSIONS.VIEW_APPLICANTS,
     PERMISSIONS.MANAGE_PROFILE
   ],
+  recruiter: [
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.VIEW_JOBS,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_REPORTS,
+    PERMISSIONS.POST_JOBS,
+    PERMISSIONS.VIEW_APPLICANTS,
+    PERMISSIONS.MANAGE_PROFILE
+  ],
   employer: [
     PERMISSIONS.POST_JOBS,
     PERMISSIONS.VIEW_APPLICANTS,
@@ -157,6 +166,7 @@ export const getRoleDisplayName = (role: UserRole): string => {
     super_admin: 'Super Administrator',
     admin: 'Administrator',
     manager: 'Manager',
+    recruiter: 'Recruiter',
     employer: 'Employer',
     candidate: 'Job Seeker',
     moderator: 'Content Moderator'

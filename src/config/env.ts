@@ -145,6 +145,10 @@ export const API_ENDPOINTS = {
   ADMIN_REMINDER_EMAIL: `${config.API_URL}/admin/notifications/reminder`,
   ADMIN_EMAIL_STATUS: `${config.API_URL}/admin/notifications/status`,
   ADMIN_ALL_APPLICATIONS: `${config.API_URL}/admin/analytics/all-applications`,
+
+  // Submission Tracker
+  TRACKER_ROWS: `${config.API_URL}/admin/tracker/rows`,
+  TRACKER_PARSE_RESUME: `${config.API_URL}/admin/tracker/parse-resume`,
 };
 
 // Google OAuth base — strips /api suffix to get server root

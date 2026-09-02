@@ -103,10 +103,11 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin, onLogout 
         
         // Ensure proper admin user type is set
         const userRole = data.user.role || 'admin';
+        const normalizedRole = userRole === 'super_admin' ? 'super_admin' : userRole === 'admin' ? 'admin' : userRole === 'recruiter' ? 'recruiter' : 'admin';
         const adminUser = {
           ...data.user,
-          type: userRole === 'super_admin' ? 'super_admin' : 'admin',
-          userType: userRole === 'super_admin' ? 'super_admin' : 'admin',
+          type: normalizedRole,
+          userType: normalizedRole,
           role: userRole,
           id: data.user._id || data.user.id,
           name: data.user.name || data.user.fullName || data.user.email?.split('@')[0] || 'Admin'

@@ -17,7 +17,9 @@ export const API_ENDPOINTS = {
   DASHBOARD_STATS: `${API_CONFIG.BASE_URL}/dashboard/stats`,
   DASHBOARD_ACTIVITY: `${API_CONFIG.BASE_URL}/dashboard/recent-activity`,
   SKILLS: `${API_CONFIG.BASE_URL}/skills`,
-  TEST: `${API_CONFIG.BASE_URL}/test`
+  TEST: `${API_CONFIG.BASE_URL}/test`,
+  TRACKER_ROWS: `${API_CONFIG.BASE_URL}/admin/tracker/rows`,
+  TRACKER_PARSE_RESUME: `${API_CONFIG.BASE_URL}/admin/tracker/parse-resume`
 };
 
 export const APP_CONFIG = {
