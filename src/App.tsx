@@ -571,10 +571,25 @@ function App() {
       // Now just verify/refresh the token in the background
       let token = tokenStorage.getAccess();
 
+      // Do not silently restore an account from an httpOnly cookie when this
+      // browser has no local user session. Anonymous visitors must stay anonymous.
+      if (!user && !localStorage.getItem('user')) {
+        tokenStorage.clear();
+        setUserLoading(false);
+        return;
+      }
+
       if (!token) {
+        // Only attempt cookie-based refresh when a local user session exists.
+        // Anonymous browsers must not be re-authenticated via stale httpOnly cookies.
+        if (!localStorage.getItem('user')) {
+          tokenStorage.clear();
+          setUserLoading(false);
+          return;
+        }
         const refreshToken = tokenStorage.getRefresh();
         try {
-          // Try the httpOnly refreshToken cookie too (no stored token needed).
+          // Try the httpOnly refreshToken cookie (local session required).
           const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -690,6 +705,7 @@ function App() {
 
   if (userLoading) {
     const waitForSessionPaths = [
+      '/',
       '/login', '/employer-login',
       '/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
       '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
@@ -710,6 +726,10 @@ function App() {
       try { const res = await fetch('/api/jobs?limit=1'); if (res.ok) setMaintenance(false); } catch { }
     };
     return <MaintenancePage onRetry={handleRetry} />;
+  }
+
+  if (user?.type === 'recruiter' && !location.pathname.startsWith('/admin/')) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   // Handle OAuth callback (skip admin invite pages — they use token param too)
