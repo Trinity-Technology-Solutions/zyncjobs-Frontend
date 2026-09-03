@@ -52,7 +52,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, red
     return <Navigate to={dest} state={{ from: location }} replace />;
   }
 
-  const effectiveRole = user.type === 'super_admin' ? 'admin' : user.type === 'recruiter' ? 'admin' : user.type;
+  const effectiveRole = user.type === 'super_admin' ? 'admin' : user.type;
   if (allowedRoles && !allowedRoles.includes(user.type) && !allowedRoles.includes(effectiveRole as any)) {
     if (user.type === 'employer' && allowedRoles.includes('candidate')) {
       return <RedirectWithAlert message="This feature is only accessible to candidates. Please login with a candidate account." to="/dashboard" />;

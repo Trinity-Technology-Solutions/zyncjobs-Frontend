@@ -36,8 +36,8 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+    <section ref={sectionRef} className="py-12 sm:py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
         
         {/* LEFT CONTENT */}
         <div 
@@ -79,17 +79,17 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <button 
               onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('role-selection'); }}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
               Get Started
               <TrendingUp className="w-5 h-5" />
             </button>
             <button 
               onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('job-listings'); }}
-              className="border-2 border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300"
+              className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center"
             >
               Browse Jobs
             </button>
@@ -105,16 +105,16 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
           <img
             src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
             alt="Team collaboration and success"
-            className="w-full h-[500px] object-cover rounded-2xl shadow-2xl"
+            className="w-full h-64 sm:h-96 md:h-[500px] object-cover rounded-2xl shadow-2xl"
           />
         </div>
 
       </div>
 
       {/* Company Logos Section */}
-      <div className="max-w-7xl mx-auto px-6 mt-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-20">
         <p className="text-center text-gray-400 text-sm font-medium mb-8">Trusted by top companies</p>
-        <div className="flex flex-wrap justify-center items-center gap-12 transition-all duration-500">
+        <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-12 transition-all duration-500">
           {[
             { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
             { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },

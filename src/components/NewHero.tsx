@@ -253,7 +253,7 @@ function RobotCanvas() {
   return (
     <div
       ref={mountRef}
-      style={{ width: '100%', height: '100%', minHeight: '520px', cursor: 'pointer' }}
+      style={{ width: '100%', height: '100%', minHeight: 'clamp(360px, 45vw, 520px)', cursor: 'pointer' }}
     />
   );
 }
@@ -274,8 +274,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
     <div
       className="relative w-full overflow-hidden bg-[#FAFBFC]"
       style={{ 
-        minHeight: 'calc(100vh - 68px)', 
-        marginTop: '68px'
+        minHeight: 'clamp(680px, calc(100vh - 68px), 860px)',
       }}
     >
       {/* Background Decoratives - Professional Corporate Aesthetic */}
@@ -311,36 +310,36 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-12
-                      grid grid-cols-1 lg:grid-cols-2 gap-8 items-center h-full"
-        style={{ minHeight: 'calc(100vh - 68px)' }}>
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12
+                      grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center h-full"
+        style={{ minHeight: 'clamp(680px, calc(100vh - 68px), 860px)' }}>
 
         {/* ════ LEFT — Content ════ */}
         <motion.div
-          className="space-y-6 py-16"
+          className="w-full max-w-2xl space-y-7 py-12 sm:py-16 lg:py-20"
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="text-indigo-600 font-semibold text-lg tracking-wide">
+          <div className="text-indigo-600 font-semibold text-base sm:text-lg tracking-wide">
             Let AI Find Your Next Move
           </div>
           
-          <h1 className="text-[60px] font-bold text-gray-900 leading-[1.1] tracking-tight">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 leading-[1.05] tracking-tight">
             Your <span className="text-orange-500">Dream</span> Job Is<br/>Waiting For You
           </h1>
           
-          <p className="text-[16px] whitespace-nowrap text-gray-600 leading-relaxed font-medium pb-2">
+          <p className="text-xs sm:text-lg text-gray-600 leading-relaxed font-medium pb-2 whitespace-nowrap max-w-none">
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 
-          <form onSubmit={handleSearch} className="bg-white p-3 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-3">
+          <form onSubmit={handleSearch} className="w-full bg-white p-3 sm:p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-3">
             <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
               <Search className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
               <input 
                 type="text" 
                 placeholder="Job Title, Keyword" 
-                className="bg-transparent w-full outline-none text-gray-800 placeholder-gray-400 font-medium"
+                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -351,18 +350,18 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               <input 
                 type="text" 
                 placeholder="City Or Country" 
-                className="bg-transparent w-full outline-none text-gray-800 placeholder-gray-400 font-medium"
+                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
             </div>
 
-            <button type="submit" className="bg-blue-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap">
+            <button type="submit" className="bg-blue-600 text-white font-semibold px-6 sm:px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap">
               Find Job
             </button>
           </form>
 
-          <div className="pt-6 flex flex-wrap items-center gap-3 text-sm font-medium">
+          <div className="pt-4 sm:pt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base font-medium">
             <span className="text-gray-900 font-bold">Popular Searches:</span>
             <span className="text-indigo-600 cursor-pointer hover:underline">Chemical</span>
             <span className="text-indigo-600 cursor-pointer hover:underline">Data analyst</span>
@@ -371,7 +370,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </motion.div>
 
         {/* ════ RIGHT — Three.js 3D Robot ════ */}
-        <div className="flex items-center justify-center h-full relative" style={{ minHeight: '600px' }}>
+        <div className="flex items-center justify-center h-full min-h-[360px] lg:min-h-[600px] relative">
           {/* 3D Canvas */}
           <RobotCanvas />
           

@@ -16,7 +16,7 @@ import MobileHamburgerMenu from './MobileHamburgerMenu';
 
 interface HeaderProps {
   onNavigate?: (page: string, data?: any) => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin', email?: string} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter', email?: string} | null;
   onLogout?: () => void;
 }
 
@@ -535,7 +535,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsDropdownOpen(false)}></div>
                     
                     {/* Panel */}
-                    <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+                    <div className="fixed top-[72px] right-0 h-[calc(100%-72px)] w-full sm:w-96 bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out">
                       {/* Header */}
                       <div className="flex items-center justify-between p-6 border-b border-gray-200">
                         <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
@@ -550,7 +550,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </div>
                       
                       {/* Content */}
-                      <div className="p-6 overflow-y-auto h-full pb-20">
+                      <div className="flex-1 min-h-0 p-6 overflow-y-auto pb-20">
                         {/* User Info */}
                         <div className="flex items-center space-x-4 mb-8">
                           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
@@ -869,6 +869,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         </div>
       </div>
     </header>
+
+    <div className="h-16 sm:h-20 lg:h-24 shrink-0" aria-hidden="true" />
 
     {/* Mobile Hamburger Menu */}
     <MobileHamburgerMenu 

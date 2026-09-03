@@ -433,8 +433,9 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <>
+      <div className="space-y-5">
+        {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -926,14 +927,16 @@ export default function RecruiterSearchSection({ onUnauthorized, onNavigateToTal
           </div>
         </div>
       )}
-    </div>
-      <ConfirmModal
-        open={confirmState.open}
-        title="Delete Candidate"
-        message="Delete this candidate? This cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={() => execDeleteCandidate(confirmState.id)}
-        onCancel={() => setConfirmState({ open: false, id: '' })}
-      />
+
+        <ConfirmModal
+          open={confirmState.open}
+          title="Delete Candidate"
+          message="Delete this candidate? This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={() => execDeleteCandidate(confirmState.id)}
+          onCancel={() => setConfirmState({ open: false, id: '' })}
+        />
+      </div>
+    </>
   );
 }

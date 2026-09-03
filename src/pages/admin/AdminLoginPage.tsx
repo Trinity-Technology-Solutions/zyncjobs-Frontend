@@ -30,7 +30,7 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
       if (!res.ok) { setError(data.error || 'Login failed'); return; }
 
       let role = data.user?.role || data.user?.userType;
-      if (role !== 'admin' && role !== 'super_admin' && role !== 'manager') {
+      if (role !== 'admin' && role !== 'super_admin' && role !== 'manager' && role !== 'recruiter') {
         setError('Access denied. Admin credentials required.');
         return;
       }

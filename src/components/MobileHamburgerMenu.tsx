@@ -27,7 +27,7 @@ interface MobileHamburgerMenuProps {
   onClose: () => void;
   onNavigate?: (page: string, data?: any) => void;
   onLogout?: () => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter'} | null;
   siteSettings?: {
     siteLogo?: { url?: string };
     siteTitle?: string;

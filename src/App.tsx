@@ -136,7 +136,7 @@ const CandidateProfileViewWrapper: React.FC<{
   );
 };
 
-type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager'; email?: string };
+type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter'; email?: string };
 
 // Shared layout wrapper for pages that need Header + Footer
 const WithLayout: React.FC<{
@@ -183,7 +183,7 @@ const DashboardRoute: React.FC<{
   return (
     <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
       <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
-      {user?.type === 'admin' || user?.type === 'super_admin' ? (
+      {user?.type === 'admin' || user?.type === 'super_admin' || user?.type === 'recruiter' ? (
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
         <>
@@ -235,6 +235,7 @@ function getInitialUser(): UserType | null {
     else if (rawType === 'admin') type = 'admin';
     else if (rawType === 'super_admin') type = 'super_admin';
     else if (rawType === 'manager') type = 'manager';
+    else if (rawType === 'recruiter') type = 'recruiter';
     return {
       name: stored.fullName || stored.name || stored.email.split('@')[0] || 'User',
       type,
@@ -366,7 +367,7 @@ function App() {
     localStorage.setItem('zync:logged_out', '1');
 
     if (userType === 'employer') navigate('/employer-login');
-    else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
+    else if (userType === 'admin' || userType === 'super_admin' || userType === 'recruiter') navigate('/admin/login');
     else navigate('/login');
   }, [navigate, user?.type]);
 
@@ -453,6 +454,7 @@ function App() {
       else if (userType === 'admin') type = 'admin';
       else if (userType === 'super_admin') type = 'super_admin';
       else if (userType === 'manager') type = 'manager';
+      else if (userType === 'recruiter') type = 'recruiter';
       
       // Generate new tokens after password change
       const loginRes = await fetch(`${API_BASE}/users/login`, {
@@ -521,7 +523,7 @@ function App() {
       localStorage.setItem('zync:logged_out', '1');
 
       if (userType === 'employer') navigate('/employer-login');
-      else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
+      else if (userType === 'admin' || userType === 'super_admin' || userType === 'recruiter') navigate('/admin/login');
       else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
@@ -569,10 +571,25 @@ function App() {
       // Now just verify/refresh the token in the background
       let token = tokenStorage.getAccess();
 
+      // Do not silently restore an account from an httpOnly cookie when this
+      // browser has no local user session. Anonymous visitors must stay anonymous.
+      if (!user && !localStorage.getItem('user')) {
+        tokenStorage.clear();
+        setUserLoading(false);
+        return;
+      }
+
       if (!token) {
+        // Only attempt cookie-based refresh when a local user session exists.
+        // Anonymous browsers must not be re-authenticated via stale httpOnly cookies.
+        if (!localStorage.getItem('user')) {
+          tokenStorage.clear();
+          setUserLoading(false);
+          return;
+        }
         const refreshToken = tokenStorage.getRefresh();
         try {
-          // Try the httpOnly refreshToken cookie too (no stored token needed).
+          // Try the httpOnly refreshToken cookie (local session required).
           const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -614,10 +631,14 @@ function App() {
           const lastUserType = localStorage.getItem('lastUserType');
           const resolvedRawType = (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
             ? 'employer'
-            : rawType;
+            : lastUserType === 'recruiter' && ['super_admin', 'admin', 'manager'].includes(rawType)
+              ? 'recruiter'
+              : rawType;
           if (resolvedRawType === 'employer') userType = 'employer';
           else if (resolvedRawType === 'admin') userType = 'admin';
           else if (resolvedRawType === 'super_admin') userType = 'super_admin';
+          else if (resolvedRawType === 'manager') userType = 'manager';
+          else if (resolvedRawType === 'recruiter') userType = 'recruiter';
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
           const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
@@ -684,6 +705,7 @@ function App() {
 
   if (userLoading) {
     const waitForSessionPaths = [
+      '/',
       '/login', '/employer-login',
       '/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
       '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
@@ -704,6 +726,10 @@ function App() {
       try { const res = await fetch('/api/jobs?limit=1'); if (res.ok) setMaintenance(false); } catch { }
     };
     return <MaintenancePage onRetry={handleRetry} />;
+  }
+
+  if (user?.type === 'recruiter' && !location.pathname.startsWith('/admin/')) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   // Handle OAuth callback (skip admin invite pages — they use token param too)
@@ -752,7 +778,7 @@ function App() {
             } />
 
             <Route path="/candidate-messages" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
                   <div style={{ flexShrink: 0 }}>
                     <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
@@ -853,13 +879,13 @@ function App() {
             } />
 
             <Route path="/settings" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
                 <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
               </AuthGuard>
             } />
 
             <Route path="/my-jobs" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
                 <>
                   <Header {...nav} />
                   <MyJobsPage {...nav} />
@@ -874,25 +900,25 @@ function App() {
             } />
 
             <Route path="/my-applications" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
                 <MyApplicationsPage {...nav} />
               </AuthGuard>
             } />
 
             <Route path="/alerts" element={
-              <AuthGuard user={user}>
+              <AuthGuard user={user} allowedRoles={['candidate']}>
                 <MyAlertsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
 
             <Route path="/job-alert-notifications" element={
-              <AuthGuard user={user}>
+              <AuthGuard user={user} allowedRoles={['candidate']}>
                 <JobAlertNotificationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
 
             <Route path="/interviews" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
                 <CandidateInterviewsPage {...nav} />
               </AuthGuard>
             } />
@@ -992,25 +1018,25 @@ function App() {
 
 
             <Route path="/candidate-profile-view" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
               </AuthGuard>
             } />
 
 
             <Route path="/bulk-job-import" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <BulkJobImportPage onNavigate={handleNavigation} user={user as any} />
               </AuthGuard>
             } />
 
             {/* -- Protected: employer only -- */}
             <Route path="/job-posting" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}><WithLayout {...nav}><JobPostingPage {...nav} mode={location.state?.mode || (() => { try { const s = JSON.parse(sessionStorage.getItem('parsedJobData') || '{}'); if (s?.parsedData) { sessionStorage.removeItem('parsedJobData'); return s.mode; } return undefined; } catch { return undefined; } })()} parsedData={location.state?.parsedData || (() => { try { const s = JSON.parse(sessionStorage.getItem('parsedJobData') || '{}'); return s?.parsedData || undefined; } catch { return undefined; } })()} /></WithLayout></AuthGuard>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}><WithLayout {...nav}><JobPostingPage {...nav} mode={location.state?.mode || (() => { try { const s = JSON.parse(sessionStorage.getItem('parsedJobData') || '{}'); if (s?.parsedData) { sessionStorage.removeItem('parsedJobData'); return s.mode; } return undefined; } catch { return undefined; } })()} parsedData={location.state?.parsedData || (() => { try { const s = JSON.parse(sessionStorage.getItem('parsedJobData') || '{}'); return s?.parsedData || undefined; } catch { return undefined; } })()} /></WithLayout></AuthGuard>
             } />
 
             <Route path="/job-posting-selection" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <WithLayout {...nav}>
                   <JobPostingSelectionPage onNavigate={handleNavigation} user={user as any} />
                 </WithLayout>
@@ -1018,7 +1044,7 @@ function App() {
             } />
 
             <Route path="/job-parsing" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <WithLayout {...nav}>
                   <JobParsingPage onNavigate={handleNavigation} user={user as any} />
                 </WithLayout>
@@ -1026,19 +1052,19 @@ function App() {
             } />
 
             <Route path="/job-management" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <JobManagementPage {...nav} />
               </AuthGuard>
             } />
 
             <Route path="/candidate-search" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <CandidateSearchPage {...nav} />
               </AuthGuard>
             } />
 
             <Route path="/candidate-review" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <CandidateReviewPage onNavigate={handleNavigation} jobId="" />
               </AuthGuard>
             } />
@@ -1056,13 +1082,13 @@ function App() {
             } />
 
             <Route path="/analytics" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <AnalyticsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
 
             <Route path="/application-management" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin', 'recruiter']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <ApplicationManagementPage {...nav} onLogout={handleLogout} />
               </AuthGuard>
             } />
@@ -1080,7 +1106,7 @@ function App() {
 
             {/* -- Admin Routes -- */}
             <Route path="/admin/login" element={
-              user && (user.type === 'admin' || user.type === 'super_admin')
+              user && (user.type === 'admin' || user.type === 'super_admin' || user.type === 'recruiter')
                 ? <Navigate to="/admin/dashboard" replace />
                 : <AdminLoginPage onLogin={u => {
                   handleLogin(u);
