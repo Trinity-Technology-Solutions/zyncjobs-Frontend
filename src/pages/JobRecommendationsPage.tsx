@@ -8,7 +8,6 @@ import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
-import { apiFetch } from '../api/apiFetch';
 import { computeMatchBreakdown, normalizeSkill, getUserProfile, resolveUserSkills, getIncompleteProfileFields } from '../utils/matchScore';
 
 interface Props {
@@ -509,7 +508,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
       {/* Floating Back Button */}
       <BackButton 
-        onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()}
+        fallback="/dashboard"
       />
 
       {/* Match Breakdown Modal */}

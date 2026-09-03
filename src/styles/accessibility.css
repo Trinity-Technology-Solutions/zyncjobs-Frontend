@@ -41,7 +41,7 @@
 @media (orientation: portrait) {
   /* Optimize for vertical scrolling */
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
     overflow-y: auto;
   }
 }

@@ -14,24 +14,6 @@ import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
-function useRefresh(fn: () => Promise<void>) {
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const trigger = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    setError(null);
-    try {
-      await fn();
-    } catch {
-      setError('Refresh failed. Please try again.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-  return { refreshing, error, trigger };
-}
-
 interface MyJobsPageProps {
   onNavigate: (page: string, data?: any) => void;
   user?: any;
@@ -45,14 +27,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   // Global saved jobs store
   const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
-  const fetchSavedJobsFromStore = useSavedJobsStore(s => s.fetchSavedJobs);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ type, message, show: true });
     setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
   };
 
-  const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<any[]>([]);
@@ -71,6 +51,27 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     message: string;
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  const getCurrentUserEmail = () => {
+    if (user?.email) return user.email;
+    try {
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      return stored.email || '';
+    } catch {
+      return '';
+    }
+  };
+
+  const getMyPostedJobs = (jobs: any[]) => {
+    const myEmail = (getCurrentUserEmail() || '').toLowerCase();
+    if (!myEmail) return jobs;
+    return jobs.filter((job: any) => {
+      const jobEmails = [job.employerEmail, job.postedBy, job.postedByEmail]
+        .filter(Boolean)
+        .map((e: any) => String(e).toLowerCase());
+      return jobEmails.includes(myEmail);
+    });
+  };
 
   const fetchCompanyLogos = async (jobList: any[]) => {
     try {
@@ -181,9 +182,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       if (response.ok) {
         const jobs: any[] = await response.json();
-        console.log('Fetched posted jobs count:', jobs.length);
+        const myJobs = getMyPostedJobs(jobs);
+        console.log('Fetched posted jobs count:', myJobs.length);
         
-        const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sorted = myJobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPostedJobs(sorted);
         setPostedJobsPage(1);
         fetchCompanyLogos(sorted);
@@ -233,15 +235,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
-  const refreshSaved = useRefresh(async () => {
-    await fetchSavedJobsFromStore();
-    const ids = Array.from(useSavedJobsStore.getState().savedJobIds);
-    if (ids.length === 0) { setSavedJobs([]); return; }
-    await fetchJobDetailsByIds(ids);
-  });
-
-  const refreshApplied = useRefresh(fetchAppliedJobs);
-
   const fetchEmployerApplications = async () => {
     try {
       const ownerEmail = getEffectiveEmployerEmail();
@@ -253,7 +246,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         return;
       }
       
-      const employerJobs = await jobsResponse.json();
+      const employerJobs = getMyPostedJobs(await jobsResponse.json());
       const employerJobIds = employerJobs.map((job: any) => getId(job));
       
       console.log('Employer jobs:', employerJobIds.length);
@@ -373,17 +366,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
           const verifyResponse = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${encodeURIComponent(ownerEmail)}`);
           
           if (verifyResponse.ok) {
-            const jobs = await verifyResponse.json();
-            const stillExists = jobs.some((j: any) => getId(j) === jobId);
+            const myJobs = getMyPostedJobs(await verifyResponse.json());
+            const stillExists = myJobs.some((j: any) => getId(j) === jobId);
             
             if (stillExists) {
               console.error('❌ BACKEND ISSUE: Job still exists after delete! JobId:', jobId);
               showNotification('⚠️ Warning: Job may not be deleted from database. Contact support.', 'error');
               // Force remove from UI anyway
-              setPostedJobs(jobs.filter((j: any) => getId(j) !== jobId));
+              setPostedJobs(myJobs.filter((j: any) => getId(j) !== jobId));
             } else {
               console.log('✅ Verified: Job successfully deleted from backend');
-              setPostedJobs(jobs);
+              setPostedJobs(myJobs);
             }
           }
         }, 2000);
@@ -739,7 +732,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <BackButton onClick={() => onNavigate('dashboard')} text="Back to Dashboard" className="mb-4 sm:mb-6" />
+          <BackButton fallback="/dashboard" text="Back to Dashboard" className="mb-4 sm:mb-6" />
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
             <div className="flex flex-wrap gap-1">
@@ -763,7 +756,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Applications ({employerApplications.length})
+                    My Applications ({employerApplications.length})
                   </button>
                 </>
               ) : (
@@ -848,60 +841,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-              {activeTab}
+              {activeTab === 'Applications' ? 'My Applications' : activeTab}
             </h2>
-            
-
-              
-            {activeTab === 'Applied' && (
-              <>
-                {refreshApplied.error && (
-                  <span className="text-xs text-red-500 mr-2">{refreshApplied.error}</span>
-                )}
-                <button
-                  onClick={refreshApplied.trigger}
-                  className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Refresh applications"
-                  aria-label="Refresh applications"
-                  disabled={refreshApplied.refreshing}
-                >
-                  <RefreshCw className={`w-5 h-5 ${refreshApplied.refreshing ? 'animate-spin' : ''}`} />
-                </button>
-              </>
-            )}
-            
-              {user?.type === 'candidate' && activeTab === 'Saved' && (
-                <>
-                  <div className="flex items-center space-x-3">
-                    {refreshSaved.error && (
-                      <span className="text-xs text-red-500">{refreshSaved.error}</span>
-                    )}
-                    <button
-                      onClick={refreshSaved.trigger}
-                      disabled={refreshSaved.refreshing}
-                      className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Refresh saved jobs"
-                      aria-label="Refresh saved jobs"
-                    >
-                      <RefreshCw className={`w-5 h-5 ${refreshSaved.refreshing ? 'animate-spin' : ''}`} />
-                    </button>
-                    <span className="text-sm text-gray-600">Show expired jobs</span>
-                    <button
-                      onClick={() => setShowExpiredJobs(!showExpiredJobs)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        showExpiredJobs ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
-                      aria-label="Toggle show expired jobs"
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          showExpiredJobs ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      ></span>
-                    </button>
-                  </div>
-                </>
-              )}
           </div>
 
           {loading ? (

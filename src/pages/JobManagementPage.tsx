@@ -4,6 +4,7 @@ import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, M
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import { usePageSnapshot } from '../utils/listPageState';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
@@ -50,6 +51,18 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const [collaborateEmail, setCollaborateEmail] = useState('');
   const [collaborateMessage, setCollaborateMessage] = useState('');
   const [isSendingCollaborate, setIsSendingCollaborate] = useState(false);
+
+  // Preserve filter tab, search + scroll when leaving and returning to this page
+  usePageSnapshot<{ filter: string; searchTerm: string; sortBy: string }>(
+    'zync:list:job-management',
+    (snap, scrollY) => {
+      setFilter(snap.filter === 'all' ? 'active' : (snap.filter || 'active'));
+      setSearchTerm(snap.searchTerm || '');
+      setSortBy(snap.sortBy || 'posted');
+      window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
+    },
+    () => ({ filter, searchTerm, sortBy }),
+  );
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -308,7 +321,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <BackButton 
-          onClick={() => onNavigate('dashboard')}
+          fallback="/dashboard"
           text="Back to Dashboard"
           className="mb-4 sm:mb-6"
         />
@@ -351,24 +364,27 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-3 sm:mb-4">
               <div className="flex-1 relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                <input
-                  type="text"
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <AutocompleteCombobox
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={setSearchTerm}
+                  options={[]}
+                  allowCustom
                   placeholder="Search by Title/Ref Code/Job ID"
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                  className="pl-8"
                 />
               </div>
-              <select
+              <AutocompleteCombobox
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
-                className="w-full sm:w-52 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-              >
-                <option value="posted">Sort by: Posted/sent date</option>
-                <option value="responses">Sort by: Response count</option>
-                <option value="title">Sort by: Job title</option>
-              </select>
+                onChange={(val) => setSortBy(val)}
+                options={[
+                  { value: 'posted', label: 'Sort by: Posted/sent date' },
+                  { value: 'responses', label: 'Sort by: Response count' },
+                  { value: 'title', label: 'Sort by: Job title' },
+                ]}
+                placeholder="Sort by"
+                className="w-56"
+              />
             </div>
           </div>
           
@@ -399,9 +415,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               
               <div className="flex flex-wrap gap-2 sm:gap-4">
                 <button
-                  onClick={() => setFilter('all')}
+                  onClick={() => setFilter('active')}
                   className={`text-xs sm:text-sm font-medium ${
-                    filter === 'all' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                    filter === 'active' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Active Jobs {statusCounts.active}
@@ -538,20 +554,18 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     </button>
                   )}
                   
-                  {false && (
-                    <button
-                      onClick={handleCloseSelectedJobs}
-                      disabled={selectedJobs.length === 0}
-                      className={`flex items-center space-x-2 text-sm transition-colors ${
-                        selectedJobs.length === 0
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-600 hover:text-red-600 cursor-pointer'
-                      }`}
-                      title="Close selected jobs"
-                    >
-                      <span className="font-medium">Close Selected</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={handleCloseSelectedJobs}
+                    disabled={selectedJobs.length === 0}
+                    className={`flex items-center space-x-2 text-sm transition-colors ${
+                      selectedJobs.length === 0
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-red-600 cursor-pointer'
+                    }`}
+                    title="Close selected jobs"
+                  >
+                    <span className="font-medium">Close Selected</span>
+                  </button>
                 </div>
                 <span className="text-xs sm:text-sm text-gray-500 self-start sm:self-center">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>

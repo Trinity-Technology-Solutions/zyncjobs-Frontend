@@ -9,6 +9,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
 import { EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
+import { normalizeSocialUrl } from '../utils/socialLinks';
 
 interface Company {
   _id: string;
@@ -104,6 +105,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'reviews'>('overview');
+  const [showFullDesc, setShowFullDesc] = useState(false);
   
   // Dynamic data states
   const [_enhancedData, setEnhancedData] = useState<EnhancedCompanyData | null>(null);
@@ -122,15 +124,15 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
 
-  const jobLocations = useMemo(() => [...new Set(jobs.map(j => j.location).filter(Boolean))], [jobs]);
-  const jobCategories = useMemo(() => [...new Set(jobs.map(j => j.jobCategory || j.jobType || '').filter(Boolean))], [jobs]);
+  const jobLocations = useMemo(() => [...new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))], [jobs]);
+  const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim().toLowerCase()).filter(Boolean))], [jobs]);
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
-      if (selectedLocation && job.location !== selectedLocation) return false;
+      if (selectedLocation && !(job.location || '').toLowerCase().includes(selectedLocation.toLowerCase())) return false;
       if (selectedDepartment) {
-        const deptVal = job.jobCategory || job.jobType || '';
-        if (deptVal !== selectedDepartment) return false;
+        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim().toLowerCase();
+        if (deptVal !== selectedDepartment.toLowerCase()) return false;
       }
       return true;
     });
@@ -380,6 +382,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             company: job.company || job.companyName || companyName,
             jobType: job.jobType,
             jobCategory: job.jobCategory,
+            category: job.category,
             slug: job.slug,
           }));
         setJobs(companyJobs);
@@ -570,7 +573,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         {/* Back Button */}
         <div className="absolute top-6 left-6 z-30">
           <BackButton 
-            onClick={() => onNavigate && onNavigate('companies')} 
+            fallback="/companies" 
             className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200" 
           />
         </div>
@@ -603,7 +606,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-green-600 font-semibold text-xs sm:text-sm">Verified Employer</span>
+                        <span className="text-green-600 font-semibold text-xs sm:text-sm">Verified Company</span>
                       </div>
                     )}
                   </div>
@@ -770,13 +773,18 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               {/* About Section - Rounded Top */}
               <div className="bg-white rounded-t-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">About {company?.name}</h2>
-                <p className="text-gray-700 leading-relaxed mb-4 sm:mb-6 text-base sm:text-lg">
-                  {company?.description}
-                </p>
                 {company?.description && (
-                  <button className="text-blue-600 hover:text-blue-700 font-semibold transition-colors text-sm sm:text-base">
-                    read more
-                  </button>
+                  <>
+                    <p className="text-gray-700 leading-relaxed mb-4 sm:mb-6 text-base sm:text-lg">
+                      {showFullDesc ? company.description : (company.description.length > 300 ? company.description.substring(0, 300) + '...' : company.description)}
+                    </p>
+                    <button
+                      onClick={() => setShowFullDesc(!showFullDesc)}
+                      className="text-blue-600 hover:text-blue-700 font-semibold transition-colors text-sm sm:text-base"
+                    >
+                      {showFullDesc ? 'read less' : 'read more'}
+                    </button>
+                  </>
                 )}
               </div>
               
@@ -981,8 +989,19 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                 {company?.website && (
                   <div>
                     <span className="text-sm font-medium text-gray-900">Website: </span>
-                    <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-700">
+                    <a href={normalizeSocialUrl(company.website, 'website') ?? '#'} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-700">
                       {company.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                )}
+                {company?.socialLinks?.linkedin && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">LinkedIn: </span>
+                    <a href={normalizeSocialUrl(company.socialLinks.linkedin, 'linkedin') ?? '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm">LinkedIn</span>
                     </a>
                   </div>
                 )}
@@ -998,7 +1017,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     <span className="text-sm text-gray-600">{company.gstNumber}</span>
                   </div>
                 )}
-                {company?.locations && company.locations.length > 0 && (
+{company?.locations && company.locations.length > 0 && (
                   <div className="md:col-span-2">
                     <span className="text-sm font-medium text-gray-900">Other Locations: </span>
                     <span className="text-sm text-gray-600">{company.locations.join(', ')}</span>
@@ -1006,23 +1025,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                 )}
               </div>
             </div>
-              
-              {/* Social Links */}
-              {company?.socialLinks && Object.keys(company.socialLinks).length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Follow us on:</h4>
-                  <div className="flex gap-3">
-                    {company.socialLinks.linkedin && (
-                      <a href={company.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z" clipRule="evenodd" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
+            
             {/* Current Job Openings */}
             {jobs.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -1257,18 +1260,21 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       { value: '', label: 'All Locations' },
                       ...jobLocations.map(location => ({ value: location, label: location })),
                     ]}
+                    dataSource="locations"
                     placeholder="Select location"
                     className="w-full sm:w-auto"
+                    maxOptions={jobLocations.length + 1}
                   />
                   <AutocompleteCombobox
                     value={selectedDepartment}
                     onChange={(val) => setSelectedDepartment(val)}
                     options={[
                       { value: '', label: 'All Departments' },
-                      ...jobCategories.map(cat => ({ value: cat, label: cat })),
+                      ...jobCategories.map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) })),
                     ]}
                     placeholder="Select department"
                     className="w-full sm:w-auto"
+                    maxOptions={jobCategories.length + 1}
                   />
                   {(selectedLocation || selectedDepartment) && (
                     <button

@@ -6,7 +6,7 @@ import { mergeUserToStorage } from '../utils/userStorage';
 
 interface ProfileVisibilityToggleProps {
   userEmail: string;
-  onSave?: (data: { openToWork: boolean; visibilityStatus: string; profileVisibility: string }) => void;
+  onSave?: (data: { openToWork: boolean; visibilityStatus: string; profileVisibility: string; profileFrame?: string }) => void;
   compact?: boolean;
 }
 
@@ -39,6 +39,7 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
   const [openToWork, setOpenToWork] = useState(false);
   const [visibilityStatus, setVisibilityStatus] = useState('passively-looking');
   const [profileVisibility, setProfileVisibility] = useState('public');
+  const [profileFrame, setProfileFrame] = useState('none');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,7 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
           setOpenToWork(data.openToWork ?? false);
           setVisibilityStatus(data.visibilityStatus ?? 'passively-looking');
           setProfileVisibility(data.profileVisibility ?? 'public');
+          setProfileFrame(data.profileFrame ?? 'none');
         }
       } catch { /* silent */ }
       finally { setLoading(false); }
@@ -59,13 +61,40 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
     if (userEmail) fetchVisibility();
   }, [userEmail]);
 
+  useEffect(() => {
+    if (!userEmail) return;
+    const syncFromStorage = () => {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.openToWork !== undefined) setOpenToWork(parsed.openToWork);
+          if (parsed.profileFrame !== undefined) setProfileFrame(parsed.profileFrame);
+          if (parsed.visibilityStatus !== undefined) setVisibilityStatus(parsed.visibilityStatus);
+          if (parsed.profileVisibility !== undefined) setProfileVisibility(parsed.profileVisibility);
+        }
+      } catch { /* silent */ }
+    };
+    window.addEventListener('zync:user-updated', syncFromStorage);
+    window.addEventListener('storage', syncFromStorage);
+    return () => {
+      window.removeEventListener('zync:user-updated', syncFromStorage);
+      window.removeEventListener('storage', syncFromStorage);
+    };
+  }, [userEmail]);
+
   const save = async (patch: Partial<{ openToWork: boolean; visibilityStatus: string; profileVisibility: string }>) => {
     setSaving(true);
-    const payload = {
+    const payload: { openToWork: boolean; visibilityStatus: string; profileVisibility: string; profileFrame?: string } = {
       openToWork: patch.openToWork ?? openToWork,
       visibilityStatus: patch.visibilityStatus ?? visibilityStatus,
       profileVisibility: patch.profileVisibility ?? profileVisibility,
     };
+    if (patch.openToWork !== undefined) {
+      const nextFrame = patch.openToWork ? 'green' : (profileFrame === 'green' ? 'none' : profileFrame);
+      payload.profileFrame = nextFrame;
+      setProfileFrame(nextFrame);
+    }
     try {
       const res = await apiFetch(`${API_ENDPOINTS.PROFILE}/save`, {
         method: 'POST',

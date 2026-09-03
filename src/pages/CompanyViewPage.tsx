@@ -61,7 +61,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Company Not Found</h1>
-          <BackButton onClick={() => onNavigate('companies')} />
+          <BackButton fallback="/companies" />
         </div>
       </div>
     );
@@ -72,7 +72,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton onClick={() => onNavigate('companies')} className="mb-6" />
+        <BackButton fallback="/companies" className="mb-6" />
 
         {/* Company Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">

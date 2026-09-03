@@ -606,7 +606,7 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
 
       <div className="max-w-5xl mx-auto px-4 py-12">
         {/* Back */}
-        <BackButton onClick={() => onNavigate('home')} className="mb-6" />
+        <BackButton fallback="/" className="mb-6" />
 
         {/* Tabs */}
         <div className="mb-10">

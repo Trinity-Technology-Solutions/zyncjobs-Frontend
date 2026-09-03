@@ -6,7 +6,7 @@ import {
   Target, BookOpen, Briefcase, Award, ChevronRight,
   Plus, MessageSquare, BarChart2, Map, Star, Paperclip, Mic, MicOff,
   Navigation, FileText, DollarSign, Volume2, Pin, Clock, Sparkles,
-  GraduationCap, Rocket, CheckCircle2, Circle, ArrowRight,
+  GraduationCap, Rocket, CheckCircle2, Circle, ArrowRight, Image as ImageIcon,
 } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
@@ -18,9 +18,17 @@ interface Props {
   onLogout?: () => void;
 }
 
+interface MessageAttachment {
+  name: string;
+  type: string;
+  size?: number;
+  previewUrl?: string;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  attachment?: MessageAttachment;
 }
 
 interface Session {
@@ -29,6 +37,109 @@ interface Session {
   messages: Message[];
   pinned: boolean;
   createdAt: number;
+}
+
+interface UploadedFile {
+  file: File;
+  name: string;
+  type: string;
+  size: number;
+  previewUrl?: string;
+}
+
+function createThumbnail(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve('');
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxDim = 400;
+      let w = img.width;
+      let h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      } else {
+        resolve('');
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve('');
+    };
+    img.src = url;
+  });
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileTypeLabel(filename: string, mimeType: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf' || mimeType?.includes('pdf')) return 'PDF Document';
+  if (ext === 'docx' || ext === 'doc' || mimeType?.includes('word')) return 'Word Document';
+  if (ext === 'txt' || mimeType?.includes('text')) return 'Text File';
+  if (mimeType?.startsWith('image/')) return 'Image File';
+  return ext ? `${ext.toUpperCase()} File` : 'Document';
+}
+
+function extractSkills(text: string): string[] {
+  const sectionPattern = /(?:technical skills?|skills?|core competencies?|key skills?|technologies|tech stack)[:\s]*([\s\S]*?)(?=\n[A-Z][A-Z\s]{2,}\n|\n\n[A-Z]|$)/i;
+  const skillSection = text.match(sectionPattern)?.[1] || '';
+  const skills: string[] = [];
+  skillSection.split('\n').forEach(line => {
+    const afterColon = line.includes(':') ? line.split(':').slice(1).join(':') : line;
+    afterColon.split(/[,|•]/).map(s => s.replace(/^[•\-*\s]+/, '').trim())
+      .filter(s => s.length > 1 && s.length < 40 && !/^(and|the|with|for|in|of|to|a|an)$/i.test(s))
+      .forEach(s => skills.push(s));
+  });
+  return [...new Set(skills)].filter(Boolean).slice(0, 20);
+}
+
+function extractName(text: string): string {
+  const firstLine = text.split('\n').find(l => l.trim().length > 2 && l.trim().length < 50);
+  return firstLine?.trim() || '';
+}
+
+function extractEmail(text: string): string {
+  return text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || '';
+}
+
+function extractSummary(text: string): string {
+  return text.match(/(?:professional summary|summary|objective)[:\s]*([\s\S]{50,500}?)(?:\n(?:WORK|EDUCATION|SKILLS|INTERNSHIP|PUBLICATION|PROJECT|COMPETITION|CERTIFICATION|SOFT|TOOLS)|$)/i)?.[1]?.trim().replace(/\s+/g, ' ') || '';
+}
+
+function extractExperience(text: string): Array<{ title: string; company: string }> {
+  const expSection = text.match(/work experience[\s\S]*?(?=\n(?:INTERNSHIP|EDUCATION|SKILLS|PUBLICATION|PROJECT|COMPETITION|CERTIFICATION|SOFT|TOOLS)|$)/i)?.[0] || '';
+  const results: Array<{ title: string; company: string }> = [];
+  const matches = [...expSection.matchAll(/^([A-Z][A-Za-z\s]+?)\n([A-Za-z][\w\s,&]+?)(?:\s*\|)/gm)];
+  matches.slice(0, 3).forEach(m => results.push({ title: m[1].trim(), company: m[2].trim() }));
+  if (results.length === 0) {
+    const fallback = [...expSection.matchAll(/(?:^|\n)(Backend Developer|Frontend Developer|Full Stack|Software Engineer|Developer|Engineer|Intern|Lead|Manager)[^\n]*/gi)];
+    fallback.slice(0, 2).forEach(m => results.push({ title: m[1].trim(), company: '' }));
+  }
+  return results;
 }
 
 // Welcome screen quick-start cards (shown when no messages)
@@ -178,16 +289,35 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
   };
 
-  const saveSessions = (s: Session[]) =>
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  const saveSessions = (s: Session[]) => {
+    try {
+      const cleaned = s.map(session => ({
+        ...session,
+        messages: session.messages.map(m => {
+          if (m.attachment?.previewUrl && m.attachment.previewUrl.length > 50000) {
+            const { previewUrl, ...restAttachment } = m.attachment;
+            return { ...m, attachment: restAttachment };
+          }
+          return m;
+        })
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    } catch (e) {
+      console.warn('Failed to save career coach sessions to localStorage:', e);
+    }
+  };
 
-  const makeSession = (msgs: Message[]): Session => ({
-    id: Date.now().toString(),
-    title: msgs.find(m => m.role === 'user')?.content.slice(0, 32) || 'New chat',
-    messages: msgs,
-    pinned: false,
-    createdAt: Date.now(),
-  });
+  const makeSession = (msgs: Message[]): Session => {
+    const userMsg = msgs.find(m => m.role === 'user');
+    const title = userMsg?.content?.slice(0, 32) || userMsg?.attachment?.name || 'New chat';
+    return {
+      id: Date.now().toString(),
+      title,
+      messages: msgs,
+      pinned: false,
+      createdAt: Date.now(),
+    };
+  };
 
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions());
   const [activeId, setActiveId] = useState<string>('');
@@ -201,7 +331,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; type: string } | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [showLeftSidebar, setShowLeftSidebar] = useState(false);
   const [userCtx, setUserCtx] = useState<Record<string, unknown>>(() => buildUserContext());
   const chatRef = useRef<HTMLDivElement>(null);
@@ -239,10 +369,12 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       const idx = prev.findIndex(s => s.id === activeIdRef.current);
       if (idx === -1) return prev;
       const updated = [...prev];
+      const userMsg = messages.find(m => m.role === 'user');
+      const title = userMsg?.content?.slice(0, 32) || userMsg?.attachment?.name || updated[idx].title;
       updated[idx] = {
         ...updated[idx],
         messages,
-        title: messages.find(m => m.role === 'user')?.content.slice(0, 32) || updated[idx].title,
+        title,
       };
       saveSessions(updated);
       return updated;
@@ -263,6 +395,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     activeIdRef.current = s.id;
     setMessages(welcome);
     setInput('');
+    setUploadedFile(null);
   };
 
   const loadSession = (s: Session) => {
@@ -294,20 +427,46 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     window.speechSynthesis.speak(utt);
   };
 
-  const sendMessage = useCallback(async (text: string, ctxOverride?: Record<string, unknown>) => {
+  const sendMessage = useCallback(async (text: string, attachmentOverride?: MessageAttachment, ctxOverride?: Record<string, unknown>) => {
+    const attachment = attachmentOverride !== undefined ? attachmentOverride : (uploadedFile ? {
+      name: uploadedFile.name,
+      type: uploadedFile.type,
+      size: uploadedFile.size,
+      previewUrl: uploadedFile.previewUrl,
+    } : undefined);
+
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if ((!trimmed && !attachment) || loading) return;
+
     abortRef.current?.abort();
     abortRef.current = new AbortController();
-    const userMsg: Message = { role: 'user', content: trimmed };
+
+    const userMsg: Message = {
+      role: 'user',
+      content: trimmed,
+      attachment: attachment,
+    };
+
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
     setUploadedFile(null);
     setLoading(true);
+
     const activeCtx = ctxOverride || pendingCtxRef.current || userCtx;
     pendingCtxRef.current = null;
-    const key = cacheKey('career-mentor', trimmed, JSON.stringify(activeCtx).slice(0, 100));
+
+    let promptForLLM = trimmed;
+    if (!promptForLLM && attachment) {
+      const isImg = attachment.type.startsWith('image/');
+      promptForLLM = isImg
+        ? `[Uploaded image: ${attachment.name}] Please review this image and provide career advice and insights based on it.`
+        : `[Uploaded document: ${attachment.name}] Please review my uploaded resume/document and provide detailed career guidance and ATS analysis.`;
+    } else if (promptForLLM && attachment) {
+      promptForLLM = `${trimmed}\n\n[Attached File: ${attachment.name}]`;
+    }
+
+    const key = cacheKey('career-mentor', promptForLLM, JSON.stringify(activeCtx).slice(0, 100));
     const cached = getCached<string>(key);
     if (cached) {
       setMessages(prev => [...prev, { role: 'assistant', content: cached }]);
@@ -315,9 +474,17 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       speakText(cached);
       return;
     }
+
     try {
       let full = '';
-      await sendAIMessageStream(updated, SYSTEM_PROMPT, (chunk) => {
+      const apiMessages = updated.map((m, idx) => {
+        if (idx === updated.length - 1 && m.role === 'user') {
+          return { role: m.role, content: promptForLLM };
+        }
+        return { role: m.role, content: m.content || '[Attached File]' };
+      });
+
+      await sendAIMessageStream(apiMessages, SYSTEM_PROMPT, (chunk) => {
         full += chunk;
         setMessages(prev => {
           const last = prev[prev.length - 1];
@@ -329,10 +496,11 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
           return [...prev, { role: 'assistant', content: full }];
         });
       }, abortRef.current.signal, activeCtx);
+
       if (full) { setCached(key, full); speakText(full); }
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
-      const fallback = getFallback(trimmed, activeCtx);
+      const fallback = getFallback(promptForLLM || 'resume', activeCtx);
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant' && !last.content) {
@@ -346,10 +514,17 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, userCtx, speakerEnabled]);
+  }, [messages, loading, userCtx, speakerEnabled, uploadedFile]);
+
+  const handleSend = () => {
+    sendMessage(input);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,19 +535,37 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     const isText = file.type === 'text/plain';
     const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
     const isDocx = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    setUploadedFile({ name: file.name, type: file.type });
-    // Parse resume files — extract text, update localStorage + right panel
+
+    let previewUrl: string | undefined;
+    if (isImage) {
+      try {
+        previewUrl = await createThumbnail(file);
+      } catch {
+        previewUrl = undefined;
+      }
+    }
+
+    setUploadedFile({
+      file,
+      name: file.name,
+      type: file.type || (isPDF ? 'application/pdf' : isDocx ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'file'),
+      size: file.size,
+      previewUrl,
+    });
+
     let freshCtx: Record<string, unknown> | undefined;
     try {
       let content = '';
       if (isImage) {
-        // OCR the image using tesseract.js
-        const imageUrl = URL.createObjectURL(file);
         try {
           const Tesseract = await import('tesseract.js');
+          const imageUrl = previewUrl || URL.createObjectURL(file);
           const { data } = await Tesseract.recognize(imageUrl, 'eng');
           content = data.text.slice(0, 5000);
-        } finally { URL.revokeObjectURL(imageUrl); }
+          if (!previewUrl) URL.revokeObjectURL(imageUrl);
+        } catch {
+          content = `Uploaded image: ${file.name}`;
+        }
       } else if (isText) {
         content = await new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -392,45 +585,9 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
         const { value } = await mammoth.extractRawText({ arrayBuffer });
         content = value.slice(0, 5000);
       } else {
-        content = `Resume file: ${file.name}`;
+        content = `Uploaded document: ${file.name}`;
       }
-      // Parse resume text directly (no AI call needed — content is already extracted text)
-      // Extract structured data from raw resume text
-      const extractSkills = (text: string): string[] => {
-        // Try multiple section header variants
-        const sectionPattern = /(?:technical skills?|skills?|core competencies?|key skills?|technologies|tech stack)[:\s]*([\s\S]*?)(?=\n[A-Z][A-Z\s]{2,}\n|\n\n[A-Z]|$)/i;
-        const skillSection = text.match(sectionPattern)?.[1] || '';
-        const skills: string[] = [];
-        skillSection.split('\n').forEach(line => {
-          // Handle "Category: skill1, skill2" format
-          const afterColon = line.includes(':') ? line.split(':').slice(1).join(':') : line;
-          afterColon.split(/[,|•]/).map(s => s.replace(/^[•\-*\s]+/, '').trim())
-            .filter(s => s.length > 1 && s.length < 40 && !/^(and|the|with|for|in|of|to|a|an)$/i.test(s))
-            .forEach(s => skills.push(s));
-        });
-        return [...new Set(skills)].filter(Boolean).slice(0, 20);
-      };
-      const extractName = (text: string): string => {
-        const firstLine = text.split('\n').find(l => l.trim().length > 2 && l.trim().length < 50);
-        return firstLine?.trim() || '';
-      };
-      const extractEmail = (text: string): string =>
-        text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || '';
-      const extractSummary = (text: string): string =>
-        text.match(/(?:professional summary|summary|objective)[:\s]*([\s\S]{50,500}?)(?:\n(?:WORK|EDUCATION|SKILLS|INTERNSHIP|PUBLICATION|PROJECT|COMPETITION|CERTIFICATION|SOFT|TOOLS)|$)/i)?.[1]?.trim().replace(/\s+/g, ' ') || '';
-      const extractExperience = (text: string): Array<{title: string; company: string}> => {
-        const expSection = text.match(/work experience[\s\S]*?(?=\n(?:INTERNSHIP|EDUCATION|SKILLS|PUBLICATION|PROJECT|COMPETITION|CERTIFICATION|SOFT|TOOLS)|$)/i)?.[0] || '';
-        const results: Array<{title: string; company: string}> = [];
-        // Match "Title\nCompany | Location" or "Title\nCompany\n"
-        const matches = [...expSection.matchAll(/^([A-Z][A-Za-z\s]+?)\n([A-Za-z][\w\s,&]+?)(?:\s*\|)/gm)];
-        matches.slice(0, 3).forEach(m => results.push({ title: m[1].trim(), company: m[2].trim() }));
-        // Fallback: look for known patterns
-        if (results.length === 0) {
-          const fallback = [...expSection.matchAll(/(?:^|\n)(Backend Developer|Frontend Developer|Full Stack|Software Engineer|Developer|Engineer|Intern|Lead|Manager)[^\n]*/gi)];
-          fallback.slice(0, 2).forEach(m => results.push({ title: m[1].trim(), company: '' }));
-        }
-        return results;
-      };
+
       const skills = extractSkills(content);
       const name = extractName(content);
       const email = extractEmail(content);
@@ -442,7 +599,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       const hasEducation = /education|b\.tech|bachelor|master|degree|cgpa/i.test(content);
       const hasPublications = /publication|conference|springer|journal/i.test(content);
       const hasCertifications = /certification|certified|udemy|coursera|nptel|ibm/i.test(content);
-      // Realistic ATS score
+
       let score = 30;
       if (skills.length >= 8) score += 20;
       else if (skills.length >= 4) score += 12;
@@ -454,36 +611,33 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       if (hasPublications) score += 5;
       if (hasCertifications) score += 3;
       const atsScore = Math.min(score, 100);
-      // Update localStorage — replace stale data with freshly parsed resume data
+
       try {
         const u = JSON.parse(localStorage.getItem('user') || '{}');
-        // Always overwrite these fields from resume — don't keep stale old data
         u.skills = skills.length > 0 ? skills : u.skills;
         u.profileSummary = summary || u.profileSummary;
         u.name = name || u.name;
         u.email = email || u.email;
         u.jobTitle = experience.length > 0 ? experience[0].title : u.jobTitle;
-        // Clear stale fields that conflict with resume data
         if (skills.length > 0) delete u.missingSkills;
         u.atsScore = atsScore;
         localStorage.setItem('user', JSON.stringify(u));
         freshCtx = buildUserContext();
         setUserCtx(freshCtx);
       } catch { /* silent */ }
-      // Pass raw resume text + parsed summary — LLM reads actual content directly
+
       const resumeSummary = [
         name ? `Name: ${name}` : '',
         experience.length > 0 ? `Current Role: ${experience[0].title}${experience[0].company ? ` at ${experience[0].company}` : ''}` : '',
         skills.length > 0 ? `Extracted Skills: ${skills.join(', ')}` : '',
         `ATS Score: ${atsScore}%`,
-        `\n--- FULL RESUME TEXT ---\n${content.slice(0, 3000)}`,
+        `\n--- FULL DOCUMENT TEXT ---\n${content.slice(0, 3000)}`,
       ].filter(Boolean).join('\n');
+
       const ctxWithResume = { ...(freshCtx || userCtx), resume_text: resumeSummary, current_role: experience[0]?.title || (freshCtx || userCtx).current_role };
       pendingCtxRef.current = ctxWithResume;
-      setInput(`I've uploaded my resume (${file.name}) and parsed it. Please review my profile and give me career guidance.`);
     } catch {
       pendingCtxRef.current = freshCtx || userCtx;
-      setInput(`I've uploaded my resume (${file.name}). Please review it and give me detailed feedback.`);
     }
   };
 
@@ -659,32 +813,70 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                   const isInitialWelcome = messages.length <= 1 && i === 0 && msg.role === 'assistant';
                   if (isInitialWelcome) return null;
                   return (
-                  <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm ${msg.role === 'assistant' ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gradient-to-br from-gray-700 to-gray-800'}`}>
-                      {msg.role === 'assistant' ? <Sparkles className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-white" />}
-                    </div>
-                    <div className="flex flex-col gap-2 max-w-[720px]">
-                      <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed space-y-1.5 ${msg.role === 'assistant' ? 'bg-white border border-gray-100 shadow-sm text-gray-800 rounded-tl-sm' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-md'}`}>
-                        {renderContent(msg.content)}
+                    <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm ${msg.role === 'assistant' ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gradient-to-br from-gray-700 to-gray-800'}`}>
+                        {msg.role === 'assistant' ? <Sparkles className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-white" />}
                       </div>
-                      {msg.role === 'assistant' && i === messages.length - 1 && msg.content && !loading && (
-                        <div className="flex flex-wrap gap-1">
-                          {FOLLOWUP_ACTIONS.slice(0, 3).map((a, fi) => (
-                            <button key={fi} onClick={() => sendMessage(a.msg)}
-                              className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-violet-700 bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 px-2.5 py-1 rounded-full transition-all">
-                              {a.icon} {a.label}
-                            </button>
-                          ))}
-                          {FOLLOWUP_ACTIONS.slice(0, 2).map((a, fi) => (
-                            <button key={fi} onClick={() => sendMessage(a.msg)}
-                              className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-violet-700 bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 px-2 py-1 rounded-full transition-all">
-                              {a.icon} {a.label}
-                            </button>
-                          ))}
+                      <div className="flex flex-col gap-2 max-w-[720px]">
+                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed space-y-2 ${msg.role === 'assistant' ? 'bg-white border border-gray-100 shadow-sm text-gray-800 rounded-tl-sm' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-md'}`}>
+                          {msg.attachment && (
+                            <div className="mb-2">
+                              {msg.attachment.previewUrl || msg.attachment.type?.startsWith('image/') ? (
+                                <div className="space-y-1.5 my-1">
+                                  {msg.attachment.previewUrl && (
+                                    <div className="inline-block max-w-sm rounded-xl overflow-hidden border border-white/25 shadow-sm bg-black/25 p-1">
+                                      <img
+                                        src={msg.attachment.previewUrl}
+                                        alt={msg.attachment.name}
+                                        className="max-h-64 max-w-full w-auto h-auto object-contain rounded-lg mx-auto block"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-1.5 text-[11px] text-white/80 font-medium px-0.5">
+                                    <Paperclip className="w-3 h-3 flex-shrink-0" />
+                                    <span className="truncate max-w-[200px]">{msg.attachment.name}</span>
+                                    {msg.attachment.size ? <span className="opacity-75">• {formatFileSize(msg.attachment.size)}</span> : null}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-3 bg-white/15 backdrop-blur-md border border-white/20 p-2.5 rounded-xl text-white">
+                                  <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0 shadow-xs">
+                                    <FileText className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-[260px]">
+                                      {msg.attachment.name}
+                                    </p>
+                                    <p className="text-[10px] text-white/70">
+                                      {getFileTypeLabel(msg.attachment.name, msg.attachment.type)}
+                                      {msg.attachment.size ? ` • ${formatFileSize(msg.attachment.size)}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {msg.content ? renderContent(msg.content) : null}
                         </div>
-                      )}
+                        {msg.role === 'assistant' && i === messages.length - 1 && msg.content && !loading && (
+                          <div className="flex flex-wrap gap-1">
+                            {FOLLOWUP_ACTIONS.slice(0, 3).map((a, fi) => (
+                              <button key={fi} onClick={() => sendMessage(a.msg)}
+                                className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-violet-700 bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 px-2.5 py-1 rounded-full transition-all">
+                                {a.icon} {a.label}
+                              </button>
+                            ))}
+                            {FOLLOWUP_ACTIONS.slice(0, 2).map((a, fi) => (
+                              <button key={fi} onClick={() => sendMessage(a.msg)}
+                                className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-violet-700 bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 px-2 py-1 rounded-full transition-all">
+                                {a.icon} {a.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
                 {loading && (
@@ -706,28 +898,77 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
               <div className="max-w-[760px] mx-auto px-4 sm:px-6 py-3">
                 <div className="bg-white rounded-xl shadow-lg shadow-black/5 border border-gray-200 overflow-hidden">
                   {uploadedFile && (
-                    <div className="flex items-center gap-2 px-3 pt-2.5">
-                      <div className="flex items-center gap-1.5 bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-medium px-2.5 py-1 rounded-full">
-                        <Paperclip className="w-3 h-3" /> <span className="max-w-[120px] sm:max-w-[160px] truncate">{uploadedFile.name}</span>
-                        <button onClick={() => setUploadedFile(null)} className="ml-1 text-violet-400 hover:text-violet-700">×</button>
-                      </div>
+                    <div className="px-3 pt-2.5 pb-1 flex items-center">
+                      {uploadedFile.previewUrl || uploadedFile.type?.startsWith('image/') ? (
+                        <div className="relative group flex items-center gap-3 bg-violet-50/90 border border-violet-200 p-2 pr-3 rounded-xl shadow-xs">
+                          {uploadedFile.previewUrl ? (
+                            <div className="w-12 h-12 rounded-lg bg-white border border-violet-200/80 flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0 shadow-xs">
+                              <img
+                                src={uploadedFile.previewUrl}
+                                alt={uploadedFile.name}
+                                className="max-w-full max-h-full object-contain mx-auto my-auto rounded-md"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-violet-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                              <Paperclip className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-[260px]">
+                              {uploadedFile.name}
+                            </p>
+                            <p className="text-[10px] text-violet-600 font-medium">
+                              Image • {formatFileSize(uploadedFile.size)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setUploadedFile(null)}
+                            title="Remove attachment"
+                            className="w-5 h-5 rounded-full bg-violet-200/70 hover:bg-red-500 hover:text-white text-violet-700 flex items-center justify-center text-xs font-bold transition-all ml-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative group flex items-center gap-3 bg-violet-50/90 border border-violet-200 p-2 pr-3 rounded-xl shadow-xs">
+                          <div className="w-11 h-11 rounded-lg bg-violet-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-[260px]">
+                              {uploadedFile.name}
+                            </p>
+                            <p className="text-[10px] text-violet-600 font-medium">
+                              {getFileTypeLabel(uploadedFile.name, uploadedFile.type)} • {formatFileSize(uploadedFile.size)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setUploadedFile(null)}
+                            title="Remove attachment"
+                            className="w-5 h-5 rounded-full bg-violet-200/70 hover:bg-red-500 hover:text-white text-violet-700 flex items-center justify-center text-xs font-bold transition-all ml-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="flex items-end gap-1.5 px-3 py-2.5">
                     <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,image/*" className="hidden" onChange={handleFileUpload} />
                     <button onClick={() => fileInputRef.current?.click()} title="Upload resume or image" className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all flex-shrink-0"><Paperclip className="w-4 h-4" /></button>
-                    <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
+                    {/* <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
                     <button onClick={() => { if (isSpeaking) { window.speechSynthesis?.cancel(); setIsSpeaking(false); } setSpeakerEnabled(p => !p); }}
                       title={speakerEnabled ? 'Speaker on — click to mute' : 'Speaker off — click to enable'}
                       className={`flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 ${speakerEnabled ? 'text-violet-600 bg-violet-50' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>
                       <Volume2 className="w-4 h-4" />
-                    </button>
+                    </button> */}
                     <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
                       placeholder={isListening ? '🎤 Listening...' : 'Ask anything about your career...'} rows={1}
                       className="flex-1 resize-none outline-none text-sm text-gray-800 placeholder-gray-400 bg-transparent py-2 min-h-[40px]"
                       style={{ lineHeight: '1.5', maxHeight: '120px' }}
                       onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }} />
-                    <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
+                    <button onClick={handleSend} disabled={(!input.trim() && !uploadedFile) || loading}
                       className="w-9 h-9 bg-violet-600 hover:bg-violet-700 rounded-lg flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 shadow-sm">
                       <ArrowRight className="w-4 h-4 text-white" />
                     </button>
@@ -782,19 +1023,19 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Career Readiness</p>
-                  {(() => { const done = [!!currentRole,!!targetRole,skills.length>0,!!atsScore].filter(Boolean).length; const pct = Math.round(done/4*100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct===100?'text-emerald-600 bg-emerald-50':pct>=50?'text-violet-600 bg-violet-50':'text-amber-600 bg-amber-50'}`}>{pct}% complete</span>; })()}
+                  {(() => { const done = [!!currentRole, !!targetRole, skills.length > 0, !!atsScore].filter(Boolean).length; const pct = Math.round(done / 4 * 100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct === 100 ? 'text-emerald-600 bg-emerald-50' : pct >= 50 ? 'text-violet-600 bg-violet-50' : 'text-amber-600 bg-amber-50'}`}>{pct}% complete</span>; })()}
                 </div>
                 <div className="space-y-1.5">
                   {[
-                    {label:'Current role set',done:!!currentRole,detail:currentRole},
-                    {label:'Target role set',done:!!targetRole,detail:targetRole},
-                    {label:'Skills on profile',done:skills.length>0,detail:skills.length>0?`${skills.length} skills`:null},
-                    {label:'Resume analyzed',done:!!atsScore,detail:atsScore?`ATS ${atsScore}%`:null},
-                  ].map((item,i)=>(
+                    { label: 'Current role set', done: !!currentRole, detail: currentRole },
+                    { label: 'Target role set', done: !!targetRole, detail: targetRole },
+                    { label: 'Skills on profile', done: skills.length > 0, detail: skills.length > 0 ? `${skills.length} skills` : null },
+                    { label: 'Resume analyzed', done: !!atsScore, detail: atsScore ? `ATS ${atsScore}%` : null },
+                  ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      {item.done?<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"/>:<Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0"/>}
-                      <span className={`text-[12px] flex-1 truncate ${item.done?'text-gray-700':'text-gray-400'}`}>{item.label}</span>
-                      {item.detail&&<span className="text-[10px] text-gray-400 truncate max-w-[80px]">{item.detail}</span>}
+                      {item.done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />}
+                      <span className={`text-[12px] flex-1 truncate ${item.done ? 'text-gray-700' : 'text-gray-400'}`}>{item.label}</span>
+                      {item.detail && <span className="text-[10px] text-gray-400 truncate max-w-[80px]">{item.detail}</span>}
                     </div>
                   ))}
                 </div>

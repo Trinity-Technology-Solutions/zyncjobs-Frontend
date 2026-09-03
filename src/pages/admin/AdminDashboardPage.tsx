@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Users, Briefcase, Building2, BarChart2,
   Settings, LogOut, Menu, X, TrendingUp, UserCheck, FileText,
   Bell, RefreshCw, AlertCircle, CheckCircle, XCircle, Shield, ShieldOff,
-  Mail, Activity, ChevronDown, User, Crown, Trash2, Send, Cpu
+  Mail, Activity, ChevronDown, User, Crown, Trash2, Send, Cpu, UserSearch,
+  FileSpreadsheet
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -26,6 +27,9 @@ import TalentPoolSection from './sections/TalentPoolSection';
 import AdminManagementSection from './sections/AdminManagementSection';
 import AllUsersSection from './sections/AllUsersSection';
 import ReminderEmailSection from './sections/ReminderEmailSection';
+import RecruiterSearchSection from './sections/RecruiterSearchSection';
+import SubmissionsSection from './sections/SubmissionsSection';
+import SubmissionTrackerSection from './sections/SubmissionTrackerSection';
 // import AIMonitoringSection from './sections/AIMonitoringSection';
 
 interface Props {
@@ -75,6 +79,9 @@ const navItems: NavItem[] = [
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
   { id: 'reminder-email', label: 'Reminder Email', icon: Send,            section: 'communication' },
   { id: 'talent',        label: 'Talent Pool',     icon: Users,           section: 'talent' },
+  { id: 'recruiter-search', label: 'Recruiter Search', icon: UserSearch,  section: 'talent' },
+  { id: 'submissions',   label: 'Submissions',     icon: FileSpreadsheet, section: 'talent' },
+  { id: 'submission-tracker', label: 'Submission Tracker', icon: FileText, section: 'talent' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
   { id: 'ai-monitor',    label: 'AI Monitoring',   icon: Cpu,             section: 'system' },
   { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
@@ -169,6 +176,14 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
   const canManageAdmins = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.MANAGE_ADMINS);
   const canAccessSystemSettings = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.SYSTEM_SETTINGS);
   const isManager = userRole === 'manager';
+  const isRecruiterOnly = userRole === 'recruiter';
+
+  useEffect(() => {
+    if (isRecruiterOnly && !['overview', 'talent', 'recruiter-search', 'submissions', 'submission-tracker'].includes(activeNav)) {
+      setActiveNav('talent');
+      localStorage.setItem('adminActiveNav', 'talent');
+    }
+  }, [activeNav, isRecruiterOnly]);
 
   const handleUnauthorized = useCallback(() => {
     setError('Session expired. Logging out...');
@@ -340,9 +355,12 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'verifications': return <VerificationsSection onUnauthorized={handleUnauthorized} />;
       case 'notifications': return <NotificationsSection onUnauthorized={handleUnauthorized} />;
       case 'email':         return <EmailControlSection onUnauthorized={handleUnauthorized} />;
-      case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids, type) => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
+      case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids: string[], type: 'candidates' | 'employers' | 'both') => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
       case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
+      case 'recruiter-search': return <RecruiterSearchSection onUnauthorized={handleUnauthorized} onNavigateToTalentPool={() => { setActiveNav('talent'); localStorage.setItem('adminActiveNav', 'talent'); }} />;
+      case 'submissions':  return <SubmissionsSection onUnauthorized={handleUnauthorized} />;
+      case 'submission-tracker': return <SubmissionTrackerSection onUnauthorized={handleUnauthorized} recruiterName={user.name || ''} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
       case 'ai-monitor':    return <div className="p-6 text-center text-gray-500">AI Monitoring — component removed</div>;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
@@ -388,13 +406,16 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
           </div>
           {sidebarOpen && (
             <>
-              <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 object-contain" />
-              <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+              <div className="min-w-0 flex-1 flex items-center">
+                <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-8 max-w-full object-contain object-left" />
+              </div>
+              <span className={`shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                 userRole === 'super_admin' ? 'bg-purple-600 text-white' :
                 userRole === 'admin' ? 'bg-blue-600 text-white' :
+                userRole === 'recruiter' ? 'bg-emerald-600 text-white' :
                 'bg-emerald-600 text-white'
               }`}>
-                {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : 'Manager'}
+                {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : userRole === 'recruiter' ? 'Recruiter' : 'Manager'}
               </span>
             </>
           )}
@@ -407,6 +428,9 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
               .filter(({ id }) => {
                 if (isManager) {
                   return id === 'overview' || id === 'reports';
+                }
+                if (isRecruiterOnly) {
+                  return ['overview', 'talent', 'recruiter-search', 'submissions', 'submission-tracker'].includes(id);
                 }
                 if (id === 'admins') return canManageAdmins;
                 if (id === 'settings') return canAccessSystemSettings;
@@ -478,7 +502,11 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <h1 className="text-base lg:text-lg font-semibold capitalize truncate">
-              {activeNav === 'talent' ? 'Talent Pool' : activeNav === 'all-users' ? 'All Users' : activeNav === 'reminder-email' ? 'Reminder Email' : activeNav}
+              {activeNav === 'talent' ? 'Talent Pool' :
+                activeNav === 'all-users' ? 'All Users' :
+                activeNav === 'reminder-email' ? 'Reminder Email' :
+                activeNav === 'submission-tracker' ? 'Submission Tracker' :
+                activeNav}
             </h1>
             <BackendStatusIndicator className="hidden sm:flex" showDetails={false} />
             {lastUpdated && <span className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</span>}

@@ -1,6 +1,10 @@
 /**
  * tokenStorage — stores accessToken in localStorage so it survives
  * page refreshes in production (sessionStorage is cleared on refresh).
+ *
+ * SECURITY: the long-lived refresh token is NOT persisted to localStorage
+ * (XSS-accessible). It lives only in sessionStorage (per-tab) and in the
+ * backend httpOnly cookie, which is the durable source for refresh.
  */
 
 // amazonq-ignore-next-line
@@ -16,11 +20,13 @@ export const tokenStorage = {
     sessionStorage.setItem(ACCESS_KEY, token);
   },
 
-  // Refresh token — localStorage (long-lived) + sessionStorage mirror
-  getRefresh: () => localStorage.getItem(REFRESH_KEY) || sessionStorage.getItem(REFRESH_KEY),
+  // Refresh token — sessionStorage only (per-tab) + backend httpOnly cookie.
+  // getRefresh still reads localStorage as a transitional fallback for sessions
+  // created before this hardening; setRefresh removes the localStorage copy.
+  getRefresh: () => sessionStorage.getItem(REFRESH_KEY) || localStorage.getItem(REFRESH_KEY),
   setRefresh: (token: string) => {
-    localStorage.setItem(REFRESH_KEY, token);
     sessionStorage.setItem(REFRESH_KEY, token);
+    localStorage.removeItem(REFRESH_KEY);
   },
 
   // Admin token — sessionStorage only (admin sessions end on tab close)

@@ -19,13 +19,15 @@ import {
   Bell
 } from 'lucide-react';
 import JobAlertBadge from './JobAlertBadge';
+import { getPendingLogoutRole } from '../utils/logoutState';
+import { isEmployerPagePath } from '../utils/rolePermissions';
 
 interface MobileHamburgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate?: (page: string, data?: any) => void;
   onLogout?: () => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter'} | null;
   siteSettings?: {
     siteLogo?: { url?: string };
     siteTitle?: string;
@@ -59,7 +61,34 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
     onClose();
   };
 
-  const menuItems = [
+  const isEmployer = user?.type === 'employer' || isEmployerPagePath(location.pathname);
+
+  const menuItems = isEmployer ? [
+    {
+      icon: Search,
+      label: 'Candidate Search',
+      subtitle: 'Find & shortlist top talent',
+      action: () => handleNavigation('candidate-search'),
+      hasArrow: true,
+      badge: 0,
+    },
+    {
+      icon: Briefcase,
+      label: 'Posted Jobs',
+      subtitle: 'Manage your job postings',
+      action: () => handleNavigation('my-jobs'),
+      hasArrow: true,
+      badge: 0,
+    },
+    {
+      icon: Building2,
+      label: 'Post a Job',
+      subtitle: 'Create a new job posting',
+      action: () => handleNavigation('job-posting-selection'),
+      hasArrow: true,
+      badge: 0,
+    }
+  ] : [
     {
       icon: Search,
       label: 'Job Search',
@@ -119,7 +148,14 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       window.dispatchEvent(new CustomEvent('userLogout'));
       if (onLogout) onLogout();
       onClose();
-      setTimeout(() => { window.location.href = '/'; }, 100);
+      // The full reload would override React Router's navigation, so target
+      // the correct login page using the remembered logout role.
+      setTimeout(() => {
+        const role = getPendingLogoutRole();
+        if (role === 'employer') window.location.href = '/employer-login';
+        else if (role === 'admin' || role === 'super_admin') window.location.href = '/admin/login';
+        else window.location.href = '/login';
+      }, 100);
     } catch (error) {
       console.error('Logout error:', error);
       window.location.reload();
@@ -173,10 +209,13 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       isLogout: true,
     }
   ] : (() => {
+    if (isEmployer) {
+      return [
+        { icon: LogIn, label: 'Employer Login', action: () => handleNavigation('employer-login'), hasArrow: true, badge: 0 },
+        { icon: UserPlus, label: 'Create Employer Account', action: () => handleNavigation('employer-register'), hasArrow: true, badge: 0 },
+      ];
+    }
     const isJobSeekerAuthPage = location.pathname === '/login' || location.pathname === '/role-selection' || location.pathname === '/candidate-register';
-    const isEmployerAuthPage = location.pathname === '/employer-login' || location.pathname === '/employer-register';
-    const showJobSeekerLinks = !isJobSeekerAuthPage;
-    const showEmployerLinks = !isEmployerAuthPage;
 
     const links: Array<{
       icon: any;
@@ -187,14 +226,11 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       badge: number;
       isLogout?: boolean;
     }> = [];
-    if (showJobSeekerLinks) {
+    if (!isJobSeekerAuthPage) {
       links.push(
         { icon: LogIn, label: 'Login', action: () => handleNavigation('login'), hasArrow: true, badge: 0 },
-        { icon: UserPlus, label: 'Register', action: () => handleNavigation('role-selection'), hasArrow: true, badge: 0 }
+        { icon: UserPlus, label: 'Register', action: () => handleNavigation('candidate-register'), hasArrow: true, badge: 0 }
       );
-    }
-    if (showEmployerLinks) {
-      links.push({ icon: Briefcase, label: 'For Employers', action: () => handleNavigation('employer-login'), hasArrow: true, badge: 0 });
     }
     return links;
   })();
@@ -292,7 +328,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
           </div>
 
           {/* Career Resources Section */}
-          {(!user || user.type !== 'employer') && (
+          {!isEmployer && (
             <div className="px-6 py-4">
               <div className="mb-4">
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">
@@ -402,17 +438,35 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                   <Briefcase className="w-7 h-7 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-gray-900 text-lg mb-2">Find the right opportunity</h4>
-                  <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                    Explore thousands of jobs and grow your career with us.
-                  </p>
-                  <button
-                    onClick={() => handleNavigation('job-listings')}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors duration-200"
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Explore Jobs
-                  </button>
+                  {isEmployer ? (
+                    <>
+                      <h4 className="font-bold text-gray-900 text-lg mb-2">Hire the right talent</h4>
+                      <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                        Post jobs and let AI shortlist the best candidates for you.
+                      </p>
+                      <button
+                        onClick={() => handleNavigation('job-posting-selection')}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Post a Job
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="font-bold text-gray-900 text-lg mb-2">Find the right opportunity</h4>
+                      <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                        Explore thousands of jobs and grow your career with us.
+                      </p>
+                      <button
+                        onClick={() => handleNavigation('job-listings')}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Explore Jobs
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Clock, XCircle, User, FileText, IndianRupee, Shield } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, User, FileText, IndianRupee, Shield, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 
 interface CredentialedCandidate {
   _id: string;
@@ -28,7 +29,7 @@ const CandidateCredentialing: React.FC<CandidateCredentialingProps> = ({ employe
   const fetchCredentials = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}?employerEmail=${encodeURIComponent(employerEmail)}`);
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}?employerEmail=${encodeURIComponent(employerEmail)}`);
       if (res.ok) {
         const data = await res.json();
         setCandidates(Array.isArray(data) ? data : []);
@@ -50,7 +51,7 @@ const CandidateCredentialing: React.FC<CandidateCredentialingProps> = ({ employe
 
   const updateVerification = async (id: string, status: 'verified' | 'pending' | 'rejected') => {
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${id}/verify`, {
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${id}/verify`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verificationStatus: status }),
@@ -83,9 +84,17 @@ const CandidateCredentialing: React.FC<CandidateCredentialingProps> = ({ employe
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Candidate Credentialing</h1>
-        <p className="text-gray-500 mt-1 text-sm">Verify, onboard and manage trusted candidates</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Candidate Credentialing</h1>
+          <p className="text-gray-500 mt-1 text-sm">Verify, onboard and manage trusted candidates</p>
+        </div>
+        <button
+          onClick={() => fetchCredentials()}
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
       </div>
 
       {/* Stats */}
@@ -175,7 +184,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ candidates, onVerify, onRefre
     const fetchHired = async () => {
       setLoadingApps(true);
       try {
-        const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/eligible?employerEmail=${encodeURIComponent(employerEmail)}`);
+        const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/eligible?employerEmail=${encodeURIComponent(employerEmail)}`);
         if (res.ok) {
           const data = await res.json();
           setHiredApps(Array.isArray(data) ? data : []);
@@ -191,7 +200,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ candidates, onVerify, onRefre
 
   const addToCredentialing = async (app: any) => {
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}`, {
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -285,7 +294,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ candidates, onVerify, onRefre
 };
 
 // ── Onboarding Tab ──────────────────────────────────────────────────────────
-const ONBOARDING_CHECKLIST = [
+const DEFAULT_ONBOARDING_CHECKLIST = [
   'Offer Letter Signed',
   'ID Proof Submitted',
   'Address Proof Submitted',
@@ -302,8 +311,16 @@ interface OnboardingTabProps {
 }
 
 const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) => {
+  const [checklistItems, setChecklistItems] = useState<string[]>(DEFAULT_ONBOARDING_CHECKLIST);
   const [checklists, setChecklists] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch(`${API_ENDPOINTS.CREDENTIALING}/checklist-items`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setChecklistItems(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchChecklists = async () => {
@@ -311,15 +328,15 @@ const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) 
       await Promise.all(
         candidates.map(async (c) => {
           try {
-            const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${c.id || c._id}/onboarding`);
+            const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${c.id || c._id}/onboarding`);
             if (res.ok) {
               const data = await res.json();
-              results[c._id] = data.completedItems || [];
+              results[c.id || c._id] = data.completedItems || [];
             } else {
-              results[c._id] = [];
+              results[c.id || c._id] = [];
             }
           } catch {
-            results[c._id] = [];
+            results[c.id || c._id] = [];
           }
         })
       );
@@ -339,7 +356,7 @@ const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) 
   const saveChecklist = async (candidateId: string) => {
     setSaving(candidateId);
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/onboarding`, {
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/onboarding`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completedItems: checklists[candidateId] || [] }),
@@ -366,10 +383,11 @@ const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) 
   return (
     <div className="space-y-4">
       {candidates.map(c => {
-        const completed = checklists[c._id] || [];
-        const pct = Math.round((completed.length / ONBOARDING_CHECKLIST.length) * 100);
+        const id = c.id || c._id;
+        const completed = checklists[id] || [];
+        const pct = Math.round((completed.length / checklistItems.length) * 100);
         return (
-          <div key={c._id} className="bg-white border border-gray-200 rounded-xl p-5">
+          <div key={id} className="bg-white border border-gray-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="font-semibold text-gray-900">{c.candidateName}</p>
@@ -381,11 +399,11 @@ const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) 
                   <p className="text-xs text-gray-400">Complete</p>
                 </div>
                 <button
-                  onClick={() => saveChecklist(c._id)}
-                  disabled={saving === c._id}
+                  onClick={() => saveChecklist(id)}
+                  disabled={saving === id}
                   className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {saving === c._id ? 'Saving...' : 'Save'}
+                  {saving === id ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
@@ -393,12 +411,12 @@ const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) 
               <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {ONBOARDING_CHECKLIST.map(item => (
+              {checklistItems.map(item => (
                 <label key={item} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={completed.includes(item)}
-                    onChange={() => toggleItem(c._id, item)}
+                    onChange={() => toggleItem(id, item)}
                     className="rounded border-gray-300 text-blue-600"
                   />
                   <span className={`text-sm ${completed.includes(item) ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item}</span>
@@ -409,6 +427,40 @@ const OnboardingTab: React.FC<OnboardingTabProps> = ({ candidates, showToast }) 
         );
       })}
     </div>
+  );
+};
+
+// ── Number Input (handles clearing + decimals) ─────────────────────────────
+interface NumberInputProps {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  className?: string;
+  placeholder?: string;
+}
+
+const NumberInput: React.FC<NumberInputProps> = ({ value, onChange, min, max, className, placeholder }) => {
+  const [text, setText] = useState(value ? String(value) : '');
+
+  useEffect(() => {
+    setText(value ? String(value) : '');
+  }, [value]);
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      placeholder={placeholder}
+      value={text}
+      onChange={e => {
+        setText(e.target.value);
+        const num = e.target.value === '' ? 0 : Number(e.target.value);
+        if (Number.isFinite(num)) onChange(num);
+      }}
+      className={className}
+    />
   );
 };
 
@@ -443,26 +495,27 @@ const TimesheetsTab: React.FC<TimesheetsTabProps> = ({ candidates, showToast }) 
   const [saving, setSaving] = useState<string | null>(null);
   const currentWeek = getWeekLabel();
 
-  useEffect(() => {
-    const fetchTimesheets = async () => {
-      const results: Record<string, TimesheetEntry> = {};
-      await Promise.all(
-        candidates.map(async (c) => {
-          try {
-            const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${c.id || c._id}/timesheets?week=${currentWeek}`);
-            if (res.ok) {
-              const data = await res.json();
-              results[c._id] = data || { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
-            } else {
-              results[c._id] = { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
-            }
-          } catch {
-            results[c._id] = { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
+  const fetchTimesheets = async () => {
+    const results: Record<string, TimesheetEntry> = {};
+    await Promise.all(
+      candidates.map(async (c) => {
+        try {
+          const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${c.id || c._id}/timesheets?week=${currentWeek}`);
+          if (res.ok) {
+            const data = await res.json();
+            results[c.id || c._id] = data || { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
+          } else {
+            results[c.id || c._id] = { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
           }
-        })
-      );
-      setTimesheets(results);
-    };
+        } catch {
+          results[c.id || c._id] = { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
+        }
+      })
+    );
+    setTimesheets(results);
+  };
+
+  useEffect(() => {
     if (candidates.length > 0) fetchTimesheets();
   }, [candidates]);
 
@@ -476,15 +529,18 @@ const TimesheetsTab: React.FC<TimesheetsTabProps> = ({ candidates, showToast }) 
   const saveTimesheet = async (candidateId: string) => {
     setSaving(candidateId);
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/timesheets`, {
+      const payload = timesheets[candidateId] || { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/timesheets`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(timesheets[candidateId]),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         showToast('Timesheet saved!', 'success');
+        fetchTimesheets();
       } else {
-        showToast('Failed to save timesheet', 'error');
+        const detail = await res.text().catch(() => '');
+        showToast(`Failed to save timesheet${detail ? ': ' + detail : ''}`, 'error');
       }
     } catch {
       showToast('Network error', 'error');
@@ -507,10 +563,11 @@ const TimesheetsTab: React.FC<TimesheetsTabProps> = ({ candidates, showToast }) 
     <div className="space-y-4">
       <p className="text-sm text-gray-500">Week of: <span className="font-semibold text-gray-700">{currentWeek}</span></p>
       {candidates.map(c => {
-        const entry = timesheets[c._id] || { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
+        const id = c.id || c._id;
+        const entry = timesheets[id] || { week: currentWeek, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 };
         const total = totalHours(entry);
         return (
-          <div key={c._id} className="bg-white border border-gray-200 rounded-xl p-5">
+          <div key={id} className="bg-white border border-gray-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="font-semibold text-gray-900">{c.candidateName}</p>
@@ -519,11 +576,11 @@ const TimesheetsTab: React.FC<TimesheetsTabProps> = ({ candidates, showToast }) 
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-blue-600">{total}h total</span>
                 <button
-                  onClick={() => saveTimesheet(c._id)}
-                  disabled={saving === c._id}
+                  onClick={() => saveTimesheet(id)}
+                  disabled={saving === id}
                   className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {saving === c._id ? 'Saving...' : 'Save'}
+                  {saving === id ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
@@ -531,12 +588,12 @@ const TimesheetsTab: React.FC<TimesheetsTabProps> = ({ candidates, showToast }) 
               {DAYS.map(day => (
                 <div key={day} className="text-center">
                   <p className="text-xs text-gray-500 mb-1 capitalize">{day.slice(0, 3)}</p>
-                  <input
-                    type="number"
+                  <NumberInput
+                    value={(entry as any)[day] || 0}
+                    onChange={v => updateHours(id, day, v)}
                     min={0}
                     max={24}
-                    value={(entry as any)[day] || 0}
-                    onChange={e => updateHours(c._id, day, Number(e.target.value))}
+                    placeholder="0"
                     className="w-full text-center border border-gray-200 rounded-lg p-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -559,41 +616,45 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
   const [billingData, setBillingData] = useState<Record<string, { rate: number; hours: number; invoices: any[] }>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchBilling = async () => {
-      const results: Record<string, { rate: number; hours: number; invoices: any[] }> = {};
-      await Promise.all(
-        candidates.map(async (c) => {
-          try {
-            const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${c.id || c._id}/billing`);
-            if (res.ok) {
-              const data = await res.json();
-              results[c._id] = { rate: data.rate || 0, hours: data.hours || 0, invoices: data.invoices || [] };
-            } else {
-              results[c._id] = { rate: 0, hours: 0, invoices: [] };
-            }
-          } catch {
-            results[c._id] = { rate: 0, hours: 0, invoices: [] };
+  const fetchBilling = async () => {
+    const results: Record<string, { rate: number; hours: number; invoices: any[] }> = {};
+    await Promise.all(
+      candidates.map(async (c) => {
+        try {
+          const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${c.id || c._id}/billing`);
+          if (res.ok) {
+            const data = await res.json();
+            results[c.id || c._id] = { rate: data.rate || 0, hours: data.hours || 0, invoices: data.invoices || [] };
+          } else {
+            results[c.id || c._id] = { rate: 0, hours: 0, invoices: [] };
           }
-        })
-      );
-      setBillingData(results);
-    };
+        } catch {
+          results[c.id || c._id] = { rate: 0, hours: 0, invoices: [] };
+        }
+      })
+    );
+    setBillingData(results);
+  };
+
+  useEffect(() => {
     if (candidates.length > 0) fetchBilling();
   }, [candidates]);
 
   const saveBilling = async (candidateId: string) => {
     setSaving(candidateId);
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/billing`, {
+      const payload = billingData[candidateId] || { rate: 0, hours: 0, invoices: [] };
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/billing`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(billingData[candidateId]),
+        body: JSON.stringify({ rate: payload.rate, hours: payload.hours }),
       });
       if (res.ok) {
         showToast('Billing details saved!', 'success');
+        fetchBilling();
       } else {
-        showToast('Failed to save billing', 'error');
+        const detail = await res.text().catch(() => '');
+        showToast(`Failed to save billing${detail ? ': ' + detail : ''}`, 'error');
       }
     } catch {
       showToast('Network error', 'error');
@@ -604,10 +665,11 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
 
   const generateInvoice = async (candidateId: string) => {
     try {
-      const res = await fetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/billing/invoice`, {
+      const payload = billingData[candidateId] || { rate: 0, hours: 0, invoices: [] };
+      const res = await apiFetch(`${API_ENDPOINTS.CREDENTIALING}/${candidateId}/billing/invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(billingData[candidateId]),
+        body: JSON.stringify({ rate: payload.rate, hours: payload.hours }),
       });
       if (res.ok) {
         const invoice = await res.json();
@@ -620,7 +682,8 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
         }));
         showToast('Invoice generated!', 'success');
       } else {
-        showToast('Failed to generate invoice', 'error');
+        const detail = await res.text().catch(() => '');
+        showToast(`Failed to generate invoice${detail ? ': ' + detail : ''}`, 'error');
       }
     } catch {
       showToast('Network error', 'error');
@@ -635,7 +698,7 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
   );
 
   const totalBilling = candidates.reduce((sum, c) => {
-    const b = billingData[c._id];
+    const b = billingData[c.id || c._id];
     return sum + (b ? b.rate * b.hours : 0);
   }, 0);
 
@@ -649,10 +712,11 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
       </div>
 
       {candidates.map(c => {
-        const b = billingData[c._id] || { rate: 0, hours: 0, invoices: [] };
+        const id = c.id || c._id;
+        const b = billingData[id] || { rate: 0, hours: 0, invoices: [] };
         const total = b.rate * b.hours;
         return (
-          <div key={c._id} className="bg-white border border-gray-200 rounded-xl p-5">
+          <div key={id} className="bg-white border border-gray-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="font-semibold text-gray-900">{c.candidateName}</p>
@@ -660,14 +724,14 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => saveBilling(c._id)}
-                  disabled={saving === c._id}
+                  onClick={() => saveBilling(id)}
+                  disabled={saving === id}
                   className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {saving === c._id ? 'Saving...' : 'Save'}
+                  {saving === id ? 'Saving...' : 'Save'}
                 </button>
                 <button
-                  onClick={() => generateInvoice(c._id)}
+                  onClick={() => generateInvoice(id)}
                   className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors"
                 >
                   Generate Invoice
@@ -678,21 +742,21 @@ const BillingTab: React.FC<BillingTabProps> = ({ candidates, showToast }) => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Hourly Rate (₹)</label>
-                <input
-                  type="number"
-                  min={0}
+                <NumberInput
                   value={b.rate}
-                  onChange={e => setBillingData(prev => ({ ...prev, [c._id]: { ...prev[c._id], rate: Number(e.target.value) } }))}
+                  onChange={v => setBillingData(prev => ({ ...prev, [id]: { ...prev[id], rate: v } }))}
+                  min={0}
+                  placeholder="0"
                   className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Total Hours</label>
-                <input
-                  type="number"
-                  min={0}
+                <NumberInput
                   value={b.hours}
-                  onChange={e => setBillingData(prev => ({ ...prev, [c._id]: { ...prev[c._id], hours: Number(e.target.value) } }))}
+                  onChange={v => setBillingData(prev => ({ ...prev, [id]: { ...prev[id], hours: v } }))}
+                  min={0}
+                  placeholder="0"
                   className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500"
                 />
               </div>

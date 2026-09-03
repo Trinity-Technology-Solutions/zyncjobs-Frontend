@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
+import WorkButton from '../components/animata/button/work-button';
 import Header from '../components/Header';
 import analytics from '../services/analytics';
 
@@ -222,7 +223,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
           <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
 
           <div className="relative z-10 flex flex-col px-16 py-12 w-full justify-between">
-            <BackButton onClick={() => onNavigate('home')} />
+            <BackButton fallback="/" />
 
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-blue-50 text-blue-600 border border-blue-200">
@@ -479,13 +480,12 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                         <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-500 hover:text-blue-700 underline font-semibold">Privacy Policy</button>.
                       </label>
                     </div>
-                    <button
+                    <WorkButton
                       type="submit"
                       disabled={loading || !agreedToTerms || !otpVerified}
-                      className="w-full h-12 sm:h-14 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
-                    >
-                      {loading ? 'Creating Account...' : 'Create Account'}
-                    </button>
+                      text={loading ? 'Creating Account...' : 'Create Account'}
+                      className="w-full"
+                    />
                     <button
                       type="button"
                       onClick={() => { setStep(2); setError(''); }}

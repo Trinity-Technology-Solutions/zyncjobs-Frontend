@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
+import WorkButton from '../components/animata/button/work-button';
 import analytics from '../services/analytics';
 import { updateUserInStorage } from '../utils/userStorage';
 
@@ -101,7 +102,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
           errorMessage = 'Account not found. Please register first.';
           setTimeout(async () => {
             const yes = await (window as any).confirmAsync('Account not found. Would you like to create a new account?');
-            if (yes) onNavigate('role-selection');
+            if (yes) onNavigate('candidate-register');
           }, 500);
         } else if (err.message.includes('Invalid password')) {
           errorMessage = 'Incorrect password. Please try again or reset your password.';
@@ -132,7 +133,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-50 opacity-60" />
 
           <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-            <BackButton onClick={() => onNavigate('home')} />
+            <BackButton fallback="/" />
 
             <div>
               <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
@@ -257,13 +258,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                   {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
                 </div>
 
-                <button
+                <WorkButton
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl text-white font-semibold text-sm sm:text-base bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
-                >
-                  {loading ? 'Signing In...' : 'Sign In'}
-                </button>
+                  text={loading ? 'Signing In...' : 'Sign In'}
+                  className="w-full"
+                />
               </form>
 
               <div className="my-4 sm:my-6 flex items-center gap-2 sm:gap-3">
@@ -321,8 +321,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to role-selection');
-                      onNavigate('role-selection');
+                      console.log('Navigating to candidate-register');
+                      onNavigate('candidate-register');
                     }} 
                     className="text-xs sm:text-sm font-semibold text-orange-500 hover:text-orange-600 active:text-orange-700 transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded underline"
                   >

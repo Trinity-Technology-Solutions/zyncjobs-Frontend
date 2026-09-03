@@ -148,7 +148,7 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <BackButton onClick={() => onNavigate('dashboard')} />
+          <BackButton fallback="/dashboard" />
           <div className="flex items-center justify-between mt-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>

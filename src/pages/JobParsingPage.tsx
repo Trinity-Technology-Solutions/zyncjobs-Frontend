@@ -109,9 +109,9 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
           jobLocation:      d.location        || '',
           jobType:          d.jobType         || '',
           experienceRange:  d.experienceRange || '',
-          skills:           d.skills          || [],
+          skills:           d.mustHaveSkills  || d.skills || [],
           goodToHaveSkills: d.goodToHaveSkills || [],
-          benefits:         d.benefits || [],
+          benefits:         d.benefits        || [],
           minSalary:        d.salaryMin > 0 ? String(d.salaryMin) : '',
           maxSalary:        d.salaryMax > 0 ? String(d.salaryMax) : '',
           currency:         d.currency        || '',
@@ -119,6 +119,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
           jobCategory:      d.jobCategory     || '',
           responsibilities: d.responsibilities || [],
           requirements:     d.requirements    || [],
+          workSetting:      d.workSetting     || '',
+          priority:         d.priority        || '',
           nationality:      '',
         };
         console.log('[JobParser] AI parsed:', ai);
@@ -233,7 +235,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       goodToHaveSkills: strictList((Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description))),
       jobCategory:      strictEnum(ai.jobCategory    || extractJobCategory(description), JOB_CATEGORIES),
       nationality:      ai.nationality      || '',
-      priority:         extractPriority(description),
+      priority:         ai.priority && ['Low','Medium','High','Urgent'].includes(ai.priority) ? ai.priority : extractPriority(description),
       clientName:       extractClientName(description),
       reportingManager: extractReportingManager(description),
       workAuth:         extractWorkAuth(description),
@@ -472,6 +474,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         let loc = m[1].trim()
           .replace(/\s*(?:work\s+mode|work\s+type|employment\s+type|mode)[^\n]*/gi, '')
           .replace(/\s*(hybrid|remote|on-?site|in-?person)\s*$/gi, '')
+          // Take first city if slash-separated (e.g. "Chennai, India / Pan India")
+          .split('/')[0].split(',')[0]
           .replace(/\s+/g, ' ')
           .trim();
         // reject if it looks like a sentence (too many words or contains verbs)
@@ -833,14 +837,20 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     return benefits;
   };
 
+  const extractWorkSetting = (text: string): string => {
+    if (/\bfully\s+remote\b|\b100%\s+remote\b|\bwork\s+from\s+home\b|\bwfh\b/i.test(text)) return 'Remote';
+    if (/\bhybrid\b/i.test(text)) return 'Hybrid';
+    if (/\bon[\s-]?site\b|\bonsite\b|\bin[\s-]?office\b|\bin[\s-]?person\b/i.test(text)) return 'On-site';
+    return '';
+  };
+
   const extractEducation = (text: string): string => {
-    if (/bachelor|bs|ba/i.test(text)) return "Bachelor's degree";
-    if (/master|ms|ma/i.test(text)) return "Master's degree";
+    if (/bachelor|bs\b|ba\b/i.test(text)) return "Bachelor's degree";
+    if (/master|ms\b|ma\b/i.test(text)) return "Master's degree";
     if (/phd|doctorate/i.test(text)) return "PhD/Doctorate";
     if (/associate/i.test(text)) return "Associate's degree";
     if (/high\s*school/i.test(text)) return "High School Diploma";
-
-    return "Bachelor's degree";
+    return '';
   };
 
   const extractJobCategory = (text: string): string => {
@@ -1142,7 +1152,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <BackButton onClick={() => onNavigate('job-posting-selection')} text="Back" />
+            <BackButton fallback="/job-posting-selection" text="Back" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

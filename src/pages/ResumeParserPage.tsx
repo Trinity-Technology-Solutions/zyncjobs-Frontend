@@ -16,7 +16,7 @@ const ResumeParserPage: React.FC<ResumeParserPageProps> = ({ onNavigate, user, o
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <div className="mb-6">
           <BackButton 
-            onClick={() => onNavigate(user?.type === 'employer' ? 'dashboard' : 'resume-studio')}
+            fallback={user?.type === 'employer' ? '/dashboard' : '/resume-studio'}
             text={user?.type === 'employer' ? 'Back to Dashboard' : 'Back to Resume Studio'}
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
           />

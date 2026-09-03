@@ -81,7 +81,7 @@ const GlobalAlert: React.FC = () => {
     <>
       {/* Alert dialog */}
       {alert.isOpen && styles && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+        <div className="fixed inset-0 z-[11000] flex items-center justify-center">
           <div className="fixed inset-0 bg-black bg-opacity-40" onClick={closeAlert} />
           <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 z-10">
             <div className="flex flex-col items-center text-center">
@@ -106,6 +106,7 @@ const GlobalAlert: React.FC = () => {
         confirmLabel="OK"
         cancelLabel="Cancel"
         variant="warning"
+        overlayClassName="z-[11000]"
         onConfirm={() => resolveConfirm(true)}
         onCancel={() => resolveConfirm(false)}
       />

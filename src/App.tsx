@@ -19,11 +19,13 @@ const LatestJobs = lazy(() => import('./components/LatestJobs'));
 const HowItWorks = lazy(() => import('./components/HowItWorks'));
 const TalentedPeople = lazy(() => import('./components/TalentedPeople'));
 const CallToAction = lazy(() => import('./components/CallToAction'));
+const CompanyCarousel = lazy(() => import('./components/CompanyCarousel'));
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
 import { mergeUserToStorage, updateUserInStorage } from './utils/userStorage';
+import { getPendingLogoutRole, setPendingLogoutRole, clearPendingLogoutRole } from './utils/logoutState';
 import { useAnalytics } from './hooks/useAnalytics';
 import { useSavedJobsStore } from './store/useSavedJobsStore';
 import './utils/extensionErrorHandler'; // Initialize extension error handling
@@ -35,8 +37,6 @@ const PasswordExpiredModal = lazy(() => import('./components/PasswordExpiredModa
 const AccountLockedModal = lazy(() => import('./components/AccountLockedModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
 
-const RoleSelectionModal = lazy(() => import('./components/RoleSelectionModal'));
-const RoleSelectionPage = lazy(() => import('./pages/RoleSelectionPage'));
 const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage'));
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
@@ -106,6 +106,7 @@ const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage')
 const MyAlertsPage = lazy(() => import('./pages/MyAlertsPage'));
 const JobAlertNotificationsPage = lazy(() => import('./pages/JobAlertNotificationsPage'));
 const InterviewInvitePage = lazy(() => import('./pages/InterviewInvitePage'));
+const ATSDashboard = lazy(() => import('./pages/ATSDashboard'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -135,7 +136,7 @@ const CandidateProfileViewWrapper: React.FC<{
   );
 };
 
-type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager'; email?: string };
+type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter'; email?: string };
 
 // Shared layout wrapper for pages that need Header + Footer
 const WithLayout: React.FC<{
@@ -182,7 +183,7 @@ const DashboardRoute: React.FC<{
   return (
     <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
       <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
-      {user?.type === 'admin' || user?.type === 'super_admin' ? (
+      {user?.type === 'admin' || user?.type === 'super_admin' || user?.type === 'recruiter' ? (
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
         <>
@@ -200,7 +201,7 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="text-center px-6">
-        <div className="text-6xl mb-6">??</div>
+        <div className="text-6xl mb-6">🛠️</div>
         <h1 className="text-3xl font-bold text-white mb-3">Under Maintenance</h1>
         <p className="text-gray-400 mb-6">We're making some improvements. Please check back soon.</p>
         <button onClick={onRetry} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">
@@ -224,6 +225,8 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
 // Synchronously read user from localStorage BEFORE first render — eliminates flicker
 function getInitialUser(): UserType | null {
   try {
+    // If user explicitly logged out, never restore from localStorage
+    if (localStorage.getItem('zync:logged_out') === '1') return null;
     const stored = JSON.parse(localStorage.getItem('user') || '{}');
     if (!stored.email || (!stored.userType && !stored.role)) return null;
     const rawType = stored.userType || stored.role || 'candidate';
@@ -232,6 +235,7 @@ function getInitialUser(): UserType | null {
     else if (rawType === 'admin') type = 'admin';
     else if (rawType === 'super_admin') type = 'super_admin';
     else if (rawType === 'manager') type = 'manager';
+    else if (rawType === 'recruiter') type = 'recruiter';
     return {
       name: stored.fullName || stored.name || stored.email.split('@')[0] || 'User',
       type,
@@ -263,7 +267,6 @@ function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
-  const [showRoleSelectionModal, setShowRoleSelectionModal] = useState(false);
   const [passwordExpired, setPasswordExpired] = useState(false);
   const [expiredUserData, setExpiredUserData] = useState<any>(null);
   const [accountLocked, setAccountLocked] = useState(false);
@@ -278,7 +281,6 @@ function App() {
   const closeModals = useCallback(() => {
     setShowLoginModal(false);
     setShowRegisterModal(false);
-    setShowRoleSelectionModal(false);
   }, []);
 
   const handleNavigation = useCallback((page: string, params?: any) => {
@@ -325,7 +327,13 @@ function App() {
 
   const handleLogout = useCallback(() => {
     resetSavedJobs();
-    let userType = user?.type || localStorage.getItem('lastUserType');
+
+    // Read ALL sources BEFORE clearing anything
+    let userType: string | null | undefined = user?.type;
+
+    if (!userType || userType === 'candidate') {
+      userType = localStorage.getItem('lastUserType') || userType;
+    }
 
     if (!userType) {
       try {
@@ -344,7 +352,10 @@ function App() {
       } catch { }
     }
 
-    console.log('🚪 Logout - User type detected:', userType);
+    // Remember the role BEFORE clearing so a subsequent forced logout
+    // (zync:logout from a 401) or any AuthGuard redirect still goes to the
+    // correct login page — logout is idempotent.
+    setPendingLogoutRole(userType);
 
     // Clear storage AFTER reading userType
     setUser(null);
@@ -352,10 +363,12 @@ function App() {
     sessionStorage.clear();
     localStorage.removeItem('user');
     localStorage.removeItem('lastUserType');
+    // Mark explicit logout so restoreSession skips cookie-based re-auth on next refresh
+    localStorage.setItem('zync:logged_out', '1');
 
     if (userType === 'employer') navigate('/employer-login');
-    else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
-    else navigate('/');
+    else if (userType === 'admin' || userType === 'super_admin' || userType === 'recruiter') navigate('/admin/login');
+    else navigate('/login');
   }, [navigate, user?.type]);
 
   const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string; passwordExpired?: boolean; daysSinceChange?: number; tempToken?: string }) => {
@@ -373,12 +386,16 @@ function App() {
     loginTimestamp.current = Date.now();
     setUser(userData);
     closeModals();
+    // Clear the explicit-logout flag so future refreshes restore the session
+    localStorage.removeItem('zync:logged_out');
     // Fetch saved jobs once after login
     setTimeout(() => fetchSavedJobs(), 500);
 
     // Store user type separately for reliable logout redirection
     const userType = userData.type || userData.userType || userData.role || 'candidate';
     localStorage.setItem('lastUserType', userType);
+    // Fresh session — clear any remembered role from a previous logout
+    clearPendingLogoutRole();
 
     // If NOT a team member, clear employerOwnerId to prevent stale cross-account data
     const isTeamMember = !!(userData as any).teamRole;
@@ -404,11 +421,6 @@ function App() {
       setTimeout(() => localStorageMigration.runFullMigration().catch(console.error), 1000);
     }
   }, [closeModals]);
-
-  const handleRoleSelection = useCallback((role: 'candidate' | 'employer') => {
-    closeModals();
-    navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
-  }, [closeModals, navigate]);
 
   const handlePasswordChange = useCallback(async (currentPassword: string, newPassword: string) => {
     try {
@@ -442,6 +454,7 @@ function App() {
       else if (userType === 'admin') type = 'admin';
       else if (userType === 'super_admin') type = 'super_admin';
       else if (userType === 'manager') type = 'manager';
+      else if (userType === 'recruiter') type = 'recruiter';
       
       // Generate new tokens after password change
       const loginRes = await fetch(`${API_BASE}/users/login`, {
@@ -473,20 +486,17 @@ function App() {
   useEffect(() => {
     initializeEmployerIdCounter();
     const handleForceLogout = () => {
-      // Get user type from multiple sources to ensure we have it
-      let userType = localStorage.getItem('lastUserType') || user?.type;
+      // Read ALL sources BEFORE clearing anything — the remembered role from a
+      // manual logout takes priority, since manual logout already wiped storage.
+      let userType: string | null | undefined = getPendingLogoutRole() || localStorage.getItem('lastUserType');
 
-      // Fallback: try to get from localStorage user object if lastUserType is not available
       if (!userType) {
         try {
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           userType = storedUser.userType || storedUser.role || storedUser.type;
-        } catch {
-          // ignore parsing errors
-        }
+        } catch { }
       }
 
-      // Fallback: try to get from token payload
       if (!userType) {
         try {
           const token = tokenStorage.getAccess();
@@ -494,12 +504,12 @@ function App() {
             const payload = JSON.parse(atob(token.split('.')[1]));
             userType = payload.userType || payload.role;
           }
-        } catch {
-          // ignore token parsing errors
-        }
+        } catch { }
       }
 
-      console.log('🚪 Force logout - User type detected:', userType);
+      // Remember the role BEFORE clearing so AuthGuard redirects go to the
+      // correct login page for forced logouts too.
+      setPendingLogoutRole(userType);
 
       // Clear user state immediately
       setUser(null);
@@ -510,9 +520,10 @@ function App() {
       sessionStorage.clear();
       localStorage.removeItem('user');
       localStorage.removeItem('lastUserType');
+      localStorage.setItem('zync:logged_out', '1');
 
       if (userType === 'employer') navigate('/employer-login');
-      else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
+      else if (userType === 'admin' || userType === 'super_admin' || userType === 'recruiter') navigate('/admin/login');
       else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
@@ -523,7 +534,27 @@ function App() {
     };
     window.addEventListener('zync:account-locked', handleAccountLocked);
 
+    // IMMEDIATELY clear httpOnly cookie if on admin accept invite page
+    // This runs synchronously before restoreSession
+    if (window.location.pathname.startsWith('/admin/accept-invite')) {
+      console.log('🔑 Admin invite page detected - clearing httpOnly cookie immediately');
+      fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      }).catch(() => {});
+    }
+
     const restoreSession = async () => {
+      // Skip session restoration on admin accept invite page to prevent
+      // httpOnly cookie from re-authenticating as candidate
+      if (window.location.pathname.startsWith('/admin/accept-invite')) {
+        console.log('🔑 Skipping session restore on admin invite page');
+        setUserLoading(false);
+        return;
+      }
+      
+      // If the user explicitly logged out, do NOT re-authenticate via cookie.
+
       // Clean up any base64 images stored in localStorage
       try {
         const stored = localStorage.getItem('user');
@@ -540,14 +571,30 @@ function App() {
       // Now just verify/refresh the token in the background
       let token = tokenStorage.getAccess();
 
+      // Do not silently restore an account from an httpOnly cookie when this
+      // browser has no local user session. Anonymous visitors must stay anonymous.
+      if (!user && !localStorage.getItem('user')) {
+        tokenStorage.clear();
+        setUserLoading(false);
+        return;
+      }
+
       if (!token) {
+        // Only attempt cookie-based refresh when a local user session exists.
+        // Anonymous browsers must not be re-authenticated via stale httpOnly cookies.
+        if (!localStorage.getItem('user')) {
+          tokenStorage.clear();
+          setUserLoading(false);
+          return;
+        }
         const refreshToken = tokenStorage.getRefresh();
-        if (!refreshToken) { setUserLoading(false); return; }
         try {
+          // Try the httpOnly refreshToken cookie (local session required).
           const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
+            body: refreshToken ? JSON.stringify({ refreshToken }) : JSON.stringify({}),
+            credentials: 'include',
           });
           if (res.ok) {
             const data = await res.json();
@@ -555,6 +602,7 @@ function App() {
             if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
             token = data.accessToken;
           } else {
+            if (!refreshToken) { setUserLoading(false); return; }
             tokenStorage.clear();
             setUser(null);
             setUserLoading(false);
@@ -583,10 +631,14 @@ function App() {
           const lastUserType = localStorage.getItem('lastUserType');
           const resolvedRawType = (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
             ? 'employer'
-            : rawType;
+            : lastUserType === 'recruiter' && ['super_admin', 'admin', 'manager'].includes(rawType)
+              ? 'recruiter'
+              : rawType;
           if (resolvedRawType === 'employer') userType = 'employer';
           else if (resolvedRawType === 'admin') userType = 'admin';
           else if (resolvedRawType === 'super_admin') userType = 'super_admin';
+          else if (resolvedRawType === 'manager') userType = 'manager';
+          else if (resolvedRawType === 'recruiter') userType = 'recruiter';
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
           const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
@@ -653,6 +705,7 @@ function App() {
 
   if (userLoading) {
     const waitForSessionPaths = [
+      '/',
       '/login', '/employer-login',
       '/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
       '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
@@ -675,9 +728,13 @@ function App() {
     return <MaintenancePage onRetry={handleRetry} />;
   }
 
-  // Handle OAuth callback
+  if (user?.type === 'recruiter' && !location.pathname.startsWith('/admin/')) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  // Handle OAuth callback (skip admin invite pages — they use token param too)
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('token')) {
+  if (urlParams.get('token') && !location.pathname.startsWith('/admin/accept-invite')) {
     return <TokenHandler onLogin={handleLogin} onNavigate={handleNavigation} />;
   }
 
@@ -702,9 +759,13 @@ function App() {
           <Routes>
             {/* -- Public home -- */}
             <Route path="/" element={
-              <div className="min-h-screen bg-white overflow-x-hidden">
+              user?.type === 'employer' ? (
+                <EmployersPage {...nav} />
+              ) : (
+              <div className="min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
                 <NewHero onNavigate={handleNavigation} user={user as any} />
+                <CompanyCarousel />
                 <LatestJobs onNavigate={handleNavigation} />
                 <HowItWorks onNavigate={handleNavigation} />
                 <JobCategories onNavigate={handleNavigation} />
@@ -713,10 +774,11 @@ function App() {
                 <Footer onNavigate={handleNavigation} user={user as any} />
                 <ChatWidget />
               </div>
+              )
             } />
 
             <Route path="/candidate-messages" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
                   <div style={{ flexShrink: 0 }}>
                     <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
@@ -751,7 +813,7 @@ function App() {
                 <EmployerCompleteProfilePage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
-            <Route path="/role-selection" element={<RoleSelectionPage {...nav} />} />
+            <Route path="/role-selection" element={<Navigate to="/candidate-register" replace />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigation} />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage onNavigate={handleNavigation} />} />
 
@@ -797,6 +859,12 @@ function App() {
                 <DashboardRoute user={user} userLoading={userLoading} nav={nav} notification={notification} setNotification={setNotification} handleNavigation={handleNavigation} handleLogout={handleLogout} />
             } />
 
+            <Route path="/ats-dashboard" element={
+              <AuthGuard user={user} userLoading={userLoading}>
+                <ATSDashboard onNavigate={handleNavigation} />
+              </AuthGuard>
+            } />
+
             <Route path="/candidate-messages" element={
               <AuthGuard user={user} userLoading={userLoading}>
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -811,13 +879,13 @@ function App() {
             } />
 
             <Route path="/settings" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
                 <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
               </AuthGuard>
             } />
 
             <Route path="/my-jobs" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
                 <>
                   <Header {...nav} />
                   <MyJobsPage {...nav} />
@@ -832,25 +900,25 @@ function App() {
             } />
 
             <Route path="/my-applications" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
                 <MyApplicationsPage {...nav} />
               </AuthGuard>
             } />
 
             <Route path="/alerts" element={
-              <AuthGuard user={user}>
+              <AuthGuard user={user} allowedRoles={['candidate']}>
                 <MyAlertsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
 
             <Route path="/job-alert-notifications" element={
-              <AuthGuard user={user}>
+              <AuthGuard user={user} allowedRoles={['candidate']}>
                 <JobAlertNotificationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
 
             <Route path="/interviews" element={
-              <AuthGuard user={user} userLoading={userLoading}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
                 <CandidateInterviewsPage {...nav} />
               </AuthGuard>
             } />
@@ -1032,12 +1100,13 @@ function App() {
               <AdminAcceptInvitePage
                 onNavigate={handleNavigation}
                 onLogin={handleLogin}
+                onLogout={handleLogout}
               />
             } />
 
             {/* -- Admin Routes -- */}
             <Route path="/admin/login" element={
-              user && (user.type === 'admin' || user.type === 'super_admin')
+              user && (user.type === 'admin' || user.type === 'super_admin' || user.type === 'recruiter')
                 ? <Navigate to="/admin/dashboard" replace />
                 : <AdminLoginPage onLogin={u => {
                   handleLogin(u);
@@ -1046,7 +1115,7 @@ function App() {
             } />
 
             <Route path="/admin/dashboard" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin', 'manager']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin', 'manager', 'recruiter']}>
                 <AdminDashboardPage
                   user={{ name: user?.name || 'Admin', email: user?.email, role: user?.type }}
                   onNavigate={handleNavigation}
@@ -1111,7 +1180,7 @@ function App() {
                       <div className="text-[120px] font-black text-gray-100 leading-none select-none">404</div>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="bg-white px-4">
-                          <div className="text-5xl mb-2">??</div>
+                          <div className="text-5xl mb-2">🧭</div>
                         </div>
                       </div>
                     </div>
@@ -1150,7 +1219,6 @@ function App() {
       <Suspense fallback={null}>
         <LoginModal isOpen={showLoginModal} onClose={closeModals} onNavigate={handleNavigation} onLogin={handleLogin} />
         <RegisterModal isOpen={showRegisterModal} onClose={closeModals} onNavigate={handleNavigation} />
-        <RoleSelectionModal isOpen={showRoleSelectionModal} onClose={closeModals} onSelectRole={handleRoleSelection} />
         
         {passwordExpired && expiredUserData && (
           <PasswordExpiredModal

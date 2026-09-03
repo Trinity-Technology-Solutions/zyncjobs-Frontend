@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
 import UserDetailsModal from './UserDetailsModal';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
@@ -123,9 +124,14 @@ export default function AllUsersSection({ onUnauthorized, onNavigateToReminder }
     }
   };
 
-  const deleteUser = async (userId: string, userName: string) => {
-    const confirmed = confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`);
-    if (!confirmed) return;
+  const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
+
+  const deleteUser = (userId: string, userName: string) => {
+    setConfirmState({ open: true, message: `Are you sure you want to delete user "${userName}"? This action cannot be undone.`, onConfirm: () => execDeleteUser(userId) });
+  };
+
+  const execDeleteUser = async (userId: string) => {
+    setConfirmState(s => ({ ...s, open: false }));
     setActionLoading(userId + 'delete');
     try {
       const response = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, {
@@ -372,6 +378,14 @@ export default function AllUsersSection({ onUnauthorized, onNavigateToReminder }
           </div>
         </div>
       </div>
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete User"
+        message={confirmState.message}
+        confirmLabel="Delete"
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+      />
     </>
   );
 }

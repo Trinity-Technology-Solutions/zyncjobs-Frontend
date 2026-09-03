@@ -36,8 +36,8 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+    <section ref={sectionRef} className="py-12 sm:py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
         
         {/* LEFT CONTENT */}
         <div 
@@ -45,9 +45,15 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
             isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-20'
           }`}
         >
+          <div className="flex items-center gap-3">
+            <span className="text-blue-600 font-bold text-xs sm:text-sm tracking-widest uppercase">
+              Smarter way to get hired
+            </span>
+            <div className="h-px w-10 sm:w-16 bg-blue-600"></div>
+          </div>
           
-          <h2 className="text-4xl md:text-5xl font-semibold leading-tight text-gray-900">
-            Discover Your Next Career Opportunity
+          <h2 className="text-[32px] md:text-[40px] font-bold text-gray-900 tracking-tight leading-tight">
+            Discover Your Next <span className="text-orange-500">Career Opportunity</span>
           </h2>
 
           <p className="text-gray-500 text-lg max-w-md">
@@ -73,17 +79,17 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <button 
               onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('role-selection'); }}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
               Get Started
               <TrendingUp className="w-5 h-5" />
             </button>
             <button 
               onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('job-listings'); }}
-              className="border-2 border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300"
+              className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center"
             >
               Browse Jobs
             </button>
@@ -99,24 +105,24 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
           <img
             src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
             alt="Team collaboration and success"
-            className="w-full h-[500px] object-cover rounded-2xl shadow-2xl"
+            className="w-full h-64 sm:h-96 md:h-[500px] object-cover rounded-2xl shadow-2xl"
           />
         </div>
 
       </div>
 
       {/* Company Logos Section */}
-      <div className="max-w-7xl mx-auto px-6 mt-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-20">
         <p className="text-center text-gray-400 text-sm font-medium mb-8">Trusted by top companies</p>
-        <div className="flex flex-wrap justify-center items-center gap-12 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+        <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-12 transition-all duration-500">
           {[
-            { name: 'Birlasoft', logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
-            { name: 'Persistent', logo: '/images/company-logos/persistent-favicon.svg' },
-            { name: 'LTIMindtree', logo: 'https://www.google.com/s2/favicons?domain=ltm.com&sz=64' },
-            { name: 'Saksoft', logo: 'https://www.google.com/s2/favicons?domain=saksoft.com&sz=64' },
-            { name: 'L&T', logo: '/images/company-logos/lt-logo.png' },
-            { name: 'Cognizant', logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
-            { name: 'Accenture', logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
+            { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
           ].map((company, index) => (
             <img
               key={index}
@@ -136,4 +142,3 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
 };
 
 export default TalentedPeople;
-

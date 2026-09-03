@@ -22,6 +22,32 @@ import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
+import { usePageSnapshot } from '../utils/listPageState';
+
+interface JobListingsSnapshot {
+  searchTerm: string;
+  location: string;
+  selectedCategory: string;
+  categoryTerms: string[];
+  filters: {
+    jobType: string;
+    salaryRange: string;
+    experience: string;
+    department: string[];
+    location: string[];
+    workMode: string[];
+    industry: string[];
+    companySize: string[];
+    freshness: string[];
+  };
+  salaryMin: number;
+  salaryMax: number;
+  expMin: number;
+  expMax: number;
+  radius: number;
+  activeTab: 'search' | 'recommended';
+  activeQuickFilter: string | null;
+}
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -88,6 +114,31 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [searchTrigger, setSearchTrigger] = useState(0);
   const fetchJobsRef = useRef<(...args: any[]) => void>();
   const jobsPerPage = 10;
+
+  // Preserve search filters + scroll when leaving and returning to this page
+  usePageSnapshot<JobListingsSnapshot>(
+    'zync:list:job-listings',
+    (snap, scrollY) => {
+      setSearchTerm(snap.searchTerm);
+      setLocation(snap.location);
+      setSelectedCategory(snap.selectedCategory);
+      setCategoryTerms(snap.categoryTerms || []);
+      setFilters(snap.filters);
+      setSalaryMin(snap.salaryMin ?? 0);
+      setSalaryMax(snap.salaryMax ?? 50);
+      setExpMin(snap.expMin ?? 0);
+      setExpMax(snap.expMax ?? 30);
+      setRadius(snap.radius ?? 25);
+      setActiveTab(snap.activeTab === 'recommended' ? 'recommended' : 'search');
+      setActiveQuickFilter(snap.activeQuickFilter ?? null);
+      window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
+    },
+    () => ({
+      searchTerm, location, selectedCategory, categoryTerms,
+      filters, salaryMin, salaryMax, expMin, expMax, radius,
+      activeTab, activeQuickFilter,
+    }),
+  );
 
   const isFiltered = filters.department.length > 0 || filters.workMode.length > 0 || filters.location.length > 0 ||
     filters.industry.length > 0 || filters.jobType || filters.freshness.length > 0 || expMin > 0 || expMax < 30 || salaryMin > 0 || salaryMax < 50;
@@ -297,10 +348,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  // Reactive filter: runs when jobs load or Search/Clear is triggered
-  useEffect(() => {
-    if (jobs.length === 0) return;
-    let filtered = clientFilter(jobs, searchTerm, location);
+  // Single filter pipeline — used by the results effect AND the sidebar location counts.
+  // skipLocation=true excludes the sidebar location filter so each location's count
+  // reflects exactly how many results the user would get after checking it.
+  const computeFilteredJobs = useCallback((source: any[], skipLocation: boolean) => {
+    let filtered = clientFilter(source, searchTerm, location);
 
     if (filters.department.length > 0) {
       filtered = filtered.filter(job =>
@@ -351,7 +403,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         });
       });
     }
-    if (filters.location.length > 0) {
+    if (!skipLocation && filters.location.length > 0) {
       filtered = filtered.filter(job =>
         filters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
       );
@@ -384,6 +436,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         });
       });
     }
+    return filtered;
+  }, [clientFilter, searchTerm, location, filters, expMin, expMax, salaryMin, salaryMax]);
+
+  // Reactive filter: runs when jobs load, filters change, or Search is triggered
+  useEffect(() => {
+    if (jobs.length === 0) return;
+    const filtered = computeFilteredJobs(jobs, false);
     filtered.sort((a: any, b: any) => {
       const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
       const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
@@ -392,7 +451,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     setFilteredJobs(filtered);
     setCurrentPage(1);
     setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
-  }, [jobs, searchTrigger]);
+  }, [jobs, searchTrigger, computeFilteredJobs]);
 
   // Keep applyFilters as a no-op shim so existing call sites don't break
   const applyFilters = useCallback((_f: any, _j: any, _eMin?: any, _eMax?: any, _sMin?: any, _sMax?: any) => {}, []);
@@ -513,6 +572,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       };
       
       try {
+        sessionStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
         localStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
         onNavigate('job-application');
       } catch (error) {
@@ -521,6 +581,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         localStorage.removeItem('savedJobDetails_user');
         localStorage.removeItem('userApplications');
         try {
+          sessionStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
           localStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
           onNavigate('job-application');
         } catch (retryError) {
@@ -719,9 +780,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg overflow-visible">
         {/* Back Button */}
         <BackButton
-          onClick={() => onNavigate ? onNavigate('home') : window.history.back()}
+          fallback="/"
           position="top-left"
-          className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md"
+          className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md mt-24 z-40"
         />
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
@@ -736,7 +797,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         <div className="absolute top-16 right-16 w-24 h-24 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
         <div className="absolute bottom-8 left-1/3 w-12 h-12 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-6 sm:pt-28 sm:pb-8">
           {/* Header Content */}
           <div className="text-center mb-6 sm:mb-8">
             <div className="flex justify-center items-center mb-4">
@@ -855,18 +916,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="flex gap-2 items-end flex-shrink-0">
               <div>
                 <label className="block text-xs font-medium text-white mb-1">Radius</label>
-                <select
+                <AutocompleteCombobox
                   value={String(radius)}
-                  onChange={e => setRadius(Number(e.target.value))}
-                  className="w-28 px-3 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-                >
-                  <option value="5">5 km</option>
-                  <option value="10">10 km</option>
-                  <option value="25">25 km</option>
-                  <option value="50">50 km</option>
-                  <option value="100">100 km</option>
-                  <option value="200">200 km</option>
-                </select>
+                  onChange={(val) => setRadius(Number(val))}
+                  options={[
+                    { value: '5', label: '5 km' },
+                    { value: '10', label: '10 km' },
+                    { value: '25', label: '25 km' },
+                    { value: '50', label: '50 km' },
+                    { value: '100', label: '100 km' },
+                    { value: '200', label: '200 km' },
+                  ]}
+                  placeholder="Radius"
+                  className="w-28 bg-white text-gray-700 rounded-lg text-sm font-medium"
+                />
               </div>
               <button 
                 onClick={handleSearch}
@@ -1029,17 +1092,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
-                  <select
+                  <AutocompleteCombobox
+                    label="Job Type"
                     value={filters.jobType}
-                    onChange={e => handleFilterChange('jobType', e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                  >
-                    <option value="">All Types</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Remote">Remote</option>
-                  </select>
+                    onChange={(val) => handleFilterChange('jobType', val)}
+                    options={[
+                      { value: '', label: 'All Types' },
+                      { value: 'Full-time', label: 'Full-time' },
+                      { value: 'Part-time', label: 'Part-time' },
+                      { value: 'Contract', label: 'Contract' },
+                      { value: 'Remote', label: 'Remote' },
+                    ]}
+                    placeholder="Select job type..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
@@ -1189,10 +1255,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       ? jobLocs.filter(l => l.toLowerCase().includes(locationSearch.toLowerCase()))
                       : jobLocs;
                     const visible = showAllLocations ? filtered : filtered.slice(0, 6);
+                    // Count each location against ALL other active filters (term, category,
+                    // work mode, salary, etc.) — so the badge matches the real result count.
+                    const baseForCounts = jobs.length > 0 ? computeFilteredJobs(jobs, true) : [];
                     return (
                       <>
                         {visible.map(loc => {
-                          const count = jobs.filter(j => (j.location || '').toLowerCase().includes(loc.toLowerCase())).length;
+                          const count = baseForCounts.filter(j => (j.location || '').toLowerCase().includes(loc.toLowerCase())).length;
                           return (
                             <label key={loc} className="flex items-center gap-2 cursor-pointer group">
                               <input
@@ -1328,43 +1397,52 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
-                <select
+                <AutocompleteCombobox
+                  label="Job Type"
                   value={filters.jobType}
-                  onChange={e => handleFilterChange('jobType', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                >
-                  <option value="">All Types</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Remote">Remote</option>
-                </select>
+                  onChange={(val) => handleFilterChange('jobType', val)}
+                  options={[
+                    { value: '', label: 'All Types' },
+                    { value: 'Full-time', label: 'Full-time' },
+                    { value: 'Part-time', label: 'Part-time' },
+                    { value: 'Contract', label: 'Contract' },
+                    { value: 'Remote', label: 'Remote' },
+                  ]}
+                  placeholder="Select job type..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
-                <select
+                <AutocompleteCombobox
+                  label="Experience"
                   value={filters.experience}
-                  onChange={e => handleFilterChange('experience', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                >
-                  <option value="">All Levels</option>
-                  <option value="Entry">Entry Level</option>
-                  <option value="Mid">Mid Level</option>
-                  <option value="Senior">Senior Level</option>
-                </select>
+                  onChange={(val) => handleFilterChange('experience', val)}
+                  options={[
+                    { value: '', label: 'All Levels' },
+                    { value: 'Entry', label: 'Entry Level' },
+                    { value: 'Mid', label: 'Mid Level' },
+                    { value: 'Senior', label: 'Senior Level' },
+                  ]}
+                  placeholder="Select experience level..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
-                <select
+                <AutocompleteCombobox
+                  label="Salary Range"
                   value={filters.salaryRange}
-                  onChange={e => handleFilterChange('salaryRange', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer"
-                >
-                  <option value="">All Ranges</option>
-                  <option value="50k-100k">₹50k - ₹100k</option>
-                  <option value="100k-150k">₹100k - ₹150k</option>
-                  <option value="150k+">₹150k+</option>
-                </select>
+                  onChange={(val) => handleFilterChange('salaryRange', val)}
+                  options={[
+                    { value: '', label: 'All Ranges' },
+                    { value: '50k-100k', label: '₹50k - ₹100k' },
+                    { value: '100k-150k', label: '₹100k - ₹150k' },
+                    { value: '150k+', label: '₹150k+' },
+                  ]}
+                  placeholder="Select salary range..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
             </div>
           </div>

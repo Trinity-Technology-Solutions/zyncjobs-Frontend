@@ -65,7 +65,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
       {!compact && (
         <div className="mb-6">
           {onNavigate && (
-            <BackButton onClick={() => onNavigate('dashboard')} className="mb-4" />
+            <BackButton fallback="/dashboard" className="mb-4" />
           )}
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-2 mb-3">

@@ -77,7 +77,7 @@ const MyAlertsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
       <Header onNavigate={onNavigate} user={user as any} onLogout={onLogout} />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <BackButton onClick={() => onNavigate('dashboard')} />
+        <BackButton fallback="/dashboard" />
 
         <div className="flex items-center justify-between mt-4 mb-6">
           <div>

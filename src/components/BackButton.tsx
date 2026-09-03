@@ -1,24 +1,34 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getPreviousPath } from '../utils/navigationHistory';
 
 interface BackButtonProps {
+  // Explicit override for special flows (multi-step forms, modal closes, internal
+  // state changes). When omitted, the button returns to the page the user came
+  // from, falling back to `fallback` when there is no in-app history (direct URL,
+  // external link, refresh).
   onClick?: () => void;
+  // Safe route used when no previous in-app page exists (e.g. "/dashboard", "/").
+  fallback?: string;
   text?: string;
   className?: string;
   position?: 'inline' | 'top-left';
 }
 
-const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '', position = 'inline' }) => {
+const BackButton: React.FC<BackButtonProps> = ({ onClick, fallback = '/', className = '', position = 'inline' }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
     if (onClick) {
       onClick();
-    } else if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
+      return;
     }
+    const prev = getPreviousPath();
+    if (prev && prev !== window.location.pathname + window.location.search) {
+      navigate(prev);
+      return;
+    }
+    navigate(fallback);
   };
 
   const positionClass = position === 'top-left' ? 'absolute top-4 left-4 z-10' : '';

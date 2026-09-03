@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
-import { LoadingButton, FormLoading } from './LoadingStates';
+import { FormLoading } from './LoadingStates';
 import { updateUserInStorage } from '../utils/userStorage';
+import WorkButton from './animata/button/work-button';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -226,14 +227,12 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
               {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
             </div>
 
-            <LoadingButton
+            <WorkButton
               type="submit"
-              loading={loading}
-              loadingText="Signing In..."
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Sign In
-            </LoadingButton>
+              disabled={loading}
+              text={loading ? 'Signing In...' : 'Sign In'}
+              className="w-full"
+            />
           </form>
 
           <div className="mt-6">
@@ -297,8 +296,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
               <button
                 onClick={() => {
                   onClose();
-                  // Show role selection modal instead of direct register navigation
-                  onNavigate('role-selection');
+                  onNavigate('candidate-register');
                 }}
                 className="text-blue-600 hover:text-blue-700 font-semibold"
               >

@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
 import { Search, MapPin, Users, Building2, Star, Briefcase } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
+import { normalizeSocialUrl } from '../utils/socialLinks';
 import CompanyLogo from '../components/CompanyLogo';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
@@ -682,7 +683,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                       <div className="flex items-center gap-3 pt-2 mt-auto flex-shrink-0">
                         {company.socialLinks.linkedin && (
                           <a 
-                            href={company.socialLinks.linkedin} 
+                            href={normalizeSocialUrl(company.socialLinks.linkedin, 'linkedin') ?? '#'}
                             target="_blank" 
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -695,7 +696,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                         )}
                         {company.socialLinks.twitter && (
                           <a 
-                            href={company.socialLinks.twitter} 
+                            href={normalizeSocialUrl(company.socialLinks.twitter, 'twitter') ?? '#'}
                             target="_blank" 
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -708,7 +709,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                         )}
                         {company.website && (
                           <a 
-                            href={company.website} 
+                            href={normalizeSocialUrl(company.website, 'website') ?? '#'}
                             target="_blank" 
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}

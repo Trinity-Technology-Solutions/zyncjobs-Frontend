@@ -1,108 +1,108 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  Code, 
-  Megaphone, 
-  Users, 
-  DollarSign, 
-  HeadphonesIcon, 
-  ShoppingCart, 
-  TrendingUp, 
-  Palette,
-  ArrowRight,
-  Briefcase,
-  Building2,
-  Stethoscope
-} from 'lucide-react';
+import React from 'react';
+import { ArrowRight } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Code, Megaphone, Users, DollarSign, HeadphonesIcon, Briefcase, ClipboardList, PenTool } from 'lucide-react';
 
 interface JobCategoriesProps {
   onNavigate?: (page: string, data?: any) => void;
 }
 
 const categories = [
-  { 
-    name: 'Software Development', 
-    icon: Code, 
-    gradient: 'from-blue-500 to-indigo-600',
-    glow: 'group-hover:shadow-blue-200',
-    searchTerms: ['software developer', 'frontend developer', 'backend developer', 'full stack developer', 'web developer', 'software engineer']
+  {
+    name: 'Software Development',
+    icon: Code,
+    desc: 'Frontend, Backend, Full Stack & more',
+    searchTerms: ['software developer', 'frontend developer', 'backend developer'],
   },
-  { 
-    name: 'Digital Marketing', 
-    icon: Megaphone, 
-    gradient: 'from-orange-500 to-pink-600',
-    glow: 'group-hover:shadow-orange-200',
-    searchTerms: ['digital marketing', 'seo specialist', 'social media manager', 'content marketer', 'ppc specialist', 'growth hacker']
+  {
+    name: 'Digital Marketing',
+    icon: Megaphone,
+    desc: 'SEO, SEM, Social Media, Content & more',
+    searchTerms: ['digital marketing', 'seo specialist', 'social media manager'],
   },
-  { 
-    name: 'Human Resources', 
-    icon: Users, 
-    gradient: 'from-violet-500 to-purple-600',
-    glow: 'group-hover:shadow-violet-200',
-    searchTerms: ['hr manager', 'recruiter', 'talent acquisition', 'hr executive', 'people operations', 'human resources']
+  {
+    name: 'Human Resources',
+    icon: Users,
+    desc: 'Recruitment, Training, Employee Relations',
+    searchTerms: ['hr manager', 'recruiter', 'talent acquisition'],
   },
-  { 
-    name: 'Finance & Accounting', 
-    icon: DollarSign, 
-    gradient: 'from-green-500 to-emerald-600',
-    glow: 'group-hover:shadow-green-200',
-    searchTerms: ['accountant', 'financial analyst', 'finance manager', 'chartered accountant', 'auditor', 'bookkeeper']
+  {
+    name: 'Finance & Accounting',
+    icon: DollarSign,
+    desc: 'Accounting, Banking, Financial Analysis',
+    searchTerms: ['accountant', 'financial analyst', 'finance manager'],
   },
-  { 
-    name: 'Customer Support', 
-    icon: HeadphonesIcon, 
-    gradient: 'from-cyan-500 to-blue-600',
-    glow: 'group-hover:shadow-cyan-200',
-    searchTerms: ['customer support', 'customer service', 'support executive', 'help desk', 'customer success', 'technical support']
+  {
+    name: 'Customer Support',
+    icon: HeadphonesIcon,
+    desc: 'Support, Success, Service & more',
+    searchTerms: ['customer support', 'customer service', 'support executive'],
   },
-  { 
-    name: 'Sales & Business Dev', 
-    icon: ShoppingCart, 
-    gradient: 'from-yellow-500 to-orange-600',
-    glow: 'group-hover:shadow-yellow-200',
-    searchTerms: ['sales executive', 'business development', 'account manager', 'sales manager', 'inside sales', 'b2b sales']
+  {
+    name: 'Sales & Business Dev',
+    icon: Briefcase,
+    desc: 'Sales, Business Development, BD',
+    searchTerms: ['sales executive', 'business development', 'account manager'],
   },
-  { 
-    name: 'Operations & Admin', 
-    icon: Building2, 
-    gradient: 'from-teal-500 to-green-600',
-    glow: 'group-hover:shadow-teal-200',
-    searchTerms: ['operations manager', 'admin executive', 'office manager', 'operations analyst', 'back office', 'administrative assistant']
+  {
+    name: 'Operations & Admin',
+    icon: ClipboardList,
+    desc: 'Admin, Operations, Supply Chain & more',
+    searchTerms: ['operations manager', 'admin executive', 'office manager'],
   },
-  { 
-    name: 'UI/UX Design', 
-    icon: Palette, 
-    gradient: 'from-pink-500 to-rose-600',
-    glow: 'group-hover:shadow-pink-200',
-    searchTerms: ['ui designer', 'ux designer', 'graphic designer', 'web designer', 'product designer', 'visual designer']
+  {
+    name: 'UI/UX Design',
+    icon: PenTool,
+    desc: 'UI Design, UX Research, Product Design',
+    searchTerms: ['ui designer', 'ux designer', 'graphic designer'],
   }
 ];
 
+const AnimatedBackground = () => {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <svg
+        className="absolute left-0 top-0 h-full w-[40%] max-w-[500px] text-blue-500/[0.08] pointer-events-none"
+        viewBox="0 0 500 1000"
+        fill="none"
+        preserveAspectRatio="none"
+      >
+        {Array.from({ length: 45 }).map((_, i) => (
+          <path
+            key={`wave-${i}`}
+            d={`M -50 ${-100 + i * 25} C ${150 + i * 8} ${100 + i * 15}, ${300 - i * 4} ${500 + i * 12}, ${50 + i * 15} 1100`}
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        ))}
+      </svg>
+
+      <div className="absolute top-0 right-0 w-1/3 h-full">
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-[4px] h-[4px] bg-blue-300 rounded-full"
+            style={{
+              left: `${10 + Math.random() * 80}%`,
+              top: `${10 + Math.random() * 80}%`
+            }}
+            animate={{ opacity: [0, 0.8, 0] }}
+            transition={{
+              duration: 4 + Math.random() * 6,
+              repeat: Infinity,
+              delay: Math.random() * 10
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
-  const [visible, setVisible] = useState<boolean[]>(new Array(categories.length).fill(false));
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  useEffect(() => {
-    const observers = cardRefs.current.map((ref, i) => {
-      if (!ref) return null;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            setTimeout(() => setVisible(v => { const n = [...v]; n[i] = true; return n; }), i * 80);
-          } else {
-            setVisible(v => { const n = [...v]; n[i] = false; return n; });
-          }
-        },
-        { threshold: 0.15 }
-      );
-      obs.observe(ref);
-      return obs;
-    });
-    return () => observers.forEach(o => o?.disconnect());
-  }, []);
-
   const handleCategoryClick = (category: typeof categories[0]) => {
     if (onNavigate) {
-      onNavigate('job-listings', { 
+      onNavigate('job-listings', {
         category: category.name,
         searchTerm: category.searchTerms[0],
         categoryTerms: category.searchTerms
@@ -111,65 +111,79 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-16 sm:py-24 bg-[#FAFBFC] relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
-        {/* Heading */}
-        <div className="text-center mb-12 sm:mb-16">
-          <span className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-widest border border-blue-100 mb-4">
-            Job Categories
-          </span>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight px-4">
-            Explore Opportunities by <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">Category</span>
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4 tracking-tight">
+            Explore Jobs by <span className="text-orange-500">Category</span>
           </h2>
-          <p className="text-gray-500 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
-            Discover roles across top domains powered by AI-driven recommendations.
+          <p className="text-slate-500 text-[15px] sm:text-base max-w-xl mx-auto mb-6">
+            Find your next opportunity across the industries hiring now.
           </p>
+          <div className="w-8 h-[3px] bg-blue-600 mx-auto rounded-full" />
         </div>
 
-        {/* Grid - Responsive with explicit mobile handling */}
-        <div className="w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 auto-rows-fr">
-            {categories.map((cat, i) => {
-              const Icon = cat.icon;
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
 
-              return (
-                <div
-                  key={cat.name}
-                  ref={el => { cardRefs.current[i] = el; }}
-                  onClick={() => handleCategoryClick(cat)}
-                  className={`relative group cursor-pointer rounded-2xl bg-white/70 backdrop-blur-xl border border-gray-200 p-6 shadow-md hover:shadow-2xl ${cat.glow} transition-all duration-500 flex flex-col items-center text-center min-h-[160px] sm:min-h-[180px] ${
-                    visible[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-                  }`}
-                  style={{ transitionDelay: `${i * 60}ms` }}
-                >
-                  {/* Glow effect */}
-                  <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500 bg-gradient-to-r ${cat.gradient}`} />
+            return (
+              <div
+                key={cat.name}
+                onClick={() => handleCategoryClick(cat)}
+                className="group bg-white rounded-xl shadow-lg w-full cursor-pointer hover:shadow-xl hover:border-blue-100 transition-all duration-300 overflow-hidden min-h-[280px] flex flex-col"
+              >
+                <header className="flex items-center px-5 py-4">
+                   <div className="flex items-center space-x-3">
+                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
+                       <Icon className="w-6 h-6 text-gray-700" strokeWidth={1.5} />
+                     </div>
+                     <div>
+                       <h2 className="text-sm font-semibold text-gray-900">
+                         {cat.name}
+                       </h2>
+                       <p className="text-[11px] text-gray-500">Explore Jobs</p>
+                     </div>
+                   </div>
+                 </header>
 
-                  {/* Icon */}
-                  <div className={`relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-2xl text-white bg-gradient-to-r ${cat.gradient} mb-4 shadow-lg group-hover:scale-105 transition-transform duration-300 flex-shrink-0 mx-auto`}>
-                    <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
-                  </div>
+                 <section className="px-5 pb-3">
+                   <h3 className="text-xl font-bold text-gray-900 leading-tight mb-1">
+                     {cat.name}
+                   </h3>
+                 </section>
 
-                  {/* Content */}
-                  <div className="flex-1 flex flex-col justify-between text-center">
-                    {/* Title */}
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-700 transition-colors leading-tight">
-                      {cat.name}
-                    </h3>
+                 <section className="px-5 pb-3">
+                   <span className="px-3 py-1 bg-gray-100 rounded text-[12px] font-medium text-gray-800">
+                     {cat.desc}
+                   </span>
+                 </section>
 
-                    {/* Explore */}
-                    <div className="flex items-center justify-center mt-auto">
-                      <span className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors font-medium">
-                        Explore
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                 <footer className="mt-auto flex items-center justify-center px-5 py-3 pt-0">
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       handleCategoryClick(cat);
+                     }}
+                     className="w-full px-4 py-2.5 bg-black text-white font-medium rounded-lg shadow-md hover:bg-gray-800 transition-colors duration-200 ease-in-out text-sm"
+                   >
+                     View Jobs
+                   </button>
+                 </footer>
+               </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-14 text-center">
+          <button
+            onClick={() => onNavigate && onNavigate('job-listings')}
+            className="group inline-flex items-center gap-2 text-[15px] font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            View All Categories
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
         </div>
 
       </div>

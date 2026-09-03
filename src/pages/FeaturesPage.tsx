@@ -50,7 +50,7 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
               <h1 className="text-3xl font-bold text-gray-900">Trinity Jobs Features</h1>
               <p className="text-gray-600 mt-2">Medium Priority Features Implementation</p>
             </div>
-            <BackButton onClick={() => onNavigate('home')} text="Back to Home" />
+            <BackButton fallback="/" text="Back to Home" />
           </div>
         </div>
       </div>

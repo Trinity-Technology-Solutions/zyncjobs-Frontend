@@ -120,6 +120,7 @@ export function useApplicationNotifications(userEmail: string | undefined) {
   }, [userEmail]);
 
   // ── Secondary source: pull real DB notifications from backend ──
+  const isFirstDbFetchRef = useRef(true);
   const fetchDbNotifications = useCallback(async () => {
     if (!userEmail) return;
     try {
@@ -174,6 +175,11 @@ export function useApplicationNotifications(userEmail: string | undefined) {
         const existingIds = new Set(prev.map(n => n.id));
         const newOnes = converted.filter(n => !existingIds.has(n.id));
         if (newOnes.length === 0) return prev;
+        // On first load, restore read state silently — no toast spam
+        if (isFirstDbFetchRef.current) {
+          isFirstDbFetchRef.current = false;
+          return persist([...newOnes, ...prev]);
+        }
         // Show toast for new unread ones
         const firstUnread = newOnes.find(n => !n.read);
         if (firstUnread) setToast(firstUnread);
@@ -197,13 +203,36 @@ export function useApplicationNotifications(userEmail: string | undefined) {
     return () => clearInterval(interval);
   }, [userEmail, pollApplications, fetchDbNotifications]);
 
-  const markAllRead = useCallback(() => {
+  const markAllRead = useCallback(async () => {
     setNotifications(prev => persist(prev.map(n => ({ ...n, read: true }))));
-  }, []);
+    // Sync to backend so notifications stay read after refresh/poll
+    if (userEmail) {
+      try {
+        await fetch(
+          `${API_ENDPOINTS.BASE_URL}/notifications/user/${encodeURIComponent(userEmail)}/read-all`,
+          { method: 'PUT' }
+        );
+      } catch {
+        // Silently fail — local read state is enough
+      }
+    }
+  }, [userEmail]);
 
-  const markRead = useCallback((id: string) => {
+  const markRead = useCallback(async (id: string) => {
     setNotifications(prev => persist(prev.map(n => n.id === id ? { ...n, read: true } : n)));
-  }, []);
+    // Sync to backend — strip frontend-only "db_" prefix if present
+    const backendId = id.startsWith('db_') ? id.slice(3) : id;
+    if (userEmail && backendId) {
+      try {
+        await fetch(
+          `${API_ENDPOINTS.BASE_URL}/notifications/${backendId}/read`,
+          { method: 'PUT' }
+        );
+      } catch {
+        // Silently fail — local read state is enough
+      }
+    }
+  }, [userEmail]);
 
   const clearToast = useCallback(() => setToast(null), []);
 

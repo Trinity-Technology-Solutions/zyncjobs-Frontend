@@ -5,9 +5,19 @@ import { config } from '../config/env';
 
 const POLL_MS = 60_000;
 const UNREAD_KEY = 'job_alert_unread_count';
+const RESTORED_KEY = 'job_alert_restored_ids';
 
 function persist(n: number) {
   localStorage.setItem(UNREAD_KEY, String(n));
+}
+
+function getRestoredIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(RESTORED_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+
+function persistRestoredIds(ids: Set<string>) {
+  localStorage.setItem(RESTORED_KEY, JSON.stringify([...ids]));
 }
 
 export function useJobAlertStore(userEmail: string | undefined) {
@@ -41,10 +51,12 @@ export function useJobAlertStore(userEmail: string | undefined) {
       const list: AlertNotification[] = Array.isArray(raw) ? raw : (raw as any).notifications ?? [];
       const seen = new Set<string>();
       const deduped = list.filter(n => { if (seen.has(n._id)) return false; seen.add(n._id); return true; });
-      // Permanently exclude dismissed notifications — they only stay in local
-      // state until the next fetch (the optimistic dismiss keeps them briefly
-      // for the "Dismissed" tab, then they're gone after refresh).
-      const active = deduped.filter(n => n.status !== 'dismissed');
+      // Keep ALL statuses (including dismissed) so the Dismissed tab can show
+      // and restore them. Locally-restored alerts are lifted back to 'read'.
+      const restored = getRestoredIds();
+      const active = deduped.map(n =>
+        n.status === 'dismissed' && restored.has(n._id) ? { ...n, status: 'read' as const } : n
+      );
       setNotifications(active);
       const unread = active.filter(n => n.status === 'unread').length;
       setUnreadCount(unread);
@@ -127,8 +139,13 @@ export function useJobAlertStore(userEmail: string | undefined) {
   const dismissNotification = useCallback(async (id: string): Promise<void> => {
     previousNotificationsRef.current = notifications;
     previousUnreadCountRef.current = unreadCount;
+    // A restored alert is no longer dismissed — clear the local override
+    const restored = getRestoredIds();
+    restored.delete(id);
+    persistRestoredIds(restored);
     setNotifications(prev => {
-      const next = prev.filter(n => n._id !== id);
+      // Move to the Dismissed tab instead of removing it entirely
+      const next = prev.map(n => n._id === id ? { ...n, status: 'dismissed' as const } : n);
       const c = next.filter(n => n.status === 'unread').length;
       setUnreadCount(c); persist(c);
       return next;
@@ -140,6 +157,19 @@ export function useJobAlertStore(userEmail: string | undefined) {
       setUnreadCount(previousUnreadCountRef.current);
       persist(previousUnreadCountRef.current);
     }
+  }, [notifications, unreadCount]);
+
+  const restoreNotification = useCallback(async (id: string): Promise<void> => {
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
+    // Keep a local override so the next fetch doesn't flip it back to dismissed
+    const restored = getRestoredIds();
+    restored.add(id);
+    persistRestoredIds(restored);
+    setNotifications(prev => prev.map(n => n._id === id ? { ...n, status: 'read' as const } : n));
+    try {
+      await alertNotifAPI.markRead(id);
+    } catch { /* local override keeps it restored even if the server call fails */ }
   }, [notifications, unreadCount]);
 
   // ── Socket + polling ──────────────────────────────────────────────────────
@@ -168,6 +198,6 @@ export function useJobAlertStore(userEmail: string | undefined) {
     fetchAlerts, fetchNotifications,
     createAlert, updateAlert, deleteAlert,
     pauseAlert, resumeAlert,
-    markRead, markAllRead, dismissNotification,
+    markRead, markAllRead, dismissNotification, restoreNotification,
   };
 }

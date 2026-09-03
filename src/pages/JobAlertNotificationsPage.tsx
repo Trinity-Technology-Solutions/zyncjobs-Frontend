@@ -1,10 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Bell, BellOff, CheckCheck, Briefcase, MapPin, DollarSign, Tag, Clock, ExternalLink, Bookmark, Check, X } from 'lucide-react';
+import { Bell, BellOff, CheckCheck, Briefcase, MapPin, DollarSign, Tag, Clock, ExternalLink, Bookmark, BookmarkCheck, Check, X, RotateCcw } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { AlertNotification } from '../api/jobAlerts';
 import { useJobAlertStore } from '../hooks/useJobAlertStore';
+import { useSavedJobsStore } from '../store/useSavedJobsStore';
 
 interface Props {
   onNavigate: (page: string, data?: any) => void;
@@ -65,11 +66,13 @@ interface CardProps {
   notif: AlertNotification;
   onMarkRead: (id: string) => void;
   onDismiss: (id: string) => void;
+  onRestore: (id: string) => void;
   onApply: (jobId: string) => void;
   onSave: (jobId: string) => void;
+  isSaved: boolean;
 }
 
-const NotifCard: React.FC<CardProps> = ({ notif, onMarkRead, onDismiss, onApply, onSave }) => {
+const NotifCard: React.FC<CardProps> = ({ notif, onMarkRead, onDismiss, onRestore, onApply, onSave, isSaved }) => {
   const salary = formatSalary(notif.salary);
   const isUnread = notif.status === 'unread';
 
@@ -147,9 +150,14 @@ const NotifCard: React.FC<CardProps> = ({ notif, onMarkRead, onDismiss, onApply,
           </button>
           <button
             onClick={() => onSave(notif.jobId)}
-            className="flex items-center gap-1.5 border border-gray-300 text-gray-600 text-xs font-medium px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            className={`flex items-center gap-1.5 border text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+              isSaved
+                ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
+                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+            }`}
           >
-            <Bookmark className="w-3.5 h-3.5" /> Save
+            {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+            {isSaved ? 'Saved' : 'Save'}
           </button>
           {isUnread && (
             <button
@@ -157,6 +165,14 @@ const NotifCard: React.FC<CardProps> = ({ notif, onMarkRead, onDismiss, onApply,
               className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ml-auto"
             >
               <Check className="w-3.5 h-3.5" /> Mark Read
+            </button>
+          )}
+          {notif.status === 'dismissed' && (
+            <button
+              onClick={() => onRestore(notif._id)}
+              className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors ml-auto"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Restore
             </button>
           )}
           {notif.status !== 'dismissed' && (
@@ -177,11 +193,17 @@ const NotifCard: React.FC<CardProps> = ({ notif, onMarkRead, onDismiss, onApply,
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const JobAlertNotificationsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
-  const { notifications, unreadCount, notifLoading, markRead, markAllRead, dismissNotification } =
+  const { notifications, unreadCount, notifLoading, markRead, markAllRead, dismissNotification, restoreNotification } =
     useJobAlertStore(user?.email);
+  const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
+  const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
+  const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
+  const fetchSavedJobs = useSavedJobsStore(s => s.fetchSavedJobs);
   const [tab, setTab] = useState<Tab>('unread');
   const [page, setPage] = useState(1);
   const loaderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { fetchSavedJobs(); }, [fetchSavedJobs]);
 
   const filtered = notifications.filter(n => n.status === tab);
   const visible = filtered.slice(0, page * PAGE_SIZE);
@@ -204,9 +226,22 @@ const JobAlertNotificationsPage: React.FC<Props> = ({ onNavigate, user, onLogout
   }, [onIntersect]);
 
   const handleApply = (jobId: string) => onNavigate('job-detail', { jobId });
-  const handleSave = (jobId: string) => {
-    window.dispatchEvent(new CustomEvent('zync:save-job', { detail: { jobId } }));
-    toast('Job saved');
+  const handleSave = (notif: AlertNotification) => {
+    const { jobId } = notif;
+    if (!jobId) { toast('Job not found'); return; }
+    if (savedJobIds.has(jobId)) {
+      unsaveJobGlobal(jobId);
+      toast('Removed from saved jobs');
+    } else {
+      saveJobGlobal(jobId, {
+        jobTitle: notif.jobTitle,
+        company: notif.company,
+        location: notif.location,
+        salary: notif.salary,
+        jobType: undefined,
+      });
+      toast('Job saved ✓');
+    }
   };
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
@@ -220,7 +255,7 @@ const JobAlertNotificationsPage: React.FC<Props> = ({ onNavigate, user, onLogout
       <Header onNavigate={onNavigate} user={user as any} onLogout={onLogout} />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <BackButton onClick={() => onNavigate('alerts')} />
+        <BackButton fallback="/alerts" />
 
         <div className="flex items-center justify-between mt-4 mb-6">
           <div>
@@ -276,8 +311,10 @@ const JobAlertNotificationsPage: React.FC<Props> = ({ onNavigate, user, onLogout
                 notif={n}
                 onMarkRead={markRead}
                 onDismiss={dismissNotification}
+                onRestore={restoreNotification}
                 onApply={handleApply}
-                onSave={handleSave}
+                onSave={() => handleSave(n)}
+                isSaved={savedJobIds.has(n.jobId)}
               />
             ))}
             {hasMore && <div ref={loaderRef} className="py-4 text-center"><div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}

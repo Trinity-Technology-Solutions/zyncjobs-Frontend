@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2 } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -25,6 +25,7 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
+import { formatInterviewDate, formatInterviewTime } from '../utils/interviewScheduleUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
@@ -156,7 +157,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   };
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingSaved, setRefreshingSaved] = useState(false);
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [activeMenu, setActiveMenu] = useState(() => sessionStorage.getItem('employer_active_menu') || 'dashboard');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [savedCandidates, setSavedCandidates] = useState<any[]>([]);
@@ -168,7 +169,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterJob, setAppFilterJob] = useState('all');
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
-  const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [closingJobId, setClosingJobId] = useState<string | null>(null);
@@ -182,40 +182,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
   const getToken = () => tokenStorage.getAccess();
 
-  // Fetch recent conversations for sidebar Messages panel
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const userData = localStorage.getItem('user');
-        if (!userData) return;
-        const { id, _id } = JSON.parse(userData);
-        const userId = id || _id;
-        if (!userId) return;
-        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/messages?candidateId=${encodeURIComponent(userId)}`);
-        if (!res.ok) return;
-        const convos = await res.json();
-        // Enrich each conversation with the other party's info
-        const enriched = await Promise.all(
-          convos.slice(0, 4).filter((c: any) => c.lastMessage).map(async (c: any) => {
-            const msg = c.lastMessage;
-            const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-            try {
-              const uRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/${otherId}`);
-              const uData = (uRes.ok) ? await uRes.json() : {};
-              return {
-                ...c,
-                otherName: uData.name || uData.fullName || 'Candidate',
-                otherPhoto: uData.profilePicture || uData.photo || '',
-                preview: msg.message?.substring(0, 40) || ''
-              };
-            } catch { return { ...c, otherName: 'Candidate', otherPhoto: '', preview: msg.message?.substring(0,40)||'' }; }
-          })
-        );
-        setRecentMessages(enriched);
-      } catch (e) { console.error('Messages fetch error:', e); }
-    };
-    fetchMessages();
-  }, []);
+  // Ensure logout always redirects to employer login
+  useEffect(() => { localStorage.setItem('lastUserType', 'employer'); }, []);
+
+
 
   useEffect(() => {
     const token = getToken();
@@ -239,6 +209,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     window.addEventListener('candidateSaved', handleCandidateSaved as EventListener);
     return () => window.removeEventListener('candidateSaved', handleCandidateSaved as EventListener);
   }, []);
+
+  // Persist active menu to sessionStorage on every change
+  useEffect(() => { sessionStorage.setItem('employer_active_menu', activeMenu); }, [activeMenu]);
 
   // Deep-link from email: /dashboard#interviews opens Interviews tab
   useEffect(() => {
@@ -270,7 +243,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const userEmail = parsedUser.email;
           
           const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
-          setNotifications(dynamicNotifications);
+          setNotifications(filterNotifications(dynamicNotifications));
         }
       } catch (error) {
         console.error('Error fetching dynamic notifications:', error);
@@ -282,7 +255,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     const createFallbackNotifications = () => {
       // Use the notification service to create fallback notifications
       const fallbackNotifications = NotificationService.createFallbackNotifications(applications, interviews, jobs);
-      setNotifications(fallbackNotifications);
+      setNotifications(filterNotifications(fallbackNotifications));
     };
     
     // Initial fetch
@@ -628,6 +601,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [user]);
 
   const fetchDashboardData = async (userData: any) => {
+    // Guard: don't fetch if no auth token — avoids 401 spam on mount
+    if (!tokenStorage.getAccess() && !tokenStorage.getRefresh()) return;
     try {
       setError(null);
       const userId = userData.id || userData._id || userData.userId;
@@ -696,7 +671,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               // Skip enrichment if jobId missing, non-string, already has title, or known 404
               if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined' && !app.jobTitle && !_missingJobIds.has(appJobId)) {
                 try {
-                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
+                  const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
                     return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Job Position' };
@@ -885,6 +860,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [applications]);
 
   const [chartFilterJobId, setChartFilterJobId] = useState<string>('tab:top');
+  const [barsAnimated, setBarsAnimated] = useState(false);
 
   // ── Job Performance Score (ATS-style) ──────────────────────────────
   const jobPerformanceStats = useMemo(() => {
@@ -911,6 +887,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     });
   }, [jobs, applications, interviews]);
 
+  useEffect(() => {
+    if (jobPerformanceStats.length === 0) return;
+    setBarsAnimated(false);
+    const t = setTimeout(() => setBarsAnimated(true), 60);
+    return () => clearTimeout(t);
+  }, [jobPerformanceStats]);
 
   const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
   
@@ -1099,41 +1081,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
 
-            {/* Messages + Activity panel - Enhanced Card Style */}
-            <div className="px-3 sm:px-4 py-3 sm:py-4 mx-2 sm:mx-3 mt-3 sm:mt-4 bg-gradient-to-br from-blue-600/80 to-blue-700/70 rounded-xl border-2 border-blue-400/80 backdrop-blur-sm shadow-lg">
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">💬 Messages</span>
-                <button onClick={() => onNavigate('candidate-messages')} className="text-white hover:text-blue-100 transition-colors">
-                  <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </button>
-              </div>
-              {recentMessages.length === 0 ? (
-                <p className="text-xs sm:text-sm text-white text-center py-2">No messages yet</p>
-              ) : (
-                <div className="space-y-1.5 sm:space-y-2">
-                  {recentMessages.map((c, i) => (
-                    <div key={i} onClick={() => onNavigate('candidate-messages')} className="flex items-center gap-2 cursor-pointer hover:bg-blue-500/40 rounded-lg p-1.5 sm:p-2 transition-all duration-200 border border-transparent hover:border-blue-300/60">
-                      {c.otherPhoto ? (
-                        <img src={c.otherPhoto} alt={c.otherName} className="w-6 sm:w-8 h-6 sm:h-8 rounded-full object-cover flex-shrink-0 border-2 border-blue-300/60" />
-                      ) : (
-                        <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {c.otherName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-semibold text-white truncate">{c.otherName}</p>
-                        <p className="text-xs text-white truncate">{c.preview}...</p>
-                      </div>
-                      {c.unreadCount > 0 && (
-                        <span className="bg-blue-400 text-white text-xs w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[9px] sm:text-[10px]">{c.unreadCount}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
 
             {/* Role badge for team members */}
             {teamRole && (
@@ -1165,7 +1113,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
                 { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
                 { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
-                { key: 'analytics',        label: 'Analytics',         icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true },
+                { key: 'ats-dashboard',    label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => withRoleCheck('Recruiter Analytics', 'Recruiter', () => onNavigate('ats-dashboard')), external: true, show: true },
+                // { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true }, // TODO: enable after complete structure is built
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
@@ -1260,7 +1209,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </svg>
             </button>
             <BackButton
-              onClick={() => onNavigate('home')}
+              fallback="/"
               text="Back to Home"
               className="hidden lg:flex"
             />
@@ -1561,8 +1510,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 {/* Progress bar */}
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-500"
-                                      style={{ width: `${Math.max(job.progressPct, 3)}%`, background: bar }} />
+                                    <div className="h-full rounded-full transition-all duration-700"
+                                      style={{ width: barsAnimated ? `${Math.max(job.progressPct, 3)}%` : '0%', background: bar }} />
                                   </div>
                                   <span className="text-[11px] font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
                                   {job.jobData && (
@@ -1695,7 +1644,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-bold text-gray-900">New Applicants</h2>
-                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Today</span>
+                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Last 7 days</span>
                   </div>
                   {applications.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
@@ -1779,8 +1728,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
                 <div className="flex flex-row gap-2">
                   <AutocompleteCombobox
-                    value={appFilterJob}
-                    onChange={(val) => setAppFilterJob(val)}
+                    value={appFilterJob === 'all' ? '' : appFilterJob}
+                    onChange={(val) => setAppFilterJob(val || 'all')}
                     options={[
                       { value: 'all', label: 'All Jobs' },
                       ...jobs.map(job => {
@@ -1793,8 +1742,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     className="text-sm flex-1 min-w-0"
                   />
                   <AutocompleteCombobox
-                    value={appFilterStatus}
-                    onChange={(val) => setAppFilterStatus(val)}
+                    value={appFilterStatus === 'all' ? '' : appFilterStatus}
+                    onChange={(val) => setAppFilterStatus(val || 'all')}
                     options={[
                       { value: 'all', label: 'All Status' },
                       { value: 'pending', label: 'Pending' },
@@ -1949,7 +1898,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {application.status !== 'rejected' && canManageApplications && (
                               <button
                                 onClick={() => { setSelectedApplication(application); setShowScheduleModal(true); }}
-                                className="flex-1 sm:flex-none sm:w-full bg-emerald-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                                className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap shadow-sm"
                               >
                                 Schedule
                               </button>
@@ -2021,32 +1970,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                   <div className="flex items-center gap-2">
                     {canManageApplications && (
-                      <select
-                        onChange={(e) => {
-                          const appId = e.target.value;
-                          if (appId) {
-                            const app = applications.find(a => (a._id || a.id) === appId);
-                            if (app) setSelectedApplication(app);
-                            setShowScheduleModal(true);
+                      <button
+                        onClick={() => {
+                          const eligible = applications.filter(a => a.status === 'pending' || a.status === 'shortlisted');
+                          if (eligible.length > 0) {
+                            setSelectedApplication(eligible[0]);
                           }
-                          e.target.value = '';
+                          setShowScheduleModal(true);
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors appearance-none cursor-pointer"
-                        style={{ backgroundImage: 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Im02IDkgNiA2Ii8+PC9zdmc+")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', paddingRight: '2.5rem' }}
+                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors shadow-sm whitespace-nowrap"
                       >
-                        <option value="" disabled selected>Schedule Interview →</option>
-                        {applications
-                          .filter(app => app.status === 'pending' || app.status === 'shortlisted')
-                          .slice(0, 10)
-                          .map(app => (
-                            <option key={app._id || app.id} value={app._id || app.id}>
-                              {app.candidateName} — {app.jobTitle || app.jobId?.jobTitle || 'Job'}
-                            </option>
-                          ))}
-                      </select>
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Schedule Interview
+                      </button>
                     )}
-                    <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">
-                      📅 Schedule Management
+                    <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap">
+                      <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Schedule Management
                     </span>
                   </div>
                 </div>
@@ -2099,24 +2043,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 text-xs sm:text-sm text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span className="truncate">{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                <span className="truncate">{formatInterviewDate(interview)}</span>
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span>{interview.time}</span>
+                                <span>{formatInterviewTime(interview)}</span>
                               </span>
                               <span className="truncate">{interview.candidateEmail}</span>
                             </div>
 
                             {interview.meetingLink && (
-                              <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                              <div className="mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
                                   href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors shadow-sm"
                                 >
-                                  <Video className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <Video className="w-3.5 h-3.5" />
                                   <span>Join Meeting</span>
                                 </a>
                                 <button
@@ -2124,10 +2068,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     navigator.clipboard.writeText(`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`);
                                     showToast('Meeting link copied!', 'success');
                                   }}
-                                  className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-600 border border-gray-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition-colors"
                                   title="Copy meeting link"
                                 >
-                                  Copy Link
+                                  <Link2 className="w-3.5 h-3.5" />
+                                  <span>Copy Link</span>
                                 </button>
                               </div>
                             )}
@@ -2140,7 +2085,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-shrink-0 sm:min-w-[160px]">
+                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
                           {canManageApplications ? (<AutocompleteCombobox
                             value={interview.status || 'scheduled'}
                             onChange={async (newStatus) => {
@@ -2174,8 +2119,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               { value: 'cancelled', label: 'Cancelled' }
                             ]}
                             placeholder="Select status"
-                            className="w-full px-3 py-2"
-                          />) : (<span className="w-full px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center block">{interview.status || 'scheduled'}</span>)}
+                            className="px-3 sm:px-4 py-2"
+                          />) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
                           {canDeleteRecords && (<button 
                             onClick={(e) => {
                               e.preventDefault();
@@ -2195,19 +2140,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     } else {
                                       showToast('Failed to delete interview', 'error');
                                     }
-                                  } catch (error) {
-                                    console.error('Delete error:', error);
-                                    showToast('Failed to delete interview', 'error');
+                                  } catch {
+                                    showToast('Network error. Please try again.', 'error');
+                                  } finally {
+                                    closeConfirm();
                                   }
-                                  closeConfirm();
                                 }
                               );
-                            }}
-                            className="bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
-                          >
-                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span className="hidden sm:inline">Delete</span>
-                          </button>)}
+                              }}
+                              className="flex-shrink-0 lg:w-full min-h-[40px] inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-sm"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2233,7 +2179,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     setShowScheduleModal(false);
                     setSelectedApplication(null);
                     // Refresh interviews after successful scheduling
-                    fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`)
+                    const _u = user || JSON.parse(localStorage.getItem('user') || '{}');
+                    const _ownerId = _u.employerOwnerId || _u.ownerEmail || _u.id || _u._id || '';
+                    const _ownerEmail = _u.ownerEmail || _u.employerOwnerId || _u.email || '';
+                    fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(_ownerId)}&employerEmail=${encodeURIComponent(_ownerEmail)}`)
                       .then(res => res.json())
                       .then(data => {
                         const interviewsArray = Array.isArray(data) ? data : [];
@@ -3062,34 +3011,38 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
         ))}
       </div>
 
-      <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900 text-sm sm:text-base">Members</h2>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {members.map(member => (
-            <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-orange-400 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
-                {member.memberName.charAt(0).toUpperCase()}
+      {/* ── Owner Section ── */}
+      {(() => {
+        const owner = members.find(m => m.role === 'Owner');
+        if (!owner) return null;
+        return (
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold text-blue-700 uppercase tracking-widest">Owner</span>
+              <div className="flex-1 h-px bg-blue-100" />
+            </div>
+            <div className="bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-400 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
+                {owner.memberName.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">{member.memberName}</p>
-                <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
+                <p className="font-medium text-gray-900 text-sm truncate">{owner.memberName}</p>
+                <p className="text-xs text-gray-500 truncate">{owner.memberEmail}</p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
-                  member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                  roleColors[member.role]
+                  owner.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                  owner.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  roleColors[owner.role]
                 }`}>
-                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                  {owner.status === 'pending' ? '⏳ Pending' : owner.status === 'active' ? '✅ Active' : owner.status || 'Active'}
                 </span>
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
-                  {member.role}
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[owner.role]}`}>
+                  {owner.role}
                 </span>
-                {member.memberEmail !== (currentUserEmail || employerEmail) ? (
+                {owner.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <AutocompleteCombobox value={member.role} onChange={(val) => handleRoleChange(member.id, val as TeamRole)}
+                    <AutocompleteCombobox value={owner.role} onChange={(val) => handleRoleChange(owner.id, val as TeamRole)}
                       options={[
                         { value: 'Recruiter', label: 'Recruiter' },
                         { value: 'Viewer', label: 'Viewer' },
@@ -3102,7 +3055,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                       e.preventDefault();
                       e.stopPropagation();
                       if (window.confirm('Are you sure you want to remove this team member?')) {
-                        await handleRemove(member.id);
+                        await handleRemove(owner.id);
                       }
                     }}
                       className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
@@ -3113,10 +3066,93 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                   <span className="text-xs text-gray-400 italic text-center sm:text-left">You</span>
                 )}
               </div>
+              <span className="text-xs px-3 py-1 rounded-full border font-semibold bg-green-50 text-green-700 border-green-200 flex-shrink-0">✅ Active</span>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Team Members Section ── */}
+      {(() => {
+        const teamMembers = members.filter(m => m.role !== 'Owner');
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Team Members</span>
+              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{teamMembers.length}</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            {teamMembers.length === 0 ? (
+              <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <UserPlus className="w-5 h-5 text-gray-400" />
+                </div>
+                <p className="text-sm font-medium text-gray-500">No team members yet</p>
+                <p className="text-xs text-gray-400 mt-1">Invite recruiters or viewers to collaborate</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="divide-y divide-gray-100">
+                  {teamMembers.map(member => (
+                    <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0 ${
+                        member.role === 'Recruiter' ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                      }`}>
+                        {member.memberName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-gray-900 text-sm truncate">{member.memberName}</p>
+                          {member.memberEmail === currentUserEmail && (
+                            <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">You</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                        <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
+                          member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                          'bg-green-50 text-green-700 border-green-200'
+                        }`}>
+                          {member.status === 'pending' ? '⏳ Pending' : '✅ Active'}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
+                          {member.role}
+                        </span>
+                        {member.memberEmail !== (currentUserEmail || employerEmail) ? (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <AutocompleteCombobox value={member.role} onChange={(val) => handleRoleChange(member.id, val as TeamRole)}
+                              options={[
+                                { value: 'Recruiter', label: 'Recruiter' },
+                                { value: 'Viewer', label: 'Viewer' },
+                                { value: 'Owner', label: 'Owner' }
+                              ]}
+                              placeholder="Select role"
+                              className="text-xs min-w-[100px]"
+                            />
+                            <button onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (window.confirm('Are you sure you want to remove this team member?')) {
+                                await handleRemove(member.id);
+                              }
+                            }}
+                              className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic text-center sm:text-left">You</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {showInvite && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

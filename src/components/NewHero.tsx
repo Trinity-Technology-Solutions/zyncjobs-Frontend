@@ -1,593 +1,398 @@
-import { useState, useEffect, useRef } from "react";
-import { Search, MapPin, Bot, Sparkles, Brain, Zap, Palette, MessageCircle, Compass, CheckCircle, Rocket } from "lucide-react";
-import { API_ENDPOINTS } from '../config/env';
-import { useHeroSection } from '../store/useHeroSection';
-import { strapiAPI } from '../api/strapi';
-import { searchAccuracy } from '../utils/searchAccuracy';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, MapPin, Sparkles } from 'lucide-react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
-const COMPANIES = [
-  { name: 'Birlasoft',   logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
-  { name: 'Persistent', logo: '/images/company-logos/persistent-favicon.svg' },
-  { name: 'LTIMindtree',logo: 'https://www.google.com/s2/favicons?domain=ltm.com&sz=64' },
-  { name: 'L&T',        logo: '/images/company-logos/lt-logo.png' },
-  { name: 'Cognizant',  logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
-  { name: 'Accenture',  logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
-];
+interface NewHeroProps {
+  onNavigate?: (page: string, data?: any) => void;
+}
 
-const CompanyMarquee: React.FC = () => {
-  const [paused, setPaused] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  // Create seamless marquee by duplicating companies for smooth animation
-  const items = [...COMPANIES, ...COMPANIES];
+// ─── Three.js Robot Canvas ─────────────────────────────────────────────────────
+function RobotCanvas() {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    // ── Scene Setup ───────────────────────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xf7f6f3, 10, 30); // Matches background
+
+    const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / mount.clientHeight, 0.1, 100);
+    camera.position.set(0, 2.0, 10.5);
+    camera.lookAt(0, 0.5, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.appendChild(renderer.domElement);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    // ── Environment & Lights (3-Point Lighting) ──────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+    hemiLight.position.set(0, 10, 0);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(4, 10, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 30;
+    keyLight.shadow.bias = -0.001;
+    keyLight.shadow.camera.left = -15;
+    keyLight.shadow.camera.right = 15;
+    keyLight.shadow.camera.top = 15;
+    keyLight.shadow.camera.bottom = -15;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    fillLight.position.set(-10, 5, 5);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    rimLight.position.set(0, 10, -10);
+    scene.add(rimLight);
+
+    // ── FLOOR (Shadow fix) ──────────────────────────────────────
+    const floorGeo = new THREE.PlaneGeometry(30, 30);
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.4 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.10;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // ── ROBOT GROUP ───────────────────────────────────────────────────────────
+    const robotGroup = new THREE.Group();
+    robotGroup.position.set(0, -1.10, 0);
+    scene.add(robotGroup);
+
+    // Physics & GLTF variables
+    let headNode: THREE.Object3D | null = null;
+    let initialHeadRot = new THREE.Euler();
+    let mixer: THREE.AnimationMixer | null = null;
+    let loadedModel: THREE.Group | null = null;
+    let rawModelSizeY = 0;
+
+    const updateModelLayout = () => {
+      if (!loadedModel || rawModelSizeY <= 0) return;
+      const isMobile = window.innerWidth < 768;
+      const targetHeight = isMobile ? 4.0 : 4.8;
+      const scale = targetHeight / rawModelSizeY;
+      loadedModel.scale.set(scale, scale, scale);
+      
+      loadedModel.position.set(0, 0, 0);
+      const currentBox = new THREE.Box3().setFromObject(loadedModel);
+      const center = new THREE.Vector3();
+      currentBox.getCenter(center);
+      
+      loadedModel.position.x = -center.x - (isMobile ? 0.6 : 0);
+      loadedModel.position.z = -center.z;
+      loadedModel.position.y = -currentBox.min.y - 1.10;
+    };
+
+    // Load the Cute Robot GLB
+    const loader = new GLTFLoader();
+    loader.load('/cute_robot.glb', (gltf) => {
+      const model = gltf.scene as THREE.Group;
+      
+      // Auto-detect the head node FIRST before altering transforms
+      model.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          
+          // Make it metallic and shiny!
+          if (mesh.material) {
+            // @ts-ignore
+            mesh.material.metalness = 0.8;
+            // @ts-ignore
+            mesh.material.roughness = 0.2;
+            // @ts-ignore
+            mesh.material.needsUpdate = true;
+          }
+
+          // Hide any baked-in chat bubble/cloud/plane/text meshes
+          const meshName = mesh.name.toLowerCase();
+          if (meshName.includes('chat') || meshName.includes('cloud') || meshName.includes('bubble') || meshName.includes('text') || meshName.includes('plane') || meshName.includes('dot') || meshName.includes('bezier') || meshName.includes('curve') || meshName.includes('cube') || meshName.includes('circle') || meshName.includes('sphere')) {
+            mesh.visible = false;
+          }
+        }
+
+        const name = child.name.toLowerCase();
+        if (
+          !headNode && 
+          (child.type === 'Bone' || child.type === 'Object3D' || child.type === 'Mesh' || child.type === 'Group') &&
+          (name.includes('head') || name.includes('neck') || name.includes('helmet') || name.includes('mixamorighead'))
+        ) {
+          headNode = child;
+          initialHeadRot.copy(child.rotation);
+          console.log("Successfully auto-detected head node:", child.name);
+        }
+      });
+
+      // Auto-scale to ensure the model is visible (approx 4 units tall)
+      const box = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      
+      console.log("Model bounding box size:", size);
+      
+      if (size.y > 0) {
+        loadedModel = model;
+        rawModelSizeY = size.y;
+        updateModelLayout();
+      } else {
+        console.warn("Model size.y is 0, applying fallback scale");
+        model.scale.set(2, 2, 2);
+      }
+
+      robotGroup.add(model);
+
+      // Setup baked animations if they exist
+      if (gltf.animations && gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        const action = mixer.clipAction(gltf.animations[0]);
+        action.play();
+      }
+    }, undefined, (error) => {
+      console.error("Error loading cute_robot.glb:", error);
+    });
+
+    // ── PHYSICS REFS ──────────────────────────────────────────────────────────
+    let headYaw = 0, headPitch = 0;
+    let tgtYaw = 0, tgtPitch = 0;
+    let floatT = 0;
+    let prevTime = performance.now();
+    let isIdle = false;
+    let idleTimer: ReturnType<typeof setTimeout>;
+
+    // ── CURSOR TRACKING ───────────────────────────────────────────────────────
+    const onMove = (e: MouseEvent) => {
+      const rect = mount.getBoundingClientRect();
+      const nx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+      const ny = ((e.clientY - rect.top)  / rect.height) * 2 - 1;
+      
+      // Calculate target rotations based on cursor
+      tgtYaw   =  nx * (Math.PI / 8);
+      tgtPitch =  ny * (Math.PI / 12);
+
+      isIdle = false;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { isIdle = true; }, 600);
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+
+    // ── RENDER LOOP ───────────────────────────────────────────────────────────
+    let rafId: number;
+    const render = (now: number) => {
+      const dt = Math.min((now - prevTime) / 16.667, 4);
+      prevTime = now;
+      floatT += dt * 0.013;
+      const timeSec = now * 0.001;
+
+      // Animation mixer update
+      if (mixer) mixer.update(dt * 0.016667);
+
+      if (isIdle) { 
+        tgtYaw *= 0.93; 
+        tgtPitch *= 0.93; 
+      }
+
+      // Smooth interpolation for head motion
+      const hf = 1 - Math.pow(1 - 0.15, dt);
+      headYaw   += (tgtYaw   - headYaw)   * hf;
+      headPitch += (tgtPitch - headPitch) * hf;
+
+      // Base idle float
+      let floatY = Math.sin(floatT * Math.PI * 2 * (16.667 / 3200)) * 0.15;
+      let floatR = Math.sin(floatT * Math.PI * 2 * 0.65) * 0.026;
+
+      if (headNode) {
+        headNode.rotation.y = initialHeadRot.y + headYaw;
+        headNode.rotation.x = initialHeadRot.x + headPitch;
+        headNode.rotation.z = initialHeadRot.z + floatR;
+      }
+
+      renderer.render(scene, camera);
+      rafId = requestAnimationFrame(render);
+    };
+    rafId = requestAnimationFrame(render);
+
+    const onResize = () => {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      updateModelLayout();
+    };
+    const resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(mount);
+
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      cancelAnimationFrame(rafId);
+      clearTimeout(idleTimer);
+      resizeObserver.disconnect();
+      renderer.dispose();
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+    };
+  }, []);
 
   return (
-    <div className="bg-white py-6" ref={ref} style={{borderRadius: '40px 40px 0 0', marginTop: '-40px', position: 'relative', zIndex: 10}}>
-      <style>{`
-        @keyframes marquee-rtl {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .marquee-track {
-          display: flex;
-          width: max-content;
-          animation: marquee-rtl 22s linear infinite;
-        }
-        .marquee-track.paused {
-          animation-play-state: paused;
-        }
-      `}</style>
-      <p className="text-center text-sm text-gray-500 uppercase tracking-widest mb-4 font-semibold">Trusted by leading companies</p>
-      <div className="overflow-hidden">
-        <div className={`marquee-track${paused ? ' paused' : ''}`}>
-          {items.map((c, i) => (
-            <div
-              key={`${c.name}-${i}`}
-              onMouseEnter={() => setPaused(true)}
-              onMouseLeave={() => setPaused(false)}
-              className="flex flex-col items-center justify-center mx-7 gap-2 group"
-              style={{ minWidth: '100px' }}
-            >
-              <div className="w-14 h-14 flex items-center justify-center">
-                <img
-                  src={c.logo}
-                  alt={c.name}
-                  width={56}
-                  height={56}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-14 h-14 object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              </div>
+    <div
+      ref={mountRef}
+      style={{ width: '100%', height: '100%', minHeight: 'clamp(360px, 45vw, 520px)', cursor: 'pointer' }}
+    />
+  );
+}
 
-            </div>
+// ─── Main Hero Component ───────────────────────────────────────────────────────
+const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [location, setLocation] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = searchTerm.trim(); const loc = location.trim();
+    if (!term && !loc) return;
+    onNavigate?.('job-listings', { searchTerm: term, location: loc });
+  };
+
+  return (
+    <div
+      className="relative w-full overflow-hidden bg-[#FAFBFC]"
+      style={{ 
+        minHeight: 'clamp(680px, calc(100vh - 68px), 860px)',
+      }}
+    >
+      {/* Background Decoratives - Professional Corporate Aesthetic */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        
+        {/* Subtle Atmospheric Glows for Depth */}
+        <div className="absolute left-[-10%] top-[10%] w-[50%] h-[70%] bg-[#f0f4f8]/60 rounded-full blur-[100px]" />
+        <div className="absolute right-[-5%] bottom-[-10%] w-[40%] h-[60%] bg-[#eef2f6]/60 rounded-full blur-[100px]" />
+        
+        {/* Subtle Dotted Grid in the center-right transition area */}
+        <div 
+          className="absolute left-[45%] lg:left-[50%] top-[30%] w-[250px] h-[350px] opacity-[0.35]"
+          style={{ 
+            backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)', 
+            backgroundSize: '22px 22px',
+            maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)'
+          }} 
+        />
+        
+        {/* Left Side: Intricate Parametric Wave Mesh (Reference Match) */}
+        <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.08] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
+          {/* Sweeping curves anchored to the left */}
+          {Array.from({ length: 45 }).map((_, i) => (
+            <path 
+              key={`wave-${i}`} 
+              d={`M -50 ${-100 + i * 25} C ${150 + i * 8} ${100 + i * 15}, ${300 - i * 4} ${500 + i * 12}, ${50 + i * 15} 1100`}
+              stroke="currentColor" 
+              strokeWidth="1" 
+            />
           ))}
-        </div>
+        </svg>
+
       </div>
 
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12
+                      grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center h-full"
+        style={{ minHeight: 'clamp(680px, calc(100vh - 68px), 860px)' }}>
+
+        {/* ════ LEFT — Content ════ */}
+        <motion.div
+          className="w-full max-w-2xl space-y-7 py-12 sm:py-16 lg:py-20"
+          initial={{ opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="text-indigo-600 font-semibold text-base sm:text-lg tracking-wide">
+            Let AI Find Your Next Move
+          </div>
+          
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 leading-[1.05] tracking-tight">
+            Your <span className="text-orange-500">Dream</span> Job Is<br/>Waiting For You
+          </h1>
+          
+          <p className="text-xs sm:text-lg text-gray-600 leading-relaxed font-medium pb-2 whitespace-nowrap max-w-none">
+            AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
+          </p>
+
+          <form onSubmit={handleSearch} className="w-full bg-white p-3 sm:p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+              <Search className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="Job Title, Keyword" 
+                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+              <MapPin className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="City Or Country" 
+                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
+            </div>
+
+            <button type="submit" className="bg-blue-600 text-white font-semibold px-6 sm:px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap">
+              Find Job
+            </button>
+          </form>
+
+          <div className="pt-4 sm:pt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base font-medium">
+            <span className="text-gray-900 font-bold">Popular Searches:</span>
+            <span className="text-indigo-600 cursor-pointer hover:underline">Chemical</span>
+            <span className="text-indigo-600 cursor-pointer hover:underline">Data analyst</span>
+            <span className="text-indigo-600 cursor-pointer hover:underline">Power bi developer</span>
+          </div>
+        </motion.div>
+
+        {/* ════ RIGHT — Three.js 3D Robot ════ */}
+        <div className="flex items-center justify-center h-full min-h-[360px] lg:min-h-[600px] relative">
+          {/* 3D Canvas */}
+          <RobotCanvas />
+          
+          {/* HTML Overlay Chat Bubble */}
+          <motion.div 
+            className="absolute right-4 md:right-auto md:left-[84%] top-[10%] md:top-[12%] bg-white rounded-3xl px-6 py-4 shadow-xl border border-gray-100 flex items-center z-10 w-max max-w-[200px] md:max-w-none"
+            initial={{ opacity: 0, scale: 0.8, x: 20 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.5, type: 'spring', bounce: 0.5 }}
+            style={{ 
+              borderBottomLeftRadius: '0px', // sharp tail for SMS effect
+              boxShadow: '0 20px 40px rgba(0,0,0,0.08)'
+            }}
+          >
+            <div className="font-bold text-gray-800 text-base md:text-lg">
+              Hi, I am <span className="text-orange-500">ZYNC BOT!</span>
+            </div>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 };
 
-interface NewHeroProps {
-  onNavigate?: (page: string, data?: any) => void;
-  user?: {name: string, type: 'candidate' | 'employer'} | null;
-}
-
-const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [location, setLocation] = useState('');
-  const [allJobTitles, setAllJobTitles] = useState<string[]>([]);
-  const [allLocations, setAllLocations] = useState<string[]>([]);
-  const [popularSearches, setPopularSearches] = useState<string[]>(['iOS Developer', 'Digital Marketing Specialist', 'AI Engineer', 'Video Editor', 'Software Engineer']);
-  const [displayedSearches, setDisplayedSearches] = useState<string[]>([]);
-  const [jobSuggestions, setJobSuggestions] = useState<string[]>([]);
-  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
-  const [showJobDropdown, setShowJobDropdown] = useState(false);
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
-  const jobInputRef = useRef<HTMLInputElement>(null);
-  const locationInputRef = useRef<HTMLInputElement>(null);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const { data: heroData, fetchHeroSection } = useHeroSection();
-
-  useEffect(() => {
-    // Initialize with first 3 popular searches
-    setDisplayedSearches(popularSearches.slice(0, 3));
-  }, [popularSearches]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setAnimationKey(prev => prev + 1);
-        }
-      },
-      { threshold: 0.3 }
-    );
-
-    if (heroRef.current) {
-      observer.observe(heroRef.current);
-    }
-
-    return () => {
-      if (heroRef.current) {
-        observer.unobserve(heroRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    fetchHeroSection();
-  }, []);
-
-  useEffect(() => {
-    // Fetch job titles from API
-    const fetchJobTitles = async () => {
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/jobs`);
-        const data = await response.json();
-        const titles = Array.isArray(data) ? data : data.job_titles || [];
-        if (titles.length > 0) {
-          setAllJobTitles(titles);
-          setJobSuggestions(titles.slice(0, 50));
-        }
-      } catch (error) {
-        console.error('Error fetching job titles:', error);
-      }
-    };
-
-    // Fetch locations from API
-    const fetchLocations = async () => {
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`);
-        const data = await response.json();
-        const locs = Array.isArray(data) ? data : data.locations || [];
-        if (locs.length > 0) {
-          setAllLocations(locs);
-          setLocationSuggestions(locs.slice(0, 50));
-        }
-      } catch (error) {
-        console.error('Error fetching locations:', error);
-      }
-    };
-
-    // Fetch popular searches
-    const fetchPopularSearches = async () => {
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search-analytics/popular`);
-        const data = await response.json();
-        if (data.searches && data.searches.length > 0) {
-          // Sort by search count/frequency and take top searches
-          const sortedSearches = data.searches
-            .sort((a: any, b: any) => (b.count || b.frequency || 0) - (a.count || a.frequency || 0))
-            .map((item: any) => item.query || item.term || item)
-            .slice(0, 8); // Keep top 8 for rotation
-          setPopularSearches(sortedSearches);
-        }
-      } catch (error) {
-        console.error('Error fetching popular searches:', error);
-        // Keep default searches if API fails
-      }
-    };
-    
-    // Defer non-critical API calls until after page load to reduce TBT
-    const timer = setTimeout(() => {
-      fetchJobTitles();
-      fetchLocations();
-      fetchPopularSearches();
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleJobSearch = (value: string) => {
-    setSearchTerm(value);
-    if (value.length >= 2) {
-      // Use enhanced search accuracy for better job title matching
-      const filtered = searchAccuracy.getContextAwareJobSuggestions(value);
-      setJobSuggestions(filtered);
-      setShowJobDropdown(filtered.length > 0);
-    } else {
-      setJobSuggestions([]);
-      setShowJobDropdown(false);
-    }
-  };
-
-  const handleLocationSearch = (value: string) => {
-    setLocation(value);
-    if (value.length >= 2) {
-      // Use enhanced location matching
-      const filtered = searchAccuracy.getLocationMatches(value, allLocations);
-      setLocationSuggestions(filtered);
-      setShowLocationDropdown(filtered.length > 0);
-    } else {
-      setLocationSuggestions([]);
-      setShowLocationDropdown(false);
-    }
-  };
-
-  const handlePopularSearchClick = (clickedTerm: string) => {
-    setSearchTerm(clickedTerm);
-    trackSearch(clickedTerm);
-    
-    // Get remaining searches (excluding the clicked one)
-    const remainingSearches = popularSearches.filter(term => term !== clickedTerm);
-    
-    // Get next 3 most popular searches from remaining ones
-    const nextSearches = remainingSearches.slice(0, 3);
-    
-    // Update displayed searches with next most popular
-    setDisplayedSearches(nextSearches);
-    
-    if (onNavigate) {
-      onNavigate('job-listings', { searchTerm: clickedTerm, location: location.trim() });
-    }
-  };
-
-  const selectJob = (job: string) => {
-    setSearchTerm(job);
-    setShowJobDropdown(false);
-  };
-
-  const selectLocation = (loc: string) => {
-    setLocation(loc);
-    setShowLocationDropdown(false);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const term = searchTerm.trim();
-    const loc = location.trim();
-    if (!term && !loc) return;
-    if (term) trackSearch(term);
-    if (onNavigate) {
-      onNavigate('job-listings', { searchTerm: term, location: loc });
-    }
-  };
-
-  const trackSearch = async (query: string) => {
-    try {
-      await fetch(`${API_ENDPOINTS.BASE_URL}/search-analytics/track`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
-      });
-    } catch (error) {
-      console.error('Error tracking search:', error);
-    }
-  };
-
-  const subtitle = heroData?.subtitle || 'Let AI Find Your Next Move';
-  const title = heroData?.title || 'Your Dream Job Is Waiting For You';
-  const description = heroData?.description || 'AI career platform for jobs, skills, interview prep, and ATS-ready resumes.';
-  const buttonText = heroData?.buttonText || 'Find Job';
-  const heroImage = heroData?.heroImage?.url ? strapiAPI.getImageUrl(heroData.heroImage.url) : '/images/women.png';
-
-  return (
-    <>
-      {/* Main Banner Section */}
-      <div ref={heroRef} className="relative" style={{
-        background: 'linear-gradient(135deg, #0f0c29 0%, #1a1040 30%, #2d1b69 60%, #1e0a3c 100%)',
-      }}>
-        {/* Subtle radial glow blobs */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-10 left-1/4 w-96 h-96 rounded-full" style={{background: 'radial-gradient(circle, rgba(139,92,246,0.25) 0%, transparent 70%)'}}></div>
-          <div className="absolute bottom-10 right-1/4 w-80 h-80 rounded-full" style={{background: 'radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)'}}></div>
-          <div className="absolute top-1/2 left-10 w-64 h-64 rounded-full" style={{background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%)'}}></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{paddingTop: '4rem', paddingBottom: '0'}}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-end">
-            
-            {/* Left Content */}
-            <div className="space-y-8 pb-16 w-full overflow-hidden">
-              <div className="space-y-6">
-                <h5 className="font-semibold text-lg" style={{color: '#a78bfa'}}>
-                  {subtitle}
-                </h5>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight break-words max-w-full">
-                  <style>{`
-                    @keyframes word-pop {
-                      0% { opacity: 0; transform: translateY(20px); }
-                      100% { opacity: 1; transform: translateY(0); }
-                    }
-                    .anim-word {
-                      display: inline;
-                      opacity: 0;
-                      animation: word-pop 0.6s ease forwards;
-                      white-space: pre-wrap;
-                    }
-                  `}</style>
-                  {title.split(' ').map((word, i) => {
-                    const isDreamWord = word.toLowerCase().includes('dream');
-                    return (
-                      <span key={`${animationKey}-${i}`}>
-                        <span
-                          className="anim-word"
-                          style={isDreamWord ? {color: '#f97316', animationDelay: `${i * 0.2}s`} : {animationDelay: `${i * 0.2}s`}}
-                        >
-                          {word}
-                        </span>
-                        {i < title.split(' ').length - 1 && ' '}
-                      </span>
-                    );
-                  })}
-                </h1>
-                <h6 className="text-xs sm:text-sm lg:text-base leading-relaxed break-words" style={{color: 'rgba(255,255,255,0.7)'}}>
-                  <style>{`
-                    @keyframes desc-fade-in {
-                      0% { opacity: 0; transform: translateY(10px); }
-                      100% { opacity: 1; transform: translateY(0); }
-                    }
-                    .anim-desc-text {
-                      opacity: 0;
-                      animation: desc-fade-in 0.8s ease forwards;
-                      animation-delay: 1.5s;
-                    }
-                  `}</style>
-                  <span className="anim-desc-text">
-                    {description}
-                  </span>
-                </h6>
-              </div>
-
-              {/* Search Form */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg border">
-                <form onSubmit={handleSearch} role="search" aria-label="Job search">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                    <div className="sm:col-span-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Job Title Input */}
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <label htmlFor="hero-job-search" className="sr-only">Job title or keywords</label>
-                          <input
-                            id="hero-job-search"
-                            ref={jobInputRef}
-                            type="text"
-                            placeholder="Job Title, Keywords"
-                            value={searchTerm}
-                            onChange={(e) => handleJobSearch(e.target.value)}
-                            onFocus={() => {
-                              if (searchTerm.length >= 2) {
-                                const filtered = allJobTitles.filter(job => 
-                                  job.toLowerCase().includes(searchTerm.toLowerCase())
-                                ).slice(0, 8);
-                                setJobSuggestions(filtered);
-                                setShowJobDropdown(filtered.length > 0);
-                              }
-                            }}
-                            onBlur={() => setTimeout(() => setShowJobDropdown(false), 200)}
-                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            aria-label="Job title or keywords"
-                            aria-autocomplete="list"
-                            aria-expanded={showJobDropdown}
-                            aria-controls="job-suggestions"
-                          />
-                          {showJobDropdown && jobSuggestions.length > 0 && (
-                            <ul
-                              id="job-suggestions"
-                              role="listbox"
-                              aria-label="Job title suggestions"
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                right: 0,
-                                zIndex: 99999,
-                                background: '#fff',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '8px',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                                maxHeight: '240px',
-                                overflowY: 'auto',
-                                marginTop: '4px',
-                                listStyle: 'none',
-                                padding: 0,
-                              }}
-                            >
-                              {jobSuggestions.map((job, index) => (
-                                <li
-                                  key={index}
-                                  role="option"
-                                  aria-selected={false}
-                                  onMouseDown={() => selectJob(job)}
-                                  style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '14px', color: '#1f2937' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
-                                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                                >
-                                  {job}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        {/* Location Input */}
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <MapPin className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <label htmlFor="hero-location-search" className="sr-only">City or country</label>
-                          <input
-                            id="hero-location-search"
-                            ref={locationInputRef}
-                            type="text"
-                            placeholder="City Or Country"
-                            value={location}
-                            onChange={(e) => handleLocationSearch(e.target.value)}
-                            onFocus={() => {
-                              if (location.length >= 2) {
-                                const filtered = allLocations.filter(loc => 
-                                  loc.toLowerCase().includes(location.toLowerCase())
-                                ).slice(0, 8);
-                                setLocationSuggestions(filtered);
-                                setShowLocationDropdown(filtered.length > 0);
-                              }
-                            }}
-                            onBlur={() => setTimeout(() => setShowLocationDropdown(false), 200)}
-                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            aria-label="City or country"
-                            aria-autocomplete="list"
-                            aria-expanded={showLocationDropdown}
-                            aria-controls="location-suggestions"
-                          />
-                          {showLocationDropdown && locationSuggestions.length > 0 && (
-                            <ul
-                              id="location-suggestions"
-                              role="listbox"
-                              aria-label="Location suggestions"
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                right: 0,
-                                zIndex: 99999,
-                                background: '#fff',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '8px',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                                maxHeight: '240px',
-                                overflowY: 'auto',
-                                marginTop: '4px',
-                                listStyle: 'none',
-                                padding: 0,
-                              }}
-                            >
-                              {locationSuggestions.map((loc, index) => (
-                                <li
-                                  key={index}
-                                  role="option"
-                                  aria-selected={false}
-                                  onMouseDown={() => selectLocation(loc)}
-                                  style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '14px', color: '#1f2937' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
-                                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                                >
-                                  {loc}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        aria-label="Search jobs"
-                      >
-                        {buttonText}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-
-              {/* Popular Searches */}
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>Popular Searches:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {displayedSearches.map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => handlePopularSearchClick(term)}
-                      className="hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-1 rounded" 
-                      style={{color: '#a78bfa'}}
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-              <div className="relative">
-                <style>{`
-                  @keyframes hero-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                  @keyframes hero-spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-                  .hero-orbit-inner { animation: hero-spin 20s linear infinite; }
-                  .hero-orbit-outer { animation: hero-spin-rev 30s linear infinite; }
-                  .hero-icon-counter-inner { animation: hero-spin-rev 20s linear infinite; }
-                  .hero-icon-counter-outer { animation: hero-spin 30s linear infinite; }
-                `}</style>
-
-                {/* Dotted Circle Background */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  {/* Inner orbit circle */}
-                  <div className="hero-orbit-inner w-[22rem] h-[22rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.6)'}}>
-                    {[
-                      { Icon: Bot, angle: 0, color: '#3b82f6' },
-                      { Icon: Sparkles, angle: 90, color: '#8b5cf6' },
-                      { Icon: Brain, angle: 180, color: '#ec4899' },
-                      { Icon: Zap, angle: 270, color: '#f59e0b' },
-                    ].map(({ Icon, angle, color }) => (
-                      <div
-                        key={angle}
-                        className="absolute"
-                        style={{
-                          top: '50%', left: '50%',
-                          width: '2.5rem', height: '2.5rem',
-                          marginTop: '-1.25rem', marginLeft: '-1.25rem',
-                          transform: `rotate(${angle}deg) translate(11rem)`,
-                        }}
-                      >
-                        <div className="hero-icon-counter-inner w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-blue-100">
-                          <Icon className="w-5 h-5" style={{ color }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Outer orbit circle */}
-                  <div className="hero-orbit-outer w-[33rem] h-[33rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.7)'}}>
-                    {[
-                      { Icon: Palette, label: 'Resume Studio', angle: 0, color: '#06b6d4' },
-                      { Icon: MessageCircle, label: 'Interview Preparation', angle: 72, color: '#10b981' },
-                      { Icon: Compass, label: 'Career Guidance', angle: 144, color: '#f59e0b' },
-                      { Icon: CheckCircle, label: 'Skill Check', angle: 216, color: '#8b5cf6' },
-                      { Icon: Rocket, label: 'Job Search', angle: 288, color: '#ef4444' },
-                    ].map(({ Icon, label, angle, color }) => (
-                      <div
-                        key={label}
-                        className="absolute"
-                        style={{
-                          top: '50%', left: '50%',
-                          width: '2.5rem', height: '2.5rem',
-                          marginTop: '-1.25rem', marginLeft: '-1.25rem',
-                          transform: `rotate(${angle}deg) translate(16.5rem)`,
-                        }}
-                      >
-                        <div className="hero-icon-counter-outer w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200">
-                          <Icon className="w-5 h-5" style={{ color }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <img
-                  src={heroImage}
-                  alt="Professional standing confidently"
-                  className="w-full object-contain object-bottom relative z-10"
-                  style={{ maxHeight: '580px', display: 'block' }}
-                  width={580}
-                  height={580}
-                  fetchpriority="high"
-                  decoding="sync"
-                />
-              </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Partners Marquee Section */}
-      <CompanyMarquee />
-    </>
-  );
-};
-
 export default NewHero;
-

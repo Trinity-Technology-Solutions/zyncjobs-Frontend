@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
+import WorkButton from '../components/animata/button/work-button';
 
 interface ResetPasswordPageProps {
   onNavigate: (page: string) => void;
@@ -290,13 +291,12 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
               </div>
             </div>
 
-            <button
+            <WorkButton
               type="submit"
               disabled={loading || passwordStrength.score < 4}
-              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
-            >
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
+              text={loading ? 'Resetting...' : 'Reset Password'}
+              className="w-full"
+            />
           </form>
         </div>
       </div>

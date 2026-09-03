@@ -22,6 +22,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   const [resumeSkills, setResumeSkills] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
 
   const jobData = (() => {
     try { return JSON.parse(sessionStorage.getItem('selectedJob') || localStorage.getItem('selectedJob') || '{}'); }
@@ -39,6 +40,25 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   useEffect(() => {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     if (!token || !userData.email) { onNavigate('login'); return; }
+
+    const currentJobId = jobData._id || jobData.id || jobData.jobData?._id || jobData.jobData?.id;
+    if (currentJobId && userData.email) {
+      fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userData.email)}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          const list: any[] = Array.isArray(data) ? data : (data.applications || []);
+          const existing = list.find((app: any) => {
+            const appJobId = app.jobId?._id || app.jobId?.id || app.jobId || '';
+            const matchJob = String(appJobId) === String(currentJobId);
+            const matchEmail = app.candidateEmail?.toLowerCase() === userData.email.toLowerCase();
+            return matchJob && matchEmail && app.status !== 'withdrawn';
+          });
+          if (existing) {
+            setAlreadyApplied(true);
+          }
+        })
+        .catch(err => console.error('Error checking application status:', err));
+    }
     
     // Load profile and validate resume
     const loadProfileAndValidateResume = async () => {
@@ -161,6 +181,8 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
       const result = await res.json();
       if (res.ok) {
         setSubmitted(true);
+        sessionStorage.removeItem('selectedJob');
+        localStorage.removeItem('selectedJob');
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '🎉 Application submitted successfully!' } }));
       } else {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: result.error || 'Submission failed. Please try again.' } }));
@@ -177,6 +199,44 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   const location = jobData.location || '';
   const jobType  = jobData.jobType || jobData.employmentType || jobData.type || '';
 
+  const currentJobId = jobData._id || jobData.id || jobData.jobData?._id || jobData.jobData?.id;
+  const backFallback = jobData.slug
+    ? `/jobs/${jobData.slug}`
+    : (currentJobId ? `/job-detail?id=${currentJobId}` : '/job-listings');
+
+  if (alreadyApplied) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+        <div className="flex-1 mx-4 my-4 bg-white rounded-2xl shadow-sm flex items-center justify-center p-8">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-9 h-9 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">You Have Already Applied</h2>
+            <p className="text-gray-600 text-sm mb-6">
+              You have already submitted an application for <span className="font-semibold text-gray-800">{jobTitle}</span> at {company}.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => onNavigate('my-applications')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+              >
+                View My Applications
+              </button>
+              <button
+                onClick={() => onNavigate(backFallback)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+              >
+                Back to Job
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
@@ -186,8 +246,8 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-8 py-6">
 
-            {/* Back button — same style as reference */}
-            <BackButton onClick={() => onNavigate('job-detail')} className="mb-6" />
+            {/* Back button — dynamic fallback to actual job route */}
+            <BackButton fallback={backFallback} className="mb-6" />
 
             {/* Resume Requirement Notice */}
             {!resumeUrl && (

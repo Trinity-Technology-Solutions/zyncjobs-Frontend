@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
+import { useSearchParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { formatInterviewDate, formatInterviewTime, getInterviewJoinUrl, parseDateValue } from '../utils/interviewScheduleUtils';
 
 interface Interview {
   _id: string;
@@ -37,11 +38,11 @@ interface CandidateInterviewsPageProps {
 const getCountdown = (dateStr: string, timeStr: string): string => {
   try {
     if (!dateStr || !timeStr) return '';
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return '';
-    const target = new Date(dateStr);
-    if (isNaN(target.getTime())) return '';
-    target.setHours(hours, minutes, 0, 0);
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (!timeMatch) return '';
+    const target = parseDateValue(dateStr);
+    if (!target) return '';
+    target.setHours(parseInt(timeMatch[1], 10), parseInt(timeMatch[2], 10), 0, 0);
     const diff = target.getTime() - Date.now();
     if (diff <= 0) return 'Started';
     const d = Math.floor(diff / 86400000);
@@ -57,7 +58,6 @@ const getCountdown = (dateStr: string, timeStr: string): string => {
 const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled' | 'accepted' | 'rejected'>('all');
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
@@ -72,7 +72,6 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
   const fetchInterviews = useCallback(async (refresh = false) => {
     if (!user?.email) { setLoading(false); return; }
-    if (refresh) setRefreshing(true);
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/candidate/${encodeURIComponent(user.email)}`);
       if (res.ok) {
@@ -86,7 +85,6 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
       if (refresh) window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error while refreshing interviews.' } }));
     } finally {
       setLoading(false);
-      if (refresh) setRefreshing(false);
     }
   }, [user]);
 
@@ -233,19 +231,12 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
         <div className="bg-white border-b">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <BackButton onClick={() => onNavigate('dashboard')} text="Back" className="text-sm text-gray-500 hover:text-gray-700 transition-colors" />
+              <BackButton fallback="/dashboard" text="Back" className="text-sm text-gray-500 hover:text-gray-700 transition-colors" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">My Interviews</h1>
                 <p className="text-xs text-gray-400 mt-0.5">{interviews.length} total · {upcomingCount} upcoming</p>
               </div>
             </div>
-            <button
-              onClick={() => fetchInterviews(true)}
-              disabled={refreshing}
-              className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
-            </button>
           </div>
         </div>
 
@@ -304,6 +295,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 const isUpcoming = interview.status === 'scheduled' || interview.status === 'rescheduled';
                 const countdown = isUpcoming ? getCountdown(interview.interviewDate || '', interview.interviewTime || '') : '';
                 const isHot = countdown.includes('🔥');
+                const joinUrl = getInterviewJoinUrl(interview);
                 const companyName = interview.jobId?.company || '';
                 const logoSrc = companyLogos[companyName.toLowerCase()] || getSafeCompanyLogo({ company: companyName });
                 const companyInitial = companyName.charAt(0).toUpperCase() || 'C';
@@ -372,13 +364,11 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewDate
-                                ? new Date(interview.interviewDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : 'Date TBD'}
+                              {formatInterviewDate(interview)}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewTime || 'Time TBD'}
+                              {formatInterviewTime(interview)}
                             </span>
                           </div>
                         </div>
@@ -459,7 +449,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             </>
                           )}
 
-                          {(isUpcoming || interview.status === 'accepted') && interview.meetingLink ? (
+                          {(isUpcoming || interview.status === 'accepted') && joinUrl && (
                             <a
                               href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                               target="_blank"
@@ -468,7 +458,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             >
                               <Video className="w-4 h-4" /> Join Interview
                             </a>
-                          ) : null}
+                          )}
                         </div>
                       </div>
                     </div>

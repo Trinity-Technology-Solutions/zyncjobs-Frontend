@@ -2,6 +2,7 @@ import React from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import WorkButton from '../components/animata/button/work-button';
 
 interface WhyZyncJobsPageProps {
   onNavigate?: (page: string) => void;
@@ -17,7 +18,7 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
       {/* Hero */}
       <div className="relative bg-gradient-to-br from-blue-50 via-orange-50 to-blue-100 text-gray-900 py-8 overflow-hidden border-b border-gray-200">
         <div className="absolute top-4 left-4 z-10">
-          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
+          <BackButton fallback="/" className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
         </div>
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -158,12 +159,12 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
         <div className="text-center bg-gradient-to-r from-blue-600 to-orange-500 text-white rounded-2xl p-12">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-lg mb-8 text-white/90">Join thousands of professionals and companies on ZyncJobs</p>
-          <button
-            onClick={() => onNavigate && onNavigate('role-selection')}
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
-          >
-            Sign Up Now
-          </button>
+          <div className="flex justify-center">
+            <WorkButton
+              text="Sign Up Now"
+              onClick={() => onNavigate && onNavigate('candidate-register')}
+            />
+          </div>
         </div>
       </main>
 

@@ -113,9 +113,7 @@ const InterviewScheduling = () => {
         body: JSON.stringify({
           platform: 'zoom',
           topic: 'Interview Meeting',
-          start_time: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
-            ? new Date(formData.scheduledDate + ':00').toISOString()
-            : new Date(formData.scheduledDate).toISOString(),
+          start_time: formData.scheduledDate || new Date().toISOString(),
           duration: formData.duration,
           description: 'Interview meeting scheduled via ZyncJobs'
         })
@@ -181,7 +179,6 @@ const InterviewScheduling = () => {
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
         <BackButton 
-          onClick={() => window.history.back()}
           text="Back"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
         />

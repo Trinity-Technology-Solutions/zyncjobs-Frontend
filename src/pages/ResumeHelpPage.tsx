@@ -158,7 +158,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <BackButton onClick={() => onNavigate && onNavigate('resume-studio')} className="mb-8 bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30 hover:border-white/50 shadow-lg" />
+          <BackButton fallback="/resume-studio" className="mb-8 bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30 hover:border-white/50 shadow-lg" />
           
           <div className="text-center max-w-4xl mx-auto">
             <div className="flex justify-center mb-6">

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { strapiAPI, NavItem } from '../api/strapi';
 
-const CAREER_RESOURCE_URLS = new Set(['/skill-assessment','/career-coach','/career-roadmap','/salary-insights','/resume-studio','skill-assessment','career-coach','career-roadmap','salary-insights','resume-studio']);
+const CAREER_RESOURCE_URLS = new Set(['/skill-assessment', '/career-coach', '/career-roadmap', '/salary-insights', '/resume-studio', 'skill-assessment', 'career-coach', 'career-roadmap', 'salary-insights', 'resume-studio']);
 
 const FALLBACK_NAV: NavItem[] = [
   { id: 1, label: 'Find Jobs', url: '/job-listings', order: 1 },
@@ -23,7 +23,7 @@ export const useNavigation = create<NavigationStore>((set) => ({
   items: FALLBACK_NAV,
   loading: false,
   error: null,
-  
+
   fetchNavigation: async () => {
     if (isFetching) return;
     isFetching = true;

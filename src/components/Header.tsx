@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
+import { GlassFilter } from './ui/liquid-glass';
 import JobAlertBadge from './JobAlertBadge';
 import { useJobAlertStore } from '../hooks/useJobAlertStore';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation, CAREER_RESOURCE_URLS } from '../store/useNavigation';
+import { isEmployerPagePath } from '../utils/rolePermissions';
 import { strapiAPI } from '../api/strapi';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
@@ -14,7 +16,7 @@ import MobileHamburgerMenu from './MobileHamburgerMenu';
 
 interface HeaderProps {
   onNavigate?: (page: string, data?: any) => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin', email?: string} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter', email?: string} | null;
   onLogout?: () => void;
 }
 
@@ -27,19 +29,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [, setNotifications] = useState<any[]>([]);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [displayName, setDisplayName] = useState((user as any)?.fullName || user?.name || '');
+  const [isScrolled, setIsScrolled] = useState(true); // Default to light header
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const currentPath = location.pathname;
 
   const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
-  const isEmployerAuthPage = currentPath === '/employer-login' || currentPath === '/employer-register';
+
+  // Employer context = employer logged in OR on an employer-facing page
+  const isEmployerContext = user?.type === 'employer' || isEmployerPagePath(currentPath);
 
   // Show Job Seeker links everywhere EXCEPT on Job Seeker Auth pages
   const showJobSeekerLinks = !isJobSeekerAuthPage;
-  
-  // Show Employer links everywhere EXCEPT on Employer Auth pages
-  const showEmployerLinks = !isEmployerAuthPage;
 
   // Secret typed sequence to reveal admin login
   useEffect(() => {
@@ -101,14 +103,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const handleRegisterClick = () => {
     setIsDropdownOpen(false);
     if (onNavigate) {
-      onNavigate('role-selection');
+      onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
     }
   };
 
-  const handleEmployerLoginClick = () => {
+  const handleEmployerPageClick = () => {
     setIsDropdownOpen(false);
     if (onNavigate) {
-      onNavigate('employer-login');
+      onNavigate('employers');
     }
   };
 
@@ -142,7 +144,35 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    
+    const handleScroll = () => {
+      // Use standard scroll detection for the header glass effect
+      // We keep it 'light' (isScrolled = true) by default for the new design
+      const scrolled = window.scrollY > 20;
+      
+      let isOverDark = false;
+      const headerCenterY = 40;
+      const darkSections = document.querySelectorAll('[data-theme="dark"]');
+      darkSections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= headerCenterY && rect.bottom >= headerCenterY) {
+          isOverDark = true;
+        }
+      });
+
+      // If we are over a dark section, switch to dark header (isScrolled = false)
+      // Otherwise, stay light (isScrolled = true)
+      setIsScrolled(!isOverDark);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Initial check
+    handleScroll();
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -196,9 +226,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         if (user.type === 'employer') {
               // Fetch employer notifications
               const [appsRes, jobsRes, interviewsRes] = await Promise.all([
-                fetch(API_ENDPOINTS.APPLICATIONS),
-                fetch(API_ENDPOINTS.JOBS),
-                fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
+                apiFetch(API_ENDPOINTS.APPLICATIONS),
+                apiFetch(API_ENDPOINTS.JOBS),
+                apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
               ]);
               
               const realNotifications: Array<{id: string; type: string; title: string; message: string; time: string}> = [];
@@ -294,8 +324,29 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     };
   }, [user]);
 
+  const navTextClass = isScrolled 
+    ? 'text-gray-900 hover:text-blue-600' 
+    : 'text-white/90 hover:text-white';
+
   return (
-    <header className="bg-white shadow-lg sticky top-0 z-50">
+    <>
+      <GlassFilter />
+      <header
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        style={isScrolled ? {
+          backdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
+          WebkitBackdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
+          background: 'rgba(255, 255, 255, 0.45)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.5)',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.6)',
+        } : {
+          backdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
+          WebkitBackdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
+          background: 'rgba(20, 20, 25, 0.7)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+        }}
+      >
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between py-3 sm:py-4">
           <div className="flex-shrink-0">
@@ -314,6 +365,29 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
+            {isEmployerContext ? (
+              <>
+                <button
+                  onClick={() => onNavigate && onNavigate('candidate-search')}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Candidate Search
+                </button>
+                <button
+                  onClick={() => onNavigate && onNavigate('my-jobs')}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Posted Jobs
+                </button>
+                <button
+                  onClick={() => onNavigate && onNavigate('job-posting-selection')}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                >
+                  Post a Job
+                </button>
+              </>
+            ) : (
+              <>
             {navItems.length > 0 ? (
               navItems
                 .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
@@ -321,17 +395,17 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 <button
                   key={item.id}
                   onClick={() => onNavigate && onNavigate(item.url)}
-                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-1 rounded`}
                 >
                   {item.label}
                 </button>
               ))
             ) : (
               <>
-                <button onClick={handleFindJobsClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded">
+                <button onClick={handleFindJobsClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
                   {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
                 </button>
-                <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded">
+                <button onClick={handleCompaniesClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
                   Companies
                 </button>
               </>
@@ -340,7 +414,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             {user?.type === 'employer' ? (
               <button
                 onClick={() => onNavigate && onNavigate('my-jobs')}
-                className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
               >
                 Posted Jobs
               </button>
@@ -348,7 +422,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="relative" ref={careerDropdownRef}>
                 <button 
                   onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
-                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  className={`flex items-center space-x-1 ${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
                   aria-expanded={isCareerDropdownOpen}
                   aria-haspopup="true"
                 >
@@ -410,25 +484,38 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     onNavigate && onNavigate('my-jobs');
                   }
                 } else {
-                  onNavigate && onNavigate('role-selection');
+                  onNavigate && onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
                 }
               }}
-              className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
             >
               {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
             </button>
+              </>
+            )}
 
           </nav>
 
           {/* Right side items */}
           <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto">
 
+            {/* For Employers Button - only when not logged in and outside employer context */}
+            {!isEmployerContext && !user ? (
+              <button 
+                onClick={handleEmployerPageClick}
+                className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                title="Go to employer page"
+              >
+                For Employers
+              </button>
+            ) : null}
+
             {/* Login/Register Dropdown */}
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-2 text-gray-900 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
+                  className={`flex items-center space-x-2 ${navTextClass} transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded-full`}
                   aria-expanded={isDropdownOpen}
                   aria-haspopup="true"
                   aria-label="User profile menu"
@@ -448,7 +535,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsDropdownOpen(false)}></div>
                     
                     {/* Panel */}
-                    <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+                    <div className="fixed top-[72px] right-0 h-[calc(100%-72px)] w-full sm:w-96 bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out">
                       {/* Header */}
                       <div className="flex items-center justify-between p-6 border-b border-gray-200">
                         <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
@@ -463,7 +550,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </div>
                       
                       {/* Content */}
-                      <div className="p-6 overflow-y-auto h-full pb-20">
+                      <div className="flex-1 min-h-0 p-6 overflow-y-auto pb-20">
                         {/* User Info */}
                         <div className="flex items-center space-x-4 mb-8">
                           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
@@ -684,11 +771,47 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   </>
                 )}
               </div>
+            ) : isEmployerContext ? (
+              <>
+                {currentPath !== '/employer-login' && (
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
+                    className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  >
+                    Employer Login
+                  </button>
+                )}
+                <button 
+                  onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                >
+                  {currentPath === '/employer-login' ? 'Register' : 'Create Account'}
+                </button>
+              </>
+            ) : isJobSeekerAuthPage ? (
+              <>
+                {currentPath !== '/candidate-register' && currentPath !== '/role-selection' && (
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-register'); }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                  >
+                    Register
+                  </button>
+                )}
+                {(currentPath === '/candidate-register' || currentPath === '/role-selection') && (
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('login'); }}
+                    className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  >
+                    Login
+                  </button>
+                )}
+              </>
             ) : (
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  className={`flex items-center space-x-1 ${navTextClass} transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
                   aria-expanded={isDropdownOpen}
                   aria-haspopup="true"
                 >
@@ -709,18 +832,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </>
                     )}
                     
-                    {showJobSeekerLinks && showEmployerLinks && <hr className="my-1" />}
-                    
-                    {showEmployerLinks && (
-                      <>
-                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
-                        <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                          For Employers / Post Jobs
-                        </button>
-                      </>
-                    )}
-                    
-                    {(showJobSeekerLinks || showEmployerLinks) && adminUnlocked && <hr className="my-1" />}
+                    {showJobSeekerLinks && adminUnlocked && <hr className="my-1" />}
                     
                     {adminUnlocked && (
                       <button
@@ -755,19 +867,22 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             </button>
           </div>
         </div>
-
-        {/* Mobile Hamburger Menu */}
-        <MobileHamburgerMenu 
-          isOpen={isMenuOpen}
-          onClose={() => setIsMenuOpen(false)}
-          onNavigate={onNavigate}
-          onLogout={onLogout}
-          user={user}
-          siteSettings={siteSettings || undefined}
-          alertUnreadCount={alertUnread}
-        />
       </div>
     </header>
+
+    <div className="h-16 sm:h-20 lg:h-24 shrink-0" aria-hidden="true" />
+
+    {/* Mobile Hamburger Menu */}
+    <MobileHamburgerMenu 
+      isOpen={isMenuOpen}
+      onClose={() => setIsMenuOpen(false)}
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+      user={user}
+      siteSettings={siteSettings || undefined}
+      alertUnreadCount={alertUnread}
+    />
+    </>
   );
 };
 
