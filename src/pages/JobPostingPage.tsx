@@ -147,7 +147,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const { jobTitles: jobTitleOptions } = useJobTitles();
 
   // Check for edit mode data from sessionStorage
-  const editJobRaw = sessionStorage.getItem('editJobData');
+  const editJobRaw = localStorage.getItem('editJobData');
   const editJob = editJobRaw ? JSON.parse(editJobRaw) : null;
   const isEditMode = !!editJob;
   const editJobId = editJob?._id || editJob?.id;
@@ -3428,6 +3428,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       if (response.ok) {
         const result = await response.json();
         sessionStorage.removeItem('editJobData');
+        localStorage.removeItem('editJobData');
         setNotification({
           type: 'success',
           message: isEditMode ? 'Job updated successfully!' : 'Job posted successfully!',
