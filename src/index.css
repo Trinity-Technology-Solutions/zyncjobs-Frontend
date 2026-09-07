@@ -3,11 +3,29 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Header height token — update here if header size changes */
+:root {
+  --header-h: 64px;
+}
+@media (min-width: 640px) {
+  :root { --header-h: 80px; }
+}
+@media (min-width: 1024px) {
+  :root { --header-h: 96px; }
+}
+
+/* Push every page's main content below the fixed header */
+#main-content {
+  padding-top: var(--header-h);
+}
+
+
 /* Prevent horizontal scroll without breaking position: sticky */
 html, body {
   width: 100%;
   height: 100%;
   max-width: 100%;
+  scroll-padding-top: var(--header-h);
 }
 
 /* Box sizing for all elements */

@@ -527,249 +527,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
-                {/* Slide-out Panel */}
-                {isDropdownOpen && (
-                  <>
-                    {/* Backdrop */}
-                    <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsDropdownOpen(false)}></div>
-                    
-                    {/* Panel */}
-                    <div className="fixed top-[72px] right-0 h-[calc(100%-72px)] w-full sm:w-96 bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out">
-                      {/* Header */}
-                      <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
-                        <button 
-                          onClick={() => setIsDropdownOpen(false)}
-                          className="text-gray-400 hover:text-gray-600"
-                          title="Close profile panel"
-                          aria-label="Close profile panel"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-h-0 p-6 overflow-y-auto pb-20">
-                        {/* User Info */}
-                        <div className="flex items-center space-x-4 mb-8">
-                          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-lg">
-                              {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 text-lg">{displayName}</p>
-                            <p className="text-sm text-gray-600 capitalize">{user.type}</p>
-                          </div>
-                        </div>
-                        
-                        {/* Profile Performance */}
-                        <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-base font-semibold text-gray-900">Your profile performance</h3>
-                            <span className="text-xs text-gray-500">Last 90 days</span>
-                          </div>
-                          <div className="flex gap-3">
-                            {user.type === 'employer' ? (
-                              <>
-                                <div className="flex-1 text-center bg-white rounded-lg p-2">
-                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.jobsPosted}</div>
-                                  <div className="text-xs text-gray-600">Jobs Posted</div>
-                                  <button 
-                                    onClick={() => {
-                                      setIsDropdownOpen(false);
-                                      onNavigate && onNavigate('my-jobs');
-                                    }}
-                                    className="text-blue-600 text-xs hover:underline font-medium"
-                                  >
-                                    View all
-                                  </button>
-                                </div>
-                                <div className="flex-1 text-center bg-white rounded-lg p-2">
-                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.applicationsReceived}</div>
-                                  <div className="text-xs text-gray-600">Applications Received</div>
-                                  <button 
-                                    onClick={() => {
-                                      setIsDropdownOpen(false);
-                                      onNavigate && onNavigate('dashboard');
-                                      // Trigger applications section after navigation
-                                      setTimeout(() => {
-                                        const event = new CustomEvent('showApplications');
-                                        window.dispatchEvent(event);
-                                      }, 100);
-                                    }}
-                                    className="text-blue-600 text-xs hover:underline font-medium"
-                                  >
-                                    View all
-                                  </button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex-1 text-center bg-white rounded-lg p-2">
-                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.recruiterActions}</div>
-                                <div className="text-xs text-gray-600">Recruiter Actions</div>
-                                  <button 
-                                    onClick={() => {
-                                      setIsDropdownOpen(false);
-                                      onNavigate && onNavigate('recruiter-actions');
-                                    }}
-                                    className="text-blue-600 text-xs hover:underline font-medium"
-                                  >
-                                    View all
-                                  </button>
-                                </div>
-                                <div className="flex-1 text-center bg-white rounded-lg p-2">
-                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.searchAppearances}</div>
-                                  <div className="text-xs text-gray-600">Search Appearances</div>
-                                  <button 
-                                    onClick={() => {
-                                      setIsDropdownOpen(false);
-                                      onNavigate && onNavigate('search-appearances');
-                                    }}
-                                    className="text-blue-600 text-xs hover:underline font-medium"
-                                  >
-                                    View all
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Menu Items */}
-                        <div className="space-y-2">
-                          <button 
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              onNavigate && onNavigate('dashboard');
-                            }} 
-                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            <User className="w-5 h-5 mr-3 text-gray-500" />
-                            View & Update Profile
-                          </button>
-
-                          {(user.type === 'admin' || user.type === 'super_admin') && (
-                            <button
-                              onClick={() => {
-                                setIsDropdownOpen(false);
-                                onNavigate && onNavigate('admin/dashboard');
-                              }}
-                              className="flex items-center w-full text-left px-3 py-3 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
-                            >
-                              <Settings className="w-5 h-5 mr-3 text-purple-500" />
-                              Admin Dashboard
-                            </button>
-                          )}
-                          
-                          {user?.name === 'ZyncJobs Admin' && (
-                            <>
-                              <button 
-                                onClick={() => {
-                                  setIsDropdownOpen(false);
-                                  onNavigate && onNavigate('job-moderation');
-                                }} 
-                                className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                              >
-                                <Settings className="w-5 h-5 mr-3 text-gray-500" />
-                                Job Moderation
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  setIsDropdownOpen(false);
-                                  onNavigate && onNavigate('resume-moderation');
-                                }} 
-                                className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                              >
-                                <Settings className="w-5 h-5 mr-3 text-gray-500" />
-                                Resume Moderation
-                              </button>
-                            </>
-                          )}
-                          
-                          {user.type !== 'employer' && (
-                            <button 
-                              onClick={() => {
-                                setIsDropdownOpen(false);
-                                onNavigate && onNavigate('job-listings', { tab: 'recommended' });
-                              }} 
-                              className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                              <Search className="w-5 h-5 mr-3 text-gray-500" />
-                              Recommended Jobs
-                            </button>
-                          )}
-                          
-                          <button 
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              if (user.type === 'employer') {
-                                onNavigate && onNavigate('job-posting-selection');
-                              } else {
-                                onNavigate && onNavigate('my-jobs');
-                              }
-                            }} 
-                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            <Building className="w-5 h-5 mr-3 text-gray-500" />
-                            {user.type === 'employer' ? 'Job Posting' : 'My Jobs'}
-                          </button>
-                          
-                          <button 
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              if (user.type === 'employer') {
-                                onNavigate && onNavigate('dashboard');
-                                setTimeout(() => window.dispatchEvent(new CustomEvent('showAlerts')), 100);
-                              } else {
-                                onNavigate && onNavigate('alerts');
-                              }
-                            }} 
-                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            <svg className="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM11 19H6a2 2 0 01-2-2V7a2 2 0 012-2h5m5 0v6" />
-                            </svg>
-                            <span className="flex-1">Alerts</span>
-                            <JobAlertBadge count={alertUnread} />
-                          </button>
-                          
-                          <hr className="my-3" />
-                          
-                          <button 
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              onNavigate && onNavigate('settings');
-                            }} 
-                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            <svg className="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Settings
-                          </button>
-                          
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              onLogout?.();
-                            }} 
-                            className="flex items-center w-full text-left px-3 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <svg className="w-5 h-5 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                            Logout
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
             ) : isEmployerContext ? (
               <>
@@ -870,9 +627,138 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       </div>
     </header>
 
-    <div className="h-16 sm:h-20 lg:h-24 shrink-0" aria-hidden="true" />
+    {/* Spacer to push page content below the fixed header */}
+    <div className="h-20 sm:h-24 lg:h-28" aria-hidden="true" />
 
-    {/* Mobile Hamburger Menu */}
+    {/* Profile Panel - outside <header> to avoid backdrop-filter stacking context clipping */}
+    {isDropdownOpen && user && (
+      <>
+        <div className="fixed inset-0 z-[9998] bg-black bg-opacity-50" onClick={() => setIsDropdownOpen(false)} />
+        <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-2xl z-[9999] flex flex-col">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+            <button onClick={() => setIsDropdownOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label="Close profile panel">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 pb-20">
+            <div className="flex items-center space-x-4 mb-8">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-semibold text-lg">
+                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-lg">{displayName}</p>
+                <p className="text-sm text-gray-600 capitalize">{user.type}</p>
+              </div>
+            </div>
+
+            <div className="mb-6 bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold text-gray-900">Your profile performance</h3>
+                <span className="text-xs text-gray-500">Last 90 days</span>
+              </div>
+              <div className="flex gap-3">
+                {user.type === 'employer' ? (
+                  <>
+                    <div className="flex-1 text-center bg-white rounded-lg p-2">
+                      <div className="text-xl font-bold text-gray-900">{profileMetrics.jobsPosted}</div>
+                      <div className="text-xs text-gray-600">Jobs Posted</div>
+                      <button
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          onNavigate && onNavigate('my-jobs');
+                        }}
+                        className="text-blue-600 text-xs hover:underline font-medium"
+                      >
+                        View all
+                      </button>
+                    </div>
+                    <div className="flex-1 text-center bg-white rounded-lg p-2">
+                      <div className="text-xl font-bold text-gray-900">{profileMetrics.applicationsReceived}</div>
+                      <div className="text-xs text-gray-600">Applications Received</div>
+                      <button
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          onNavigate && onNavigate('dashboard');
+                          setTimeout(() => {
+                            const event = new CustomEvent('showApplications');
+                            window.dispatchEvent(event);
+                          }, 100);
+                        }}
+                        className="text-blue-600 text-xs hover:underline font-medium"
+                      >
+                        View all
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1 text-center bg-white rounded-lg p-2">
+                      <div className="text-xl font-bold text-gray-900">{profileMetrics.recruiterActions}</div>
+                      <div className="text-xs text-gray-600">Recruiter Actions</div>
+                      <button
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          onNavigate && onNavigate('recruiter-actions');
+                        }}
+                        className="text-blue-600 text-xs hover:underline font-medium"
+                      >
+                        View all
+                      </button>
+                    </div>
+                    <div className="flex-1 text-center bg-white rounded-lg p-2">
+                      <div className="text-xl font-bold text-gray-900">{profileMetrics.searchAppearances}</div>
+                      <div className="text-xs text-gray-600">Search Appearances</div>
+                      <button
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          onNavigate && onNavigate('search-appearances');
+                        }}
+                        className="text-blue-600 text-xs hover:underline font-medium"
+                      >
+                        View all
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1 mt-2">
+              {user.type === 'employer' ? (
+                <>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('dashboard'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Dashboard</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('my-jobs'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Posted Jobs</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('job-posting-selection'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Post a Job</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-search'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Candidate Search</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('settings'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Account Settings</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('dashboard'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Dashboard</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('my-applications'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">My Applications</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Resume Studio</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('alerts'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Job Alerts</button>
+                  <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('settings'); }} className="w-full text-left px-3 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm">Account Settings</button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-gray-200 flex-shrink-0">
+            <button
+              onClick={() => { setIsDropdownOpen(false); onLogout && onLogout(); }}
+              className="w-full px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg transition-colors text-sm"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+        <div className="fixed inset-0 z-[9998] bg-black bg-opacity-50" onClick={() => setIsDropdownOpen(false)} />
+      </>
+    )}
     <MobileHamburgerMenu 
       isOpen={isMenuOpen}
       onClose={() => setIsMenuOpen(false)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, Briefcase, MapPin, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
@@ -305,11 +305,27 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
+  const applicationCountsMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    employerApplications.forEach((app) => {
+      const appJobId = app.jobId || (app.jobId?._id || app.jobId?.id) || '';
+      if (appJobId) {
+        map[String(appJobId)] = (map[String(appJobId)] || 0) + 1;
+      }
+    });
+    return map;
+  }, [employerApplications]);
+
   const deleteJob = (jobId: string) => {
     if (!jobId) { 
       console.error('Delete job called with invalid ID:', jobId);
       showNotification('Invalid job ID.', 'error'); 
       return; 
+    }
+    
+    if ((applicationCountsMap[jobId] || 0) > 0) {
+      showNotification('Cannot delete a job that has existing applications.', 'error');
+      return;
     }
     
     setConfirmDialog({
@@ -334,6 +350,11 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       if (!accessToken) {
         showNotification('Please log in again to delete jobs.', 'error');
         if (onLogout) onLogout();
+        return;
+      }
+      
+      if ((applicationCountsMap[jobId] || 0) > 0) {
+        showNotification('Cannot delete a job that has existing applications.', 'error');
         return;
       }
       
@@ -429,6 +450,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       if (!accessToken) {
         showNotification('Please log in again to delete jobs.', 'error');
         if (onLogout) onLogout();
+        return;
+      }
+      
+      const jobsWithApps = selectedJobs.filter(jobId => (applicationCountsMap[jobId] || 0) > 0);
+      if (jobsWithApps.length > 0) {
+        showNotification('Cannot delete jobs that have existing applications.', 'error');
         return;
       }
       
@@ -700,7 +727,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 </button>
                 <button 
                   onClick={() => deleteJob(getId(job))}
-                  className="px-3 py-2 bg-white border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 hover:border-red-400 transition-colors text-sm flex items-center justify-center"
+                  disabled={(applicationCountsMap[jobId] || 0) > 0}
+                  title={(applicationCountsMap[jobId] || 0) > 0 ? 'Cannot delete a job with existing applications' : 'Delete this job'}
+                  className="px-3 py-2 bg-white border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 hover:border-red-400 transition-colors text-sm flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Delete
                 </button>
@@ -901,11 +930,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                   showNotification('Please select jobs to delete', 'error');
                                   return;
                                 }
+                                const hasApplications = selectedJobs.some(jobId => (applicationCountsMap[jobId] || 0) > 0);
+                                if (hasApplications) {
+                                  showNotification('Cannot delete jobs that have existing applications.', 'error');
+                                  return;
+                                }
                                 bulkDeleteJobs();
                               }}
-                              disabled={selectedJobs.length === 0}
+                              disabled={selectedJobs.length === 0 || selectedJobs.some(jobId => (applicationCountsMap[jobId] || 0) > 0)}
                               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                                selectedJobs.length === 0
+                                selectedJobs.length === 0 || selectedJobs.some(jobId => (applicationCountsMap[jobId] || 0) > 0)
                                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                   : 'bg-red-600 text-white hover:bg-red-700'
                               }`}
