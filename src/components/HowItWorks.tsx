@@ -72,8 +72,18 @@ const steps = [
 
 const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   const [progress, setProgress] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const ticking = useRef(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -117,7 +127,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   return (
     <section>
       {/* Scroll-driven steps — tall wrapper, sticky viewport */}
-      <div ref={sectionRef} className="relative" style={{ height: `${steps.length * 120}vh` }}>
+      <div ref={sectionRef} className="relative" style={{ height: `${steps.length * (isMobile ? 70 : 105)}vh` }}>
         <div className="sticky top-0 h-screen overflow-hidden flex flex-col">
 
           {/* Background gradient layers — continuous crossfade */}
@@ -138,17 +148,17 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
           })}
 
           {/* Static heading — stays fixed while steps change */}
-          <div className="relative pt-20 md:pt-28 pb-2 sm:pb-4 text-center px-4">
-            <h2 className="text-[28px] md:text-[36px] font-bold text-gray-900 mb-2 tracking-tight leading-tight">
+          <div className="relative pt-8 sm:pt-12 lg:pt-14 pb-2 sm:pb-3 text-center px-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1.5 sm:mb-2 tracking-tight leading-tight">
               Your Dream Job is Just <span className="text-orange-500">4 Steps</span> Away
             </h2>
-            <p className="text-gray-600 max-w-xl mx-auto text-sm leading-relaxed hidden sm:block">
+            <p className="text-gray-600 max-w-xl mx-auto text-xs sm:text-sm leading-relaxed hidden sm:block">
               Scroll to walk through your journey — watch every step come alive as you move.
             </p>
           </div>
 
           {/* Changing content — steps */}
-          <div className="relative flex-1 min-h-0 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:pr-48 pb-4 pt-10 lg:pt-0 flex items-start lg:items-center justify-center">
+          <div className="relative flex-1 min-h-0 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:pr-48 pb-4 pt-3 sm:pt-6 lg:pt-0 flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.div
                 key={active}
@@ -156,11 +166,11 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className="w-full grid lg:grid-cols-2 gap-2 md:gap-6 lg:gap-10 items-center transform scale-95 sm:scale-100 lg:scale-90 xl:scale-95 origin-top"
+                className="w-full grid lg:grid-cols-2 gap-4 md:gap-6 lg:gap-10 items-center transform scale-100 lg:scale-90 xl:scale-95 origin-top"
               >
 
               {/* Step indicator */}
-              <div className="flex items-center gap-3 lg:col-span-2">
+              <div className="flex items-center gap-2.5 sm:gap-3 lg:col-span-2">
                 <span className="text-gray-500 text-xs font-bold uppercase tracking-[0.2em]">
                   Step {step.id} / {steps.length}
                 </span>
@@ -175,45 +185,45 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
               </div>
 
               {/* Left — text */}
-              <div className="relative">
-                <span className="absolute -top-10 -left-3 lg:-left-8 text-[110px] lg:text-[170px] font-black text-blue-900/5 leading-none select-none pointer-events-none">
+              <div className="relative overflow-hidden sm:overflow-visible">
+                <span className="absolute -top-8 -left-2 lg:-left-6 text-[80px] sm:text-[110px] lg:text-[150px] font-black text-blue-900/5 leading-none select-none pointer-events-none">
                   {step.id}
                 </span>
 
-                <div className="relative flex items-start gap-4">
-                  <span className={`w-14 h-14 rounded-2xl ${step.chipBg} flex items-center justify-center text-xl font-black text-white shadow-lg shadow-black/10 ring-4 ring-white/70 flex-shrink-0`}>
+                <div className="relative flex items-start gap-3 sm:gap-4">
+                  <span className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl ${step.chipBg} flex items-center justify-center text-lg sm:text-xl font-black text-white shadow-lg shadow-black/10 ring-4 ring-white/70 flex-shrink-0`}>
                     {step.id}
                   </span>
-                  <div className="pt-1">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1">
+                  <div className="pt-0.5 sm:pt-1">
+                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-0.5 sm:mb-1">
                       Step {step.id}
                     </p>
-                    <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
+                    <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
                       {step.title}
                     </h3>
-                    <span className={`mt-2 block h-1 w-12 rounded-full bg-gradient-to-r ${step.chipBg} to-white/40`} />
+                    <span className={`mt-1.5 sm:mt-2 block h-1 w-10 sm:w-12 rounded-full bg-gradient-to-r ${step.chipBg} to-white/40`} />
                   </div>
                 </div>
 
-                <p className="relative mt-4 text-gray-600 text-base sm:text-lg leading-relaxed max-w-lg">
+                <p className="relative mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed max-w-lg">
                   {step.desc}
                 </p>
 
-                <ul className="relative mt-6 space-y-2">
+                <ul className="relative mt-4 sm:mt-6 space-y-1.5 sm:space-y-2">
                   {step.bullets.map((b) => (
                     <li
                       key={b}
-                      className="flex items-center gap-3 rounded-xl bg-white/70 border border-gray-100 shadow-sm px-4 py-2.5"
+                      className="flex items-center gap-2.5 sm:gap-3 rounded-xl bg-white/70 border border-gray-100 shadow-sm px-3 sm:px-4 py-2 sm:py-2.5"
                     >
-                      <span className={`w-5.5 h-5.5 min-w-[22px] min-h-[22px] rounded-full ${step.chipBg} flex items-center justify-center`}>
+                      <span className={`w-5 h-5 min-w-[20px] min-h-[20px] rounded-full ${step.chipBg} flex items-center justify-center`}>
                         <Check className="w-3 h-3 text-white" />
                       </span>
-                      <span className="text-sm sm:text-[15px] font-medium text-gray-800">{b}</span>
+                      <span className="text-xs sm:text-sm lg:text-[15px] font-medium text-gray-800">{b}</span>
                     </li>
                   ))}
                 </ul>
 
-                <div className="relative mt-7 flex items-center gap-4">
+                <div className="relative mt-5 sm:mt-7 flex items-center gap-3 sm:gap-4">
                   <WorkButton
                     size="md"
                     text={step.cta}
@@ -223,16 +233,16 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                     <button
                       onClick={() => scrollToStep(active - 1)}
                       aria-label="Previous step"
-                      className="w-10 h-10 rounded-full border border-gray-300 bg-white/70 backdrop-blur-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-300 bg-white/70 backdrop-blur-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                     <button
                       onClick={() => scrollToStep(active + 1)}
                       aria-label="Next step"
-                      className="w-10 h-10 rounded-full border border-gray-300 bg-white/70 backdrop-blur-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-300 bg-white/70 backdrop-blur-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 </div>
@@ -240,13 +250,11 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
 
               {/* Right — app window mockup with parallax */}
               <div
-                className="relative w-full max-w-lg justify-self-center lg:justify-self-end mt-4 md:mt-0"
+                className="hidden md:block relative w-full max-w-lg justify-self-center lg:justify-self-end mt-4 lg:mt-0"
                 style={{ transform: `translateY(${parallax}px)`, transition: 'transform 0.1s ease-out' }}
               >
-              <div className="transform scale-[0.75] sm:scale-[0.85] md:scale-100 origin-top">
+              <div className="transform scale-[0.75] sm:scale-[0.85] lg:scale-95 xl:scale-100 origin-top">
                 <div className="absolute -top-10 -left-6 w-44 h-44 bg-white/50 rounded-full blur-3xl" />
-
-
 
                 <div className="rounded-3xl bg-white ring-1 ring-black/5 shadow-2xl shadow-gray-300/60 overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100">

@@ -111,20 +111,20 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-16 sm:py-24 bg-[#FAFBFC] relative">
+    <section className="py-8 sm:py-12 lg:py-14 bg-[#FAFBFC] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4 tracking-tight">
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">
             Explore Jobs by <span className="text-orange-500">Category</span>
           </h2>
-          <p className="text-slate-500 text-[15px] sm:text-base max-w-xl mx-auto mb-6">
+          <p className="text-slate-500 text-sm sm:text-base max-w-xl mx-auto mb-3 sm:mb-4">
             Find your next opportunity across the industries hiring now.
           </p>
           <div className="w-8 h-[3px] bg-blue-600 mx-auto rounded-full" />
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {categories.map((cat) => {
             const Icon = cat.icon;
 
@@ -132,46 +132,41 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
               <div
                 key={cat.name}
                 onClick={() => handleCategoryClick(cat)}
-                className="group bg-white rounded-xl shadow-lg w-full cursor-pointer hover:shadow-xl hover:border-blue-100 transition-all duration-300 overflow-hidden min-h-[280px] flex flex-col"
+                className="group bg-white rounded-xl border border-gray-200/80 shadow-sm w-full cursor-pointer hover:shadow-xl hover:border-blue-200 transition-all duration-300 overflow-hidden flex flex-col justify-between"
               >
-                <header className="flex items-center px-5 py-4">
-                   <div className="flex items-center space-x-3">
-                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                       <Icon className="w-6 h-6 text-gray-700" strokeWidth={1.5} />
-                     </div>
-                     <div>
-                       <h2 className="text-sm font-semibold text-gray-900">
-                         {cat.name}
-                       </h2>
-                       <p className="text-[11px] text-gray-500">Explore Jobs</p>
-                     </div>
-                   </div>
-                 </header>
+                <div className="p-5">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 flex-shrink-0">
+                      <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+                    </div>
+                    <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
+                      Explore Jobs
+                    </span>
+                  </div>
 
-                 <section className="px-5 pb-3">
-                   <h3 className="text-xl font-bold text-gray-900 leading-tight mb-1">
-                     {cat.name}
-                   </h3>
-                 </section>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-tight mb-2 group-hover:text-blue-600 transition-colors">
+                    {cat.name}
+                  </h3>
 
-                 <section className="px-5 pb-3">
-                   <span className="px-3 py-1 bg-gray-100 rounded text-[12px] font-medium text-gray-800">
-                     {cat.desc}
-                   </span>
-                 </section>
+                  <span className="inline-block px-2.5 py-1 bg-gray-50 border border-gray-100 rounded text-xs font-medium text-gray-600">
+                    {cat.desc}
+                  </span>
+                </div>
 
-                 <footer className="mt-auto flex items-center justify-center px-5 py-3 pt-0">
-                   <button
-                     onClick={(e) => {
-                       e.stopPropagation();
-                       handleCategoryClick(cat);
-                     }}
-                     className="w-full px-4 py-2.5 bg-black text-white font-medium rounded-lg shadow-md hover:bg-gray-800 transition-colors duration-200 ease-in-out text-sm"
-                   >
-                     View Jobs
-                   </button>
-                 </footer>
-               </div>
+                <div className="px-5 pb-5 pt-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCategoryClick(cat);
+                    }}
+                    className="w-full px-4 py-2.5 bg-gray-900 text-white font-medium rounded-lg shadow-sm group-hover:bg-blue-600 transition-colors duration-200 text-sm flex items-center justify-center gap-2"
+                  >
+                    <span>View Jobs</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>
