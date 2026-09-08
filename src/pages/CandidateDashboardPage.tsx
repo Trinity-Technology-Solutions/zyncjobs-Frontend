@@ -5068,6 +5068,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <input
                   type="text"
+                  required
                   placeholder="Enter your key skills and press Enter"
                   className="w-full p-2 border-0 focus:outline-none"
                   onKeyDown={(e) => {
@@ -5174,6 +5175,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 <AutocompleteCombobox
                   className="w-full mb-4"
                   placeholder="Select Language"
+                  required
                   value=""
                   onChange={(val) => {
                     if (val) {
@@ -5306,6 +5308,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   onChange={(e) => setModalData(e.target.value)}
                   className="w-full p-3 border rounded-lg"
                   rows={6}
+                  minLength={10}
                   placeholder="Enter your education details"
                 />
               </div>
@@ -5372,6 +5375,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   onChange={(e) => setModalData(e.target.value)}
                   className="w-full p-3 border rounded-lg"
                   rows={6}
+                  minLength={50}
                   placeholder="Your Profile Summary should mention the highlights of your career and education..."
                 />
               </div>
@@ -5727,6 +5731,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <label className="block font-medium mb-2">Project name</label>
                   <input
                     type="text"
+                    required
                     value={modalData.projectName || ""}
                     onChange={(e) =>
                       setModalData({

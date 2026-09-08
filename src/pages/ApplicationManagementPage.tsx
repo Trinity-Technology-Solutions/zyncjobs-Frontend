@@ -1,4 +1,4 @@
-Ôªøimport React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -65,21 +65,21 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
           {new Date(appliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
         </p>
       )}
-      {/* Action buttons ‚Äî stop drag propagation */}
+      {/* Action buttons ó stop drag propagation */}
       <div className="flex flex-wrap gap-1" onPointerDown={e => e.stopPropagation()}>
         <button onClick={() => onViewProfile(application)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-50">
           Profile
         </button>
-        <span className="text-gray-300 text-xs">¬∑</span>
+        <span className="text-gray-300 text-xs">∑</span>
         <button onClick={() => onViewResume(application)} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1.5 py-0.5 rounded hover:bg-blue-50">
           Resume
         </button>
         {!isViewer && (<>
-        <span className="text-gray-300 text-xs">¬∑</span>
+        <span className="text-gray-300 text-xs">∑</span>
         <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
           Interview
         </button>
-        <span className="text-gray-300 text-xs">¬∑</span>
+        <span className="text-gray-300 text-xs">∑</span>
         <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
           Delete
         </button>
@@ -294,7 +294,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     const knownSkills = [...new Set([...candidateSkills, ...foundInText])];
     const hasSkillData = knownSkills.length > 0 || textBlob.trim().length > 30;
 
-    // Skills score (50%) ‚Äî matched / jobSkills
+    // Skills score (50%) ó matched / jobSkills
     let skillScore: number;
     if (normalizedJobSkills.length > 0 && knownSkills.length > 0) {
       const matched = normalizedJobSkills.filter(js =>
@@ -304,11 +304,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     } else if (knownSkills.length > 0) {
       skillScore = Math.min(90, knownSkills.length * 9);
     } else {
-      // No skill data at all ‚Äî neutral, never 0 (prevents unfair auto-rejects)
+      // No skill data at all ó neutral, never 0 (prevents unfair auto-rejects)
       skillScore = 45;
     }
 
-    // Experience score (25%) ‚Äî neutral when unknown, never 20
+    // Experience score (25%) ó neutral when unknown, never 20
     const rawExp = app.candidateExperience ?? app.experience ?? app.yearsOfExperience ?? '';
     const expYears = typeof rawExp === 'number' ? rawExp : parseFloat(String(rawExp).match(/(\d+\.?\d*)/)?.[1] || '0');
     const hasExpData = !!rawExp && String(rawExp).trim().length > 0;
@@ -324,7 +324,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   };
 
   const deriveStatus = (score: number, ai: any, hasSkillData: boolean) => {
-    // When the AI responded, trust its recommendation ‚Äî but a "reject" must be
+    // When the AI responded, trust its recommendation ó but a "reject" must be
     // backed by a clearly low score; borderline rejections go to Screening.
     if (ai?.matchScore != null && ai?.recommendation) {
       if (ai.recommendation === 'strong') return 'shortlisted';
@@ -355,7 +355,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
     const jobDesc = jobDescription || `Job skills: ${skills.join(', ')}`;
 
-    // Real AI ranking ‚Äî one batched call to the AI service (/ai/recruiter/candidates/rank)
+    // Real AI ranking ó one batched call to the AI service (/ai/recruiter/candidates/rank)
     let ranked: RecruiterCandidate[] = [];
     setAiFailed(false);
     try {
@@ -530,7 +530,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             <BackButton fallback="/job-management" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} ‚Äî Pipeline
+                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} ó Pipeline
               </h1>
               <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
             </div>
@@ -587,7 +587,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         {applications.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">üìã</div>
+            <div className="text-6xl mb-4">??</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
             <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
             <button onClick={() => fetchApplications()} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
@@ -629,11 +629,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
               <button onClick={() => setAiPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 bg-indigo-50 border-b text-sm text-indigo-700">
-              {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found ‚Äî using profile completeness'}
+              {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found ó using profile completeness'}
             </div>
             {aiFailed && (
               <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
-                ‚ö†Ô∏è AI scoring service is unavailable ‚Äî scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
+                ?? AI scoring service is unavailable ó scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
               </div>
             )}
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
@@ -654,7 +654,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
               ))}
             </div>
             <div className="p-4 border-t flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">‚úÖ {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted &nbsp; üî∂ {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed &nbsp; ‚ùå {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
+              <div className="text-xs text-gray-500">? {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted &nbsp; ?? {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed &nbsp; ? {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
               <div className="flex gap-2">
                 <button onClick={() => setAiPreview(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                 <button onClick={confirmAIShortlist} disabled={aiRunning} className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2">
