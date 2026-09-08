@@ -879,7 +879,7 @@ function App() {
              } />
 
             <Route path="/my-jobs" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
                 <>
                   <Header {...nav} />
                   <MyJobsPage {...nav} />

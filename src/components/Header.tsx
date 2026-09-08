@@ -32,6 +32,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [isScrolled, setIsScrolled] = useState(true); // Default to light header
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+  const profilePanelRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -136,6 +137,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (profilePanelRef.current && profilePanelRef.current.contains(event.target as Node)) {
+        return;
+      }
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
@@ -633,8 +637,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     {/* Profile Panel - outside <header> to avoid backdrop-filter stacking context clipping */}
     {isDropdownOpen && user && (
       <>
-        <div className="fixed inset-0 z-[9998] bg-black bg-opacity-50" onClick={() => setIsDropdownOpen(false)} />
-        <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-2xl z-[9999] flex flex-col">
+        <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50" onClick={() => setIsDropdownOpen(false)} />
+        <div ref={profilePanelRef} className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-2xl z-[10000] flex flex-col">
           <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
             <button onClick={() => setIsDropdownOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label="Close profile panel">
@@ -756,7 +760,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             </button>
           </div>
         </div>
-        <div className="fixed inset-0 z-[9998] bg-black bg-opacity-50" onClick={() => setIsDropdownOpen(false)} />
       </>
     )}
     <MobileHamburgerMenu 
