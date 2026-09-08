@@ -1,14 +1,12 @@
 import React from 'react';
 import { ResumeData } from '../../store/useResumeStore';
 
-// summary can be a string (legacy) or string[] (new multi-point)
-
-function eduDegrees(edu: any): string {
-  if (edu.ugDegree && edu.pgDegree) return `${edu.ugDegree}, ${edu.pgDegree}`;
-  if (edu.ugDegree) return edu.ugDegree;
-  if (edu.pgDegree) return edu.pgDegree;
-  return edu.degree || '';
-}
+import {
+  formatEducationSubtitle,
+  formatEducationDegreeLabel,
+  formatEducationMeta,
+  formatGrade,
+} from '../../utils/educationFormatter';
 function SummaryContent({ summary, style }: { summary: any; style?: React.CSSProperties }) {
   const points: string[] = Array.isArray(summary)
     ? summary.filter(Boolean)
@@ -65,16 +63,32 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
       },
       (data.education || []).length > 0 && {
         label: 'Education', content: (
-          <>{data.education.map(edu => (
-            <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-              <div>
-                <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{eduDegrees(edu)}</span>
-                {edu.institution && <span style={{ fontSize: 12, color: '#555' }}> — {edu.institution}</span>}
-                {edu.grade && <span style={{ fontSize: 11, color: '#777' }}> | {edu.grade}</span>}
+          <>{data.education.map(edu => {
+            const institution = formatEducationSubtitle(edu);
+            const degree = formatEducationDegreeLabel(edu);
+            const meta = formatEducationMeta(edu);
+            const grade = formatGrade(edu.grade);
+            return (
+              <div key={edu.id} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a' }}>{institution || degree}</span>
+                  <span style={{ fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>{edu.duration}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 1 }}>
+                  <span style={{ fontSize: 12, color: '#333' }}>
+                    {institution ? degree : ''}
+                    {meta && <span style={{ color: '#666', fontSize: 11 }}> — {meta}</span>}
+                  </span>
+                  {grade && <span style={{ fontSize: 11, color: '#555', fontWeight: 500 }}>{grade}</span>}
+                </div>
+                {edu.description && (
+                  <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+                    {edu.description}
+                  </div>
+                )}
               </div>
-              <span style={{ fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>{edu.duration}</span>
-            </div>
-          ))}</>
+            );
+          })}</>
         )
       },
     ].filter(Boolean).map((sec: any, i) => (
@@ -179,16 +193,32 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
     )}
     {(data.education || []).length > 0 && (
       <Section label="Education">
-        {data.education.map(edu => (
-          <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-            <div>
-              <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{eduDegrees(edu)}</span>
-              {edu.institution && <span style={{ fontSize: 12, color: '#555' }}> · {edu.institution}</span>}
-              {edu.grade && <span style={{ fontSize: 11, color: '#777' }}> · {edu.grade}</span>}
+        {data.education.map(edu => {
+          const institution = formatEducationSubtitle(edu);
+          const degree = formatEducationDegreeLabel(edu);
+          const meta = formatEducationMeta(edu);
+          const grade = formatGrade(edu.grade);
+          return (
+            <div key={edu.id} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 600, fontSize: 12.5, color: '#1a1a1a' }}>{institution || degree}</span>
+                <span style={{ fontSize: 11.5, color: '#777' }}>{edu.duration}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 1 }}>
+                <span style={{ fontSize: 12, color: '#444' }}>
+                  {institution ? degree : ''}
+                  {meta && <span style={{ color: '#666', fontSize: 11 }}> · {meta}</span>}
+                </span>
+                {grade && <span style={{ fontSize: 11, color: '#555', fontWeight: 500 }}>{grade}</span>}
+              </div>
+              {edu.description && (
+                <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+                  {edu.description}
+                </div>
+              )}
             </div>
-            <span style={{ fontSize: 12, color: '#777' }}>{edu.duration}</span>
-          </div>
-        ))}
+          );
+        })}
       </Section>
     )}
     {data.certifications?.length > 0 && (
@@ -271,12 +301,32 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
       },
       (data.education || []).length > 0 && {
         label: 'Education', body: (
-          <>{data.education.map(edu => (
-            <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-              <span style={{ fontSize: 12, color: '#333' }}>{eduDegrees(edu)}{edu.institution ? `, ${edu.institution}` : ''}</span>
-              <span style={{ fontSize: 12, color: '#999' }}>{edu.duration}</span>
-            </div>
-          ))}</>
+          <>{data.education.map(edu => {
+            const institution = formatEducationSubtitle(edu);
+            const degree = formatEducationDegreeLabel(edu);
+            const meta = formatEducationMeta(edu);
+            const grade = formatGrade(edu.grade);
+            return (
+              <div key={edu.id} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{institution || degree}</span>
+                  <span style={{ fontSize: 11.5, color: '#999' }}>{edu.duration}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 1 }}>
+                  <span style={{ fontSize: 11.5, color: '#444' }}>
+                    {institution ? degree : ''}
+                    {meta && <span style={{ color: '#777' }}> — {meta}</span>}
+                  </span>
+                  {grade && <span style={{ fontSize: 11, color: '#666' }}>{grade}</span>}
+                </div>
+                {edu.description && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 2, lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+                    {edu.description}
+                  </div>
+                )}
+              </div>
+            );
+          })}</>
         )
       },
       data.certifications?.length > 0 && {
@@ -391,16 +441,32 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
     )}
     {(data.education || []).length > 0 && (
       <ExecSection label="Education & Credentials">
-        {data.education.map(edu => (
-          <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-            <div>
-              <span style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{eduDegrees(edu)}</span>
-              {edu.institution && <span style={{ fontSize: 12, color: '#555' }}> · {edu.institution}</span>}
-              {edu.grade && <span style={{ fontSize: 11, color: '#777' }}> · {edu.grade}</span>}
+        {data.education.map(edu => {
+          const institution = formatEducationSubtitle(edu);
+          const degree = formatEducationDegreeLabel(edu);
+          const meta = formatEducationMeta(edu);
+          const grade = formatGrade(edu.grade);
+          return (
+            <div key={edu.id} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 700, fontSize: 12.5, color: '#1a1a1a' }}>{institution || degree}</span>
+                <span style={{ fontSize: 11.5, color: '#777' }}>{edu.duration}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 1 }}>
+                <span style={{ fontSize: 12, color: '#333' }}>
+                  {institution ? degree : ''}
+                  {meta && <span style={{ color: '#666', fontSize: 11 }}> · {meta}</span>}
+                </span>
+                {grade && <span style={{ fontSize: 11, color: '#555', fontWeight: 600 }}>{grade}</span>}
+              </div>
+              {edu.description && (
+                <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+                  {edu.description}
+                </div>
+              )}
             </div>
-            <span style={{ fontSize: 12, color: '#777' }}>{edu.duration}</span>
-          </div>
-        ))}
+          );
+        })}
       </ExecSection>
     )}
     {data.certifications?.length > 0 && (
@@ -488,12 +554,32 @@ const CompactTemplate = ({ data }: { data: ResumeData }) => (
     )}
     {(data.education || []).length > 0 && (
       <CompactSection label="Education">
-        {data.education.map(edu => (
-          <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-            <span style={{ fontWeight: 600, color: '#333' }}>{eduDegrees(edu)}{edu.institution ? ` | ${edu.institution}` : ''}{edu.grade ? ` | ${edu.grade}` : ''}</span>
-            <span style={{ color: '#777' }}>{edu.duration}</span>
-          </div>
-        ))}
+        {data.education.map(edu => {
+          const institution = formatEducationSubtitle(edu);
+          const degree = formatEducationDegreeLabel(edu);
+          const meta = formatEducationMeta(edu);
+          const grade = formatGrade(edu.grade);
+          return (
+            <div key={edu.id} style={{ marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 600, fontSize: 11.5, color: '#222' }}>{institution || degree}</span>
+                <span style={{ fontSize: 11, color: '#777' }}>{edu.duration}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 11, color: '#444' }}>
+                  {institution ? degree : ''}
+                  {meta && <span style={{ color: '#666' }}> ({meta})</span>}
+                </span>
+                {grade && <span style={{ fontSize: 10.5, color: '#666' }}>{grade}</span>}
+              </div>
+              {edu.description && (
+                <div style={{ fontSize: 10.5, color: '#555', marginTop: 1, lineHeight: 1.35, whiteSpace: 'pre-line' }}>
+                  {edu.description}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </CompactSection>
     )}
     {data.certifications?.length > 0 && (
@@ -563,14 +649,28 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
       )}
       {(data.education || []).length > 0 && (
         <SideSection label="Education" color="#94a3b8" borderColor="#334155">
-          {data.education.map(edu => (
-            <div key={edu.id} style={{ marginBottom: 8 }}>
-              <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{eduDegrees(edu)}</div>
-              {edu.institution && <div style={{ color: '#94a3b8' }}>{edu.institution}</div>}
-              {edu.duration && <div style={{ color: '#64748b' }}>{edu.duration}</div>}
-              {edu.grade && <div style={{ color: '#64748b' }}>{edu.grade}</div>}
-            </div>
-          ))}
+          {data.education.map(edu => {
+            const institution = formatEducationSubtitle(edu);
+            const degree = formatEducationDegreeLabel(edu);
+            const meta = formatEducationMeta(edu);
+            const grade = formatGrade(edu.grade);
+            return (
+              <div key={edu.id} style={{ marginBottom: 9 }}>
+                <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{institution || degree}</div>
+                {institution && <div style={{ color: '#cbd5e1', fontSize: 11.5 }}>{degree}</div>}
+                {meta && <div style={{ color: '#94a3b8', fontSize: 10.5 }}>{meta}</div>}
+                <div style={{ color: '#64748b', fontSize: 11, marginTop: 1, display: 'flex', justifyContent: 'space-between' }}>
+                  {edu.duration && <span>{edu.duration}</span>}
+                  {grade && <span>{grade}</span>}
+                </div>
+                {edu.description && (
+                  <div style={{ color: '#94a3b8', fontSize: 10.5, marginTop: 2, lineHeight: 1.35, whiteSpace: 'pre-line' }}>
+                    {edu.description}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </SideSection>
       )}
       {data.certifications?.length > 0 && (

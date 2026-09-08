@@ -44,10 +44,12 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function eduDegree(edu: any): string {
-  if (edu.ugDegree && edu.pgDegree) return `${edu.ugDegree}, ${edu.pgDegree}`;
-  return edu.ugDegree || edu.pgDegree || edu.degree || '';
-}
+import {
+  formatEducationSubtitle,
+  formatEducationDegreeLabel,
+  formatEducationMeta,
+  formatGrade,
+} from '../../utils/educationFormatter';
 
 export default function ResumePDFDocument({ data }: { data: ResumeData }) {
   const n = data.personalInfo;
@@ -98,12 +100,30 @@ export default function ResumePDFDocument({ data }: { data: ResumeData }) {
         {/* Education */}
         {data.education.length > 0 && (
           <Section label="Education">
-            {data.education.map(edu => (
-              <View key={edu.id} style={[s.row, s.mb4]}>
-                <Text style={s.bold}>{eduDegree(edu)}{edu.institution ? ` — ${edu.institution}` : ''}{edu.grade ? `  |  ${edu.grade}` : ''}</Text>
-                <Text style={s.muted}>{edu.duration}</Text>
-              </View>
-            ))}
+            {data.education.map(edu => {
+              const institution = formatEducationSubtitle(edu);
+              const degree = formatEducationDegreeLabel(edu);
+              const meta = formatEducationMeta(edu);
+              const grade = formatGrade(edu.grade);
+              return (
+                <View key={edu.id} style={s.mb4}>
+                  <View style={s.row}>
+                    <Text style={s.bold}>{institution || degree}</Text>
+                    <Text style={s.muted}>{edu.duration}</Text>
+                  </View>
+                  <View style={s.row}>
+                    <Text style={{ fontSize: 9, color: '#333' }}>
+                      {institution ? degree : ''}
+                      {meta ? `  —  ${meta}` : ''}
+                    </Text>
+                    {grade ? <Text style={s.muted}>{grade}</Text> : null}
+                  </View>
+                  {edu.description ? (
+                    <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text>
+                  ) : null}
+                </View>
+              );
+            })}
           </Section>
         )}
 

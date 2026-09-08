@@ -32,6 +32,16 @@ import WelcomeWizard from '../components/resume-builder/WelcomeWizard';
 import RightPanel from '../components/resume-builder/RightPanel';
 import { useResumeStore, ResumeData } from '../store/useResumeStore';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import {
+  normalizeEducationItems,
+  formatEducationSummary,
+  classifyEducationLevel,
+  formatEducationSubtitle,
+  formatEducationDegreeLabel,
+  formatEducationMeta,
+  formatEducationDateGrade,
+  formatGrade,
+} from '../utils/educationFormatter';
 
 interface Props {
   onNavigate?: (page: string) => void;
@@ -183,10 +193,21 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   // Push history on data changes (debounced)
   const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevDataForHistory = useRef<string | null>(null);
+  // Flag to skip snapshotting data changes caused by undo/redo themselves
+  const skipNextSnapshot = useRef(false);
+
+  // Capture initial baseline snapshot on mount
+  useEffect(() => {
+    pushHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (prevDataForHistory.current === null) { prevDataForHistory.current = dataHash; return; }
     if (dataHash === prevDataForHistory.current) return;
     prevDataForHistory.current = dataHash;
+    // If this change was caused by an undo/redo operation, don't snapshot it
+    if (skipNextSnapshot.current) { skipNextSnapshot.current = false; return; }
     if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
     historyDebounceRef.current = setTimeout(() => { pushHistory(); }, 1500);
     return () => { if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current); };
@@ -245,6 +266,9 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   useEffect(() => {
     const saved = loadVersionData(activeVersion);
     if (saved && JSON.stringify(saved) !== JSON.stringify(data)) {
+      if (Array.isArray(saved.education)) {
+        saved.education = normalizeEducationItems(saved.education);
+      }
       Object.keys(saved).forEach((k) => update(k as any, saved[k]));
     }
   }, []);
@@ -321,13 +345,17 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         if (p.educationCollege && typeof p.educationCollege === 'object') {
           const ec = p.educationCollege;
           if (ec.college || ec.degree) {
+            const level = classifyEducationLevel(ec.degree, ec.college);
             eduItems.push({
               id: Date.now().toString() + 'edu1',
-              degree: ec.degree || '',
+              level: level === '10th' || level === '12th' ? 'ug' : level,
+              degree: ec.degree || (level === 'pg' ? 'Postgraduate Degree' : 'Undergraduate Degree'),
+              fieldOfStudy: ec.stream || '',
+              board: '',
               institution: ec.college || '',
               location: '',
-              duration: ec.passingYear ? `– ${ec.passingYear}` : '',
-              grade: ec.percentage ? `${ec.percentage}%` : '',
+              duration: ec.passingYear ? (ec.startYear ? `${ec.startYear} – ${ec.passingYear}` : String(ec.passingYear)) : '',
+              grade: ec.percentage ? (String(ec.percentage).includes('%') || String(ec.percentage).toLowerCase().includes('cgpa') ? String(ec.percentage) : `${ec.percentage}%`) : '',
             });
           }
         }
@@ -335,23 +363,33 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           const e12 = typeof p.educationClass12 === 'string' ? JSON.parse(p.educationClass12) : p.educationClass12;
           eduItems.push({
             id: Date.now().toString() + 'edu2',
-            degree: 'Class XII',
+            level: '12th',
+            degree: '12th / Higher Secondary',
+            board: e12.board || '',
+            fieldOfStudy: e12.stream || '',
             institution: e12.school || e12.board || '',
             location: '',
-            duration: e12.year ? `– ${e12.year}` : '',
-            grade: e12.percentage ? `${e12.percentage}%` : '',
+            duration: e12.year ? String(e12.year) : (e12.passingYear ? String(e12.passingYear) : ''),
+            grade: e12.percentage ? (String(e12.percentage).includes('%') ? String(e12.percentage) : `${e12.percentage}%`) : '',
           });
         }
         if (p.educationClass10 && (p.educationClass10.school || p.educationClass10.board)) {
           const e10 = typeof p.educationClass10 === 'string' ? JSON.parse(p.educationClass10) : p.educationClass10;
           eduItems.push({
             id: Date.now().toString() + 'edu3',
-            degree: 'Class X',
+            level: '10th',
+            degree: '10th / Secondary',
+            board: e10.board || '',
+            fieldOfStudy: '',
             institution: e10.school || e10.board || '',
             location: '',
-            duration: e10.year ? `– ${e10.year}` : '',
-            grade: e10.percentage ? `${e10.percentage}%` : '',
+            duration: e10.year ? String(e10.year) : (e10.passingYear ? String(e10.passingYear) : ''),
+            grade: e10.percentage ? (String(e10.percentage).includes('%') ? String(e10.percentage) : `${e10.percentage}%`) : '',
           });
+        }
+        if (eduItems.length === 0 && p.education && typeof p.education === 'string') {
+          const normalized = normalizeEducationItems([{ degree: p.education, institution: '' }]);
+          if (normalized.length > 0) eduItems.push(...normalized);
         }
         if (eduItems.length > 0) update('education', eduItems);
 
@@ -450,7 +488,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const jobTitle = selectedJob.title || selectedJob.jobTitle || '';
       const candidateSkills = data.skills;
       const expText = data.experience.map(e => `${e.title} at ${e.company}${e.duration ? ` (${e.duration})` : ''}`).join('; ');
-      const eduText = data.education.map(e => `${e.degree} at ${e.institution}`).join('; ');
+      const eduText = data.education.map(e => formatEducationSummary(e)).join('; ');
       if (candidateEmail) {
         try {
           await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
@@ -636,14 +674,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         })));
       }
       if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
-        update('education', parsed.educations.map((e: any) => ({
-          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          degree: e.degree || e.qualification || '',
-          institution: e.school || e.institution || e.college || e.university || '',
-          location: e.location || '',
-          duration: e.date || e.duration || `${e.startYear || ''} – ${e.endYear || e.passingYear || ''}`.trim(),
-          grade: e.grade || e.percentage || e.cgpa || '',
-        })));
+        update('education', normalizeEducationItems(parsed.educations));
       }
       if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
         update('projects', parsed.projects.map((p: any) => ({
@@ -795,8 +826,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       if (data.education.length > 0) {
         children.push(mkHeading('Education'));
         data.education.forEach(edu => {
-          const deg = edu.ugDegree || edu.pgDegree || edu.degree || '';
-          children.push(mkPara(`${deg}${edu.institution ? ` — ${edu.institution}` : ''}${edu.duration ? `  |  ${edu.duration}` : ''}${edu.grade ? `  |  ${edu.grade}` : ''}`));
+          children.push(mkPara(formatEducationSummary(edu)));
+          if (edu.description?.trim()) {
+            children.push(mkPara(edu.description.trim(), { color: '555555' }));
+          }
         });
       }
       if (data.certifications.length > 0) {
@@ -1210,7 +1243,13 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"
+          <button onClick={() => {
+            // Cancel any pending debounced snapshot before undoing,
+            // then set flag so the resulting data change is not re-snapshotted.
+            if (historyDebounceRef.current) { clearTimeout(historyDebounceRef.current); historyDebounceRef.current = null; }
+            skipNextSnapshot.current = true;
+            undo();
+          }} disabled={!canUndo} title="Undo (Ctrl+Z)"
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
               canUndo
                 ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
@@ -1219,7 +1258,13 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             <Undo2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Undo</span>
           </button>
-          <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"
+          <button onClick={() => {
+            // Cancel any pending debounced snapshot before redoing,
+            // then set flag so the resulting data change is not re-snapshotted.
+            if (historyDebounceRef.current) { clearTimeout(historyDebounceRef.current); historyDebounceRef.current = null; }
+            skipNextSnapshot.current = true;
+            redo();
+          }} disabled={!canRedo} title="Redo (Ctrl+Y)"
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
               canRedo
                 ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
@@ -1661,7 +1706,22 @@ function sanitizeText(s: any): string {
 function buildResumeHTML(data: ResumeData): string {
   const n = data.personalInfo;
   const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${sanitizeText(e.title)}</b> at <b>${sanitizeText(e.company)}</b>${e.duration ? ` — ${sanitizeText(e.duration)}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
-  const edu = data.education.map(e => `<div>${sanitizeText(e.degree)} at ${sanitizeText(e.institution)}${e.duration ? ` — ${sanitizeText(e.duration)}` : ''}</div>`).join('');
+  const edu = data.education.map(e => {
+    const institution = sanitizeText(formatEducationSubtitle(e));
+    const degree = sanitizeText(formatEducationDegreeLabel(e));
+    const meta = sanitizeText(formatEducationMeta(e));
+    return `<div style="margin-bottom:8px">` +
+      `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
+        `<b>${institution || degree}</b>` +
+        (e.duration ? `<span style="color:#6b7280;font-size:12px">${sanitizeText(e.duration)}</span>` : '') +
+      `</div>` +
+      `<div style="display:flex;justify-content:space-between;align-items:baseline;color:#4b5563;font-size:13px">` +
+        `<span>${institution ? degree : ''}${meta ? ` (${meta})` : ''}</span>` +
+        (e.grade ? `<span style="color:#4b5563;font-size:12px">${sanitizeText(formatGrade(e.grade))}</span>` : '') +
+      `</div>` +
+      (e.description ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;white-space:pre-line">${sanitizeText(e.description)}</div>` : '') +
+    `</div>`;
+  }).join('');
   const certs = data.certifications.map(c => `<div>${sanitizeText(c.name)} — ${sanitizeText(c.issuer)}${c.year ? ` (${sanitizeText(c.year)})` : ''}</div>`).join('');
   const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${sanitizeText(p.name)}</b>${p.role ? ` — ${sanitizeText(p.role)}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
   const langs = data.languages.map(l => `<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px">${sanitizeText(l.language)} (${sanitizeText(l.proficiency)})</span>`).join('');
