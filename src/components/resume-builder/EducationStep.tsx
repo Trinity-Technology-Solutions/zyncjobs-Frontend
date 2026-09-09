@@ -4,6 +4,8 @@ import { useResumeStore, EducationLevel, EducationItem } from '../../store/useRe
 import { executeResumeAI } from '../../services/resumeAIClient';
 import { classifyEducationLevel, getEducationLevelLabel } from '../../utils/educationFormatter';
 import { ph } from '../../utils/goalPlaceholders';
+import { validateOrgName, validateJobTitle, validateDuration, validateGrade } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 const QUICK_UG = ['B.E Computer Science', 'B.Tech IT', 'B.Sc Computer Science', 'BCA', 'B.Com', 'BBA', 'B.E Mechanical'];
 const QUICK_PG = ['MCA', 'M.Tech', 'MBA', 'M.Sc Computer Science', 'M.Com', 'M.S.'];
@@ -15,6 +17,42 @@ const LEVEL_OPTIONS: { value: EducationLevel; label: string }[] = [
   { value: 'pg', label: 'Postgraduate (PG)' },
   { value: 'other', label: 'Other / Diploma' },
 ];
+
+interface EduInputProps {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  value: string;
+  onCommit: (val: string) => void;
+  validator?: (val: string) => string | null;
+  placeholder: string;
+  className?: string;
+}
+
+function EduInput({
+  label,
+  required,
+  hint,
+  value,
+  onCommit,
+  validator,
+  placeholder,
+  className,
+}: EduInputProps) {
+  return (
+    <ValidatedInput
+      label={label}
+      required={required}
+      hint={hint}
+      value={value}
+      onCommit={onCommit}
+      validator={validator}
+      placeholder={placeholder}
+      className={className}
+      labelClassName="block text-xs font-medium text-gray-700 mb-1"
+    />
+  );
+}
 
 export default function EducationStep() {
   const { data, addEducation, updateEducation, removeEducation } = useResumeStore();
@@ -63,68 +101,44 @@ export default function EducationStep() {
         return (
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  School Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.institution || ''}
-                  onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
-                  placeholder="e.g. St. Xavier's High School"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Board / Examination
-                </label>
-                <input
-                  type="text"
-                  value={edu.board || ''}
-                  onChange={e => updateEducation(edu.id, 'board', e.target.value)}
-                  placeholder="e.g. CBSE, ICSE, State Board, SSC"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="School Name"
+                required
+                value={edu.institution || ''}
+                onCommit={v => updateEducation(edu.id, 'institution', v)}
+                validator={validateOrgName}
+                placeholder="e.g. St. Xavier's High School"
+              />
+              <EduInput
+                label="Board / Examination"
+                value={edu.board || ''}
+                onCommit={v => updateEducation(edu.id, 'board', v)}
+                validator={validateOrgName}
+                placeholder="e.g. CBSE, ICSE, State Board, SSC"
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Passing Year
-                </label>
-                <input
-                  type="text"
-                  value={edu.duration || ''}
-                  onChange={e => updateEducation(edu.id, 'duration', e.target.value)}
-                  placeholder="e.g. 2018"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Percentage / CGPA
-                </label>
-                <input
-                  type="text"
-                  value={edu.grade || ''}
-                  onChange={e => updateEducation(edu.id, 'grade', e.target.value)}
-                  placeholder="e.g. 88% or 9.0 CGPA"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Location <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.location || ''}
-                  onChange={e => updateEducation(edu.id, 'location', e.target.value)}
-                  placeholder="e.g. Mumbai, India"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Passing Year"
+                value={edu.duration || ''}
+                onCommit={v => updateEducation(edu.id, 'duration', v)}
+                validator={validateDuration}
+                placeholder="e.g. 2018"
+              />
+              <EduInput
+                label="Percentage / CGPA"
+                value={edu.grade || ''}
+                onCommit={v => updateEducation(edu.id, 'grade', v)}
+                validator={validateGrade}
+                placeholder="e.g. 88% or 9.0 CGPA"
+              />
+              <EduInput
+                label="Location"
+                hint="(optional)"
+                value={edu.location || ''}
+                onCommit={v => updateEducation(edu.id, 'location', v)}
+                placeholder="e.g. Mumbai, India"
+              />
             </div>
           </div>
         );
@@ -133,80 +147,45 @@ export default function EducationStep() {
         return (
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  School / Junior College <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.institution || ''}
-                  onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
-                  placeholder="e.g. Delhi Public School"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Board / Examination
-                </label>
-                <input
-                  type="text"
-                  value={edu.board || ''}
-                  onChange={e => updateEducation(edu.id, 'board', e.target.value)}
-                  placeholder="e.g. CBSE, ISC, State Board, HSC"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Stream / Group
-                </label>
-                <input
-                  type="text"
-                  value={edu.fieldOfStudy || ''}
-                  onChange={e => updateEducation(edu.id, 'fieldOfStudy', e.target.value)}
-                  placeholder="e.g. Science (PCM), Commerce, Arts"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="School / Junior College"
+                required
+                className="md:col-span-2"
+                value={edu.institution || ''}
+                onCommit={v => updateEducation(edu.id, 'institution', v)}
+                validator={validateOrgName}
+                placeholder="e.g. Delhi Public School"
+              />
+              <EduInput
+                label="Board / Examination"
+                value={edu.board || ''}
+                onCommit={v => updateEducation(edu.id, 'board', v)}
+                validator={validateOrgName}
+                placeholder="e.g. CBSE, ISC, State Board, HSC"
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Passing Year
-                </label>
-                <input
-                  type="text"
-                  value={edu.duration || ''}
-                  onChange={e => updateEducation(edu.id, 'duration', e.target.value)}
-                  placeholder="e.g. 2020"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Percentage / CGPA
-                </label>
-                <input
-                  type="text"
-                  value={edu.grade || ''}
-                  onChange={e => updateEducation(edu.id, 'grade', e.target.value)}
-                  placeholder="e.g. 91% or 9.1 CGPA"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Location <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.location || ''}
-                  onChange={e => updateEducation(edu.id, 'location', e.target.value)}
-                  placeholder="e.g. New Delhi, India"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Stream / Group"
+                value={edu.fieldOfStudy || ''}
+                onCommit={v => updateEducation(edu.id, 'fieldOfStudy', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. Science (PCM), Commerce, Arts"
+              />
+              <EduInput
+                label="Passing Year"
+                value={edu.duration || ''}
+                onCommit={v => updateEducation(edu.id, 'duration', v)}
+                validator={validateDuration}
+                placeholder="e.g. 2020"
+              />
+              <EduInput
+                label="Percentage / CGPA"
+                value={edu.grade || ''}
+                onCommit={v => updateEducation(edu.id, 'grade', v)}
+                validator={validateGrade}
+                placeholder="e.g. 91% or 9.1 CGPA"
+              />
             </div>
           </div>
         );
@@ -215,30 +194,22 @@ export default function EducationStep() {
         return (
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  College / University <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.institution || ''}
-                  onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
-                  placeholder={ph(goal, 'institution') || 'e.g. Anna University'}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Location <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.location || ''}
-                  onChange={e => updateEducation(edu.id, 'location', e.target.value)}
-                  placeholder="e.g. Chennai, India"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="College / University"
+                required
+                className="md:col-span-2"
+                value={edu.institution || ''}
+                onCommit={v => updateEducation(edu.id, 'institution', v)}
+                validator={validateOrgName}
+                placeholder={ph(goal, 'institution') || 'e.g. Anna University'}
+              />
+              <EduInput
+                label="Location"
+                hint="(optional)"
+                value={edu.location || ''}
+                onCommit={v => updateEducation(edu.id, 'location', v)}
+                placeholder="e.g. Chennai, India"
+              />
             </div>
 
             {!edu.degree && (
@@ -258,57 +229,39 @@ export default function EducationStep() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Undergraduate Degree <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.degree || ''}
-                  onChange={e => updateEducation(edu.id, 'degree', e.target.value)}
-                  placeholder="e.g. B.Tech, B.E., B.Sc, BCA, B.Com"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Field of Study / Major <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.fieldOfStudy || ''}
-                  onChange={e => updateEducation(edu.id, 'fieldOfStudy', e.target.value)}
-                  placeholder="e.g. Computer Science & Engineering"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Undergraduate Degree"
+                required
+                value={edu.degree || ''}
+                onCommit={v => updateEducation(edu.id, 'degree', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. B.Tech, B.E., B.Sc, BCA, B.Com"
+              />
+              <EduInput
+                label="Field of Study / Major"
+                hint="(optional)"
+                value={edu.fieldOfStudy || ''}
+                onCommit={v => updateEducation(edu.id, 'fieldOfStudy', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. Computer Science & Engineering"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Duration / Years
-                </label>
-                <input
-                  type="text"
-                  value={edu.duration || ''}
-                  onChange={e => updateEducation(edu.id, 'duration', e.target.value)}
-                  placeholder="e.g. 2018 – 2022"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  CGPA / Percentage
-                </label>
-                <input
-                  type="text"
-                  value={edu.grade || ''}
-                  onChange={e => updateEducation(edu.id, 'grade', e.target.value)}
-                  placeholder="e.g. 8.5 CGPA or 85%"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Duration / Years"
+                value={edu.duration || ''}
+                onCommit={v => updateEducation(edu.id, 'duration', v)}
+                validator={validateDuration}
+                placeholder="e.g. 2018 – 2022"
+              />
+              <EduInput
+                label="CGPA / Percentage"
+                value={edu.grade || ''}
+                onCommit={v => updateEducation(edu.id, 'grade', v)}
+                validator={validateGrade}
+                placeholder="e.g. 8.5 CGPA or 85%"
+              />
             </div>
           </div>
         );
@@ -317,30 +270,22 @@ export default function EducationStep() {
         return (
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  University / Institute <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.institution || ''}
-                  onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
-                  placeholder="e.g. IIT Madras, IIM Bangalore"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Location <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.location || ''}
-                  onChange={e => updateEducation(edu.id, 'location', e.target.value)}
-                  placeholder="e.g. Bangalore, India"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="University / Institute"
+                required
+                className="md:col-span-2"
+                value={edu.institution || ''}
+                onCommit={v => updateEducation(edu.id, 'institution', v)}
+                validator={validateOrgName}
+                placeholder="e.g. IIT Madras, IIM Bangalore"
+              />
+              <EduInput
+                label="Location"
+                hint="(optional)"
+                value={edu.location || ''}
+                onCommit={v => updateEducation(edu.id, 'location', v)}
+                placeholder="e.g. Bangalore, India"
+              />
             </div>
 
             {!edu.degree && (
@@ -360,57 +305,39 @@ export default function EducationStep() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Postgraduate Degree <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.degree || ''}
-                  onChange={e => updateEducation(edu.id, 'degree', e.target.value)}
-                  placeholder="e.g. MBA, M.Tech, MCA, M.Sc, M.S."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Specialization / Major <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.fieldOfStudy || ''}
-                  onChange={e => updateEducation(edu.id, 'fieldOfStudy', e.target.value)}
-                  placeholder="e.g. Artificial Intelligence, Marketing, Finance"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Postgraduate Degree"
+                required
+                value={edu.degree || ''}
+                onCommit={v => updateEducation(edu.id, 'degree', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. MBA, M.Tech, MCA, M.Sc, M.S."
+              />
+              <EduInput
+                label="Specialization / Major"
+                hint="(optional)"
+                value={edu.fieldOfStudy || ''}
+                onCommit={v => updateEducation(edu.id, 'fieldOfStudy', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. Artificial Intelligence, Marketing, Finance"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Duration / Years
-                </label>
-                <input
-                  type="text"
-                  value={edu.duration || ''}
-                  onChange={e => updateEducation(edu.id, 'duration', e.target.value)}
-                  placeholder="e.g. 2022 – 2024"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  CGPA / Grade
-                </label>
-                <input
-                  type="text"
-                  value={edu.grade || ''}
-                  onChange={e => updateEducation(edu.id, 'grade', e.target.value)}
-                  placeholder="e.g. 8.8 CGPA or 3.8 GPA"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Duration / Years"
+                value={edu.duration || ''}
+                onCommit={v => updateEducation(edu.id, 'duration', v)}
+                validator={validateDuration}
+                placeholder="e.g. 2022 – 2024"
+              />
+              <EduInput
+                label="CGPA / Grade"
+                value={edu.grade || ''}
+                onCommit={v => updateEducation(edu.id, 'grade', v)}
+                validator={validateGrade}
+                placeholder="e.g. 8.8 CGPA or 3.8 GPA"
+              />
             </div>
           </div>
         );
@@ -420,84 +347,58 @@ export default function EducationStep() {
         return (
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Institution / Organization <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.institution || ''}
-                  onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
-                  placeholder="e.g. Government Polytechnic"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Location <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.location || ''}
-                  onChange={e => updateEducation(edu.id, 'location', e.target.value)}
-                  placeholder="e.g. Pune, India"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Institution / Organization"
+                required
+                className="md:col-span-2"
+                value={edu.institution || ''}
+                onCommit={v => updateEducation(edu.id, 'institution', v)}
+                validator={validateOrgName}
+                placeholder="e.g. Government Polytechnic"
+              />
+              <EduInput
+                label="Location"
+                hint="(optional)"
+                value={edu.location || ''}
+                onCommit={v => updateEducation(edu.id, 'location', v)}
+                placeholder="e.g. Pune, India"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Qualification / Diploma Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.degree || ''}
-                  onChange={e => updateEducation(edu.id, 'degree', e.target.value)}
-                  placeholder="e.g. Diploma in Mechanical Engineering"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Field / Specialization <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={edu.fieldOfStudy || ''}
-                  onChange={e => updateEducation(edu.id, 'fieldOfStudy', e.target.value)}
-                  placeholder="e.g. Automobile Engineering"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Qualification / Diploma Name"
+                required
+                value={edu.degree || ''}
+                onCommit={v => updateEducation(edu.id, 'degree', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. Diploma in Mechanical Engineering"
+              />
+              <EduInput
+                label="Field / Specialization"
+                hint="(optional)"
+                value={edu.fieldOfStudy || ''}
+                onCommit={v => updateEducation(edu.id, 'fieldOfStudy', v)}
+                validator={validateJobTitle}
+                placeholder="e.g. Automobile Engineering"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Duration / Year
-                </label>
-                <input
-                  type="text"
-                  value={edu.duration || ''}
-                  onChange={e => updateEducation(edu.id, 'duration', e.target.value)}
-                  placeholder="e.g. 2017 – 2020"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Grade / Score
-                </label>
-                <input
-                  type="text"
-                  value={edu.grade || ''}
-                  onChange={e => updateEducation(edu.id, 'grade', e.target.value)}
-                  placeholder="e.g. Distinction or 80%"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
-                />
-              </div>
+              <EduInput
+                label="Duration / Year"
+                value={edu.duration || ''}
+                onCommit={v => updateEducation(edu.id, 'duration', v)}
+                validator={validateDuration}
+                placeholder="e.g. 2017 – 2020"
+              />
+              <EduInput
+                label="Grade / Score"
+                value={edu.grade || ''}
+                onCommit={v => updateEducation(edu.id, 'grade', v)}
+                validator={validateGrade}
+                placeholder="e.g. Distinction or 80%"
+              />
             </div>
           </div>
         );

@@ -644,7 +644,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
       </SideSection>
       {(data.skills || []).length > 0 && (
         <SideSection label="Skills" color="#94a3b8" borderColor="#334155">
-          {data.skills.map((sk, i) => <div key={i} style={{ marginBottom: 3, color: '#cbd5e1' }}>{sk}</div>)}
+          <ProfessionalSkills skills={data.skills} />
         </SideSection>
       )}
       {(data.education || []).length > 0 && (
@@ -745,7 +745,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
 );
 
 // ─── Shared extra sections (Languages, Achievements, Custom) ─────────────────
-function ExtraSections({ data, SecComp, borderStyle }: { data: ResumeData; SecComp: any; borderStyle: string }) {
+function ExtraSections({ data, SecComp }: { data: ResumeData; SecComp: any; borderStyle?: string }) {
   const hidden = data.hiddenSections || [];
   return (
     <>
@@ -803,6 +803,65 @@ const SideSection = ({ label, children, color, borderColor }: { label: string; c
     {children}
   </div>
 );
+
+/**
+ * ProfessionalSkills — used ONLY by ProfessionalTemplate.
+ *
+ * Renders skills as inline wrapping chips so they share horizontal space
+ * instead of each taking a full-width row.  This is the root-cause fix:
+ * the old code used block-level <div> per skill inside a 30%-wide sidebar,
+ * forcing a one-skill-per-line layout regardless of skill name length.
+ *
+ * Design decisions:
+ * - flexWrap: 'wrap'   → skills flow into multiple rows only when needed
+ * - display: 'inline-block' chip → each chip is as wide as its text
+ * - No artificial category groups — flat `string[]` is rendered as-is
+ * - Safe for 0 skills (guarded by parent), 1 skill, 20+ skills
+ * - Long names (e.g. "Enterprise Architecture") wrap inside the chip via
+ *   wordBreak: 'break-word' / overflowWrap: 'anywhere'
+ * - Symbols like C++, C#, .NET, REST APIs render verbatim; no encoding
+ * - Does NOT mutate data.skills; reads it read-only
+ */
+const ProfessionalSkills = ({ skills }: { skills: string[] }) => {
+  const validSkills = skills.filter(sk => typeof sk === 'string' && sk.trim().length > 0);
+  if (validSkills.length === 0) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '4px 6px',
+        // Prevent chips from overflowing the sidebar width
+        maxWidth: '100%',
+        overflowX: 'hidden',
+      }}
+    >
+      {validSkills.map((sk, i) => (
+        <span
+          key={i}
+          style={{
+            display: 'inline-block',
+            fontSize: 10.5,
+            color: '#cbd5e1',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid #334155',
+            borderRadius: 3,
+            padding: '1px 5px',
+            lineHeight: 1.5,
+            // Support long skill names — wrap inside chip, never overflow parent
+            wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
+            maxWidth: '100%',
+          }}
+        >
+          {sk.trim()}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+
 
 const ProfSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div style={{ marginBottom: 14 }}>

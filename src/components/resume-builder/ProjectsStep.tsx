@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Sparkles, Loader2, Check, X, Clock } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
-
 import { ph } from '../../utils/goalPlaceholders';
+import { validateJobTitle, validateDuration, validateUrl } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 export default function ProjectsStep() {
   const { data, addProject, updateProject, removeProject } = useResumeStore();
@@ -109,30 +110,41 @@ export default function ProjectsStep() {
 
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Project Name *</label>
-                    <input type="text" value={p.name} onChange={e => updateProject(p.id, 'name', e.target.value)}
-                      placeholder={ph(goal, 'projectName')}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Your Role</label>
-                    <input type="text" value={p.role} onChange={e => updateProject(p.id, 'role', e.target.value)}
-                      placeholder={ph(goal, 'role')}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
-                    <input type="text" value={p.duration} onChange={e => updateProject(p.id, 'duration', e.target.value)}
-                      placeholder="Enter start and end date"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Project URL (optional)</label>
-                    <input type="url" value={p.url} onChange={e => updateProject(p.id, 'url', e.target.value)}
-                      placeholder="Enter your project URL"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
+                  <ValidatedInput
+                    id={`proj-name-${p.id}`}
+                    label="Project Name"
+                    required
+                    value={p.name}
+                    onCommit={(v) => updateProject(p.id, 'name', v)}
+                    validator={validateJobTitle}
+                    placeholder={ph(goal, 'projectName')}
+                  />
+                  <ValidatedInput
+                    id={`proj-role-${p.id}`}
+                    label="Your Role"
+                    value={p.role}
+                    onCommit={(v) => updateProject(p.id, 'role', v)}
+                    validator={validateJobTitle}
+                    placeholder={ph(goal, 'role')}
+                  />
+                  <ValidatedInput
+                    id={`proj-duration-${p.id}`}
+                    label="Duration"
+                    value={p.duration}
+                    onCommit={(v) => updateProject(p.id, 'duration', v)}
+                    validator={validateDuration}
+                    placeholder="Enter start and end date"
+                  />
+                  <ValidatedInput
+                    id={`proj-url-${p.id}`}
+                    label="Project URL"
+                    hint="(optional)"
+                    type="url"
+                    value={p.url}
+                    onCommit={(v) => updateProject(p.id, 'url', v)}
+                    validator={validateUrl}
+                    placeholder="Enter your project URL"
+                  />
                 </div>
 
                 {/* Bullets */}

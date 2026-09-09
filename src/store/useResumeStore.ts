@@ -113,6 +113,7 @@ interface ResumeStore {
   updatePersonalInfo: (field: keyof PersonalInfo, value: string) => void;
   addExperience: () => void;
   updateExperience: (id: string, field: keyof ExperienceItem, value: any) => void;
+  removeExperience: (id: string) => void;
   addEducation: (level?: EducationLevel) => void;
   updateEducation: (id: string, field: keyof EducationItem, value: any) => void;
   removeEducation: (id: string) => void;
