@@ -5,13 +5,13 @@
 
 /* Header height token — update here if header size changes */
 :root {
-  --header-h: 64px;
+  --header-h: 74px;
 }
 @media (min-width: 640px) {
-  :root { --header-h: 80px; }
+  :root { --header-h: 82px; }
 }
 @media (min-width: 1024px) {
-  :root { --header-h: 96px; }
+  :root { --header-h: 97px; }
 }
 
 /* Push every page's main content below the fixed header */
