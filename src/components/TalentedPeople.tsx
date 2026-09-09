@@ -36,7 +36,7 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-8 sm:py-12 lg:py-14 bg-white overflow-hidden">
+    <section ref={sectionRef} className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-white via-blue-50/20 to-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
         
         {/* LEFT CONTENT */}
@@ -56,7 +56,7 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
             Discover Your Next <span className="text-orange-500">Career Opportunity</span>
           </h2>
 
-          <p className="text-gray-500 text-sm sm:text-base lg:text-lg max-w-md">
+          <p className="text-gray-600 text-sm sm:text-base lg:text-lg max-w-md leading-relaxed">
             Smart job matching powered by AI to connect you with the perfect role faster.
           </p>
 
@@ -111,30 +111,34 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
 
       </div>
 
-      {/* Company Logos Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 sm:mt-10">
-        <p className="text-center text-gray-400 text-xs sm:text-sm font-medium mb-4 sm:mb-5">Trusted by top companies</p>
-        <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-8 md:gap-12 transition-all duration-500">
-          {[
-            { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          ].map((company, index) => (
-            <img
-              key={index}
-              src={company.logo}
-              alt={company.name}
-              className="h-7 sm:h-8 md:h-9 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
-          ))}
+      {/* Company Logos Section / Lightweight Divider Bar */}
+      <div className="w-full bg-white border-y border-slate-100 mt-12 sm:mt-16 py-8 sm:py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <p className="text-center text-gray-400 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-6 sm:mb-8">
+            Trusted by top companies
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10 md:gap-14 lg:gap-16">
+            {[
+              { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+            ].map((company, index) => (
+              <img
+                key={index}
+                src={company.logo}
+                alt={company.name}
+                className="h-9 sm:h-10 lg:h-11 max-w-[140px] sm:max-w-[160px] w-auto object-contain hover:scale-105 transition-transform duration-200"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>

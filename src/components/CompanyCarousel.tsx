@@ -1,12 +1,13 @@
 import React from 'react';
 
 const COMPANIES = [
-  { name: 'Birlasoft',   logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
-  { name: 'Persistent', logo: '/images/company-logos/persistent-favicon.svg' },
-  { name: 'LTIMindtree',logo: 'https://www.google.com/s2/favicons?domain=ltm.com&sz=64' },
-  { name: 'L&T',        logo: '/images/company-logos/lt-logo.png' },
-  { name: 'Cognizant',  logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
-  { name: 'Accenture',  logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
+  { name: 'Birlasoft',   logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'LTIMindtree',logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'Saksoft',    logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'L&T',        logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'Cognizant',  logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'Accenture',  logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
 ];
 
 const CompanyCarousel: React.FC = () => {
@@ -14,31 +15,31 @@ const CompanyCarousel: React.FC = () => {
   const duplicatedCompanies = [...COMPANIES, ...COMPANIES, ...COMPANIES];
 
   return (
-    <div className="w-full bg-white py-5 sm:py-7 border-b border-gray-100 overflow-hidden">
+    <div className="w-full bg-white py-6 sm:py-8 border-y border-slate-100 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-xs font-bold text-gray-400 tracking-[0.2em] uppercase mb-3.5 sm:mb-5">
-          Trusted By Leading Companies
+        <p className="text-center text-xs font-bold text-gray-400 tracking-[0.2em] uppercase mb-4 sm:mb-6">
+          Trusted by Top Companies
         </p>
         
         <div className="relative w-full overflow-hidden">
           {/* Gradient overlays for smooth fade on edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute left-0 top-0 bottom-0 w-10 sm:w-20 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-10 sm:w-20 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
 
           {/* Marquee container */}
-          <div className="flex items-center gap-10 sm:gap-16 md:gap-24 animate-[marquee_30s_linear_infinite] w-max">
+          <div className="flex items-center gap-12 sm:gap-16 md:gap-24 animate-[marquee_30s_linear_infinite] w-max">
             {duplicatedCompanies.map((company, index) => (
               <div 
                 key={`${company.name}-${index}`} 
-                className="flex flex-col items-center justify-center transition-all duration-300"
+                className="flex items-center justify-center transition-transform duration-200 hover:scale-105"
               >
                 <img 
                   src={company.logo} 
                   alt={`${company.name} logo`} 
-                  className="h-6 sm:h-8 md:h-10 w-auto object-contain"
+                  className="h-9 sm:h-10 lg:h-11 max-w-[140px] sm:max-w-[160px] w-auto object-contain"
                   onError={(e) => {
-                    // Fallback if image fails to load
-                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${company.name}&background=random&color=fff&size=64`;
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&background=0284c7&color=fff&size=80`;
                   }}
                 />
               </div>
