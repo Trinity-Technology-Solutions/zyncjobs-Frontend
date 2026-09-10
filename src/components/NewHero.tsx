@@ -94,9 +94,7 @@ function RobotCanvas() {
       loadedModel.position.set(0, 0, 0);
       const currentBox = new THREE.Box3().setFromObject(loadedModel);
       const center = new THREE.Vector3();
-      currentBox.getCenter(center);
-      
-      loadedModel.position.x = -center.x - (isMobile ? 0.6 : 0);
+      loadedModel.position.x = -center.x;
       loadedModel.position.z = -center.z;
       loadedModel.position.y = -currentBox.min.y - 1.10;
     };
@@ -274,7 +272,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
     <div
       className="relative w-full overflow-hidden bg-[#FAFBFC]"
       style={{ 
-        minHeight: 'clamp(680px, calc(100vh - 68px), 860px)',
+        minHeight: 'clamp(460px, calc(100vh - 80px), 680px)',
       }}
     >
       {/* Background Decoratives - Professional Corporate Aesthetic */}
@@ -295,9 +293,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           }} 
         />
         
-        {/* Left Side: Intricate Parametric Wave Mesh (Reference Match) */}
+        {/* Left Side: Intricate Parametric Wave Mesh */}
         <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.08] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
-          {/* Sweeping curves anchored to the left */}
           {Array.from({ length: 45 }).map((_, i) => (
             <path 
               key={`wave-${i}`} 
@@ -310,58 +307,58 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
       </div>
 
-      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12
-                      grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center h-full"
-        style={{ minHeight: 'clamp(680px, calc(100vh - 68px), 860px)' }}>
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12
+                      grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-8 xl:gap-12 items-center">
 
         {/* ════ LEFT — Content ════ */}
         <motion.div
-          className="w-full max-w-2xl space-y-7 py-12 sm:py-16 lg:py-20"
+          className="w-full max-w-2xl space-y-3.5 sm:space-y-4 lg:space-y-5 py-6 sm:py-8 lg:py-10 xl:py-12"
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="text-indigo-600 font-semibold text-base sm:text-lg tracking-wide">
+          <div className="text-indigo-600 font-semibold text-sm sm:text-base lg:text-lg tracking-wide">
             Let AI Find Your Next Move
           </div>
           
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 leading-[1.05] tracking-tight">
-            Your <span className="text-orange-500">Dream</span> Job Is<br/>Waiting For You
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-[1.1] tracking-tight">
+            <span className="inline-block whitespace-nowrap">Your <span className="text-orange-500">Dream</span> Job Is</span><br />
+            <span className="inline-block whitespace-nowrap">Waiting For You</span>
           </h1>
           
-          <p className="text-xs sm:text-lg text-gray-600 leading-relaxed font-medium pb-2 whitespace-nowrap max-w-none">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl lg:max-w-none lg:whitespace-nowrap">
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 
-          <form onSubmit={handleSearch} className="w-full bg-white p-3 sm:p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+          <form onSubmit={handleSearch} className="w-full bg-white p-2.5 sm:p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
               <Search className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
               <input 
                 type="text" 
                 placeholder="Job Title, Keyword" 
-                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium"
+                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium text-sm sm:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
-            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
               <MapPin className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
               <input 
                 type="text" 
                 placeholder="City Or Country" 
-                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium"
+                className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium text-sm sm:text-base"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
             </div>
 
-            <button type="submit" className="bg-blue-600 text-white font-semibold px-6 sm:px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap">
+            <button type="submit" className="bg-blue-600 text-white font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap text-sm sm:text-base w-full sm:w-auto shadow-md">
               Find Job
             </button>
           </form>
 
-          <div className="pt-4 sm:pt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base font-medium">
+          <div className="pt-2 sm:pt-4 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 sm:gap-y-2 text-xs sm:text-sm md:text-base font-medium">
             <span className="text-gray-900 font-bold">Popular Searches:</span>
             <span className="text-indigo-600 cursor-pointer hover:underline">Chemical</span>
             <span className="text-indigo-600 cursor-pointer hover:underline">Data analyst</span>
@@ -370,25 +367,25 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </motion.div>
 
         {/* ════ RIGHT — Three.js 3D Robot ════ */}
-        <div className="flex items-center justify-center h-full min-h-[360px] lg:min-h-[600px] relative">
-          {/* 3D Canvas */}
-          <RobotCanvas />
-          
-          {/* HTML Overlay Chat Bubble */}
-          <motion.div 
-            className="absolute right-4 md:right-auto md:left-[84%] top-[10%] md:top-[12%] bg-white rounded-3xl px-6 py-4 shadow-xl border border-gray-100 flex items-center z-10 w-max max-w-[200px] md:max-w-none"
-            initial={{ opacity: 0, scale: 0.8, x: 20 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.5, type: 'spring', bounce: 0.5 }}
-            style={{ 
-              borderBottomLeftRadius: '0px', // sharp tail for SMS effect
-              boxShadow: '0 20px 40px rgba(0,0,0,0.08)'
-            }}
-          >
-            <div className="font-bold text-gray-800 text-base md:text-lg">
-              Hi, I am <span className="text-orange-500">ZYNC BOT!</span>
+        <div className="relative w-full flex flex-col lg:flex-row items-center justify-center min-h-[300px] sm:min-h-[380px] lg:min-h-[460px] xl:min-h-[500px] pb-6 sm:pb-0">
+          {/* Standalone Zync Bot Badge — visually balanced in hero area, clearly separate from robot & header */}
+          <div className="z-10 mb-2 sm:mb-4 lg:mb-0 lg:absolute lg:top-6 xl:top-8 lg:-left-6 xl:-left-10 pointer-events-none">
+            <div 
+              className="bg-white rounded-3xl px-4 sm:px-6 py-2.5 sm:py-3.5 shadow-xl border border-gray-100 flex items-center pointer-events-auto whitespace-nowrap"
+              style={{ 
+                boxShadow: '0 20px 40px rgba(0,0,0,0.08)'
+              }}
+            >
+              <div className="font-bold text-gray-800 text-xs sm:text-sm md:text-base lg:text-lg">
+                Hi, I am <span className="text-orange-500">ZYNC BOT!</span>
+              </div>
             </div>
-          </motion.div>
+          </div>
+
+          {/* 3D Canvas */}
+          <div className="w-full flex items-center justify-center h-full">
+            <RobotCanvas />
+          </div>
         </div>
       </div>
     </div>

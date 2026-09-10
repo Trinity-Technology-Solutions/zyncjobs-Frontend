@@ -362,13 +362,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <img 
                 src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
                 alt={siteSettings?.siteTitle || 'ZyncJobs'} 
-                className="h-10 sm:h-12 lg:h-16 w-auto"
+                className="h-10 sm:h-12 lg:h-16 w-auto object-contain"
               />
             </button>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8 text-base" aria-label="Main navigation">
             {isEmployerContext ? (
               <>
                 <button
@@ -501,13 +501,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </nav>
 
           {/* Right side items */}
-          <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto">
+          <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto text-base">
 
             {/* For Employers Button - only when not logged in and outside employer context */}
             {!isEmployerContext && !user ? (
               <button 
                 onClick={handleEmployerPageClick}
-                className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded whitespace-nowrap"
                 title="Go to employer page"
               >
                 For Employers
@@ -632,7 +632,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     </header>
 
     {/* Spacer to push page content below the fixed header */}
-    <div className="h-20 sm:h-24 lg:h-28" aria-hidden="true" />
+    <div className="h-[74px] sm:h-[82px] lg:h-[97px]" aria-hidden="true" />
 
     {/* Profile Panel - outside <header> to avoid backdrop-filter stacking context clipping */}
     {isDropdownOpen && user && (

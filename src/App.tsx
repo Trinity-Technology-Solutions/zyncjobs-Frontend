@@ -756,7 +756,7 @@ function App() {
               user?.type === 'employer' ? (
                 <EmployersPage {...nav} />
               ) : (
-              <div className="min-h-screen bg-white overflow-x-clip">
+              <div className="min-h-screen bg-white overflow-x-clip -mt-[var(--header-h)]">
                 <Header {...nav} />
                 <NewHero onNavigate={handleNavigation} />
                 <CompanyCarousel />
