@@ -53,6 +53,7 @@ interface AddAdminForm {
   name: string;
   email: string;
   role: 'admin' | 'super_admin' | 'recruiter';
+  password?: string;
 }
 
 export default function AdminManagementSection({ 
@@ -75,6 +76,7 @@ export default function AdminManagementSection({
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [resetPasswordData, setResetPasswordData] = useState<{ adminId: string; adminName: string } | null>(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [createMode, setCreateMode] = useState<'invite' | 'manual'>('invite');
 
   const isCurrentUserSuperAdmin = isSuperAdmin(currentUser.email) || 
                                    isSuperAdmin((currentUser as any).role || '') ||
@@ -152,6 +154,7 @@ export default function AdminManagementSection({
       name: addForm.name.trim(),
       email: addForm.email.trim().toLowerCase(),
       role: addForm.role,
+      mode: createMode,
       endpoint: API_ENDPOINTS.ADMIN_INVITE
     });
     
@@ -159,15 +162,38 @@ export default function AdminManagementSection({
     console.log('📧 Request headers:', { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : 'none' });
     
     try {
-      const response = await apiFetch(`${API_ENDPOINTS.ADMIN_INVITE}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          name: addForm.name.trim(),
-          email: addForm.email.trim().toLowerCase(),
-          role: addForm.role
-        })
-      });
+      let response: any;
+      
+      if (createMode === 'manual') {
+        // Manual create: use create-admin endpoint with password
+        if (!addForm.password || addForm.password.trim().length < 6) {
+          setError('Password must be at least 6 characters long.');
+          setActionLoading(null);
+          return;
+        }
+        console.log('🔐 Manual admin creation with password');
+        response = await apiFetch(`${API_ENDPOINTS.ADMIN_CREATE_ADMIN}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            name: addForm.name.trim(),
+            email: addForm.email.trim().toLowerCase(),
+            role: addForm.role,
+            password: addForm.password.trim()
+          })
+        });
+      } else {
+        // Invite mode: send invitation email (existing behavior)
+        response = await apiFetch(`${API_ENDPOINTS.ADMIN_INVITE}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            name: addForm.name.trim(),
+            email: addForm.email.trim().toLowerCase(),
+            role: addForm.role
+          })
+        });
+      }
       
       console.log('📧 Invite response status:', response.status);
       
@@ -197,14 +223,18 @@ export default function AdminManagementSection({
       }
       
       console.log('🎉 Invite sent successfully!');
-      setSuccess(`Invitation sent to ${addForm.email}! They'll receive an email to set their password.`);
-      setAddForm({ name: '', email: '', role: 'admin' });
+      if (createMode === 'manual') {
+        setSuccess(`Administrator created successfully! Password set for ${addForm.email}.`);
+      } else {
+        setSuccess(`Invitation sent to ${addForm.email}! They'll receive an email to set their password.`);
+      }
+      setAddForm({ name: '', email: '', role: 'admin', password: '' });
       setShowAddForm(false);
       // Refresh the admin list to show any updates
       loadAdmins();
     } catch (error: any) {
       console.error('🚨 Invite error:', error);
-      setError(error.message || 'Failed to send invite. Please try again.');
+      setError(error.message || 'Failed to create admin. Please try again.');
     } finally {
       setActionLoading(null);
     }
@@ -453,7 +483,54 @@ const [confirmState, setConfirmState] = useState<{ open: boolean; message: strin
                   placeholder="Select role..."
                 />
               </div>
-              <p className="text-xs text-gray-400">An invitation email will be sent. They'll set their own password via the link.</p>
+              {/* Create Mode Toggle */}
+              <div className="mt-4">
+                <p className="text-sm text-gray-400 mb-2">Create Mode</p>
+                <div className="space-y-2">
+                  <label
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                      createMode === 'invite' ? 'bg-blue-600/20 text-blue-400' : 'bg-gray-700/30 text-gray-300'}
+                      cursor-pointer`}
+                    onClick={() => setCreateMode('invite')}
+                  >
+                    <Mail className="w-3 h-3" />
+                    Invite via Email (they set password)
+                  </label>
+                  <label
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                      createMode === 'manual' ? 'bg-green-600/20 text-green-400' : 'bg-gray-700/30 text-gray-300'}
+                      cursor-pointer`}
+                    onClick={() => setCreateMode('manual')}
+                  >
+                    <Key className="w-3 h-3" />
+                    Manual Create (set password here)
+                  </label>
+                </div>
+                {createMode === 'manual' && (
+                  <div className="mt-3 p-3 bg-gray-800 rounded-border border-gray-700 text-xs text-gray-300">
+                    <p className="font-medium text-gray-200">Manual Creation:</p>
+                    <p className="mt-1 text-gray-300">- Sets password directly (min 6 chars)</p>
+                    <p className="mt-1 text-gray-300">- Admin can login immediately</p>
+                    <p className="mt-1 text-gray-300">- No invitation email sent</p>
+                  </div>
+                )}
+              </div>
+              {createMode === 'manual' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                  <input
+                    type="password"
+                    value={addForm.password || ''}
+                    onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter password (min 6 chars)"
+                    required
+                  />
+                  <p className="text-xs text-gray-400 mt-2">Password must be at least 6 characters.</p>
+                </div>
+              )}
+              <p className="text-xs text-gray-400">{" Invite mode: An invitation email will be sent. They'll set their own password via the link."}</p>
+              <p className="text-xs text-gray-400 ml-4 block whitespace-pre-wrap" style={{ marginBottom: 0 }}>{createMode === 'manual' && '- Manual create: Password set directly, admin can login immediately'}</p>
               <div className="flex gap-3">
                 <button
                   type="submit"
@@ -461,7 +538,7 @@ const [confirmState, setConfirmState] = useState<{ open: boolean; message: strin
                   className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"
                 >
                   <Mail className="w-4 h-4" />
-                  {actionLoading === 'add' ? 'Sending...' : 'Send Invite'}
+                  {createMode === 'invite' ? 'Send Invite' : 'Create Admin'}
                 </button>
                 <button
                   type="button"

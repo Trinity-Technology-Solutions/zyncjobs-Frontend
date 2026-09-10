@@ -125,16 +125,18 @@ export default function RightPanel({ onNavigate }: Props) {
             <p className="text-[10px] mt-0.5">Add content to see it live</p>
           </div>
         ) : (
-          <div
-            className="bg-white shadow-lg mx-auto"
-            style={{
-              width: `${zoom * 794}px`,
-              minHeight: `${zoom * 1123}px`,
-              transform: 'translateZ(0)',
-            }}
-          >
-            <div id="resume-preview-content" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${(1/zoom)*100}%` }}>
-              <ResumeTemplate data={data} />
+          <div className="min-w-full w-max flex justify-center">
+            <div
+              className="bg-white shadow-lg flex-shrink-0"
+              style={{
+                width: `${zoom * 794}px`,
+                minHeight: `${zoom * 1123}px`,
+                transform: 'translateZ(0)',
+              }}
+            >
+              <div id="resume-preview-content" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${(1/zoom)*100}%` }}>
+                <ResumeTemplate data={data} />
+              </div>
             </div>
           </div>
         )}

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2, Check, Pencil } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Loader2, Pencil } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
+import { validateJobTitle } from '../../utils/resumeFieldValidators';
 
 const ROLE_SUGGESTIONS = [
   'Software Engineer', 'Frontend Developer', 'Backend Developer',
@@ -47,6 +48,20 @@ export default function SummaryStep() {
   const [options, setOptions] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState('');
   const [customRole, setCustomRole] = useState('');
+  const [roleError, setRoleError] = useState<string | null>(null);
+
+  const handleGenerateCustom = () => {
+    const trimmed = customRole.trim();
+    if (!trimmed) return;
+    const err = validateJobTitle(trimmed);
+    if (err) {
+      setRoleError(err);
+      return;
+    }
+    setRoleError(null);
+    generateOptions(trimmed);
+    setCustomRole('');
+  };
 
   // Auto-generate using wizard role if no summary yet
   useEffect(() => {
@@ -140,22 +155,30 @@ export default function SummaryStep() {
         <div className="space-y-3">
           <p className="text-sm font-medium text-gray-700">What job are you applying for?</p>
           {/* Custom role input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={customRole}
-              onChange={e => setCustomRole(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && customRole.trim()) { generateOptions(customRole.trim()); setCustomRole(''); } }}
-              placeholder="Type your role (e.g. QA Analyst, Data Analyst...)"
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400"
-            />
-            <button
-              onClick={() => { if (customRole.trim()) { generateOptions(customRole.trim()); setCustomRole(''); } }}
-              disabled={!customRole.trim() || loading}
-              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Generate
-            </button>
+          <div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customRole}
+                onChange={e => { setCustomRole(e.target.value); if (roleError) setRoleError(null); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleGenerateCustom(); }}
+                placeholder="Type your role (e.g. QA Analyst, Data Analyst...)"
+                aria-invalid={Boolean(roleError)}
+                className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400 ${
+                  roleError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              <button
+                onClick={handleGenerateCustom}
+                disabled={!customRole.trim() || loading}
+                className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Generate
+              </button>
+            </div>
+            {roleError && (
+              <p role="alert" className="text-[11px] text-red-600 mt-1">{roleError}</p>
+            )}
           </div>
           <p className="text-xs text-gray-400">Or pick from common roles:</p>
           <div className="flex flex-wrap gap-2">
