@@ -1,6 +1,7 @@
-import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
+import { validateSectionHeading } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 export default function CustomSectionsStep() {
   const { data, addCustomSection, updateCustomSection, removeCustomSection } = useResumeStore();
@@ -29,12 +30,14 @@ export default function CustomSectionsStep() {
           {sections.map((sec) => (
             <div key={sec.id} className="p-5 border border-gray-200 rounded-xl space-y-3">
               <div className="flex items-center gap-3">
-                <input
-                  type="text"
+                <ValidatedInput
+                  id={`custom-sec-${sec.id}`}
                   value={sec.heading}
-                  onChange={(e) => updateCustomSection(sec.id, 'heading', e.target.value)}
+                  onCommit={(v) => updateCustomSection(sec.id, 'heading', v)}
+                  validator={validateSectionHeading}
                   placeholder="Section heading (e.g. Volunteer Work)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1"
+                  inputClassName="font-semibold"
                 />
                 <button onClick={() => removeCustomSection(sec.id)} className="text-red-400 hover:text-red-600">
                   <Trash2 className="w-4 h-4" />

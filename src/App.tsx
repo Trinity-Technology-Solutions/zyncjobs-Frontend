@@ -7,10 +7,8 @@ import NewHero from './components/NewHero';
 import OfflineIndicator from './components/OfflineIndicator';
 import Notification from './components/Notification';
 import ChatWidget from './components/ChatWidget';
-import JobAlertsManager from './components/JobAlertsManager';
 import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
-import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import SEOHead from './components/SEOHead';
 // Lazy-load below-fold home page sections
@@ -182,7 +180,7 @@ const DashboardRoute: React.FC<{
 
   return (
     <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
-      <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
+      <Notification {...notification} onClose={() => setNotification((n: { type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }) => ({ ...n, isVisible: false }))} />
       {user?.type === 'admin' || user?.type === 'super_admin' || user?.type === 'recruiter' ? (
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
@@ -250,7 +248,7 @@ function getInitialUser(): UserType | null {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const analytics = useAnalytics();
+  useAnalytics();
   const [maintenance, setMaintenance] = useState(false);
   const fetchSavedJobs = useSavedJobsStore(s => s.fetchSavedJobs);
   const resetSavedJobs = useSavedJobsStore(s => s.reset);
@@ -329,7 +327,7 @@ function App() {
     resetSavedJobs();
 
     // Read ALL sources BEFORE clearing anything
-    let userType: string | null | undefined = user?.type;
+    let userType: string | null = user?.type || null;
 
     if (!userType || userType === 'candidate') {
       userType = localStorage.getItem('lastUserType') || userType;
@@ -488,7 +486,7 @@ function App() {
     const handleForceLogout = () => {
       // Read ALL sources BEFORE clearing anything — the remembered role from a
       // manual logout takes priority, since manual logout already wiped storage.
-      let userType: string | null | undefined = getPendingLogoutRole() || localStorage.getItem('lastUserType');
+      let userType: string | null = (getPendingLogoutRole() || localStorage.getItem('lastUserType')) || null;
 
       if (!userType) {
         try {
@@ -728,10 +726,6 @@ function App() {
     return <MaintenancePage onRetry={handleRetry} />;
   }
 
-  if (user?.type === 'recruiter' && !location.pathname.startsWith('/admin/')) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
-
   // Handle OAuth callback (skip admin invite pages — they use token param too)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('token') && !location.pathname.startsWith('/admin/accept-invite')) {
@@ -751,7 +745,7 @@ function App() {
         type={notification.type}
         message={notification.message}
         isVisible={notification.isVisible}
-        onClose={() => setNotification(n => ({ ...n, isVisible: false }))}
+        onClose={() => setNotification((n: { type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }) => ({ ...n, isVisible: false }))}
       />
 
       <Suspense fallback={<LoadingFallback />}>
@@ -764,7 +758,7 @@ function App() {
               ) : (
               <div className="min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
-                <NewHero onNavigate={handleNavigation} user={user as any} />
+                <NewHero onNavigate={handleNavigation} />
                 <CompanyCarousel />
                 <LatestJobs onNavigate={handleNavigation} />
                 <HowItWorks onNavigate={handleNavigation} />
@@ -804,7 +798,7 @@ function App() {
                 : user
                   ? <Navigate to="/dashboard" replace />
                   : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
-                    onShowNotification={n => showNotification(n.message, n.type)} />
+                    onShowNotification={(n: { message: string; type: 'success' | 'error' | 'info' }) => showNotification(n.message, n.type)} />
             } />
             <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
             <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
@@ -878,14 +872,14 @@ function App() {
               </AuthGuard>
             } />
 
-            <Route path="/settings" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
-                <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
-              </AuthGuard>
-            } />
+             <Route path="/settings" element={
+               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer', 'recruiter']}>
+                 <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
+               </AuthGuard>
+             } />
 
             <Route path="/my-jobs" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
                 <>
                   <Header {...nav} />
                   <MyJobsPage {...nav} />

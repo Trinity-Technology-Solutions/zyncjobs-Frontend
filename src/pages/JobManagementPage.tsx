@@ -176,6 +176,15 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       return;
     }
 
+    const jobsWithApplications = selectedJobs.filter(jobId => {
+      const job = jobs.find(j => getId(j) === jobId);
+      return job && (job.applicationCount || 0) > 0;
+    });
+    if (jobsWithApplications.length > 0) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Cannot delete jobs that have existing applications." } }));
+      return;
+    }
+
     const ok = await (window as any).confirmAsync(`Are you sure you want to delete ${selectedJobs.length} selected job(s)? This action cannot be undone.`);
     if (ok) {
       try {
@@ -332,7 +341,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage your job postings and track responses</p>
           </div>
           <button
-            onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
+            onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
             className="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
           >
             <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -458,7 +467,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             </p>
             {jobs.length === 0 && (
               <button
-                onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
+                onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
                 Post Your First Job
@@ -694,7 +703,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                             <button
                               onClick={() => {
-                                sessionStorage.setItem('editJobData', JSON.stringify(job));
+                                localStorage.setItem('editJobData', JSON.stringify(job));
                                 onNavigate('job-posting');
                                 setOpenMenuId(null);
                               }}
@@ -725,7 +734,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                                 handleDeleteJob(jobId!);
                                 setOpenMenuId(null);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                              disabled={(job.applicationCount || 0) > 0}
+                              title={(job.applicationCount || 0) > 0 ? 'Cannot delete a job with existing applications' : 'Delete Job'}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <Trash2 className="w-4 h-4" />
                               <span>Delete Job</span>

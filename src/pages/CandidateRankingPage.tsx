@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../api/apiFetch';
 import { API_ENDPOINTS as ENV_ENDPOINTS } from '../config/env';
 import { mergeCandidateSkills, scoreCandidate, extractSkillsFromText, tokenize, STOP } from '../utils/candidateScoring';
@@ -151,7 +151,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         };
       });
 
-      // Score each candidate — stored AI score → hybrid-score API → local fallback (shared util)
+      // Score each candidate � stored AI score ? hybrid-score API ? local fallback (shared util)
       const scorePromises = enriched.map(async (app: any) => {
         const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
         const rawJobId = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
@@ -328,7 +328,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {top3.map((c, i) => (
                 <div key={c.id} className={`relative rounded-2xl p-5 border-2 ${i === 0 ? 'border-yellow-300 bg-gradient-to-br from-yellow-50 to-orange-50' : i === 1 ? 'border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50' : 'border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50'}`}>
-                  <div className="absolute top-3 right-3 text-2xl">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</div>
+                  <div className="absolute top-3 right-3 text-2xl">{i === 0 ? '??' : i === 1 ? '??' : '??'}</div>
                   <div className="flex items-center gap-3 mb-4">
                     <Avatar name={c.name} photo={c.profilePicture} size="md" />
                     <div className="flex-1 min-w-0">
@@ -369,7 +369,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
               label="Job"
               value={selectedJob}
               onChange={(val) => setSelectedJob(val)}
-              options={[{ value: 'all', label: 'All Jobs' }, ...jobs.map(j => ({ value: String(j._id || j.id), label: `${j.jobTitle || j.title}${j.jobCode || j.positionId ? ` — ${j.jobCode || j.positionId}` : ''}` }))]}
+              options={[{ value: 'all', label: 'All Jobs' }, ...jobs.map(j => ({ value: String(j._id || j.id), label: `${j.jobTitle || j.title}${j.jobCode || j.positionId ? ` � ${j.jobCode || j.positionId}` : ''}` }))]}
               placeholder="Select job..."
             />
             <AutocompleteCombobox
