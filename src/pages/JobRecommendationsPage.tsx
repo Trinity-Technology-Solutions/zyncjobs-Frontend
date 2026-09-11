@@ -4,7 +4,6 @@ import { MatchBreakdownModal } from '../components/match/MatchBreakdownModal';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
-import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
@@ -83,11 +82,18 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       result = result.filter(j =>
         j.title.toLowerCase().includes(q) ||
         j.company.toLowerCase().includes(q) ||
-        j.location.toLowerCase().includes(q) ||
         j.skills.some((s: string) => s.toLowerCase().includes(q))
       );
     }
-    if (sortBy === 'match') result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    if (sortBy === 'match') {
+      result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    } else if (sortBy === 'recent') {
+      result.sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return db - da;
+      });
+    }
     setFiltered(result);
   }, [jobs, search, sortBy]);
 
@@ -255,26 +261,24 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         {!loading && !error && jobs.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <AutocompleteCombobox
+              <input
+                type="text"
                 value={search}
-                onChange={setSearch}
-                options={[]}
-                allowCustom
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Search by title, company, skill..."
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px]"
               />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500 whitespace-nowrap">Sort by:</span>
-              <AutocompleteCombobox
+              <select
                 value={sortBy}
-                onChange={(val) => setSortBy(val as any)}
-                options={[
-                  { value: 'match', label: 'Best Match' },
-                  { value: 'recent', label: 'Most Recent' },
-                ]}
-                placeholder="Sort by"
-                className="w-40"
-              />
+                onChange={e => setSortBy(e.target.value as 'match' | 'recent')}
+                className="px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px] min-w-[140px] cursor-pointer"
+              >
+                <option value="match">Best Match</option>
+                <option value="recent">Most Recent</option>
+              </select>
             </div>
             <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
               <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
