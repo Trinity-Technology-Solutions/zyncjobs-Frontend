@@ -7121,7 +7121,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     localStorage.setItem("user", JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -7129,8 +7129,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           educationCollege: modalData,
                         }),
                       });
-                    } catch (error) {
+                      if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData?.message || errData?.error || "Save failed");
+                      }
+                      setNotification({ type: "success", message: "Education details saved!", isVisible: true });
+                    } catch (error: any) {
                       console.error("Error saving:", error);
+                      setUser(user);
+                      localStorage.setItem("user", JSON.stringify(user));
+                      setNotification({ type: "error", message: error.message || "Failed to save education details. Please try again.", isVisible: true });
+                      return;
                     }
                     setActiveModal(null);
                   }}
@@ -7251,7 +7260,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     localStorage.setItem("user", JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -7259,8 +7268,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           educationClass12: modalData,
                         }),
                       });
-                    } catch (error) {
+                      if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData?.message || errData?.error || "Save failed");
+                      }
+                      setNotification({ type: "success", message: "Class XII details saved!", isVisible: true });
+                    } catch (error: any) {
                       console.error("Error saving:", error);
+                      setUser(user);
+                      localStorage.setItem("user", JSON.stringify(user));
+                      setNotification({ type: "error", message: error.message || "Failed to save Class XII details. Please try again.", isVisible: true });
+                      return;
                     }
                     setActiveModal(null);
                   }}
@@ -7381,7 +7399,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     localStorage.setItem("user", JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -7389,8 +7407,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           educationClass10: modalData,
                         }),
                       });
-                    } catch (error) {
+                      if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData?.message || errData?.error || "Save failed");
+                      }
+                      setNotification({ type: "success", message: "Class X details saved!", isVisible: true });
+                    } catch (error: any) {
                       console.error("Error saving:", error);
+                      setUser(user);
+                      localStorage.setItem("user", JSON.stringify(user));
+                      setNotification({ type: "error", message: error.message || "Failed to save Class X details. Please try again.", isVisible: true });
+                      return;
                     }
                     setActiveModal(null);
                   }}
