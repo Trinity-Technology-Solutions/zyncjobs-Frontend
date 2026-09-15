@@ -1,38 +1,6 @@
-import React, { useState } from 'react';
 import { useResumeStore } from '../../store/useResumeStore';
-
-interface FieldProps {
-  label: string;
-  required?: boolean;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  type?: string;
-  error?: string;
-}
-
-function Field({ label, required, value, onChange, placeholder, type = 'text' }: FieldProps) {
-  const [touched, setTouched] = useState(false);
-  const showError = touched && required && !value.trim();
-  return (
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setTouched(true)}
-        placeholder={placeholder}
-        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-          showError ? 'border-red-300 bg-red-50' : 'border-gray-300'
-        }`}
-      />
-      {showError && <p className="text-[11px] text-red-500 mt-1">{label} is required</p>}
-    </div>
-  );
-}
+import { personalInfoValidators } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 export default function PersonalInfoStep() {
   const { data, updatePersonalInfo } = useResumeStore();
@@ -43,7 +11,12 @@ export default function PersonalInfoStep() {
       <div>
         <h2 className="text-xl font-bold text-gray-900">Personal Information</h2>
         <p className="text-sm text-gray-500 mt-0.5">Tell us about yourself</p>
-        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Add <span className="text-amber-500 font-medium">LinkedIn</span> and <span className="text-amber-500 font-medium">Portfolio</span> — recruiters check these to verify your background</p>
+        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+          <svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Add <span className="text-amber-500 font-medium">LinkedIn</span> and <span className="text-amber-500 font-medium">Portfolio</span> — recruiters check these to verify your background
+        </p>
       </div>
 
       {/* Upload Resume Banner */}
@@ -64,12 +37,74 @@ export default function PersonalInfoStep() {
       </label>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Full Name" required value={personalInfo.name} onChange={(v) => updatePersonalInfo('name', v)} placeholder="Enter your full name" />
-        <Field label="Email" required value={personalInfo.email} onChange={(v) => updatePersonalInfo('email', v)} placeholder="Enter your email address" type="email" />
-        <Field label="Phone" required value={personalInfo.phone} onChange={(v) => updatePersonalInfo('phone', v)} placeholder="Enter your phone number" type="tel" />
-        <Field label="Location" required value={personalInfo.location} onChange={(v) => updatePersonalInfo('location', v)} placeholder="Enter your city and country" />
-        <Field label="LinkedIn" value={personalInfo.linkedin} onChange={(v) => updatePersonalInfo('linkedin', v)} placeholder="Enter your LinkedIn profile URL" type="url" />
-        <Field label="Portfolio" value={personalInfo.portfolio} onChange={(v) => updatePersonalInfo('portfolio', v)} placeholder="Enter your portfolio or website URL" type="url" />
+        <ValidatedInput
+          id="pi-name"
+          label="Full Name"
+          required
+          value={personalInfo.name}
+          onCommit={(v) => updatePersonalInfo('name', v)}
+          validator={personalInfoValidators.name}
+          placeholder="Enter your full name"
+          labelClassName="text-sm font-semibold text-gray-700 mb-2"
+          inputClassName="px-4 py-2.5"
+        />
+        <ValidatedInput
+          id="pi-email"
+          label="Email"
+          required
+          value={personalInfo.email}
+          onCommit={(v) => updatePersonalInfo('email', v)}
+          validator={personalInfoValidators.email}
+          placeholder="Enter your email address"
+          type="email"
+          labelClassName="text-sm font-semibold text-gray-700 mb-2"
+          inputClassName="px-4 py-2.5"
+        />
+        <ValidatedInput
+          id="pi-phone"
+          label="Phone"
+          required
+          value={personalInfo.phone}
+          onCommit={(v) => updatePersonalInfo('phone', v)}
+          validator={personalInfoValidators.phone}
+          placeholder="Enter your phone number"
+          type="tel"
+          labelClassName="text-sm font-semibold text-gray-700 mb-2"
+          inputClassName="px-4 py-2.5"
+        />
+        <ValidatedInput
+          id="pi-location"
+          label="Location"
+          required
+          value={personalInfo.location}
+          onCommit={(v) => updatePersonalInfo('location', v)}
+          validator={personalInfoValidators.location}
+          placeholder="Enter your city and country"
+          labelClassName="text-sm font-semibold text-gray-700 mb-2"
+          inputClassName="px-4 py-2.5"
+        />
+        <ValidatedInput
+          id="pi-linkedin"
+          label="LinkedIn"
+          value={personalInfo.linkedin}
+          onCommit={(v) => updatePersonalInfo('linkedin', v)}
+          validator={personalInfoValidators.linkedin}
+          placeholder="Enter your LinkedIn profile URL"
+          type="url"
+          labelClassName="text-sm font-semibold text-gray-700 mb-2"
+          inputClassName="px-4 py-2.5"
+        />
+        <ValidatedInput
+          id="pi-portfolio"
+          label="Portfolio"
+          value={personalInfo.portfolio}
+          onCommit={(v) => updatePersonalInfo('portfolio', v)}
+          validator={personalInfoValidators.portfolio}
+          placeholder="Enter your portfolio or website URL"
+          type="url"
+          labelClassName="text-sm font-semibold text-gray-700 mb-2"
+          inputClassName="px-4 py-2.5"
+        />
       </div>
     </div>
   );

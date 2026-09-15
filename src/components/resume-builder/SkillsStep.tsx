@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Loader2, Check, Plus, Lightbulb } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
+import { validateSkill } from '../../utils/resumeFieldValidators';
 
 function extractSkills(raw: string): string[] {
   const nonSkill = /^(#|##|###|for |feel free|certainly|sure|here|note|as a)/i;
@@ -29,6 +30,7 @@ export default function SkillsStep() {
   const { data, update } = useResumeStore();
   const goal = data.goal || '';
   const [input, setInput] = useState('');
+  const [skillError, setSkillError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<string[] | null>(null);
   const [expSkills, setExpSkills] = useState<string[]>([]);
@@ -55,6 +57,7 @@ export default function SkillsStep() {
           const skills = res.result.split(',').map(s => s.trim().replace(/^[\d.▪•\-*\s]+/, '')).filter(Boolean);
           if (skills.length > 0) setExpSkills(skills);
         }
+      // eslint-disable-next-line no-empty
       } catch {} finally { setExpSkillsLoading(false); }
     }, 2000);
     return () => clearTimeout(timer);
@@ -62,9 +65,18 @@ export default function SkillsStep() {
 
   const addSkill = () => {
     const trimmed = input.trim();
-    if (trimmed && !data.skills.includes(trimmed)) {
+    // Validate before adding
+    const error = validateSkill(trimmed);
+    if (error) {
+      setSkillError(error);
+      return;
+    }
+    setSkillError(null);
+    if (!data.skills.includes(trimmed)) {
       update('skills', [...data.skills, trimmed]);
       setInput('');
+    } else {
+      setSkillError('This skill is already added');
     }
   };
 
@@ -220,25 +232,36 @@ export default function SkillsStep() {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="skill-input" className="block text-sm font-medium text-gray-700 mb-2">
           Add Skills (press Enter to add)
         </label>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
+            id="skill-input"
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { setInput(e.target.value); if (skillError) setSkillError(null); }}
             onKeyDown={handleKeyDown}
             placeholder={ph(goal, 'skill')}
-            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 text-sm"
+            aria-describedby={skillError ? 'skill-error' : undefined}
+            aria-invalid={Boolean(skillError)}
+            className={`flex-1 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 text-sm ${
+              skillError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+            }`}
           />
           <button
+            type="button"
             onClick={addSkill}
             className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
           >
             Add
           </button>
         </div>
+        {skillError && (
+          <p id="skill-error" role="alert" className="text-[11px] text-red-600 mt-1">
+            {skillError}
+          </p>
+        )}
       </div>
 
       {data.skills.length > 0 && (

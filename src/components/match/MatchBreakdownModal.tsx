@@ -32,6 +32,9 @@ export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, i
   const userTitle = profile.jobTitle || profile.title || 'Not set';
   const userLocation = profile.location || 'Not set';
 
+  const educationFields = [profile.education, profile.educationCollege, profile.degree, profile.college, profile.graduation, profile.university, profile.masters, profile.bachelors, profile.diploma, profile.certification];
+  const hasEducation = educationFields.some(f => f && f !== 'Not specified' && f !== 'Fresher' && f !== '{}' && String(f).trim().length > 0);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -147,9 +150,15 @@ export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, i
             <div className="border border-gray-100 rounded-xl p-4">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-800 text-sm">🎓 Education <span className="text-xs text-gray-400 font-normal">(10%)</span></span>
-                <span className={`font-bold ${getColor(educationScore)}`}>{educationScore}%</span>
+                {hasEducation
+                  ? <span className={`font-bold ${getColor(educationScore)}`}>{educationScore}%</span>
+                  : <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Not provided</span>
+                }
               </div>
-              <Bar score={educationScore} color="bg-orange-400" />
+              {hasEducation
+                ? <Bar score={educationScore} color="bg-orange-400" />
+                : <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-2 rounded-lg">⚠ Add your education details to your profile to include this in your match score.</p>
+              }
             </div>
           </div>
 
