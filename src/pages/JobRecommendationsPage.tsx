@@ -22,7 +22,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'match' | 'recent'>('match');
+  const [filterCategory, setFilterCategory] = useState<'all' | 'excellent' | 'best' | 'partial'>('all');
   const [breakdownJob, setBreakdownJob] = useState<any | null>(null);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [profileBlocked, setProfileBlocked] = useState<string[] | null>(null);
@@ -62,7 +62,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         }
       } catch {}
       const stored = JSON.parse(localStorage.getItem('user') || '{}');
-      const essentialMissing = getIncompleteProfileFields(stored).filter(f => f === 'skills' || f === 'jobTitle');
+      const essentialMissing = getIncompleteProfileFields(stored);
       if (essentialMissing.length > 0) {
         setProfileBlocked(essentialMissing);
         setLoading(false);
@@ -76,20 +76,29 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
     init();
   }, []);
 
+  const CATEGORIES = [
+    { key: 'all',       label: 'All Matches',    min: 0,  max: 100 },
+    { key: 'excellent', label: 'Excellent Match', min: 80, max: 100 },
+    { key: 'best',      label: 'Best Match',      min: 60, max: 79  },
+    { key: 'partial',   label: 'Partial Match',   min: 0,  max: 59  },
+  ] as const;
+
   useEffect(() => {
     let result = [...jobs];
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(j =>
-        j.title.toLowerCase().includes(q) ||
-        j.company.toLowerCase().includes(q) ||
-        j.location.toLowerCase().includes(q) ||
-        j.skills.some((s: string) => s.toLowerCase().includes(q))
+        (j.title || j.jobTitle || '').toLowerCase().includes(q) ||
+        (j.company || '').toLowerCase().includes(q) ||
+        (j.location || '').toLowerCase().includes(q) ||
+        (j.skills || []).some((s: string) => s.toLowerCase().includes(q))
       );
     }
-    if (sortBy === 'match') result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    const cat = CATEGORIES.find(c => c.key === filterCategory)!;
+    result = result.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max);
+    result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
     setFiltered(result);
-  }, [jobs, search, sortBy]);
+  }, [jobs, search, filterCategory]);
 
   const loadRecommendations = async () => {
     try {
@@ -101,8 +110,14 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       if (raw.length > 0) {
         const normalized = raw.map((j: any) => {
           const jobSkills = Array.isArray(j.skills) ? j.skills : [];
-          const jobData = { ...j, title: j.title || j.jobTitle || '', skills: jobSkills };
-          const { overall } = computeMatchBreakdown(jobData);
+          // Prefer backend score; only recalculate if absent
+          let matchScore: number;
+          if (j.matchScore != null && j.matchScore > 0) {
+            matchScore = Math.round(j.matchScore);
+          } else {
+            const jobData = { ...j, title: j.title || j.jobTitle || '', skills: jobSkills };
+            matchScore = computeMatchBreakdown(jobData).overall;
+          }
           return {
             ...j,
             id: j.id || j._id || '',
@@ -114,7 +129,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
             salaryMax: j.salaryMax || null,
             type: j.type || j.workType || j.jobType || '',
             skills: jobSkills,
-            matchScore: overall,
+            matchScore,
             description: j.description || '',
             createdAt: j.createdAt || '',
           };
@@ -251,33 +266,46 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
       <div className="max-w-6xl mx-auto px-4 py-8 w-full flex-1">
 
-        {/* Search & Sort Bar */}
+        {/* Search & Category Filter Bar */}
         {!loading && !error && jobs.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <AutocompleteCombobox
-                value={search}
-                onChange={setSearch}
-                options={[]}
-                allowCustom
-                placeholder="Search by title, company, skill..."
-              />
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <AutocompleteCombobox
+                  value={search}
+                  onChange={setSearch}
+                  options={[]}
+                  allowCustom
+                  placeholder="Search by title, company, skill..."
+                />
+              </div>
+              <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
+                <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 whitespace-nowrap">Sort by:</span>
-              <AutocompleteCombobox
-                value={sortBy}
-                onChange={(val) => setSortBy(val as any)}
-                options={[
-                  { value: 'match', label: 'Best Match' },
-                  { value: 'recent', label: 'Most Recent' },
-                ]}
-                placeholder="Sort by"
-                className="w-40"
-              />
-            </div>
-            <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
-              <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map(cat => {
+                const count = cat.key === 'all' ? jobs.length : jobs.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max).length;
+                const active = filterCategory === cat.key;
+                const colors: Record<string, string> = {
+                  all:       active ? 'bg-gray-800 text-white border-gray-800'       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
+                  excellent: active ? 'bg-green-600 text-white border-green-600'     : 'bg-white text-green-700 border-green-200 hover:border-green-400',
+                  best:      active ? 'bg-blue-600 text-white border-blue-600'       : 'bg-white text-blue-700 border-blue-200 hover:border-blue-400',
+                  partial:   active ? 'bg-orange-500 text-white border-orange-500'   : 'bg-white text-orange-600 border-orange-200 hover:border-orange-400',
+                };
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => setFilterCategory(cat.key)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${colors[cat.key]}`}
+                  >
+                    {cat.label}
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                      active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}>{count}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -320,7 +348,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
             </div>
             <h3 className="text-gray-900 font-semibold text-lg mb-2">Complete your profile to unlock AI job matches</h3>
             <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
-              Missing essential information: {profileBlocked.map(f => f === 'jobTitle' ? 'job title' : f).join(', ')}. Add these to get accurate match scores.
+              Missing: {profileBlocked.map(f => ({ skills: 'Skills', jobTitle: 'Job Title', education: 'Education', employment: 'Work Experience', location: 'Location' }[f] ?? f)).join(', ')}. Add these to get accurate match scores.
             </p>
             <div className="flex gap-3 justify-center">
               <button onClick={() => onNavigate?.('dashboard')} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors">
@@ -351,11 +379,13 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
           </div>
         )}
 
-        {/* No search results */}
+        {/* No results */}
         {!loading && !error && jobs.length > 0 && filtered.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
-            <p className="text-gray-600 font-medium mb-2">No jobs match your search</p>
-            <button onClick={() => setSearch('')} className="text-blue-600 text-sm hover:underline">Clear search</button>
+            <p className="text-gray-600 font-medium mb-2">
+              {search.trim() ? 'No jobs match your search' : `No jobs in the "${CATEGORIES.find(c => c.key === filterCategory)?.label}" category`}
+            </p>
+            <button onClick={() => { setSearch(''); setFilterCategory('all'); }} className="text-blue-600 text-sm hover:underline">Clear filters</button>
           </div>
         )}
 

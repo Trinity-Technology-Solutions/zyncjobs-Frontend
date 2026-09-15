@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Shield, UserPlus, RefreshCw, AlertCircle, CheckCircle, 
-  Mail, User, Crown, Settings, Trash2, Eye, EyeOff 
+  Mail, User, Crown, Settings, Trash2, Eye, EyeOff, Key 
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';

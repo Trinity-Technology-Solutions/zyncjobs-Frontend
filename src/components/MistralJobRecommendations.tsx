@@ -61,7 +61,7 @@ const EnhancedMatchCard: React.FC<{
   recommendation: EnhancedJobRecommendation;
   onNavigate?: (page: string, data?: any) => void;
 }> = ({ recommendation, onNavigate }) => {
-  const { job, matchScore, skillMatch, careerFit, recommendations: rec, aiInsights } = recommendation;
+  const { job, matchScore, skillScore, skillMatch, careerFit, recommendations: rec, aiInsights } = recommendation;
   const [expanded, setExpanded] = useState(false);
 
   const scoreColor = matchScore >= 80
@@ -95,7 +95,7 @@ const EnhancedMatchCard: React.FC<{
       </div>
 
       <div className="space-y-1.5 mb-3">
-        <ScoreBar label="Skills" value={Math.round((skillMatch.matched.length / (skillMatch.matched.length + skillMatch.missing.length)) * 100)} color={barColor} />
+        <ScoreBar label="Skills" value={skillScore ?? Math.round((skillMatch.matched.length / Math.max(skillMatch.matched.length + skillMatch.missing.length, 1)) * 100)} color={barColor} />
         <ScoreBar label="Experience" value={careerFit.experienceAlignment} color={barColor} />
         <ScoreBar label="Location" value={careerFit.locationFit} color={barColor} />
         <ScoreBar label="Salary" value={careerFit.salaryAlignment} color={barColor} />
@@ -222,15 +222,40 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
   const scoreJobs = (jobs: any[], limit: number): EnhancedJobRecommendation[] => {
     const profile = buildCandidateProfile();
+    // Merge localStorage user profile so employment/education/location are available for scoring
+    const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const fullProfile = { ...storedUser, ...profile };
+
     return jobs.slice(0, limit).map(job => {
       const jobData = { ...job, title: job.jobTitle || job.title || '', skills: Array.isArray(job.skills) ? job.skills : [] };
-      const b = computeMatchBreakdown(jobData, profile);
+      const b = computeMatchBreakdown(jobData, fullProfile);
+
       const jobSkillsLower: string[] = jobData.skills.map((s: string) => String(s || '').toLowerCase());
-      const bonus = profile.skills.filter(s =>
-        !jobSkillsLower.some(js => s.toLowerCase().includes(js) || js.includes(s.toLowerCase()))
-      ).slice(0, 3);
+      const bonus = profile.skills
+        .filter((s): s is string => typeof s === 'string')
+        .filter(s => !jobSkillsLower.some(js => s.includes(js) || js.includes(s)))
+        .slice(0, 3);
+
+      // Salary score — compare job salary range vs candidate expectation
+      let salaryScore = 60;
+      if (job.salary) {
+        const candidateSalary = storedUser.expectedSalary || storedUser.currentSalary || null;
+        if (typeof job.salary === 'object' && job.salary.min != null) {
+          if (!candidateSalary) {
+            salaryScore = 75; // job has salary info but candidate expectation unknown
+          } else {
+            const expected = parseFloat(String(candidateSalary).replace(/[^0-9.]/g, ''));
+            const midpoint = (job.salary.min + (job.salary.max || job.salary.min)) / 2;
+            const ratio = expected / midpoint;
+            salaryScore = ratio <= 1.1 && ratio >= 0.8 ? 100 : ratio <= 1.3 && ratio >= 0.6 ? 75 : 40;
+          }
+        } else {
+          salaryScore = 75;
+        }
+      }
+
       const shouldApply = b.overall >= 60;
-      const confidenceLevel = b.overall >= 80 ? 'high' : b.overall >= 60 ? 'medium' : 'low';
+      const confidenceLevel: 'high' | 'medium' | 'low' = b.overall >= 80 ? 'high' : b.overall >= 60 ? 'medium' : 'low';
       const improvementSuggestions: string[] = [];
       if (b.missing.length > 0) improvementSuggestions.push(`Learn ${b.missing.slice(0, 2).join(', ')} to strengthen your profile`);
       if (b.experienceScore < 60) improvementSuggestions.push('Consider highlighting relevant experience in your resume');
@@ -242,11 +267,17 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
       if (b.experienceScore >= 70) aiInsights.push('Your experience profile fits well with this role');
       if (b.locationScore >= 80) aiInsights.push('Excellent location match for this position');
       if (b.missing.length > 0) aiInsights.push(`Consider developing ${b.missing[0]} to become a stronger candidate`);
+
       return {
         job,
         matchScore: b.overall,
+        skillScore: b.skillScore,
         skillMatch: { matched: b.matched, missing: b.missing.slice(0, 5), bonus },
-        careerFit: { experienceAlignment: b.experienceScore, locationFit: b.locationScore, salaryAlignment: job.salary ? 80 : 60 },
+        careerFit: {
+          experienceAlignment: b.experienceScore,
+          locationFit: b.locationScore,
+          salaryAlignment: salaryScore,
+        },
         recommendations: { shouldApply, confidenceLevel, improvementSuggestions, careerProgression },
         aiInsights,
       };
