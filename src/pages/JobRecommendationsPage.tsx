@@ -25,6 +25,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const [breakdownJob, setBreakdownJob] = useState<any | null>(null);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [profileBlocked, setProfileBlocked] = useState<string[] | null>(null);
+  const [sortBy, setSortBy] = useState<'match' | 'recent'>('match');
 
   const userId = (() => {
     try {
@@ -272,7 +273,8 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
         {/* Search & Category Filter Bar */}
         {!loading && !error && jobs.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
+          <>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col gap-3">
             <div className="relative flex-1">
               <input
                 type="text"
@@ -293,31 +295,35 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                 <option value="recent">Most Recent</option>
               </select>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map(cat => {
-                const count = cat.key === 'all' ? jobs.length : jobs.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max).length;
-                const active = filterCategory === cat.key;
-                const colors: Record<string, string> = {
-                  all:       active ? 'bg-gray-800 text-white border-gray-800'       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
-                  excellent: active ? 'bg-green-600 text-white border-green-600'     : 'bg-white text-green-700 border-green-200 hover:border-green-400',
-                  best:      active ? 'bg-blue-600 text-white border-blue-600'       : 'bg-white text-blue-700 border-blue-200 hover:border-blue-400',
-                  partial:   active ? 'bg-orange-500 text-white border-orange-500'   : 'bg-white text-orange-600 border-orange-200 hover:border-orange-400',
-                };
-                return (
-                  <button
-                    key={cat.key}
-                    onClick={() => setFilterCategory(cat.key)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${colors[cat.key]}`}
-                  >
-                    {cat.label}
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                      active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-                    }`}>{count}</span>
-                  </button>
-                );
-              })}
+            <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
+              <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
             </div>
           </div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {CATEGORIES.map(cat => {
+              const count = cat.key === 'all' ? jobs.length : jobs.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max).length;
+              const active = filterCategory === cat.key;
+              const colors: Record<string, string> = {
+                all:       active ? 'bg-gray-800 text-white border-gray-800'       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
+                excellent: active ? 'bg-green-600 text-white border-green-600'     : 'bg-white text-green-700 border-green-200 hover:border-green-400',
+                best:      active ? 'bg-blue-600 text-white border-blue-600'       : 'bg-white text-blue-700 border-blue-200 hover:border-blue-400',
+                partial:   active ? 'bg-orange-500 text-white border-orange-500'   : 'bg-white text-orange-600 border-orange-200 hover:border-orange-400',
+              };
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => setFilterCategory(cat.key)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${colors[cat.key]}`}
+                >
+                  {cat.label}
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                    active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                  }`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          </>
         )}
 
         {/* Loading */}
