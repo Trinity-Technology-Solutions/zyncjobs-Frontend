@@ -20,8 +20,8 @@ const AccessibilityPage: React.FC<AccessibilityPageProps> = ({ onNavigate, user,
           <BackButton fallback="/" className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
         </div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-gray-900 bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Accessibility Statement</h1>
-          <p className="text-gray-600">Our commitment to digital accessibility</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold leading-[1.15] tracking-[-0.02em] mb-2.5 text-gray-900 bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Accessibility Statement</h1>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto px-4">Our commitment to digital accessibility</p>
         </div>
       </div>
       

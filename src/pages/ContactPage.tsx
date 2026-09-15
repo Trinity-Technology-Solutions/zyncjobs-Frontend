@@ -80,8 +80,8 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
               <img src="/favicon_io/android-chrome-192x192.png" alt="ZyncJobs" className="w-12 h-12 object-contain" />
             </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-orange-500 bg-clip-text text-transparent">Contact Us</h1>
-          <p className="text-base sm:text-lg text-gray-600 mb-6">We'd love to hear from you. Get in touch with our team.</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold leading-[1.15] tracking-[-0.02em] mb-2.5 bg-gradient-to-r from-blue-600 to-orange-500 bg-clip-text text-transparent">Contact Us</h1>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto px-4">We'd love to hear from you. Get in touch with our team.</p>
 
           <div className="flex justify-center items-center gap-4 sm:gap-8 mb-6">
             {[

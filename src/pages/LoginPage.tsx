@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, Zap, Target, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, AlertCircle, CheckCircle2, Compass, ShieldCheck, Sparkles } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
@@ -18,8 +18,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [emailReadOnly, setEmailReadOnly] = useState(true);
-  const [passwordReadOnly, setPasswordReadOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -120,88 +118,58 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Header onNavigate={onNavigate} />
 
-      <div className="flex flex-1 flex-col lg:flex-row">
+      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+        <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-10">
+          <aside className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] text-[#1e3a8a] lg:min-h-[650px]">
+            <div className="absolute inset-x-0 top-0 h-2 bg-[#f97316]" />
+            <div className="absolute -right-20 -top-16 h-56 w-56 rounded-full border-[28px] border-[#bfdbfe]" />
+            <div className="relative flex h-full flex-col px-6 py-7 sm:px-9 lg:px-10 lg:py-10">
+              <div className="flex items-center justify-between">
+                <BackButton fallback="/" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#bfdbfe] bg-white/70 px-3 py-1.5 text-xs font-semibold text-[#2563eb]">
+                  <Sparkles className="h-3.5 w-3.5" /> Candidate space
+                </span>
+              </div>
 
-        {/* LEFT PANEL */}
-        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-          {/* Light decorative blobs like hero page */}
-          <div className="absolute top-10 right-10 w-80 h-80 rounded-full bg-blue-100 opacity-40" />
-          <div className="absolute bottom-10 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-50 opacity-60" />
-
-          <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-            <BackButton fallback="/" />
-
-            <div>
-              <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
-                Find Your <span className="text-blue-600">Dream Job</span>
-              </h1>
-              <p className="text-gray-500 text-base mb-10">
-                Connect with top employers and land the role you deserve.
-              </p>
-              <div className="space-y-4">
-                {[
-                  { icon: Briefcase,   text: 'Jobs across Engineering, MBA, Arts & more', color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: Users,       text: 'Top Companies Hiring Now',    color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: TrendingUp,  text: 'AI-Powered Job Matching',     color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: CheckCircle, text: 'One-Click Easy Apply',        color: 'text-orange-500', bg: 'bg-orange-50' },
-                ].map(({ icon: Icon, text, color, bg }) => (
-                  <div key={text} className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
+              <div className="mt-12 lg:mt-16">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#2563eb]">Welcome back</p>
+                <h1 className="mt-3 text-3xl font-bold leading-tight text-[#1e3a8a] sm:text-4xl">Pick up where your career left off.</h1>
+                <p className="mt-4 max-w-md text-sm leading-6 text-[#526780] sm:text-base">Your next opportunity is closer when your search, profile, and applications are all in one place.</p>
+                <div className="mt-8 space-y-3.5">
+                  {[
+                    { icon: Compass, text: 'Explore roles matched to your goals' },
+                    { icon: TrendingUp, text: 'Keep your job search moving forward' },
+                    { icon: CheckCircle2, text: 'Apply quickly with your profile ready' },
+                  ].map(({ icon: Icon, text }) => (
+                    <div key={text} className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#2563eb] shadow-sm">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium text-[#334e72]">{text}</span>
                     </div>
-                    <span className="text-gray-700 text-sm font-medium">{text}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-4 mt-4">
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Instant Access</div>
-                  <div className="text-gray-500 text-xs mt-1">Start applying to jobs immediately</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <Target className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Smart Matching</div>
-                  <div className="text-gray-500 text-xs mt-1">AI finds roles perfect for you</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Lock className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Secure & Private</div>
-                  <div className="text-gray-500 text-xs mt-1">Your data is always protected</div>
+              <div className="mt-auto border-t border-[#bfdbfe] pt-5">
+                <div className="flex items-center gap-3 rounded-md bg-white/80 p-4 shadow-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fff7ed] text-[#f97316]"><ShieldCheck className="h-5 w-5" /></div>
+                  <div><p className="text-sm font-semibold text-[#1e3a8a]">A secure place for your next move</p><p className="mt-0.5 text-xs text-[#64748b]">Your candidate account stays yours.</p></div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </aside>
 
-        {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-4 sm:px-6 py-8 sm:py-12 relative overflow-hidden min-h-screen lg:min-h-0">
-          {/* Decorative Blobs */}
-          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
-          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
-          
-          <div className="w-full max-w-sm sm:max-w-md">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-4 sm:p-6 lg:p-8">
-              <div className="mb-6 sm:mb-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome back</h2>
-                <p className="text-gray-500 mt-1 text-sm">Sign in to your candidate account</p>
+          <section className="relative flex min-w-0 items-center justify-center overflow-hidden rounded-lg border border-[#e2e8f0] bg-white px-5 py-8 shadow-[0_18px_55px_-35px_rgba(30,64,175,0.32)] sm:px-9 sm:py-10 lg:min-h-[650px] lg:px-12">
+            <div className="absolute inset-x-0 top-0 h-1 bg-[#f97316]" />
+            <div className="relative z-10 w-full max-w-lg">
+              <div className="mb-7">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#2563eb]"><CheckCircle2 className="h-4 w-4" /> Free for job seekers</div>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#1e3a8a] sm:text-3xl">Sign in to your candidate profile</h2>
+                <p className="mt-2 text-sm leading-6 text-[#64748b]">Access your saved jobs, applications, and personalised recommendations.</p>
               </div>
 
               {error && (
@@ -211,15 +179,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" autoComplete="off">
+              <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
                   <div className="relative">
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' })); }}
-                      className={`w-full px-3 sm:px-4 py-3 sm:py-4 pr-10 border rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white touch-manipulation ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                      className={`w-full h-12 sm:h-14 px-4 pr-10 border rounded-md text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                       placeholder="Enter your email"
                       autoComplete="email"
                       inputMode="email"
@@ -232,8 +200,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-sm font-medium text-gray-700">Password</label>
-                    <button type="button" onClick={() => onNavigate('forgot-password')} className="text-xs font-medium text-blue-600 hover:text-blue-800">
+                    <label className="block text-sm font-semibold text-gray-700">Password</label>
+                    <button type="button" onClick={() => onNavigate('forgot-password')} className="text-xs font-semibold text-blue-600 hover:text-blue-800">
                       Forgot Password?
                     </button>
                   </div>
@@ -242,7 +210,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' })); }}
-                      className={`w-full h-12 sm:h-14 px-3 sm:px-4 pr-12 sm:pr-14 border rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white touch-manipulation ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                      className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-md text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                       placeholder="Enter your password"
                       autoComplete="current-password"
                       required
@@ -266,9 +234,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 />
               </form>
 
-              <div className="my-4 sm:my-6 flex items-center gap-2 sm:gap-3">
+              <div className="my-6 flex items-center gap-3">
                 <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs sm:text-sm text-gray-400 px-1 sm:px-2 whitespace-nowrap">or continue with</span>
+                <span className="text-xs text-gray-400 px-2 whitespace-nowrap">or continue with</span>
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
 
@@ -277,21 +245,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Google login clicked');
                   // Track Google OAuth attempt
                   analytics.trackEvent('oauth_attempt', 'login', 'google_candidate');
                   const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/api$/, '');
                   window.location.href = `${base}/api/auth/google/candidate?portal=candidate`;
                 }}
-                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-200 rounded-md text-sm font-semibold text-gray-700 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[48px]"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
-                <span className="text-xs sm:text-sm truncate">Continue with Google</span>
+                <span className="truncate">Continue with Google</span>
               </button>
 
               <button
@@ -299,32 +266,30 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('LinkedIn login clicked');
                   // Track LinkedIn OAuth attempt
                   analytics.trackEvent('oauth_attempt', 'login', 'linkedin_candidate');
                   const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/api$/, '');
                   window.location.href = `${base}/api/auth/linkedin/candidate`;
                 }}
-                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors mt-2 sm:mt-3 touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-200 rounded-md text-sm font-semibold text-gray-700 hover:bg-slate-50 active:bg-slate-100 transition-colors mt-3 touch-manipulation min-h-[48px]"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24" fill="#0A66C2">
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="#0A66C2">
                   <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                 </svg>
-                <span className="text-xs sm:text-sm truncate">Continue with LinkedIn</span>
+                <span className="truncate">Continue with LinkedIn</span>
               </button>
 
-              <div className="mt-4 sm:mt-6 lg:mt-8 space-y-2 sm:space-y-3">
+              <div className="mt-8 space-y-3">
                 <div className="text-center">
-                  <span className="text-xs sm:text-sm text-gray-500">Don't have an account? </span>
+                  <span className="text-sm text-gray-500">Don't have an account? </span>
                   <button 
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to candidate-register');
                       onNavigate('candidate-register');
                     }} 
-                    className="text-xs sm:text-sm font-semibold text-orange-500 hover:text-orange-600 active:text-orange-700 transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded underline"
+                    className="text-sm font-semibold text-orange-500 hover:text-orange-600 active:text-orange-700 transition-colors touch-manipulation p-1 -m-1 rounded underline"
                   >
                     Sign up free
                   </button>
@@ -336,20 +301,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to employer-login');
                       onNavigate('employer-login');
                     }} 
-                    className="text-xs font-medium text-blue-500 hover:text-blue-700 active:text-blue-800 underline transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded"
+                    className="text-xs font-semibold text-blue-500 hover:text-blue-700 active:text-blue-800 underline transition-colors touch-manipulation p-1 -m-1 rounded"
                   >
                     Employer Login
                   </button>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
         </div>
-
-      </div>
+      </main>
     </div>
   );
 };

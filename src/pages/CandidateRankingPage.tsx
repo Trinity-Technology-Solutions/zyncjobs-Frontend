@@ -151,7 +151,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         };
       });
 
-      // Score each candidate — stored AI score ? hybrid-score API ? local fallback (shared util)
+      // Score each candidate â€” stored AI score ? hybrid-score API ? local fallback (shared util)
       const scorePromises = enriched.map(async (app: any) => {
         const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
         const rawJobId = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
@@ -261,7 +261,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                 <Trophy className="w-7 sm:w-8 h-7 sm:h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-blue-100 to-indigo-200 bg-clip-text text-transparent leading-tight">Candidate Ranking &amp; Matching</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold tracking-[-0.02em] bg-gradient-to-r from-white via-blue-100 to-indigo-200 bg-clip-text text-transparent leading-[1.15] mb-2.5">Candidate Ranking &amp; Matching</h1>
                 <div className="flex items-center gap-3 mt-3">
                   <span className="inline-flex items-center gap-1.5 text-blue-200/90 text-sm sm:text-base font-medium">
                     <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
@@ -369,7 +369,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
               label="Job"
               value={selectedJob}
               onChange={(val) => setSelectedJob(val)}
-              options={[{ value: 'all', label: 'All Jobs' }, ...jobs.map(j => ({ value: String(j._id || j.id), label: `${j.jobTitle || j.title}${j.jobCode || j.positionId ? ` — ${j.jobCode || j.positionId}` : ''}` }))]}
+              options={[{ value: 'all', label: 'All Jobs' }, ...jobs.map(j => ({ value: String(j._id || j.id), label: `${j.jobTitle || j.title}${j.jobCode || j.positionId ? ` â€” ${j.jobCode || j.positionId}` : ''}` }))]}
               placeholder="Select job..."
             />
             <AutocompleteCombobox

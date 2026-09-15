@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import {
   Search, MapPin, Star, Users, Code, Mail, Briefcase, Zap,
-  ChevronDown, ChevronUp, MessageCircle, Copy, Target, CheckCircle, Bot,
+  ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot,
   Clock, X, DollarSign, Sparkles, BadgeCheck,
 } from 'lucide-react';
 
@@ -22,7 +22,6 @@ import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CandidateProfileView from './CandidateProfileView';
-import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -99,8 +98,6 @@ interface CandidateSearchPageProps {
 // ─────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────
-
-const NOTICE_OPTIONS = ['Immediate', '15 Days', '1 Month', '2 Months', '3 Months'] as const;
 
 const POPULAR_SKILLS = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'];
 const POPULAR_LOCATIONS = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'];
@@ -704,8 +701,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   // ── Tag input UI state ─────────────────────────────────────
   const [skillInput, setSkillInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
-  const [designationInput, setDesignationInput] = useState('');
-  const [companyInput, setCompanyInput] = useState('');
 
   const [allSkills, setAllSkills] = useState<string[]>([]);
   const [allLocations, setAllLocations] = useState<string[]>([]);
@@ -717,7 +712,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   // ── UI state ───────────────────────────────────────────────
   const [sortBy, setSortBy] = useState<'ai_score' | 'name' | 'skills'>('ai_score');
   const [showJobDropdown, setShowJobDropdown] = useState(false);
-  const [showBoolean, setShowBoolean] = useState(false);
   const [openContactMenu, setOpenContactMenu] = useState<string | null>(null);
   const debouncing = filters.search !== dSearch || filters.booleanQuery !== dBoolean;
 
@@ -1002,14 +996,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             .cand-fade-2 { animation: cand-fade-up .6s cubic-bezier(.22,1,.36,1) .15s both; }
             .cand-fade-3 { animation: cand-fade-up .6s cubic-bezier(.22,1,.36,1) .25s both; }
             .cand-fade-4 { animation: cand-fade-up .7s cubic-bezier(.22,1,.36,1) .35s both; }
-            @keyframes cand-orb-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-25px) scale(1.08); } }
-            @keyframes cand-orb-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-25px,30px) scale(1.05); } }
-            @keyframes cand-orb-c { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(15px,20px) scale(1.1); } }
-            .cand-orb-1 { animation: cand-orb-a 14s ease-in-out infinite; }
-            .cand-orb-2 { animation: cand-orb-b 17s ease-in-out infinite; }
-            .cand-orb-3 { animation: cand-orb-c 20s ease-in-out infinite; }
-            @keyframes cand-grid-pan { from { background-position: 0 0; } to { background-position: 44px 44px; } }
-            .cand-grid { background-image: linear-gradient(to right, rgba(59,130,246,.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(59,130,246,.06) 1px, transparent 1px); background-size: 44px 44px; animation: cand-grid-pan 30s linear infinite; }
             @keyframes cand-gradient-x { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
             .cand-gradient { background-size: 200% auto; animation: cand-gradient-x 6s ease infinite; }
             @keyframes cand-matchbar { from { width: 0%; } }
@@ -1019,398 +1005,258 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           `}</style>
 
           {/* Hero Header Section */}
-          <div className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white">
-            <div className="absolute inset-0 cand-grid" />
-            <div className="cand-orb-1 absolute -top-24 -left-24 w-96 h-96 bg-blue-400/25 rounded-full blur-3xl" />
-            <div className="cand-orb-2 absolute top-1/4 -right-24 w-[26rem] h-[26rem] bg-violet-400/20 rounded-full blur-3xl" />
-            <div className="cand-orb-3 absolute -bottom-24 left-1/3 w-80 h-80 bg-cyan-400/15 rounded-full blur-3xl" />
-
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-14 sm:pb-20">
+          <div className="relative bg-white border-b border-gray-200/80">
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
               <div className="text-center max-w-3xl mx-auto">
-                <span className="cand-fade-1 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-md border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-widest shadow-sm mb-6">
+                <span className="cand-fade-1 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/80 backdrop-blur-md border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-widest shadow-sm mb-3">
                   <Sparkles className="w-3.5 h-3.5 text-orange-500" />
                   AI-Powered Candidate Sourcing
                 </span>
-                <h1 className="cand-fade-2 text-3xl sm:text-5xl lg:text-[3.6rem] font-extrabold text-gray-900 leading-[1.08] tracking-[-0.02em] mb-5">
+                <h1 className="cand-fade-2 text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
                   Discover Top Talent,{' '}
                   <span className="cand-gradient text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
                     decoded by AI
                   </span>
                 </h1>
-                <p className="cand-fade-3 text-base sm:text-lg text-gray-500 leading-relaxed mb-8 max-w-2xl mx-auto">
+                <p className="cand-fade-3 text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
                   Search a verified pool of professionals by skills, experience, salary and availability — with an AI match score on every profile.
                 </p>
 
                 {/* Stats */}
-                <div className="cand-fade-3 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-8">
-                  <span className="inline-flex items-center gap-2 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2.5 pr-4 py-1.5 text-sm text-gray-700 shadow-sm">
-                    <span className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center"><Target className="w-3.5 h-3.5 text-blue-600" /></span>
+                <div className="cand-fade-3 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mb-5">
+                  <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
+                    <span className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center"><Target className="w-3 h-3 text-blue-600" /></span>
                     Quality talent pool
                   </span>
-                  <span className="inline-flex items-center gap-2 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2.5 pr-4 py-1.5 text-sm text-gray-700 shadow-sm">
-                    <span className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" /></span>
+                  <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
+                    <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center"><CheckCircle className="w-3 h-3 text-emerald-500" /></span>
                     Verified profiles
                   </span>
-                  <span className="inline-flex items-center gap-2 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2.5 pr-4 py-1.5 text-sm text-gray-700 shadow-sm">
-                    <span className="w-7 h-7 rounded-full bg-violet-50 flex items-center justify-center"><Bot className="w-3.5 h-3.5 text-violet-600" /></span>
+                  <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
+                    <span className="w-5 h-5 rounded-full bg-violet-50 flex items-center justify-center"><Bot className="w-3 h-3 text-violet-600" /></span>
                     AI match on every profile
                   </span>
                 </div>
 
                 {/* Search Bar */}
                 <div className="cand-fade-4 max-w-4xl mx-auto">
-                  <div className="bg-white/90 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-900/10 ring-1 ring-gray-200/80">
-                    <div className="flex flex-col gap-3">
-                      {/* Boolean search — collapsible */}
-                      <button
-                        type="button"
-                        onClick={() => setShowBoolean(v => !v)}
-                        className="self-start inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
-                      >
-                        <Bot className="w-3.5 h-3.5" />
-                        Boolean Search
-                        {showBoolean ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-                      {showBoolean && (
-                        <div className="relative zync-pop-in">
-                          <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400 w-4 h-4 z-10" />
-                          <AutocompleteCombobox
-                            value={booleanQuery}
-                            onChange={setBooleanQuery}
-                            options={[]}
-                            allowCustom
-                            placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
-                            className="pl-8 border-purple-200 bg-purple-50/40"
-                          />
-                          {booleanQuery && (
-                            <span className={`absolute right-10 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded z-10 ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                              {parseBooleanQuery(booleanQuery) ? 'valid' : 'syntax'}
+                  <div className="bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 shadow-lg shadow-blue-900/5 ring-1 ring-gray-200/90">
+                    {/* Primary Search Fields: 12-col grid on md+ / stack on mobile */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 sm:gap-2.5 items-center">
+                      {/* 1. Candidate / Keyword Search */}
+                      <div className="md:col-span-4 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={e => setSearchTerm(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') fetchCandidates(); }}
+                          placeholder="Search title, name, role…"
+                          className="w-full pl-9 pr-7 py-2 border border-gray-200 rounded-xl bg-gray-50/60 hover:bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 h-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400"
+                        />
+                        {searchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full transition-colors"
+                            title="Clear search"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* 2. Skills */}
+                      <div className="md:col-span-3 relative">
+                        <Code className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                        <div className="w-full pl-9 pr-2 py-1 border border-gray-200 rounded-xl bg-gray-50/60 hover:bg-gray-50 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 h-10 flex items-center gap-1.5 overflow-x-auto transition-all no-scrollbar">
+                          {selectedSkills.map((skill, index) => (
+                            <span key={index} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-md font-medium whitespace-nowrap flex-shrink-0">
+                              {skill}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedSkills(prev => prev.filter((_, i) => i !== index))}
+                                className="hover:text-blue-900"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             </span>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-1">
-                          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
-                          <AutocompleteCombobox
-                            value={searchTerm}
-                            onChange={setSearchTerm}
-                            options={[]}
-                            allowCustom
-                            placeholder="Search candidates by name, title, email…"
-                            className="pl-11 border-gray-200 bg-gray-50/60"
+                          ))}
+                          <input
+                            type="text"
+                            placeholder={selectedSkills.length === 0 ? "Skills (e.g. React)" : "+ skill"}
+                            value={skillInput}
+                            onChange={(e) => {
+                              setSkillInput(e.target.value);
+                              if (e.target.value.length >= 1) {
+                                const filtered = searchAccuracy.getAccurateMatches(
+                                  e.target.value,
+                                  allSkills.filter(s => !selectedSkills.includes(s)),
+                                  'skill'
+                                ).slice(0, 12).map(m => m.item);
+                                setSkillSuggestions(filtered);
+                                setShowSkillSug(true);
+                              } else {
+                                const popularSkills = POPULAR_SKILLS.filter(s => !selectedSkills.includes(s));
+                                setSkillSuggestions(popularSkills);
+                                setShowSkillSug(true);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if ((e.key === 'Enter' || e.key === ',') && skillInput.trim()) {
+                                e.preventDefault();
+                                const newSkill = skillInput.trim();
+                                if (!selectedSkills.includes(newSkill)) {
+                                  setSelectedSkills(prev => [...prev, newSkill]);
+                                }
+                                setSkillInput('');
+                                setShowSkillSug(false);
+                              } else if (e.key === 'Backspace' && skillInput === '' && selectedSkills.length > 0) {
+                                setSelectedSkills(prev => prev.slice(0, -1));
+                              }
+                            }}
+                            onFocus={() => {
+                              if (skillInput) {
+                                const filtered = searchAccuracy.getAccurateMatches(
+                                  skillInput,
+                                  allSkills.filter(s => !selectedSkills.includes(s)),
+                                  'skill'
+                                ).slice(0, 12).map(m => m.item);
+                                setSkillSuggestions(filtered);
+                              } else {
+                                const popularSkills = POPULAR_SKILLS.filter(s => !selectedSkills.includes(s));
+                                setSkillSuggestions(popularSkills);
+                              }
+                              setShowSkillSug(true);
+                            }}
+                            onBlur={() => setTimeout(() => setShowSkillSug(false), 150)}
+                            className="flex-1 min-w-[70px] outline-none text-sm text-gray-900 bg-transparent placeholder:text-gray-400"
                           />
                         </div>
+                        {showSkillSug && skillSuggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 z-[9999] mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden zync-pop-in" style={{ maxHeight: '160px' }}>
+                            <div className="overflow-y-auto" style={{ maxHeight: '160px' }}>
+                              {skillSuggestions.map((skill, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    if (!selectedSkills.includes(skill)) {
+                                      setSelectedSkills(prev => [...prev, skill]);
+                                    }
+                                    setSkillInput('');
+                                    setShowSkillSug(false);
+                                  }}
+                                  className="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 text-xs text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                                >
+                                  <Code className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                  <span>{skill}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. Location */}
+                      <div className="md:col-span-3 relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                        <div className="w-full pl-9 pr-2 py-1 border border-gray-200 rounded-xl bg-gray-50/60 hover:bg-gray-50 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 h-10 flex items-center gap-1.5 overflow-x-auto transition-all no-scrollbar">
+                          {selectedLocations.map((location, index) => (
+                            <span key={index} className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-md font-medium whitespace-nowrap flex-shrink-0">
+                              {location}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedLocations(prev => prev.filter((_, i) => i !== index))}
+                                className="hover:text-emerald-900"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                          <input
+                            type="text"
+                            placeholder={selectedLocations.length === 0 ? "Location (e.g. Remote)" : "+ location"}
+                            value={locationInput}
+                            onChange={(e) => {
+                              setLocationInput(e.target.value);
+                              if (e.target.value.length >= 1) {
+                                const filtered = searchAccuracy.getLocationMatches(
+                                  e.target.value,
+                                  allLocations.filter(l => !selectedLocations.includes(l))
+                                ).slice(0, 12);
+                                setLocationSuggestions(filtered);
+                                setShowLocSug(true);
+                              } else {
+                                const popularLocations = POPULAR_LOCATIONS.filter(l => !selectedLocations.includes(l));
+                                setLocationSuggestions(popularLocations);
+                                setShowLocSug(true);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if ((e.key === 'Enter' || e.key === ',') && locationInput.trim()) {
+                                e.preventDefault();
+                                const newLocation = locationInput.trim();
+                                if (!selectedLocations.includes(newLocation)) {
+                                  setSelectedLocations(prev => [...prev, newLocation]);
+                                }
+                                setLocationInput('');
+                                setShowLocSug(false);
+                              } else if (e.key === 'Backspace' && locationInput === '' && selectedLocations.length > 0) {
+                                setSelectedLocations(prev => prev.slice(0, -1));
+                              }
+                            }}
+                            onFocus={() => {
+                              if (locationInput) {
+                                const filtered = searchAccuracy.getLocationMatches(
+                                  locationInput,
+                                  allLocations.filter(l => !selectedLocations.includes(l))
+                                ).slice(0, 12);
+                                setLocationSuggestions(filtered);
+                              } else {
+                                const popularLocations = POPULAR_LOCATIONS.filter(l => !selectedLocations.includes(l));
+                                setLocationSuggestions(popularLocations);
+                              }
+                              setShowLocSug(true);
+                            }}
+                            onBlur={() => setTimeout(() => setShowLocSug(false), 150)}
+                            className="flex-1 min-w-[70px] outline-none text-sm text-gray-900 bg-transparent placeholder:text-gray-400"
+                          />
+                        </div>
+                        {showLocSug && locationSuggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 z-[9999] mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden zync-pop-in" style={{ maxHeight: '160px' }}>
+                            <div className="overflow-y-auto" style={{ maxHeight: '160px' }}>
+                              {locationSuggestions.map((location, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    if (!selectedLocations.includes(location)) {
+                                      setSelectedLocations(prev => [...prev, location]);
+                                    }
+                                    setLocationInput('');
+                                    setShowLocSug(false);
+                                  }}
+                                  className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-700 text-xs text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                                >
+                                  <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                  <span>{location}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. Search Button */}
+                      <div className="md:col-span-2">
                         <button
+                          type="button"
                           onClick={() => fetchCandidates()}
-                          className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-orange-500/25 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                          className="w-full h-10 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-sm shadow-orange-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
                         >
                           <Search className="w-4 h-4" />
                           <span>Search</span>
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Skills</label>
-                          <div className="relative">
-                          <Code className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <div className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 bg-gray-50/50 focus-within:bg-white min-h-[42px] flex flex-wrap items-center gap-1.5 transition-all">
-                            {selectedSkills.map((skill, index) => (
-                              <span key={index} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                                {skill}
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedSkills((prev: any[]) => prev.filter((_: any, i: any) => i !== index))}
-                                  className="hover:bg-blue-200 rounded-full p-0.5"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </span>
-                            ))}
-                            <input
-                              type="text"
-                              placeholder={selectedSkills.length === 0 ? "Skills (e.g., Python)" : "Add more skills..."}
-                              value={skillInput}
-                              onChange={(e) => {
-                                setSkillInput(e.target.value);
-                                if (e.target.value.length >= 1) {
-                                  const filtered = searchAccuracy.getAccurateMatches(
-                                    e.target.value,
-                                    allSkills.filter(s => !selectedSkills.includes(s)),
-                                    'skill'
-                                  ).slice(0, 12).map(m => m.item);
-                                  setSkillSuggestions(filtered);
-                                  setShowSkillSug(true);
-                                } else {
-                                  const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'].filter(s => !selectedSkills.includes(s));
-                                  setSkillSuggestions(popularSkills);
-                                  setShowSkillSug(true);
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if ((e.key === 'Enter' || e.key === ',') && skillInput.trim()) {
-                                  e.preventDefault();
-                                  const newSkill = skillInput.trim();
-                                  if (!selectedSkills.includes(newSkill)) {
-                                    setSelectedSkills((prev: any) => [...prev, newSkill]);
-                                  }
-                                  setSkillInput('');
-                                  setShowSkillSug(false);
-                                } else if (e.key === 'Backspace' && skillInput === '' && selectedSkills.length > 0) {
-                                  setSelectedSkills(prev => prev.slice(0, -1));
-                                }
-                              }}
-                              onFocus={() => {
-                                if (skillInput) {
-                                  const filtered = searchAccuracy.getAccurateMatches(
-                                    skillInput,
-                                    allSkills.filter(s => !selectedSkills.includes(s)),
-                                    'skill'
-                                  ).slice(0, 12).map(m => m.item);
-                                  setSkillSuggestions(filtered);
-                                } else {
-                                  const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'].filter(s => !selectedSkills.includes(s));
-                                  setSkillSuggestions(popularSkills);
-                                }
-                                setShowSkillSug(true);
-                              }}
-                              onBlur={() => setTimeout(() => setShowSkillSug(false), 150)}
-                              className="flex-1 min-w-[120px] outline-none text-sm text-gray-900 bg-transparent"
-                            />
-                          </div>
-                          {showSkillSug && skillSuggestions.length > 0 && (
-                            <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl shadow-blue-900/10 overflow-hidden zync-pop-in" style={{ maxHeight: '152px' }}>
-                              <div className="overflow-y-auto" style={{ maxHeight: '152px' }}>
-                                {skillSuggestions.map((skill, index) => (
-                                  <button
-                                    key={index}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      if (!selectedSkills.includes(skill)) {
-                                        setSelectedSkills((prev: any) => [...prev, skill]);
-                                      }
-                                      setSkillInput('');
-                                      setShowSkillSug(false);
-                                    }}
-                                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
-                                  >
-                                    <span className="flex items-center gap-2">
-                                      <Code className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                                      {skill}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Location</label>
-                          <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <div className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 bg-gray-50/50 focus-within:bg-white min-h-[42px] flex flex-wrap items-center gap-1.5 transition-all">
-                            {selectedLocations.map((location, index) => (
-                              <span key={index} className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                                {location}
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedLocations((prev: any[]) => prev.filter((_: any, i: any) => i !== index))}
-                                  className="hover:bg-green-200 rounded-full p-0.5"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </span>
-                            ))}
-                            <input
-                              type="text"
-                              placeholder={selectedLocations.length === 0 ? "Location (e.g., Mumbai)" : "Add more locations..."}
-                              value={locationInput}
-                              onChange={(e) => {
-                                setLocationInput(e.target.value);
-                                if (e.target.value.length >= 1) {
-                                  const filtered = searchAccuracy.getLocationMatches(
-                                    e.target.value,
-                                    allLocations.filter(l => !selectedLocations.includes(l))
-                                  ).slice(0, 12);
-                                  setLocationSuggestions(filtered);
-                                  setShowLocSug(true);
-                                } else {
-                                  const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'].filter(l => !selectedLocations.includes(l));
-                                  setLocationSuggestions(popularLocations);
-                                  setShowLocSug(true);
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if ((e.key === 'Enter' || e.key === ',') && locationInput.trim()) {
-                                  e.preventDefault();
-                                  const newLocation = locationInput.trim();
-                                  if (!selectedLocations.includes(newLocation)) {
-                                    setSelectedLocations((prev: any) => [...prev, newLocation]);
-                                  }
-                                  setLocationInput('');
-                                  setShowLocSug(false);
-                                } else if (e.key === 'Backspace' && locationInput === '' && selectedLocations.length > 0) {
-                                  setSelectedLocations(prev => prev.slice(0, -1));
-                                }
-                              }}
-                              onFocus={() => {
-                                if (locationInput) {
-                                  const filtered = searchAccuracy.getLocationMatches(
-                                    locationInput,
-                                    allLocations.filter(l => !selectedLocations.includes(l))
-                                  ).slice(0, 12);
-                                  setLocationSuggestions(filtered);
-                                } else {
-                                  const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'].filter(l => !selectedLocations.includes(l));
-                                  setLocationSuggestions(popularLocations);
-                                }
-                                setShowLocSug(true);
-                              }}
-                              onBlur={() => setTimeout(() => setShowLocSug(false), 150)}
-                              className="flex-1 min-w-[120px] outline-none text-sm text-gray-900 bg-transparent"
-                            />
-                          </div>
-                          {showLocSug && locationSuggestions.length > 0 && (
-                            <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl shadow-blue-900/10 overflow-hidden zync-pop-in" style={{ maxHeight: '152px' }}>
-                              <div className="overflow-y-auto" style={{ maxHeight: '152px' }}>
-                                {locationSuggestions.map((location, index) => (
-                                  <button
-                                    key={index}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      if (!selectedLocations.includes(location)) {
-                                        setSelectedLocations((prev: any) => [...prev, location]);
-                                      }
-                                      setLocationInput('');
-                                      setShowLocSug(false);
-                                    }}
-                                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
-                                  >
-                                    <span className="flex items-center gap-2">
-                                      <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                      {location}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Designation</label>
-                          <AutocompleteCombobox
-                            value={designationInput}
-                            onChange={v => {
-                              if (v && !designations.includes(v)) setDesignations((d: any) => [...d, v]);
-                              setDesignationInput('');
-                            }}
-                            options={[]}
-                            allowCustom
-                            placeholder="e.g. Engineer"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Ex-Company</label>
-                          <AutocompleteCombobox
-                            value={companyInput}
-                            onChange={v => {
-                              if (v && !targetCompanies.includes(v)) setTargetCompanies((c: any) => [...c, v]);
-                              setCompanyInput('');
-                            }}
-                            options={[]}
-                            allowCustom
-                            placeholder="e.g. Infosys"
-                          />
-                        </div>
-                      </div>
-                      {/* Row 3: Exp, CTC, Notice + Relocation */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {/* Experience Range */}
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Exp (yrs)</label>
-                          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 bg-gray-50/50 transition-all">
-                            <input
-                              type="number" min={0} max={30} placeholder="Min"
-                              value={expRange[0] === 0 ? '' : expRange[0]}
-                              onChange={e => setExpRange([Math.min(+e.target.value || 0, expRange[1]), expRange[1]])}
-                              className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none border-r border-gray-200 text-center"
-                            />
-                            <input
-                              type="number" min={0} max={30} placeholder="Max"
-                              value={expRange[1] === 30 ? '' : expRange[1]}
-                              onChange={e => setExpRange([expRange[0], Math.max(+e.target.value || 30, expRange[0])])}
-                              className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none text-center"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Salary / CTC Range */}
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">CTC (LPA)</label>
-                          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 bg-gray-50/50 transition-all">
-                            <input
-                              type="number" min={0} max={200} placeholder="Min"
-                              value={salaryRange[0] === 0 ? '' : salaryRange[0]}
-                              onChange={e => setSalaryRange([Math.min(+e.target.value || 0, salaryRange[1]), salaryRange[1]])}
-                              className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none border-r border-gray-200 text-center"
-                            />
-                            <input
-                              type="number" min={0} max={200} placeholder="Max"
-                              value={salaryRange[1] === 100 ? '' : salaryRange[1]}
-                              onChange={e => setSalaryRange([salaryRange[0], Math.max(+e.target.value || 100, salaryRange[0])])}
-                              className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none text-center"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Notice Period + Relocation */}
-                        <div className="sm:col-span-2 lg:col-span-1">
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Notice Period</label>
-                          <div className="flex flex-wrap items-center gap-1.5 border border-gray-200 rounded-xl bg-gray-50/50 p-2 min-h-[42px] transition-all">
-                            <Clock className="w-3.5 h-3.5 text-gray-400 ml-1 flex-shrink-0" />
-                            {NOTICE_OPTIONS.map(n => (
-                              <button
-                                key={n}
-                                onClick={() => setNoticePeriod((prev: string[]) => prev.includes(n) ? prev.filter((x: string) => x !== n) : [...prev, n])}
-                                className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all ${noticePeriod.includes(n) ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:bg-blue-50'
-                                  }`}
-                              >{n}</button>
-                            ))}
-                            <button
-                              onClick={() => setRelocationOnly((v: any) => !v)}
-                              className={`ml-auto flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all ${relocationOnly ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50'
-                                }`}
-                            >
-                              <MapPin className="w-3 h-3" /> Relocation
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Active filter tags */}
-                      {(designations.length > 0 || targetCompanies.length > 0) && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {designations.map((d, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                              {d}<button onClick={() => setDesignations((ds: any[]) => ds.filter((_x: any, idx: number) => idx !== i))}><X className="w-3 h-3" /></button>
-                            </span>
-                          ))}
-                          {targetCompanies.map((tc, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 bg-violet-50 border border-violet-100 text-violet-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                              {tc}<button onClick={() => setTargetCompanies((cs: any[]) => cs.filter((_x: any, idx: number) => idx !== i))}><X className="w-3 h-3" /></button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => { setDesignations([]); setExpRange([0, 30]); setSalaryRange([0, 100]); setNoticePeriod([]); setRelocationOnly(false); setTargetCompanies([]); setBooleanQuery(''); setSearchTerm(''); setSelectedSkills([]); setSkillInput(''); setSelectedLocations([]); setLocationInput(''); }}
-                          className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-600 text-sm font-semibold hover:border-red-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                        >
-                          <X className="w-4 h-4" /> Clear
                         </button>
                       </div>
                     </div>
