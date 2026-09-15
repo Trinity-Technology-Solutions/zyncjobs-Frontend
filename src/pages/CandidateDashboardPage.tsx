@@ -1881,7 +1881,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         recommendedJobs.slice(0, 3).map((job, index) => {
                           const jobId = job._id || job.id;
                           const br = computeMatchBreakdown(job);
-                          const matchPct = br.overall;
+                          const matchPct = (job.matchScore != null && job.matchScore > 0)
+                            ? Math.round(job.matchScore)
+                            : br.overall;
                           const isSaved = savedJobIdsSet.has(jobId);
                           return (
                             <div
@@ -2017,7 +2019,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     {recommendedJobs.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
                         <button
-                          onClick={() => onNavigate("job-listings")}
+                          onClick={() => onNavigate("job-matches")}
                           className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors"
                         >
                           View More →

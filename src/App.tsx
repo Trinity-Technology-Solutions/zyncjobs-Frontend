@@ -310,6 +310,9 @@ function App() {
     if (page.startsWith('job-detail/')) { const id = page.replace('job-detail/', ''); navigate(`/job-detail?id=${id}`); return; }
     if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
     if (page === 'login') { navigate('/login'); return; }
+    if (page === 'employer-login') { navigate('/employer-login'); return; }
+    if (page === 'candidate-register') { navigate('/candidate-register'); return; }
+    if (page === 'employer-register') { navigate('/employer-register'); return; }
     if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
     if (page === 'bulk-job-import') { navigate('/bulk-job-import'); return; }
