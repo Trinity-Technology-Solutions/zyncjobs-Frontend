@@ -4,7 +4,6 @@ import { MatchBreakdownModal } from '../components/match/MatchBreakdownModal';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
-import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
@@ -88,15 +87,20 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(j =>
-        (j.title || j.jobTitle || '').toLowerCase().includes(q) ||
-        (j.company || '').toLowerCase().includes(q) ||
-        (j.location || '').toLowerCase().includes(q) ||
-        (j.skills || []).some((s: string) => s.toLowerCase().includes(q))
+        j.title.toLowerCase().includes(q) ||
+        j.company.toLowerCase().includes(q) ||
+        j.skills.some((s: string) => s.toLowerCase().includes(q))
       );
     }
-    const cat = CATEGORIES.find(c => c.key === filterCategory)!;
-    result = result.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max);
-    result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    if (sortBy === 'match') {
+      result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    } else if (sortBy === 'recent') {
+      result.sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return db - da;
+      });
+    }
     setFiltered(result);
   }, [jobs, search, filterCategory]);
 
@@ -268,44 +272,29 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
         {/* Search & Category Filter Bar */}
         {!loading && !error && jobs.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <AutocompleteCombobox
-                  value={search}
-                  onChange={setSearch}
-                  options={[]}
-                  allowCustom
-                  placeholder="Search by title, company, skill..."
-                />
-              </div>
-              <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
-                <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
-              </div>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by title, company, skill..."
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px]"
+              />
             </div>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map(cat => {
-                const count = cat.key === 'all' ? jobs.length : jobs.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max).length;
-                const active = filterCategory === cat.key;
-                const colors: Record<string, string> = {
-                  all:       active ? 'bg-gray-800 text-white border-gray-800'       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
-                  excellent: active ? 'bg-green-600 text-white border-green-600'     : 'bg-white text-green-700 border-green-200 hover:border-green-400',
-                  best:      active ? 'bg-blue-600 text-white border-blue-600'       : 'bg-white text-blue-700 border-blue-200 hover:border-blue-400',
-                  partial:   active ? 'bg-orange-500 text-white border-orange-500'   : 'bg-white text-orange-600 border-orange-200 hover:border-orange-400',
-                };
-                return (
-                  <button
-                    key={cat.key}
-                    onClick={() => setFilterCategory(cat.key)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${colors[cat.key]}`}
-                  >
-                    {cat.label}
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                      active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-                    }`}>{count}</span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500 whitespace-nowrap">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as 'match' | 'recent')}
+                className="px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px] min-w-[140px] cursor-pointer"
+              >
+                <option value="match">Best Match</option>
+                <option value="recent">Most Recent</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
+              <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
             </div>
           </div>
         )}
