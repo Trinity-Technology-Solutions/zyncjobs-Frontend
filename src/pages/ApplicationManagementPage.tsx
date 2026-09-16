@@ -11,6 +11,7 @@ import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
 import { rankCandidates, type RecruiterCandidate } from '../services/aiRecruiterService';
+import { scoreBreakdown, mergeCandidateSkills } from '../utils/candidateScoring';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface ApplicationManagementPageProps {
@@ -65,21 +66,21 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
           {new Date(appliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
         </p>
       )}
-      {/* Action buttons ó stop drag propagation */}
+      {/* Action buttons ‚Äî stop drag propagation */}
       <div className="flex flex-wrap gap-1" onPointerDown={e => e.stopPropagation()}>
         <button onClick={() => onViewProfile(application)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-50">
           Profile
         </button>
-        <span className="text-gray-300 text-xs">∑</span>
+        <span className="text-gray-300 text-xs">‚Äî</span>
         <button onClick={() => onViewResume(application)} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1.5 py-0.5 rounded hover:bg-blue-50">
           Resume
         </button>
         {!isViewer && (<>
-        <span className="text-gray-300 text-xs">∑</span>
+        <span className="text-gray-300 text-xs">‚Äî</span>
         <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
           Interview
         </button>
-        <span className="text-gray-300 text-xs">∑</span>
+        <span className="text-gray-300 text-xs">‚Äî</span>
         <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
           Delete
         </button>
@@ -283,48 +284,14 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   };
 
   const computeScore = (app: any, skills: string[]) => {
-    const candidateSkills = normalizeSkillArray(app.skills || app.candidateSkills || []);
-    const normalizedJobSkills = normalizeSkillArray(skills);
-
-    // Text-based skill detection: search each required skill inside the candidate's
-    // experience / education / resume text so matches are never missed.
-    const textBlob = `${app.candidateExperience || ''} ${app.candidateEducation || ''} ${app.resumeText || app.parsedResume?.resumeText || ''}`.toLowerCase();
-    const foundInText = normalizedJobSkills.filter(js => js && textBlob.includes(js));
-
-    const knownSkills = [...new Set([...candidateSkills, ...foundInText])];
-    const hasSkillData = knownSkills.length > 0 || textBlob.trim().length > 30;
-
-    // Skills score (50%) ó matched / jobSkills
-    let skillScore: number;
-    if (normalizedJobSkills.length > 0 && knownSkills.length > 0) {
-      const matched = normalizedJobSkills.filter(js =>
-        knownSkills.some(cs => cs.includes(js) || js.includes(cs))
-      ).length;
-      skillScore = Math.round((matched / normalizedJobSkills.length) * 100);
-    } else if (knownSkills.length > 0) {
-      skillScore = Math.min(90, knownSkills.length * 9);
-    } else {
-      // No skill data at all ó neutral, never 0 (prevents unfair auto-rejects)
-      skillScore = 45;
-    }
-
-    // Experience score (25%) ó neutral when unknown, never 20
-    const rawExp = app.candidateExperience ?? app.experience ?? app.yearsOfExperience ?? '';
-    const expYears = typeof rawExp === 'number' ? rawExp : parseFloat(String(rawExp).match(/(\d+\.?\d*)/)?.[1] || '0');
-    const hasExpData = !!rawExp && String(rawExp).trim().length > 0;
-    const expScore = !hasExpData ? 45 : expYears >= 5 ? 100 : expYears >= 3 ? 80 : expYears >= 1 ? 60 : expYears > 0 ? 40 : 25;
-
-    // Completeness score (25%)
-    const completeness = profileCompletenessScore(app);
-
-    return {
-      score: Math.min(99, Math.max(1, Math.round(skillScore * 0.5 + expScore * 0.25 + completeness * 0.25))),
-      hasSkillData,
-    };
+    const candidateSkills = mergeCandidateSkills(app);
+    const jobData = { skills, jobTitle: sessionStorage.getItem('selectedJobTitle') || '' };
+    const bd = scoreBreakdown(app, candidateSkills, jobData);
+    return { score: bd.score, hasSkillData: candidateSkills.length > 0, matchedSkills: bd.matchedSkills, missingSkills: bd.missingSkills, jobSkills: bd.jobSkills };
   };
 
   const deriveStatus = (score: number, ai: any, hasSkillData: boolean) => {
-    // When the AI responded, trust its recommendation ó but a "reject" must be
+    // When the AI responded, trust its recommendation ‚Äî but a "reject" must be
     // backed by a clearly low score; borderline rejections go to Screening.
     if (ai?.matchScore != null && ai?.recommendation) {
       if (ai.recommendation === 'strong') return 'shortlisted';
@@ -355,7 +322,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
     const jobDesc = jobDescription || `Job skills: ${skills.join(', ')}`;
 
-    // Real AI ranking ó one batched call to the AI service (/ai/recruiter/candidates/rank)
+    // Real AI ranking ‚Äî one batched call to the AI service (/ai/recruiter/candidates/rank)
     let ranked: RecruiterCandidate[] = [];
     setAiFailed(false);
     try {
@@ -377,10 +344,10 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     const preview = applications.map((app: any) => {
       const candidateName = app.candidateName || app.name || 'Candidate';
       const ai = rankedByName.get(candidateName);
-      const { score, hasSkillData } = computeScore(app, skills);
+      const { score, hasSkillData, matchedSkills, missingSkills, jobSkills } = computeScore(app, skills);
       const finalScore = ai?.matchScore ?? score;
       const newStatus = deriveStatus(finalScore, ai, hasSkillData);
-      return { app, score: finalScore, newStatus, recommendation: ai?.recommendation, aiSummary: ai?.feedback, fromAI: ai?.matchScore != null };
+      return { app, score: finalScore, newStatus, recommendation: ai?.recommendation, aiSummary: ai?.feedback, fromAI: ai?.matchScore != null, matchedSkills, missingSkills, jobSkills };
     });
 
     setAiPreview(preview);
@@ -530,22 +497,21 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             <BackButton fallback="/job-management" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} ó Pipeline
+                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} ‚Äî Pipeline
               </h1>
               <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Search */}
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 h-10">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <AutocompleteCombobox
+              <input
+                type="text"
                 value={searchQuery}
-                onChange={setSearchQuery}
-                options={[]}
-                allowCustom
+                onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search candidate..."
-                className="w-40"
+                className="text-sm text-gray-700 bg-transparent outline-none w-44 placeholder-gray-400"
               />
             </div>
             {applications.length > 0 && (
@@ -587,7 +553,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         {applications.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">??</div>
+            <div className="text-6xl mb-4">üìã</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
             <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
             <button onClick={() => fetchApplications()} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
@@ -629,32 +595,45 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
               <button onClick={() => setAiPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 bg-indigo-50 border-b text-sm text-indigo-700">
-              {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found ó using profile completeness'}
+              {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found ‚Äî using profile completeness'}
             </div>
             {aiFailed && (
               <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
-                ?? AI scoring service is unavailable ó scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
+                ‚ö†Ô∏è AI scoring service is unavailable ‚Äî scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
               </div>
             )}
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
-              {aiPreview.map(({ app, score, newStatus, fromAI }) => (
-                <div key={app.id || app._id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border">
-                  <div><div className="font-medium text-gray-900 text-sm">{app.candidateName}</div><div className="text-xs text-gray-400">{app.candidateEmail}</div></div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500 flex items-center gap-1">{fromAI ? 'AI Score' : 'Est. Score'}</div>
-                      <div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div>
-                    </div>
-                    <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : newStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : newStatus === 'rejected' ? <XCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
-                      {newStatus}
+              {aiPreview.map(({ app, score, newStatus, fromAI, matchedSkills, missingSkills, jobSkills: previewJobSkills }) => (
+                <div key={app.id || app._id} className="bg-gray-50 rounded-xl px-4 py-3 border">
+                  <div className="flex items-center justify-between">
+                    <div><div className="font-medium text-gray-900 text-sm">{app.candidateName}</div><div className="text-xs text-gray-400">{app.candidateEmail}</div></div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">{fromAI ? 'AI Score' : 'Est. Score'}</div>
+                        <div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div>
+                      </div>
+                      <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : newStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : newStatus === 'rejected' ? <XCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
+                        {newStatus}
+                      </div>
                     </div>
                   </div>
+                  {((matchedSkills?.length ?? 0) > 0 || (missingSkills?.length ?? 0) > 0) && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {matchedSkills?.slice(0,4).map((sk: string, i: number) => (
+                        <span key={i} className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">‚úì {sk}</span>
+                      ))}
+                      {missingSkills?.slice(0,3).map((sk: string, i: number) => (
+                        <span key={i} className="text-[11px] text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded">‚úó {sk}</span>
+                      ))}
+                      {(previewJobSkills?.length ?? 0) > 0 && <span className="text-[11px] text-gray-400 ml-1">{matchedSkills?.length}/{previewJobSkills?.length} matched</span>}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
             <div className="p-4 border-t flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">? {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted &nbsp; ?? {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed &nbsp; ? {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
+              <div className="text-xs text-gray-500">‚úÖ {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted ¬† üîÑ {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed ¬† ‚ùå {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
               <div className="flex gap-2">
                 <button onClick={() => setAiPreview(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                 <button onClick={confirmAIShortlist} disabled={aiRunning} className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2">

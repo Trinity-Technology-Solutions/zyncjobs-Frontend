@@ -95,6 +95,20 @@ const parseSalaryNumber = (value: string): number => {
   return num;
 };
 
+// Returns a hint string if salary value seems like a raw number that could be simplified
+const getSalaryHint = (value: string): string => {
+  const s = String(value || '').trim().toLowerCase().replace(/,/g, '');
+  if (!s) return '';
+  const match = s.match(/^(\d+(?:\.\d+)?)\s*(k|l|cr)?$/);
+  if (!match || match[2]) return ''; // already has unit suffix
+  const num = parseFloat(match[1]);
+  if (isNaN(num) || num <= 0) return '';
+  if (num >= 10000000) return `= ₹${(num/10000000).toFixed(1)}Cr`;
+  if (num >= 100000) return `= ₹${(num/100000).toFixed(1)}L`;
+  if (num >= 1000) return `= ₹${(num/1000).toFixed(1)}K`;
+  return '';
+};
+
 // Format a salary for display only — never used for validation.
 // Small values (e.g. 800) stay exact; large values are abbreviated with K / L / Cr.
 const formatSalary = (value: string): string => {
@@ -641,15 +655,35 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
 
   // When job title changes while on step 6, clear and regenerate JD for the new role
   const prevJobTitleRef = React.useRef(jobData.jobTitle);
+  const titleChangedRef = React.useRef(false);
+
   useEffect(() => {
     const prev = prevJobTitleRef.current;
     prevJobTitleRef.current = jobData.jobTitle;
-    if (jobData.jobTitle && jobData.jobTitle !== prev && currentStep === 6) {
-      updateJobData('jobDescription', '');
-      setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
+    if (jobData.jobTitle && jobData.jobTitle !== prev) {
+      titleChangedRef.current = true;
+      if (currentStep === 6) {
+        titleChangedRef.current = false;
+        updateJobData('jobDescription', '');
+        updateJobData('responsibilities', []);
+        updateJobData('requirements', []);
+        setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobData.jobTitle]);
+
+  // When navigating TO step 6, regenerate if title changed since last generation
+  useEffect(() => {
+    if (currentStep === 6 && titleChangedRef.current && jobData.jobTitle) {
+      titleChangedRef.current = false;
+      updateJobData('jobDescription', '');
+      updateJobData('responsibilities', []);
+      updateJobData('requirements', []);
+      setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   // Auto-extract experience range from job description — only in manual mode when not already set
   useEffect(() => {
@@ -1793,7 +1827,10 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           const minNum = parseSalaryNumber(jobData.minSalary);
           const maxNum = parseSalaryNumber(jobData.maxSalary);
           if (minNum > 0 && maxNum > 0 && maxNum < minNum) {
-            return { isValid: false, message: 'Maximum salary must be greater than or equal to the minimum salary' };
+            return { isValid: false, message: 'Maximum salary must be greater than or equal to the minimum salary' }
+      if (maxNum > 500000000) {
+        return { isValid: false, message: 'Maximum salary cannot exceed ₹50 Crore. Use format like 8L, 25L, or 1Cr.' };
+      };
           }
         }
         break;
@@ -2380,7 +2417,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                     setSalaryModified(true);
                   }}
                   onBlur={() => setSalaryFocused(null)}
-                  placeholder="e.g. 500000"
+                  placeholder="e.g. 5L or 500000"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -2406,7 +2443,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                     setSalaryModified(true);
                   }}
                   onBlur={() => setSalaryFocused(null)}
-                  placeholder={jobData.payType === 'Maximum amount' ? 'e.g. 2500000' : 'e.g. 800000'}
+                  placeholder="e.g. 8L or 800000"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -3304,6 +3341,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     if (salaryModified && jobData.payType === 'Range' && jobData.minSalary && jobData.maxSalary) {
       const minNum = parseSalaryNumber(jobData.minSalary);
       const maxNum = parseSalaryNumber(jobData.maxSalary);
+      if (maxNum > 500000000) {
+        setNotification({ type: 'error', message: 'Maximum salary cannot exceed ₹50 Crore. Use format like 8L, 25L, or 1Cr.', isVisible: true });
+        setCurrentStep(4);
+        return;
+      }
       if (minNum > 0 && maxNum > 0 && maxNum < minNum) {
         setNotification({
           type: 'error',

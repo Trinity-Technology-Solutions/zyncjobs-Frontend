@@ -104,7 +104,11 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'reviews'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'reviews'>(() => {
+    const saved = sessionStorage.getItem('companyDetailsTab');
+    sessionStorage.removeItem('companyDetailsTab');
+    return (saved as 'overview' | 'jobs' | 'reviews') || 'overview';
+  });
   const [showFullDesc, setShowFullDesc] = useState(false);
   
   // Dynamic data states
@@ -117,6 +121,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
 
   const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [locSearch, setLocSearch] = useState('');
+  const [deptSearch, setDeptSearch] = useState('');
+  const [showLocDrop, setShowLocDrop] = useState(false);
+  const [showDeptDrop, setShowDeptDrop] = useState(false);
 
   const isCandidate = user?.role === 'candidate' || user?.userType === 'candidate' || user?.type === 'candidate';
   const isEmployer = user?.role === 'employer' || user?.userType === 'employer' || user?.type === 'employer';
@@ -128,15 +136,17 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const jobCategories = useMemo(() => [...new Set(jobs.map(j => (j.jobCategory || j.category || j.jobType || '').trim().toLowerCase()).filter(Boolean))], [jobs]);
 
   const filteredJobs = useMemo(() => {
+    const locFilter = (locSearch || '').trim().toLowerCase();
+    const deptFilter = (deptSearch || '').trim().toLowerCase();
     return jobs.filter(job => {
-      if (selectedLocation && !(job.location || '').toLowerCase().includes(selectedLocation.toLowerCase())) return false;
-      if (selectedDepartment) {
+      if (locFilter && !(job.location || '').toLowerCase().includes(locFilter)) return false;
+      if (deptFilter) {
         const deptVal = (job.jobCategory || job.category || job.jobType || '').trim().toLowerCase();
-        if (deptVal !== selectedDepartment.toLowerCase()) return false;
+        if (!deptVal.includes(deptFilter)) return false;
       }
       return true;
     });
-  }, [jobs, selectedLocation, selectedDepartment]);
+  }, [jobs, locSearch, deptSearch]);
 
   useEffect(() => {
     const savedCompany = localStorage.getItem('selectedCompany');
@@ -388,6 +398,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         setJobs(companyJobs);
         setSelectedLocation('');
         setSelectedDepartment('');
+        setLocSearch('');
+        setDeptSearch('');
       }
     } catch (error) {
       console.error('Error fetching company jobs:', error);
@@ -1252,33 +1264,64 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Job Openings at {company?.name}</h2>
                   <p className="text-gray-600 mt-1">{filteredJobs.length} positions available</p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-                  <AutocompleteCombobox
-                    value={selectedLocation}
-                    onChange={(val) => setSelectedLocation(val)}
-                    options={[
-                      { value: '', label: 'All Locations' },
-                      ...jobLocations.map(location => ({ value: location, label: location })),
-                    ]}
-                    dataSource="locations"
-                    placeholder="Select location"
-                    className="w-full sm:w-auto"
-                    maxOptions={jobLocations.length + 1}
-                  />
-                  <AutocompleteCombobox
-                    value={selectedDepartment}
-                    onChange={(val) => setSelectedDepartment(val)}
-                    options={[
-                      { value: '', label: 'All Departments' },
-                      ...jobCategories.map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) })),
-                    ]}
-                    placeholder="Select department"
-                    className="w-full sm:w-auto"
-                    maxOptions={jobCategories.length + 1}
-                  />
-                  {(selectedLocation || selectedDepartment) && (
+<div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                  {/* Location searchable filter */}
+                  <div className="relative w-full sm:w-44">
+                    <input
+                      type="text"
+                      value={locSearch}
+                      onChange={e => { setLocSearch(e.target.value); setShowLocDrop(true); }}
+                      onFocus={() => setShowLocDrop(true)}
+                      onBlur={() => setTimeout(() => setShowLocDrop(false), 150)}
+                      placeholder="Search location..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {showLocDrop && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <div
+                          className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer"
+                          onMouseDown={() => { setLocSearch(''); setShowLocDrop(false); }}
+                        >All Locations</div>
+                        {jobLocations.filter(loc => loc.toLowerCase().includes(locSearch.toLowerCase())).map(loc => (
+                          <div
+                            key={loc}
+                            className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
+                            onMouseDown={() => { setLocSearch(loc); setShowLocDrop(false); }}
+                          >{loc}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Department searchable filter */}
+                  <div className="relative w-full sm:w-44">
+                    <input
+                      type="text"
+                      value={deptSearch}
+                      onChange={e => { setDeptSearch(e.target.value); setShowDeptDrop(true); }}
+                      onFocus={() => setShowDeptDrop(true)}
+                      onBlur={() => setTimeout(() => setShowDeptDrop(false), 150)}
+                      placeholder="Search department..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {showDeptDrop && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <div
+                          className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer"
+                          onMouseDown={() => { setDeptSearch(''); setShowDeptDrop(false); }}
+                        >All Departments</div>
+                        {jobCategories.filter(cat => cat.toLowerCase().includes(deptSearch.toLowerCase())).map(cat => (
+                          <div
+                            key={cat}
+                            className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
+                            onMouseDown={() => { setDeptSearch(cat); setShowDeptDrop(false); }}
+                          >{cat.charAt(0).toUpperCase() + cat.slice(1)}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {(locSearch || deptSearch) && (
                     <button
-                      onClick={() => { setSelectedLocation(''); setSelectedDepartment(''); }}
+                      onClick={() => { setLocSearch(''); setDeptSearch(''); }}
                       className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
                     >
                       Clear Filters

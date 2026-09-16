@@ -56,7 +56,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   usePageSnapshot<{ filter: string; searchTerm: string; sortBy: string }>(
     'zync:list:job-management',
     (snap, scrollY) => {
-      setFilter(snap.filter === 'all' ? 'active' : (snap.filter || 'active'));
+      setFilter(snap.filter === 'all' || snap.filter === 'expired' ? 'active' : (snap.filter || 'active'));
       setSearchTerm(snap.searchTerm || '');
       setSortBy(snap.sortBy || 'posted');
       window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
@@ -298,8 +298,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                          job.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'all' || 
                          (filter === 'active' && (job.status === 'active' || job.status === 'approved' || !job.status)) ||
-                         (filter === 'closed' && job.status === 'closed') ||
-                         (filter === 'expired' && job.status === 'expired');
+                         (filter === 'closed' && job.status === 'closed');
     return matchesSearch && matchesFilter;
   });
 
@@ -307,7 +306,6 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     all: jobs.length,
     active: jobs.filter(job => job.status === 'active' || job.status === 'approved' || !job.status).length,
     closed: jobs.filter(job => job.status === 'closed').length,
-    expired: jobs.filter(job => job.status === 'expired').length
   };
 
   const sortJobs = (jobsToSort: Job[]) => {
@@ -439,14 +437,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 >
                   Closed Jobs {statusCounts.closed}
                 </button>
-                <button
-                  onClick={() => setFilter('expired')}
-                  className={`text-xs sm:text-sm font-medium ${
-                    filter === 'expired' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Expired Jobs {statusCounts.expired}
-                </button>
+
               </div>
             </div>
           </div>
