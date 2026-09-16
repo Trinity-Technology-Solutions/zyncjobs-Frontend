@@ -22,8 +22,8 @@ function RobotCanvas() {
     scene.fog = new THREE.Fog(0xf7f6f3, 10, 30); // Matches background
 
     const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / mount.clientHeight, 0.1, 100);
-    camera.position.set(0, 2.0, 10.5);
-    camera.lookAt(0, 0.5, 0);
+    camera.position.set(0, 1.8, 10.0);
+    camera.lookAt(0, 0.9, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
@@ -65,7 +65,7 @@ function RobotCanvas() {
 
     // ── FLOOR (Shadow fix) ──────────────────────────────────────
     const floorGeo = new THREE.PlaneGeometry(30, 30);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.4 });
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.35 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -1.10;
@@ -74,7 +74,15 @@ function RobotCanvas() {
 
     // ── ROBOT GROUP ───────────────────────────────────────────────────────────
     const robotGroup = new THREE.Group();
-    robotGroup.position.set(0, -1.10, 0);
+    const getRobotX = () => {
+      const w = window.innerWidth;
+      if (w >= 1536) return -0.85;
+      if (w >= 1280) return -0.75;
+      if (w >= 1024) return -0.70;
+      if (w >= 768) return -0.60;
+      return 0;
+    };
+    robotGroup.position.set(getRobotX(), -1.10, 0);
     scene.add(robotGroup);
 
     // Physics & GLTF variables
@@ -83,20 +91,36 @@ function RobotCanvas() {
     let mixer: THREE.AnimationMixer | null = null;
     let loadedModel: THREE.Group | null = null;
     let rawModelSizeY = 0;
+    const baseCenter = new THREE.Vector3();
+    let baseMinY = 0;
 
     const updateModelLayout = () => {
       if (!loadedModel || rawModelSizeY <= 0) return;
-      const isMobile = window.innerWidth < 768;
-      const targetHeight = isMobile ? 4.0 : 4.8;
+      const w = window.innerWidth;
+      const isMobile = w < 768;
+      const isTablet = w >= 768 && w < 1024;
+      const isLargeScreen = w >= 1536;
+
+      let targetHeight = 4.85;
+      if (isMobile) {
+        targetHeight = 4.2;
+      } else if (isTablet) {
+        targetHeight = 4.6;
+      } else if (isLargeScreen) {
+        targetHeight = 5.25;
+      } else {
+        targetHeight = 4.85;
+      }
+
       const scale = targetHeight / rawModelSizeY;
       loadedModel.scale.set(scale, scale, scale);
       
-      loadedModel.position.set(0, 0, 0);
-      const currentBox = new THREE.Box3().setFromObject(loadedModel);
-      const center = new THREE.Vector3();
-      loadedModel.position.x = -center.x;
-      loadedModel.position.z = -center.z;
-      loadedModel.position.y = -currentBox.min.y - 1.10;
+      // Deterministic positioning based on invariant rest-pose bounding box
+      // Prevents shifts caused by animation bones or head tracking during resize/refresh
+      loadedModel.position.x = -baseCenter.x * scale;
+      loadedModel.position.z = -baseCenter.z * scale;
+      loadedModel.position.y = -baseMinY * scale - 1.10;
+      robotGroup.position.x = getRobotX();
     };
 
     // Load the Cute Robot GLB
@@ -144,6 +168,8 @@ function RobotCanvas() {
       const box = new THREE.Box3().setFromObject(model);
       const size = new THREE.Vector3();
       box.getSize(size);
+      box.getCenter(baseCenter);
+      baseMinY = box.min.y;
       
       console.log("Model bounding box size:", size);
       
@@ -251,7 +277,8 @@ function RobotCanvas() {
   return (
     <div
       ref={mountRef}
-      style={{ width: '100%', height: '100%', minHeight: 'clamp(360px, 45vw, 520px)', cursor: 'pointer' }}
+      className="w-full h-full cursor-pointer flex items-center justify-center"
+      style={{ minHeight: '340px' }}
     />
   );
 }
@@ -272,7 +299,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
     <div
       className="relative w-full overflow-hidden bg-[#FAFBFC]"
       style={{ 
-        minHeight: 'clamp(460px, calc(100vh - 80px), 680px)',
+        minHeight: 'clamp(500px, calc(100vh - 80px), 840px)',
       }}
     >
       {/* Background Decoratives - Professional Corporate Aesthetic */}
@@ -307,7 +334,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
       </div>
 
-      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12
+      <div className="relative z-10 w-full max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12
                       grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-8 xl:gap-12 items-center">
 
         {/* ════ LEFT — Content ════ */}
@@ -366,24 +393,35 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           </div>
         </motion.div>
 
-        {/* ════ RIGHT — Three.js 3D Robot ════ */}
-        <div className="relative w-full flex flex-col lg:flex-row items-center justify-center min-h-[300px] sm:min-h-[380px] lg:min-h-[460px] xl:min-h-[500px] pb-6 sm:pb-0">
-          {/* Standalone Zync Bot Badge — visually balanced in hero area, clearly separate from robot & header */}
-          <div className="z-10 mb-2 sm:mb-4 lg:mb-0 lg:absolute lg:top-6 xl:top-8 lg:-left-6 xl:-left-10 pointer-events-none">
-            <div 
-              className="bg-white rounded-3xl px-4 sm:px-6 py-2.5 sm:py-3.5 shadow-xl border border-gray-100 flex items-center pointer-events-auto whitespace-nowrap"
+        {/* ════ RIGHT — Three.js 3D Robot & Speech Bubble ════ */}
+        <div className="relative w-full flex flex-col items-center justify-center min-h-[380px] sm:min-h-[440px] md:min-h-[480px] lg:min-h-[540px] xl:min-h-[600px] 2xl:min-h-[680px] pb-4 lg:pb-0">
+          {/* Speech Bubble: Positioned on Right at Head Level on Desktop/Tablet, Centered Above on Mobile */}
+          <div className="z-10 pointer-events-none mb-3 md:mb-0 md:absolute md:top-[18%] lg:top-[18%] xl:top-[18%] 2xl:top-[19%] md:left-[calc(50%+65px)] lg:left-[calc(50%+60px)] xl:left-[calc(50%+90px)] 2xl:left-[calc(50%+100px)]">
+            <div
+              className="relative bg-white rounded-2xl sm:rounded-3xl px-3.5 sm:px-4 lg:px-4 xl:px-5 py-2 sm:py-2.5 lg:py-2.5 xl:py-3 shadow-xl border border-gray-100 flex items-center pointer-events-auto whitespace-nowrap"
               style={{ 
-                boxShadow: '0 20px 40px rgba(0,0,0,0.08)'
+                boxShadow: '0 16px 36px rgba(0,0,0,0.08)'
               }}
             >
-              <div className="font-bold text-gray-800 text-xs sm:text-sm md:text-base lg:text-lg">
-                Hi, I am <span className="text-orange-500">ZYNC BOT!</span>
+              <div className="font-bold text-gray-800 text-xs sm:text-sm md:text-base">
+                Hi, I am <span className="text-orange-500 font-extrabold">ZYNC BOT!</span>
               </div>
+
+              {/* Desktop/Tablet pointer: left-pointing toward robot head */}
+              <div 
+                className="hidden md:block absolute top-1/2 -translate-y-1/2 -left-2 w-0 h-0 border-y-[6px] border-y-transparent border-r-[8px] border-r-white"
+                style={{ filter: 'drop-shadow(-2px 0 1px rgba(0,0,0,0.04))' }}
+              />
+              {/* Mobile pointer: downward-pointing toward robot head */}
+              <div 
+                className="block md:hidden absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"
+                style={{ filter: 'drop-shadow(0 2px 1px rgba(0,0,0,0.04))' }}
+              />
             </div>
           </div>
 
           {/* 3D Canvas */}
-          <div className="w-full flex items-center justify-center h-full">
+          <div className="w-full h-[360px] sm:h-[420px] md:h-[460px] lg:h-[520px] xl:h-[580px] 2xl:h-[660px] flex items-center justify-center">
             <RobotCanvas />
           </div>
         </div>
