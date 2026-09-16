@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Sparkles, Loader2, Check, X, Copy } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 import { ph } from '../../utils/goalPlaceholders';
+import { validateJobTitle, validateOrgName, validateDuration } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 export default function ExperienceStep() {
   const { data, addExperience, updateExperience, removeExperience } = useResumeStore();
@@ -61,6 +63,7 @@ export default function ExperienceStep() {
           setRoleSummary(prev => ({ ...prev, [expId]: clean }));
         }
       }
+    // eslint-disable-next-line no-empty
     } catch {} finally { setRoleSummaryLoading(null); }
   };
 
@@ -107,7 +110,6 @@ export default function ExperienceStep() {
         // Check if suggestion is too similar to existing bullet
         const isSimilar = existingBullets.some(bullet => {
           const normBullet = bullet.toLowerCase();
-          const words = Math.max(normBullet.split(' ').length, normalizedSuggestion.split(' ').length);
           const similarityScore = (normBullet.length * normalizedSuggestion.length) > 0 && 
             (Math.min(normBullet.length, normalizedSuggestion.length) / Math.max(normBullet.length, normalizedSuggestion.length)) > 0.7;
           return similarityScore || normalizedText.includes(normBullet.substring(0, Math.min(20, normBullet.length)));        });
@@ -118,7 +120,7 @@ export default function ExperienceStep() {
           setSuggestion(null); // Skip if too similar
         }
       }
-    } catch (error) {
+    } catch {
       setAiError('AI service is currently unavailable. Try again in a moment or enhance the bullet manually with action verbs and metrics.');
     } finally {
       setAiLoading(null);
@@ -239,30 +241,40 @@ export default function ExperienceStep() {
               <div className="p-5 space-y-4">
                 <p className="text-[10px] text-gray-400 flex items-center gap-1 -mt-1"><svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Start each bullet with a strong action verb: <span className="text-amber-500 font-medium">Led</span>, <span className="text-amber-500 font-medium">Built</span>, <span className="text-amber-500 font-medium">Optimized</span>, <span className="text-amber-500 font-medium">Designed</span></p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Job Title <span className="text-red-500">*</span></label>
-                    <input type="text" value={exp.title} onChange={(e) => updateExperience(exp.id, 'title', e.target.value)}
-                      placeholder={ph(goal, 'title')}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Company <span className="text-red-500">*</span></label>
-                    <input type="text" value={exp.company} onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                      placeholder={ph(goal, 'company')}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
-                    <input type="text" value={exp.location ?? ''} onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
-                      placeholder="Enter your city and country"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Duration <span className="text-red-500">*</span></label>
-                    <input type="text" value={exp.duration} onChange={(e) => updateExperience(exp.id, 'duration', e.target.value)}
-                      placeholder="Enter start and end date"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
-                  </div>
+                  <ValidatedInput
+                    id={`exp-title-${exp.id}`}
+                    label="Job Title"
+                    required
+                    value={exp.title}
+                    onCommit={(v) => updateExperience(exp.id, 'title', v)}
+                    validator={validateJobTitle}
+                    placeholder={ph(goal, 'title')}
+                  />
+                  <ValidatedInput
+                    id={`exp-company-${exp.id}`}
+                    label="Company"
+                    required
+                    value={exp.company}
+                    onCommit={(v) => updateExperience(exp.id, 'company', v)}
+                    validator={validateOrgName}
+                    placeholder={ph(goal, 'company')}
+                  />
+                  <ValidatedInput
+                    id={`exp-location-${exp.id}`}
+                    label="Location"
+                    value={exp.location ?? ''}
+                    onCommit={(v) => updateExperience(exp.id, 'location', v)}
+                    placeholder="Enter your city and country"
+                  />
+                  <ValidatedInput
+                    id={`exp-duration-${exp.id}`}
+                    label="Duration"
+                    required
+                    value={exp.duration}
+                    onCommit={(v) => updateExperience(exp.id, 'duration', v)}
+                    validator={validateDuration}
+                    placeholder="Enter start and end date"
+                  />
                   <div className="flex items-center gap-2">
                     <input type="checkbox" id={`current-${exp.id}`} checked={exp.current}
                       onChange={(e) => {
