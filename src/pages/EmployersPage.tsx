@@ -38,7 +38,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 <Sparkles className="w-3.5 h-3.5 animate-pulse-soft" />
                 AI-Powered Hiring Platform
               </div>
-              <h1 className="hero-fade-2 text-2xl sm:text-3xl md:text-4xl lg:text-[2.2rem] xl:text-[2.45rem] font-extrabold text-gray-900 leading-[1.18] tracking-[-0.02em] mb-3">
+              <h1 className="hero-fade-2 text-4xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-4 sm:mb-6">
                 Hire the right talent,<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-blue-500 bg-[length:200%_auto] animate-gradient-shift">decoded by AI</span>
               </h1>
