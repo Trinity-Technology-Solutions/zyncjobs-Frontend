@@ -609,7 +609,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                 <div className="flex-1">
                   {/* Company Name */}
                   <div className="flex flex-col lg:flex-row items-center lg:items-center gap-2 lg:gap-4 mb-3">
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold tracking-[-0.02em] leading-[1.15] text-gray-900 mb-2.5">
                       {company.name}
                     </h1>
                     {/* Verification Badge */}
@@ -625,7 +625,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   
                   {/* Description */}
                   {company.tagline && (
-                    <p className="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                    <p className="text-sm sm:text-base text-gray-600 mb-4 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0 px-4 lg:px-0">
                       {company.tagline}
                     </p>
                   )}

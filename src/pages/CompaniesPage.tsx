@@ -456,13 +456,16 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       {/* Hero Section */}
       <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-20">
         <div className="container max-w-4xl mx-auto px-6 text-center">
-          {/* Main Heading with Gradient */}
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent leading-tight tracking-tight">
-            Discover Top Companies
+          {/* Main Heading matching /job-listings */}
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
+            Discover{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
+              Top Companies
+            </span>
           </h1>
           
-          {/* Subheading */}
-          <p className="text-xl md:text-2xl text-slate-600 mb-10 font-medium leading-relaxed">
+          {/* Subheading matching /job-listings */}
+          <p className="text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
             Explore top companies hiring right now
           </p>
           

@@ -45,8 +45,8 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, user, onLogout })
             <Shield className="w-8 h-8 text-gray-600" />
             <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Legal</span>
           </div>
-          <h1 className="text-4xl font-bold mb-2 text-gray-900 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Privacy Policy</h1>
-          <p className="text-gray-600 text-sm">Last updated: June 2025 · ZyncJobs Platform</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 leading-[1.15] tracking-[-0.02em] text-gray-900 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Privacy Policy</h1>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl px-4">Last updated: June 2025 · ZyncJobs Platform</p>
         </div>
       </div>
 

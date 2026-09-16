@@ -1,7 +1,7 @@
 // Quick filter buttons: Last 48h, This week, Remote Jobs (single-select only) - v2
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Trophy, Flame, Sparkles } from 'lucide-react';
+import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Flame, Sparkles, CheckCircle, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -92,6 +92,22 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   });
   const [jobTitleOptions, setJobTitleOptions] = useState<{value: string, label: string}[]>([]);
   const [locationOptions, setLocationOptions] = useState<{value: string, label: string}[]>([]);
+  const [showJobTitleSug, setShowJobTitleSug] = useState(false);
+  const [showLocSug, setShowLocSug] = useState(false);
+  const jobTitleRef = useRef<HTMLDivElement>(null);
+  const locationRef = useRef<HTMLDivElement>(null);
+
+  const filteredJobTitles = useMemo(() => {
+    if (!searchTerm.trim()) return jobTitleOptions.slice(0, 8);
+    const q = searchTerm.toLowerCase();
+    return jobTitleOptions.filter(o => o.label.toLowerCase().includes(q)).slice(0, 8);
+  }, [searchTerm, jobTitleOptions]);
+
+  const filteredLocations = useMemo(() => {
+    if (!location.trim()) return locationOptions.slice(0, 8);
+    const q = location.toLowerCase();
+    return locationOptions.filter(o => o.label.toLowerCase().includes(q)).slice(0, 8);
+  }, [location, locationOptions]);
   const [savedJobs, setSavedJobs] = useState<string[]>([]); // kept for legacy refs — actual state is in useSavedJobsStore
   const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
   const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
@@ -773,238 +789,317 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F6F8FF]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Search Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg overflow-visible">
+      <div className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white border-b border-gray-100">
         {/* Back Button */}
         <BackButton
           fallback="/"
           position="top-left"
-          className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md mt-24 z-40"
+          className="bg-white/90 hover:bg-white text-gray-700 border border-gray-200 shadow-sm z-40"
         />
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.3'%3E%3Cpath d='M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z'/%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundSize: '40px 40px'
-          }}></div>
-        </div>
-        
-        {/* Floating Elements */}
-        <div className="absolute top-8 left-8 w-16 h-16 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-16 right-16 w-24 h-24 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-8 left-1/3 w-12 h-12 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-6 sm:pt-28 sm:pb-8">
+
+        {/* Subtle Background Pattern */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(59,130,246,.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(59,130,246,.06) 1px, transparent 1px)`,
+            backgroundSize: '44px 44px',
+          }}
+        />
+
+        {/* Subtle Pastel Tints matching CandidateSearch */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 -right-24 w-[26rem] h-[26rem] bg-violet-400/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
           {/* Header Content */}
-          <div className="text-center mb-6 sm:mb-8">
-            <div className="flex justify-center items-center mb-4">
-              <div className="flex -space-x-2">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Search className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-              </div>
-            </div>
-            
-          <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-2 sm:gap-3 flex-wrap text-center">
-              Discover Your Dream Job
-              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8" />
+          <div className="text-center max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto mb-5 sm:mb-6">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/80 backdrop-blur-md border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-widest shadow-sm mb-3">
+              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+              Explore Opportunities
+            </span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5 lg:whitespace-nowrap">
+              Discover Your Dream Job,{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
+                curated for you
+              </span>
             </h1>
-            <p className="text-sm sm:text-lg text-white/90 mb-4 sm:mb-6 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2 text-center px-4">
+            <p className="text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
               {selectedCategory 
-                ? `Explore ${selectedCategory.toLowerCase()} opportunities from leading companies` 
-                : (
-                  <>
-                    AI-powered job matching connects you with the right opportunities faster
-                    <Rocket className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
-                  </>
-                )
-              }
+                ? `Explore top ${selectedCategory.toLowerCase()} opportunities from verified companies actively hiring.` 
+                : 'Explore verified job openings from top employers and high-growth startups tailored to your career goals.'}
             </p>
-            
-            {/* Quick Stats */}
-            <div className="hidden sm:flex justify-center items-center gap-4 sm:gap-8 mb-4 sm:mb-6">
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Rocket className="w-4 h-4 sm:w-6 sm:h-6" />
-                  Live
-                </div>
-                <div className="text-white/80 text-xs sm:text-sm">Opportunities</div>
-              </div>
-              <div className="w-px h-6 sm:h-8 bg-white/30"></div>
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Trophy className="w-4 h-4 sm:w-6 sm:h-6" />
-                  Top
-                </div>
-                <div className="text-white/80 text-xs sm:text-sm">Companies</div>
-              </div>
-              <div className="w-px h-6 sm:h-8 bg-white/30"></div>
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Flame className="w-4 h-4 sm:w-6 sm:h-6" />
-                  Active
-                </div>
-                <div className="text-white/80 text-xs sm:text-sm">Hiring</div>
-              </div>
+
+            {/* Trust Badges matching CandidateSearch style */}
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mb-5">
+              <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
+                <span className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Briefcase className="w-3 h-3 text-blue-600" />
+                </span>
+                Live Opportunities
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
+                <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center">
+                  <CheckCircle className="w-3 h-3 text-emerald-500" />
+                </span>
+                Verified Employers
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
+                <span className="w-5 h-5 rounded-full bg-orange-50 flex items-center justify-center">
+                  <Flame className="w-3 h-3 text-orange-500" />
+                </span>
+                Actively Hiring
+              </span>
             </div>
           </div>
-          
-          {/* Tab Navigation */}
-          <div className="flex justify-center space-x-1 mb-6 flex-wrap gap-2">
-            <button 
-              onClick={() => setActiveTab('search')}
-              className={`px-6 py-3 rounded-full font-semibold flex items-center space-x-2 transition-all ${
-                activeTab === 'search' 
-                  ? 'bg-white text-gray-900 shadow-lg' 
-                  : 'text-white bg-white/20 hover:bg-white/30 border border-white/40'
-              }`}
-              aria-pressed={activeTab === 'search'}
-            >
-              <Search className="w-4 h-4" />
-              <span>Search Jobs</span>
-            </button>
-            <button 
-              onClick={() => setActiveTab('recommended')}
-              className={`px-6 py-3 rounded-full font-semibold flex items-center space-x-2 transition-all ${
-                activeTab === 'recommended' 
-                  ? 'bg-white text-gray-900 shadow-lg' 
-                  : 'text-white bg-white/20 hover:bg-white/30 border border-white/40'
-              }`}
-              aria-pressed={activeTab === 'recommended'}
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span>Recommended Jobs</span>
-            </button>
+
+          {/* Tab Navigation - Compact Segmented Control */}
+          <div className="flex justify-center mb-5">
+            <div className="inline-flex p-1 bg-gray-100/90 backdrop-blur-md rounded-xl border border-gray-200/80 shadow-inner">
+              <button 
+                type="button"
+                onClick={() => setActiveTab('search')}
+                className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all duration-150 ${
+                  activeTab === 'search' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                }`}
+                aria-pressed={activeTab === 'search'}
+              >
+                <Search className={`w-3.5 h-3.5 ${activeTab === 'search' ? 'text-orange-500' : 'text-gray-400'}`} />
+                <span>Search Jobs</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('recommended')}
+                className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all duration-150 ${
+                  activeTab === 'recommended' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                }`}
+                aria-pressed={activeTab === 'recommended'}
+              >
+                <TrendingUp className={`w-3.5 h-3.5 ${activeTab === 'recommended' ? 'text-blue-600' : 'text-gray-400'}`} />
+                <span>Recommended Jobs</span>
+              </button>
+            </div>
           </div>
 
           {/* Search Bar - Only show in search tab */}
           {activeTab === 'search' && (
-            <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end sm:flex-nowrap">
-              {/* Job Title */}
-              <div className="flex-1 min-w-0">
-                <AutocompleteCombobox
-                  placeholder="Job title"
-                  value={searchTerm}
-                  onChange={val => { setSearchTerm(val); }}
-                  options={jobTitleOptions}
-                  allowCustom
-                  maxOptions={10}
-                  className="bg-white"
-                />
-              </div>
-              {/* Location */}
-              <div className="flex-1 min-w-0">
-                <AutocompleteCombobox
-                  placeholder="Location (e.g. Chennai, Remote)"
-                  value={location}
-                  onChange={val => { setLocation(val); }}
-                  options={locationOptions}
-                  allowCustom
-                  maxOptions={10}
-                  className="bg-white"
-                />
-              </div>
-            <div className="flex gap-2 items-end flex-shrink-0">
-              <div>
-                <label className="block text-xs font-medium text-white mb-1">Radius</label>
-                <AutocompleteCombobox
-                  value={String(radius)}
-                  onChange={(val) => setRadius(Number(val))}
-                  options={[
-                    { value: '5', label: '5 km' },
-                    { value: '10', label: '10 km' },
-                    { value: '25', label: '25 km' },
-                    { value: '50', label: '50 km' },
-                    { value: '100', label: '100 km' },
-                    { value: '200', label: '200 km' },
-                  ]}
-                  placeholder="Radius"
-                  className="w-28 bg-white text-gray-700 rounded-lg text-sm font-medium"
-                />
-              </div>
-              <button 
-                onClick={handleSearch}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg transition-colors flex-shrink-0" 
-                title="Search jobs"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearAllFilters}
-                  className="flex items-center gap-1 text-sm text-gray-700 bg-white border border-gray-300 px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
-                  title="Clear all filters"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-          )}
+            <div className="max-w-4xl lg:max-w-5xl mx-auto">
+              <div className="bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 shadow-lg shadow-blue-900/5 ring-1 ring-gray-200/90">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 sm:gap-2.5 items-center">
+                  {/* 1. Job Title */}
+                  <div className="md:col-span-4 lg:col-span-4 relative" ref={jobTitleRef}>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={e => {
+                        setSearchTerm(e.target.value);
+                        setShowJobTitleSug(true);
+                      }}
+                      onFocus={() => setShowJobTitleSug(true)}
+                      onBlur={() => setTimeout(() => setShowJobTitleSug(false), 200)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          setShowJobTitleSug(false);
+                          handleSearch();
+                        }
+                      }}
+                      placeholder="Job title, keywords, or company…"
+                      className="w-full pl-9 pr-7 py-2 border border-gray-200 rounded-xl bg-gray-50/60 hover:bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 h-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400"
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full transition-colors"
+                        title="Clear job title"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {showJobTitleSug && filteredJobTitles.length > 0 && (
+                      <div className="absolute left-0 right-0 z-[9999] mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{ maxHeight: '200px' }}>
+                        <div className="overflow-y-auto max-h-[200px]">
+                          {filteredJobTitles.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onMouseDown={() => {
+                                setSearchTerm(opt.value);
+                                setShowJobTitleSug(false);
+                              }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 text-xs text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                            >
+                              <Briefcase className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-          {/* Quick Filters - Only show in search tab */}
-          {activeTab === 'search' && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {selectedCategory && (
-              <div className="flex items-center gap-2 bg-blue-100 border border-blue-300 text-blue-700 px-3 py-1 rounded-full text-sm">
-                <span>Category: {selectedCategory}</span>
-                <button 
-                  onClick={() => {
-                    setSelectedCategory('');
-                    setCategoryTerms([]);
-                    setSearchTerm('');
-                    fetchJobs(1, false, { term: '', loc: location, freshness: filters.freshness });
-                  }}
-                  className="ml-1 hover:bg-blue-200 rounded-full p-1"
-                  title="Clear category filter"
+                  {/* 2. Location */}
+                  <div className="md:col-span-3 lg:col-span-3 relative" ref={locationRef}>
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={e => {
+                        setLocation(e.target.value);
+                        setShowLocSug(true);
+                      }}
+                      onFocus={() => setShowLocSug(true)}
+                      onBlur={() => setTimeout(() => setShowLocSug(false), 200)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          setShowLocSug(false);
+                          handleSearch();
+                        }
+                      }}
+                      placeholder="City, state, or 'Remote'…"
+                      className="w-full pl-9 pr-7 py-2 border border-gray-200 rounded-xl bg-gray-50/60 hover:bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 h-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400"
+                    />
+                    {location && (
+                      <button
+                        type="button"
+                        onClick={() => setLocation('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full transition-colors"
+                        title="Clear location"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {showLocSug && filteredLocations.length > 0 && (
+                      <div className="absolute left-0 right-0 z-[9999] mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{ maxHeight: '200px' }}>
+                        <div className="overflow-y-auto max-h-[200px]">
+                          {filteredLocations.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onMouseDown={() => {
+                                setLocation(opt.value);
+                                setShowLocSug(false);
+                              }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-700 text-xs text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Radius */}
+                  <div className="md:col-span-2 lg:col-span-2 relative">
+                    <SlidersHorizontal className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none z-10" />
+                    <select
+                      value={String(radius)}
+                      onChange={e => setRadius(Number(e.target.value))}
+                      className="w-full pl-8 pr-7 py-2 border border-gray-200 rounded-xl bg-gray-50/60 hover:bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 h-10 text-xs sm:text-sm text-gray-700 outline-none transition-all cursor-pointer appearance-none font-medium"
+                      title="Search Radius"
+                    >
+                      <option value="5">5 km</option>
+                      <option value="10">10 km</option>
+                      <option value="25">25 km</option>
+                      <option value="50">50 km</option>
+                      <option value="100">100 km</option>
+                      <option value="200">200 km</option>
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+                  </div>
+
+                  {/* 4. Search CTA + Clear Button */}
+                  <div className="md:col-span-3 lg:col-span-3 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSearch}
+                      className="flex-1 h-10 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-sm shadow-orange-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0 px-4"
+                      title="Search jobs"
+                    >
+                      <Search className="w-4 h-4" />
+                      <span>Search</span>
+                    </button>
+                    {hasActiveFilters && (
+                      <button
+                        type="button"
+                        onClick={clearAllFilters}
+                        className="h-10 px-3 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-colors flex-shrink-0"
+                        title="Clear all filters"
+                      >
+                        <X className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="hidden sm:inline">Clear</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Filters */}
+              <div className="flex flex-wrap items-center gap-2 mt-3 justify-center sm:justify-start">
+                <span className="text-xs font-medium text-gray-500 mr-1 hidden sm:inline">Quick filters:</span>
+                {selectedCategory && (
+                  <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-1 rounded-full text-xs font-medium">
+                    <span>Category: {selectedCategory}</span>
+                    <button 
+                      onClick={() => {
+                        setSelectedCategory('');
+                        setCategoryTerms([]);
+                        setSearchTerm('');
+                        fetchJobs(1, false, { term: '', loc: location, freshness: filters.freshness });
+                      }}
+                      className="hover:text-orange-900 rounded-full ml-0.5"
+                      title="Clear category filter"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                <button
+                  onClick={() => handleQuickFilter('48h', 'freshness', '48h')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    activeQuickFilter === '48h'
+                      ? 'bg-blue-50 border border-blue-200 text-blue-700 font-semibold shadow-sm'
+                      : 'bg-white/85 hover:bg-white text-gray-700 border border-gray-200/80 shadow-sm'
+                  }`}
                 >
-                  <X className="w-3 h-3" />
+                  <Clock className="w-3 h-3 text-gray-400" />
+                  <span>Last 48 hours</span>
+                </button>
+                <button
+                  onClick={() => handleQuickFilter('7d', 'freshness', '7d')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    activeQuickFilter === '7d'
+                      ? 'bg-blue-50 border border-blue-200 text-blue-700 font-semibold shadow-sm'
+                      : 'bg-white/85 hover:bg-white text-gray-700 border border-gray-200/80 shadow-sm'
+                  }`}
+                >
+                  <Clock className="w-3 h-3 text-gray-400" />
+                  <span>This week</span>
+                </button>
+                <button
+                  onClick={() => handleQuickFilter('remote', 'workMode', 'Remote')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    activeQuickFilter === 'remote'
+                      ? 'bg-blue-50 border border-blue-200 text-blue-700 font-semibold shadow-sm'
+                      : 'bg-white/85 hover:bg-white text-gray-700 border border-gray-200/80 shadow-sm'
+                  }`}
+                >
+                  <MapPin className="w-3 h-3 text-gray-400" />
+                  <span>Remote Jobs</span>
                 </button>
               </div>
-            )}
-            <button
-              onClick={() => handleQuickFilter('48h', 'freshness', '48h')}
-              className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                activeQuickFilter === '48h'
-                  ? 'bg-blue-100 border-blue-400 text-blue-800'
-                  : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <Clock className="w-3 h-3 inline mr-1" />
-              Last 48 hours
-            </button>
-            <button
-              onClick={() => handleQuickFilter('7d', 'freshness', '7d')}
-              className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                activeQuickFilter === '7d'
-                  ? 'bg-blue-100 border-blue-400 text-blue-800'
-                  : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <Clock className="w-3 h-3 inline mr-1" />
-              This week
-            </button>
-            <button
-              onClick={() => handleQuickFilter('remote', 'workMode', 'Remote')}
-              className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                activeQuickFilter === 'remote'
-                  ? 'bg-blue-100 border-blue-400 text-blue-800 shadow-sm'
-                  : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50 hover:border-gray-500'
-              }`}
-            >
-              <MapPin className="w-3 h-3 inline mr-1" />
-              Remote Jobs
-            </button>
-          </div>
+            </div>
           )}
 
         </div>
