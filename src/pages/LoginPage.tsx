@@ -7,6 +7,7 @@ import Header from '../components/Header';
 import WorkButton from '../components/animata/button/work-button';
 import analytics from '../services/analytics';
 import { updateUserInStorage } from '../utils/userStorage';
+import AccountLockedModal from '../components/AccountLockedModal';
 
 interface LoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -21,6 +22,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [lockedMinutes, setLockedMinutes] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
 
   useEffect(() => {
                                 // Clear any stale error on mount
@@ -87,10 +90,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       let errorMessage = 'Login failed';
       
       // Handle account lockout (HTTP 423)
-      if (err.response?.status === 423 || err.message?.includes('locked')) {
-        errorMessage = '🔒 Account temporarily locked due to multiple failed login attempts. Please try again in 15 minutes or reset your password.';
-        setError(errorMessage);
-        setFieldErrors({});
+      if (err.locked || err.response?.status === 423 || err.message?.includes('locked')) {
+        setLockedUntil(err.lockedUntil || null);
+        setLockedMinutes(err.lockoutMinutes || 15);
         setLoading(false);
         return;
       }

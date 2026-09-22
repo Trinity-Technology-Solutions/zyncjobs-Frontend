@@ -25,7 +25,6 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const [breakdownJob, setBreakdownJob] = useState<any | null>(null);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [profileBlocked, setProfileBlocked] = useState<string[] | null>(null);
-  const [sortBy, setSortBy] = useState<'match' | 'recent'>('match');
 
   const userId = (() => {
     try {
@@ -93,15 +92,11 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         j.skills.some((s: string) => s.toLowerCase().includes(q))
       );
     }
-    if (sortBy === 'match') {
-      result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
-    } else if (sortBy === 'recent') {
-      result.sort((a, b) => {
-        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return db - da;
-      });
+    if (filterCategory !== 'all') {
+      const cat = CATEGORIES.find(c => c.key === filterCategory);
+      if (cat) result = result.filter(j => (j.matchScore || 0) >= cat.min && (j.matchScore || 0) <= cat.max);
     }
+    result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
     setFiltered(result);
   }, [jobs, search, filterCategory]);
 
@@ -274,7 +269,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         {/* Search & Category Filter Bar */}
         {!loading && !error && jobs.length > 0 && (
           <>
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col gap-3">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 flex flex-col gap-3">
             <div className="relative flex-1">
               <input
                 type="text"
@@ -283,17 +278,6 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                 placeholder="Search by title, company, skill..."
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px]"
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 whitespace-nowrap">Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as 'match' | 'recent')}
-                className="px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px] min-w-[140px] cursor-pointer"
-              >
-                <option value="match">Best Match</option>
-                <option value="recent">Most Recent</option>
-              </select>
             </div>
             <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
               <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results
@@ -498,9 +482,9 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                       <div className="flex flex-col gap-2">
                         {/* Score row */}
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-2 bg-amber-400 text-white px-3 py-1.5 rounded-lg font-bold text-sm flex-shrink-0">
+                          <div className="flex items-center gap-1.5 bg-amber-400 text-white px-3 py-1.5 rounded-lg font-bold text-sm flex-shrink-0">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.5 6 7 8.5 7 12a5 5 0 0010 0c0-1.5-.5-3-1.5-4.5C14.5 9 14 10 14 11a2 2 0 01-4 0c0-2.5 2-5 2-9z"/></svg>
                             <span>{job.matchScore || 0}%</span>
-                            <span className="text-base">&#128293;</span>
                           </div>
                           <span className="text-sm text-gray-600 font-medium">
                             {(job.matchScore || 0) >= 80 ? 'Excellent Match' : (job.matchScore || 0) >= 60 ? 'Good Match' : 'Partial Match'}

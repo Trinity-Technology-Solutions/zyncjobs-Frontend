@@ -6,6 +6,7 @@ import BackButton from '../components/BackButton';
 import { generateEmployerId } from '../utils/employerIdUtils';
 import WorkButton from '../components/animata/button/work-button';
 import { updateUserInStorage } from '../utils/userStorage';
+import AccountLockedModal from '../components/AccountLockedModal';
 
 interface EmployerLoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -20,6 +21,8 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestReset, setSuggestReset] = useState(false);
+  const [lockedMinutes, setLockedMinutes] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
   const [showChangePw, setShowChangePw] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPw, setConfirmNewPw] = useState('');
@@ -90,8 +93,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       let errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
       
       // Handle account lockout (HTTP 423)
-      if ((err as any)?.response?.status === 423 || errorMessage.includes('locked') || errorMessage.includes('too many')) {
-        errorMessage = '🔒 Account temporarily locked due to multiple failed login attempts. Please try again in 15 minutes or reset your password.';
+      if ((err as any)?.locked || (err as any)?.response?.status === 423 || errorMessage.includes('locked') || errorMessage.includes('too many')) {
+        setLockedUntil((err as any)?.lockedUntil || null);
+        setLockedMinutes((err as any)?.lockoutMinutes || 15);
+        setLoading(false);
+        return;
       }
       
       setError(errorMessage);
@@ -130,6 +136,14 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden bg-[#f7f4ef]">
       <Header onNavigate={onNavigate} />
+
+      <AccountLockedModal
+        isOpen={lockedMinutes > 0}
+        lockoutMinutes={lockedMinutes}
+        lockedUntil={lockedUntil}
+        onClose={() => { setLockedMinutes(0); setLockedUntil(null); setError(''); }}
+        onContactSupport={() => { setLockedMinutes(0); setLockedUntil(null); onNavigate('forgot-password'); }}
+      />
 
       {/* Change Password Modal for team members after first login */}
       {showChangePw && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   TrendingUp,
@@ -101,7 +101,7 @@ const mapParsedSections = (p: any, old: any) => {
   const internships =
     Array.isArray(p?.internships) && p.internships.length > 0
       ? p.internships.map((w: any) => {
-          const dateParts = String(w.date || "").split(/\s*[-–]\s*/);
+          const dateParts = String(w.date || "").split(/\s*[-â€“]\s*/);
           return {
             companyName: w.company || w.companyName || "",
             designation: w.jobTitle || w.title || w.designation || "",
@@ -920,8 +920,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             if (line.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4}/i)) {
               if (current) workExperiences.push(current);
               current = { jobTitle: '', company: '', date: line, descriptions: [] };
-            } else if (current && line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
-              current.descriptions.push(line.replace(/^[•\-\*]\s*/, ''));
+            } else if (current && line.startsWith('â€¢') || line.startsWith('-') || line.startsWith('*')) {
+              current.descriptions.push(line.replace(/^[â€¢\-\*]\s*/, ''));
             } else if (current && !current.company && line.length > 3 && line.length < 60) {
               current.company = line;
             } else if (current && !current.jobTitle && line.length > 3 && line.length < 80) {
@@ -1024,7 +1024,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       jobTitle: p.title || old.jobTitle || '',
       employment: Array.isArray(p.workExperiences) && p.workExperiences.length > 0
         ? p.workExperiences.map((w: any) => {
-            const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
+            const dateParts = String(w.date || '').split(/\s*[-â€“]\s*/);
             return {
               companyName: w.company || w.companyName || '',
               designation: w.jobTitle || w.title || '',
@@ -1311,7 +1311,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
               {!readOnly && (
                 <div className="lg:col-span-1 order-3 lg:order-1">
-                  {/* Quick Actions — styled to match employer dashboard sidebar */}
+                  {/* Quick Actions â€” styled to match employer dashboard sidebar */}
                   <div
                     className="rounded-xl overflow-hidden shadow-lg mb-4 sm:mb-6"
                     style={{
@@ -1536,14 +1536,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         );
                       })}
 
-                      {/* LinkedIn Import — full-width row matching other items */}
+                      {/* LinkedIn Import â€” full-width row matching other items */}
                       {!user?.linkedInImported && (
                         <div className="border-t border-blue-700/60 mt-1 pt-1">
                           <LinkedInConnect
                             mode="modal"
                             className="w-full px-3 py-3 rounded-lg border border-white/30 text-white bg-transparent font-medium text-[15px] hover:bg-blue-700/60"
                             onImport={async (profile: LinkedInProfile) => {
-                              // Resolve email — user may be null if page just loaded after OAuth redirect
+                              // Resolve email â€” user may be null if page just loaded after OAuth redirect
                               const resolvedEmail =
                                 user?.email ||
                                 (() => {
@@ -1931,14 +1931,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               </div>
                               <p className="text-xs text-gray-600 mb-2">
                                 {job.company}
-                                {job.location ? ` · ${job.location}` : ""}
+                                {job.location ? ` Â· ${job.location}` : ""}
                               </p>
                               {job.salary &&
                                 (() => {
                                   const salaryText =
                                     typeof job.salary === "object"
                                       ? job.salary.min || job.salary.max
-                                        ? `₹${job.salary.min || ""} - ₹${job.salary.max || ""}`
+                                        ? `â‚¹${job.salary.min || ""} - â‚¹${job.salary.max || ""}`
                                         : null
                                       : job.salary;
                                   return salaryText ? (
@@ -2022,7 +2022,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           onClick={() => onNavigate("job-matches")}
                           className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors"
                         >
-                          View More →
+                          View More â†’
                         </button>
                       </div>
                     )}
@@ -2116,7 +2116,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     ? typeof app.jobId.salary === "object"
                                       ? app.jobId.salary.min ||
                                         app.jobId.salary.max
-                                        ? `₹${app.jobId.salary.min || ""}-₹${app.jobId.salary.max || ""}`
+                                        ? `â‚¹${app.jobId.salary.min || ""}-â‚¹${app.jobId.salary.max || ""}`
                                         : "Competitive"
                                       : app.jobId.salary
                                     : "Competitive"}
@@ -2184,7 +2184,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 
               {/* Main Content Area */}
               <div className="lg:col-span-3 order-1 lg:order-2">
-                {/* Profile Header Card — LinkedIn style with cover */}
+                {/* Profile Header Card â€” LinkedIn style with cover */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6 overflow-hidden">
                   {/* Cover Photo */}
                   <div className="relative h-32 sm:h-40 lg:h-52 bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200 group">
@@ -2613,13 +2613,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
                           <EducationCollegeDisplay data={user.educationCollege} />
-                          <Edit
-                            onClick={() => {
-                              setActiveModal("educationCollege");
-                              setModalData(user?.educationCollege || {});
-                            }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600 flex-shrink-0 ml-2"
-                          />
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <Edit
+                              onClick={() => {
+                                setActiveModal("educationCollege");
+                                setModalData(user?.educationCollege || {});
+                              }}
+                              className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            />
+                            <button
+                              title="Remove education"
+                              onClick={() => showConfirm(
+                                'Remove Education',
+                                'Are you sure you want to remove your college/university education details?',
+                                async () => {
+                                  const updatedUser = { ...user, educationCollege: {} };
+                                  setUser(updatedUser);
+                                  localStorage.setItem("user", JSON.stringify(updatedUser));
+                                  calculateProfileCompletion(updatedUser);
+                                  try {
+                                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ email: user?.email, educationCollege: {} }),
+                                    });
+                                    setNotification({ type: "success", message: "Education details removed.", isVisible: true });
+                                  } catch {
+                                    setNotification({ type: "error", message: "Failed to remove education details.", isVisible: true });
+                                  }
+                                }
+                              )}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -2637,13 +2665,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
                           <SchoolEducationDisplay data={user.educationClass12} label="Class XII" />
-                          <Edit
-                            onClick={() => {
-                              setActiveModal("educationClass12");
-                              setModalData(user?.educationClass12 || {});
-                            }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600 flex-shrink-0 ml-2"
-                          />
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <Edit
+                              onClick={() => {
+                                setActiveModal("educationClass12");
+                                setModalData(user?.educationClass12 || {});
+                              }}
+                              className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            />
+                            <button
+                              title="Remove Class XII"
+                              onClick={() => showConfirm(
+                                'Remove Class XII',
+                                'Are you sure you want to remove your Class XII details?',
+                                async () => {
+                                  const updatedUser = { ...user, educationClass12: {} };
+                                  setUser(updatedUser);
+                                  localStorage.setItem("user", JSON.stringify(updatedUser));
+                                  calculateProfileCompletion(updatedUser);
+                                  try {
+                                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ email: user?.email, educationClass12: {} }),
+                                    });
+                                    setNotification({ type: "success", message: "Class XII details removed.", isVisible: true });
+                                  } catch {
+                                    setNotification({ type: "error", message: "Failed to remove Class XII details.", isVisible: true });
+                                  }
+                                }
+                              )}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -2665,13 +2721,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
                           <SchoolEducationDisplay data={user.educationClass10} label="Class X" />
-                          <Edit
-                            onClick={() => {
-                              setActiveModal("educationClass10");
-                              setModalData(user?.educationClass10 || {});
-                            }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600 flex-shrink-0 ml-2"
-                          />
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <Edit
+                              onClick={() => {
+                                setActiveModal("educationClass10");
+                                setModalData(user?.educationClass10 || {});
+                              }}
+                              className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            />
+                            <button
+                              title="Remove Class X"
+                              onClick={() => showConfirm(
+                                'Remove Class X',
+                                'Are you sure you want to remove your Class X details?',
+                                async () => {
+                                  const updatedUser = { ...user, educationClass10: {} };
+                                  setUser(updatedUser);
+                                  localStorage.setItem("user", JSON.stringify(updatedUser));
+                                  calculateProfileCompletion(updatedUser);
+                                  try {
+                                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ email: user?.email, educationClass10: {} }),
+                                    });
+                                    setNotification({ type: "success", message: "Class X details removed.", isVisible: true });
+                                  } catch {
+                                    setNotification({ type: "error", message: "Failed to remove Class X details.", isVisible: true });
+                                  }
+                                }
+                              )}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -3226,7 +3310,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       exam.year && `Year: ${exam.year}`,
                                     ]
                                       .filter(Boolean)
-                                      .join(" · ")}
+                                      .join(" Â· ")}
                                   </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -3988,7 +4072,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               </h2>
               <p className="text-gray-500 text-sm mb-5">
                 Upload your resume and we'll fill your profile with the parsed
-                details — phone, skills, experience, education and more. Fields
+                details â€” phone, skills, experience, education and more. Fields
                 not found in the resume will be cleared.
               </p>
 
@@ -4150,7 +4234,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       url: fileUrl,
                     };
 
-                    // 3. Resume is source of truth — replace each field with parsed value;
+                    // 3. Resume is source of truth â€” replace each field with parsed value;
                     //    if resume has no value for a field, that field becomes empty.
                     const educations = p.educations || [];
                     const eduArr = Array.isArray(educations)
@@ -4189,7 +4273,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         p.workExperiences.length > 0
                           ? p.workExperiences.map((w: any) => {
                               const dateParts = String(w.date || "").split(
-                                /\s*[-–]\s*/,
+                                /\s*[-â€“]\s*/,
                               );
                               let companyName = w.company || w.companyName || "";
                               let designation = w.jobTitle || w.title || w.designation || "";
@@ -4270,7 +4354,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     setNotification({
                       type: "success",
                       message:
-                        "Resume parsed & profile updated successfully! 🎉",
+                        "Resume parsed & profile updated successfully! ðŸŽ‰",
                       isVisible: true,
                     });
                   } catch (err: any) {
@@ -6769,7 +6853,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   exam.year && `Year: ${exam.year}`,
                                 ]
                                   .filter(Boolean)
-                                  .join(" · ")}
+                                  .join(" Â· ")}
                               </p>
                             </div>
                             <button
@@ -7135,7 +7219,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || "Save failed");
                       }
-                      setNotification({ type: "success", message: "Education details saved!", isVisible: true });
+                      setNotification({ type: "success", message: "Education details saved! Remove", isVisible: true });
                     } catch (error: any) {
                       console.error("Error saving:", error);
                       setUser(user);
@@ -7274,7 +7358,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || "Save failed");
                       }
-                      setNotification({ type: "success", message: "Class XII details saved!", isVisible: true });
+                      setNotification({ type: "success", message: "Class XII details saved! Remove", isVisible: true });
                     } catch (error: any) {
                       console.error("Error saving:", error);
                       setUser(user);
@@ -7413,7 +7497,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || "Save failed");
                       }
-                      setNotification({ type: "success", message: "Class X details saved!", isVisible: true });
+                      setNotification({ type: "success", message: "Class X details saved! Remove", isVisible: true });
                     } catch (error: any) {
                       console.error("Error saving:", error);
                       setUser(user);
@@ -7557,3 +7641,4 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 };
 
 export default CandidateDashboardPage;
+
