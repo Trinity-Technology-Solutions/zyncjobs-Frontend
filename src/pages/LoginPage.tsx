@@ -26,8 +26,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
 
   useEffect(() => {
-                                // Clear any stale error on mount
-    setError('');
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get('error');
+    const oauthReason = params.get('reason');
+    if (oauthError) {
+      if (oauthError === 'oauth_failed') {
+        setError(oauthReason ? `Google sign-in failed: ${decodeURIComponent(oauthReason)}` : 'Google sign-in was unsuccessful. Please try again or sign in with your email.');
+      } else if (oauthError === 'access_denied') {
+        setError('Google sign-in was cancelled.');
+      } else {
+        setError(`Authentication error: ${oauthReason ? decodeURIComponent(oauthReason) : oauthError}`);
+      }
+    } else {
+      setError('');
+    }
   }, []);
 
   const validateForm = () => {
