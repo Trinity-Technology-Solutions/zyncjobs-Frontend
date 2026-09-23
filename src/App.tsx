@@ -216,6 +216,11 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   if (localStorage.getItem('app_version') !== APP_VERSION) {
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('lastUserType');
+    localStorage.removeItem('zync:logged_out');
     localStorage.setItem('app_version', APP_VERSION);
   }
 })();
@@ -621,6 +626,11 @@ function App() {
       // Verify token silently — only update state if data actually changed
       try {
         const userData = await accountAPI.getMe();
+        // Skip overwriting or clearing user if a login just happened in the last 5 seconds
+        if (Date.now() - loginTimestamp.current < 5000) {
+          setUserLoading(false);
+          return;
+        }
         if (!userData) {
           tokenStorage.clear();
           setUser(null);
@@ -643,11 +653,6 @@ function App() {
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
           const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
-          // Skip overwriting user if a login just happened in the last 5 seconds
-          if (Date.now() - loginTimestamp.current < 5000) {
-            setUserLoading(false);
-            return;
-          }
           setUser(prev => {
             if (prev?.type === userType && prev?.email === userData.email && prev?.name === freshName) return prev;
             return {
@@ -670,6 +675,10 @@ function App() {
           } catch { /* ignore */ }
         }
       } catch {
+        if (Date.now() - loginTimestamp.current < 5000) {
+          setUserLoading(false);
+          return;
+        }
         tokenStorage.clear();
         localStorage.removeItem('user');
         setUser(null);

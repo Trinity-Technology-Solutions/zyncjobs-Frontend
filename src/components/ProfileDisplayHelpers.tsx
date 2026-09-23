@@ -284,9 +284,9 @@ export const EducationCollegeDisplay: React.FC<{ data: any }> = ({ data }) => {
 
   return (
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-10 h-10 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
         <svg
-          className="w-5 h-5 text-blue-600"
+          className="w-5 h-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -307,22 +307,22 @@ export const EducationCollegeDisplay: React.FC<{ data: any }> = ({ data }) => {
       </div>
       <div className="flex-1 min-w-0">
         {degree && (
-          <p className="font-semibold text-gray-900 text-sm">{degree}</p>
+          <p className="font-semibold text-slate-900 text-sm">{degree}</p>
         )}
-        {college && <p className="text-gray-700 text-sm mt-0.5">{college}</p>}
+        {college && <p className="text-[#334e72] text-sm mt-0.5">{college}</p>}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
           {safeText(data.courseType) && (
-            <span className="text-xs text-gray-500">{data.courseType}</span>
+            <span className="text-xs text-[#64748b]">{data.courseType}</span>
           )}
           {year && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-[#64748b]">
               {isPursuing
                 ? `Expected Graduation ${year}`
                 : `Graduation Year ${year}`}
             </span>
           )}
           {score && (
-            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-md font-semibold">
               {score}
             </span>
           )}
@@ -342,9 +342,9 @@ export const SchoolEducationDisplay: React.FC<{ data: any; label: string }> = ({
   const score = formatScore(data.percentage);
   return (
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-10 h-10 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
         <svg
-          className="w-5 h-5 text-indigo-600"
+          className="w-5 h-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -358,19 +358,19 @@ export const SchoolEducationDisplay: React.FC<{ data: any; label: string }> = ({
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 text-sm">{label}</p>
-        <p className="text-gray-700 text-sm mt-0.5">{data.board}</p>
+        <p className="font-semibold text-slate-900 text-sm">{label}</p>
+        <p className="text-[#334e72] text-sm mt-0.5">{data.board}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
           {safeText(data.medium) && (
-            <span className="text-xs text-gray-500">{data.medium} Medium</span>
+            <span className="text-xs text-[#64748b]">{data.medium} Medium</span>
           )}
           {year && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-[#64748b]">
               Passed {year}
             </span>
           )}
           {score && (
-            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-md font-semibold">
               {score}
             </span>
           )}
@@ -417,9 +417,9 @@ export const EmploymentDisplay: React.FC<{ emp: any }> = ({ emp }) => {
 
   return (
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-10 h-10 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
         <svg
-          className="w-5 h-5 text-gray-500"
+          className="w-5 h-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -433,15 +433,15 @@ export const EmploymentDisplay: React.FC<{ emp: any }> = ({ emp }) => {
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        {role && <p className="font-semibold text-gray-900 text-sm">{role}</p>}
-        {company && <p className="text-gray-700 text-sm mt-0.5">{company}</p>}
+        {role && <p className="font-semibold text-slate-900 text-sm">{role}</p>}
+        {company && <p className="text-[#334e72] text-sm mt-0.5">{company}</p>}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
           {dateRange && (
-            <span className="text-xs text-gray-500">{dateRange}</span>
+            <span className="text-xs text-[#64748b]">{dateRange}</span>
           )}
-          {expStr && <span className="text-xs text-gray-400">· {expStr}</span>}
+          {expStr && <span className="text-xs text-slate-400">· {expStr}</span>}
           {emp.currentlyWorking && (
-            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-md font-semibold">
               Current
             </span>
           )}
@@ -451,9 +451,9 @@ export const EmploymentDisplay: React.FC<{ emp: any }> = ({ emp }) => {
             {bullets.map((b: string, i: number) => (
               <li
                 key={i}
-                className="flex items-start gap-1.5 text-xs text-gray-600"
+                className="flex items-start gap-1.5 text-xs text-slate-600"
               >
-                <span className="mt-1.5 w-1 h-1 rounded-full bg-gray-400 flex-shrink-0" />
+                <span className="mt-1.5 w-1 h-1 rounded-full bg-slate-400 flex-shrink-0" />
                 <span
                   className="break-words"
                   style={{ overflowWrap: "anywhere" }}
@@ -474,9 +474,9 @@ export const ProjectDisplay: React.FC<{ proj: any }> = ({ proj }) => {
   if (!proj || !safeText(proj.projectName)) return null;
   return (
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-10 h-10 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
         <svg
-          className="w-5 h-5 text-purple-600"
+          className="w-5 h-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -490,7 +490,7 @@ export const ProjectDisplay: React.FC<{ proj: any }> = ({ proj }) => {
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 text-sm">
+        <p className="font-semibold text-slate-900 text-sm">
           {proj.projectName}
         </p>
         {safeText(proj.skills) && (
@@ -498,7 +498,7 @@ export const ProjectDisplay: React.FC<{ proj: any }> = ({ proj }) => {
             {proj.skills.split(",").map((s: string, i: number) => (
               <span
                 key={i}
-                className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full"
+                className="text-xs bg-[#eff6ff] text-[#1e3a8a] border border-[#bfdbfe] px-2 py-0.5 rounded-md font-medium"
               >
                 {s.trim()}
               </span>
@@ -507,7 +507,7 @@ export const ProjectDisplay: React.FC<{ proj: any }> = ({ proj }) => {
         )}
         {safeText(proj.description) && (
           <p
-            className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed"
+            className="text-xs text-slate-600 mt-1.5 break-words leading-relaxed"
             style={{ overflowWrap: "anywhere" }}
           >
             {proj.description}
@@ -518,7 +518,7 @@ export const ProjectDisplay: React.FC<{ proj: any }> = ({ proj }) => {
             href={proj.projectUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1.5 break-all"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] mt-1.5 break-all transition-colors"
           >
             <svg
               className="w-3 h-3 flex-shrink-0"
@@ -557,9 +557,9 @@ export const InternshipDisplay: React.FC<{ intern: any }> = ({ intern }) => {
 
   return (
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-10 h-10 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
         <svg
-          className="w-5 h-5 text-orange-500"
+          className="w-5 h-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -573,18 +573,18 @@ export const InternshipDisplay: React.FC<{ intern: any }> = ({ intern }) => {
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 text-sm">
+        <p className="font-semibold text-slate-900 text-sm">
           {intern.companyName}
         </p>
         {dateRange && (
-          <p className="text-xs text-gray-500 mt-0.5">{dateRange}</p>
+          <p className="text-xs text-[#64748b] mt-0.5">{dateRange}</p>
         )}
         {safeText(intern.skills) && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {intern.skills.split(",").map((s: string, i: number) => (
               <span
                 key={i}
-                className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full"
+                className="text-xs bg-[#eff6ff] text-[#1e3a8a] border border-[#bfdbfe] px-2 py-0.5 rounded-md font-medium"
               >
                 {s.trim()}
               </span>
@@ -593,7 +593,7 @@ export const InternshipDisplay: React.FC<{ intern: any }> = ({ intern }) => {
         )}
         {safeText(intern.description) && (
           <p
-            className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed"
+            className="text-xs text-slate-600 mt-1.5 break-words leading-relaxed"
             style={{ overflowWrap: "anywhere" }}
           >
             {intern.description}
@@ -622,9 +622,9 @@ export const CertificationDisplay: React.FC<{ cert: any }> = ({ cert }) => {
 
   return (
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-10 h-10 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
         <svg
-          className="w-5 h-5 text-yellow-600"
+          className="w-5 h-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -638,12 +638,12 @@ export const CertificationDisplay: React.FC<{ cert: any }> = ({ cert }) => {
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 text-sm">
+        <p className="font-semibold text-slate-900 text-sm">
           {cert.certificationName}
         </p>
-        {validity && <p className="text-xs text-gray-500 mt-0.5">{validity}</p>}
+        {validity && <p className="text-xs text-[#64748b] mt-0.5">{validity}</p>}
         {safeText(cert.completionId) && (
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-[#64748b] mt-0.5">
             ID: {cert.completionId}
           </p>
         )}
@@ -652,7 +652,7 @@ export const CertificationDisplay: React.FC<{ cert: any }> = ({ cert }) => {
             href={cert.certificationUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1 break-all"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] mt-1 break-all transition-colors"
           >
             <svg
               className="w-3 h-3 flex-shrink-0"
@@ -687,7 +687,7 @@ export const SkillsDisplay: React.FC<{ skills: any[] }> = ({ skills }) => {
         return (
           <span
             key={i}
-            className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full border border-gray-200 hover:bg-gray-200 transition-colors"
+            className="px-3 py-1 bg-[#eff6ff] text-[#1e3a8a] text-xs font-semibold rounded-md border border-[#bfdbfe] hover:bg-[#dbeafe] hover:border-[#93c5fd] transition-all"
           >
             {label}
           </span>
@@ -715,7 +715,7 @@ export const LanguagesDisplay: React.FC<{ languages: any }> = ({
       {list.map((lang, i) => (
         <span
           key={i}
-          className="px-3 py-1 bg-blue-50 text-blue-800 text-sm rounded-full border border-blue-100"
+          className="px-3 py-1 bg-[#eff6ff] text-[#1e3a8a] text-xs font-semibold rounded-md border border-[#dbeafe]"
         >
           {lang}
         </span>
@@ -741,7 +741,7 @@ export const CareerPreferencesDisplay: React.FC<{ prefs: any }> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-medium text-[#64748b] uppercase tracking-wide mb-2">
           Preferred Job Type
         </p>
         {lookingFor.length > 0 ? (
@@ -749,36 +749,36 @@ export const CareerPreferencesDisplay: React.FC<{ prefs: any }> = ({
             {lookingFor.map((t, i) => (
               <span
                 key={i}
-                className="px-3 py-1 bg-blue-50 text-blue-800 text-sm rounded-full border border-blue-100"
+                className="px-3 py-1 bg-[#eff6ff] text-[#1e3a8a] text-xs font-semibold rounded-md border border-[#dbeafe]"
               >
                 {t}
               </span>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 italic">Not specified</p>
+          <p className="text-sm text-[#64748b] italic">Not specified</p>
         )}
       </div>
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-medium text-[#64748b] uppercase tracking-wide mb-2">
           Availability
         </p>
         {safeText(prefs.availability) ? (
-          <p className="text-sm text-gray-800">{prefs.availability}</p>
+          <p className="text-sm font-medium text-slate-800">{prefs.availability}</p>
         ) : (
-          <p className="text-sm text-gray-400 italic">Not specified</p>
+          <p className="text-sm text-[#64748b] italic">Not specified</p>
         )}
       </div>
       {locations.length > 0 && (
         <div className="md:col-span-2">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+          <p className="text-xs font-medium text-[#64748b] uppercase tracking-wide mb-2">
             Preferred Locations
           </p>
           <div className="flex flex-wrap gap-2">
             {locations.map((loc, i) => (
               <span
                 key={i}
-                className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full"
+                className="px-3 py-1 bg-[#eff6ff] text-[#1e3a8a] text-xs font-semibold rounded-md border border-[#dbeafe]"
               >
                 {loc}
               </span>
