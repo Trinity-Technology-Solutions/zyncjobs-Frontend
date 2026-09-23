@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../api/apiFetch';
 import { API_ENDPOINTS as ENV_ENDPOINTS } from '../config/env';
-import { mergeCandidateSkills, scoreCandidate, extractSkillsFromText, tokenize, STOP } from '../utils/candidateScoring';
+import { mergeCandidateSkills, scoreCandidate, scoreBreakdown, extractSkillsFromText, tokenize, STOP } from '../utils/candidateScoring';
 import {
   Trophy,
   Award,
@@ -64,6 +64,9 @@ interface RankedCandidate {
   appliedAt: string;
   profilePicture?: string;
   matchReasons: string[];
+  matchedSkills: string[];
+  missingSkills: string[];
+  jobSkills: string[];
 }
 
 const scoreTextColor = (s: number) =>
@@ -150,6 +153,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         const jobFromList = allJobs.find((j: Job) => String(j._id || j.id) === String(rawJobId));
         const jobData = typeof app.jobId === 'object' ? app.jobId : jobFromList;
         const score = await scoreCandidate(app, allJobs);
+        const breakdown = scoreBreakdown(app, skills, jobData);
 
         const jobSkills: string[] = Array.isArray(jobData?.skills) ? jobData.skills : [];
         const tok2 = tokenize;
@@ -183,6 +187,9 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           appliedAt: app.createdAt || '',
           profilePicture: app.candidateProfilePicture || '',
           matchReasons: reasons,
+          matchedSkills: breakdown.matchedSkills,
+          missingSkills: breakdown.missingSkills,
+          jobSkills: breakdown.jobSkills,
         };
       });
 
@@ -408,15 +415,21 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                         <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{c.jobCode}</span>
                       )}
                     </div>
-                    {/* Skills */}
-                    {c.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {c.skills.slice(0, 5).map((sk, i) => (
-                          <span key={i} className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">{sk}</span>
-                        ))}
-                        {c.skills.length > 5 && <span className="text-[11px] text-gray-400">+{c.skills.length - 5}</span>}
-                      </div>
-                    )}
+                    {/* Skills breakdown */}
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {c.matchedSkills.slice(0, 4).map((sk, i) => (
+                        <span key={i} className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✓ {sk}</span>
+                      ))}
+                      {c.missingSkills.slice(0, 3).map((sk, i) => (
+                        <span key={i} className="text-[11px] text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded">✗ {sk}</span>
+                      ))}
+                      {(c.matchedSkills.length + c.missingSkills.length) === 0 && c.skills.slice(0, 4).map((sk, i) => (
+                        <span key={i} className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">{sk}</span>
+                      ))}
+                      {c.jobSkills.length > 0 && (
+                        <span className="text-[11px] text-gray-400 ml-1">{c.matchedSkills.length}/{c.jobSkills.length} skills matched</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Score + bar */}

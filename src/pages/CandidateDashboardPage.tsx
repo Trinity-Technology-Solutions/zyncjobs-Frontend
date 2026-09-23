@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   TrendingUp,
@@ -101,7 +101,7 @@ const mapParsedSections = (p: any, old: any) => {
   const internships =
     Array.isArray(p?.internships) && p.internships.length > 0
       ? p.internships.map((w: any) => {
-          const dateParts = String(w.date || "").split(/\s*[-–]\s*/);
+          const dateParts = String(w.date || "").split(/\s*[-â€“]\s*/);
           return {
             companyName: w.company || w.companyName || "",
             designation: w.jobTitle || w.title || w.designation || "",
@@ -920,8 +920,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             if (line.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4}/i)) {
               if (current) workExperiences.push(current);
               current = { jobTitle: '', company: '', date: line, descriptions: [] };
-            } else if (current && line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
-              current.descriptions.push(line.replace(/^[•\-\*]\s*/, ''));
+            } else if (current && line.startsWith('â€¢') || line.startsWith('-') || line.startsWith('*')) {
+              current.descriptions.push(line.replace(/^[â€¢\-\*]\s*/, ''));
             } else if (current && !current.company && line.length > 3 && line.length < 60) {
               current.company = line;
             } else if (current && !current.jobTitle && line.length > 3 && line.length < 80) {
@@ -1024,7 +1024,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       jobTitle: p.title || old.jobTitle || '',
       employment: Array.isArray(p.workExperiences) && p.workExperiences.length > 0
         ? p.workExperiences.map((w: any) => {
-            const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
+            const dateParts = String(w.date || '').split(/\s*[-â€“]\s*/);
             return {
               companyName: w.company || w.companyName || '',
               designation: w.jobTitle || w.title || '',
@@ -1546,14 +1546,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         );
                       })}
 
-                      {/* LinkedIn Import — full-width row matching other items */}
+                      {/* LinkedIn Import â€” full-width row matching other items */}
                       {!user?.linkedInImported && (
                         <div className="border-t border-[#e2e8f0] mt-2 pt-2">
                           <LinkedInConnect
                             mode="modal"
                             className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] text-[#1e3a8a] bg-slate-50 font-medium text-xs sm:text-sm hover:bg-[#eff6ff] hover:border-[#bfdbfe] transition-colors"
                             onImport={async (profile: LinkedInProfile) => {
-                              // Resolve email — user may be null if page just loaded after OAuth redirect
+                              // Resolve email â€” user may be null if page just loaded after OAuth redirect
                               const resolvedEmail =
                                 user?.email ||
                                 (() => {
@@ -1941,14 +1941,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               </div>
                               <p className="text-xs text-gray-600 mb-2">
                                 {job.company}
-                                {job.location ? ` · ${job.location}` : ""}
+                                {job.location ? ` Â· ${job.location}` : ""}
                               </p>
                               {job.salary &&
                                 (() => {
                                   const salaryText =
                                     typeof job.salary === "object"
                                       ? job.salary.min || job.salary.max
-                                        ? `₹${job.salary.min || ""} - ₹${job.salary.max || ""}`
+                                        ? `â‚¹${job.salary.min || ""} - â‚¹${job.salary.max || ""}`
                                         : null
                                       : job.salary;
                                   return salaryText ? (
@@ -2032,7 +2032,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           onClick={() => onNavigate("job-matches")}
                           className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] transition-colors"
                         >
-                          View More →
+                          View More â†’
                         </button>
                       </div>
                     )}
@@ -2126,7 +2126,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     ? typeof app.jobId.salary === "object"
                                       ? app.jobId.salary.min ||
                                         app.jobId.salary.max
-                                        ? `₹${app.jobId.salary.min || ""}-₹${app.jobId.salary.max || ""}`
+                                        ? `â‚¹${app.jobId.salary.min || ""}-â‚¹${app.jobId.salary.max || ""}`
                                         : "Competitive"
                                       : app.jobId.salary
                                     : "Competitive"}
@@ -3235,7 +3235,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       exam.year && `Year: ${exam.year}`,
                                     ]
                                       .filter(Boolean)
-                                      .join(" · ")}
+                                      .join(" Â· ")}
                                   </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -3999,7 +3999,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               </h2>
               <p className="text-slate-500 text-sm mb-5 leading-relaxed">
                 Upload your resume and we'll fill your profile with the parsed
-                details — phone, skills, experience, education and more. Fields
+                details â€” phone, skills, experience, education and more. Fields
                 not found in the resume will be cleared.
               </p>
 
@@ -4161,7 +4161,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       url: fileUrl,
                     };
 
-                    // 3. Resume is source of truth — replace each field with parsed value;
+                    // 3. Resume is source of truth â€” replace each field with parsed value;
                     //    if resume has no value for a field, that field becomes empty.
                     const educations = p.educations || [];
                     const eduArr = Array.isArray(educations)
@@ -4200,7 +4200,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         p.workExperiences.length > 0
                           ? p.workExperiences.map((w: any) => {
                               const dateParts = String(w.date || "").split(
-                                /\s*[-–]\s*/,
+                                /\s*[-â€“]\s*/,
                               );
                               let companyName = w.company || w.companyName || "";
                               let designation = w.jobTitle || w.title || w.designation || "";
@@ -4281,7 +4281,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     setNotification({
                       type: "success",
                       message:
-                        "Resume parsed & profile updated successfully! 🎉",
+                        "Resume parsed & profile updated successfully! ðŸŽ‰",
                       isVisible: true,
                     });
                   } catch (err: any) {
@@ -6780,7 +6780,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   exam.year && `Year: ${exam.year}`,
                                 ]
                                   .filter(Boolean)
-                                  .join(" · ")}
+                                  .join(" Â· ")}
                               </p>
                             </div>
                             <button
@@ -7146,7 +7146,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || "Save failed");
                       }
-                      setNotification({ type: "success", message: "Education details saved!", isVisible: true });
+                      setNotification({ type: "success", message: "Education details saved! Remove", isVisible: true });
                     } catch (error: any) {
                       console.error("Error saving:", error);
                       setUser(user);
@@ -7285,7 +7285,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || "Save failed");
                       }
-                      setNotification({ type: "success", message: "Class XII details saved!", isVisible: true });
+                      setNotification({ type: "success", message: "Class XII details saved! Remove", isVisible: true });
                     } catch (error: any) {
                       console.error("Error saving:", error);
                       setUser(user);
@@ -7424,7 +7424,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         const errData = await res.json().catch(() => ({}));
                         throw new Error(errData?.message || errData?.error || "Save failed");
                       }
-                      setNotification({ type: "success", message: "Class X details saved!", isVisible: true });
+                      setNotification({ type: "success", message: "Class X details saved! Remove", isVisible: true });
                     } catch (error: any) {
                       console.error("Error saving:", error);
                       setUser(user);
@@ -7568,3 +7568,4 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 };
 
 export default CandidateDashboardPage;
+
