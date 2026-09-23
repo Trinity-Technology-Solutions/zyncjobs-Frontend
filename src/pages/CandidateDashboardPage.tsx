@@ -1224,58 +1224,62 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         isVisible={notification.isVisible}
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
-      <div className="min-h-screen bg-gray-50 font-['IBM_Plex_Sans']">
-        {/* Tab Navigation */}
-        <div className="bg-white border-b shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 sm:space-x-8 flex-shrink-0">
-                <BackButton
-                  fallback={readOnly ? "/dashboard" : "/"}
-                  text={readOnly ? "Back" : "Back to Home"}
-                  className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors py-4 font-['IBM_Plex_Sans']"
-                />
-                {!readOnly && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setActiveTab("Profile");
-                        setSearchParams({});
-                      }}
-                      className={`py-4 px-1 border-b-2 font-medium text-xs sm:text-sm font-['IBM_Plex_Sans'] whitespace-nowrap ${
-                        activeTab === "Profile"
-                          ? "border-black text-gray-900"
-                          : "border-transparent text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      View & Edit
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveTab("Activity");
-                        setSearchParams({ tab: "Activity" });
-                        if (user && !activityData) {
-                          fetchActivityInsights(user.email);
-                        }
-                      }}
-                      className={`py-4 px-1 border-b-2 font-medium text-xs sm:text-sm font-['IBM_Plex_Sans'] whitespace-nowrap ${
-                        activeTab === "Activity"
-                          ? "border-black text-gray-900"
-                          : "border-transparent text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      Activity insights
-                    </button>
-                  </>
-                )}
-                {readOnly && (
-                  <span className="py-4 px-1 font-medium text-sm text-gray-900 font-['IBM_Plex_Sans']">
-                    Candidate Profile
-                  </span>
-                )}
-              </div>
+      <div className="min-h-screen bg-[#f8fafc] font-['IBM_Plex_Sans']">
+        {/* Profile Action Bar */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <BackButton
+                fallback={readOnly ? "/dashboard" : "/"}
+                text={readOnly ? "Back" : "Back to Home"}
+                className="!w-8 !h-8 sm:!w-9 sm:!h-9 !border !border-slate-200 hover:!border-slate-300 !bg-white hover:!bg-slate-50 !text-slate-600 hover:!text-slate-900 !shadow-sm !rounded-lg transition-all"
+              />
+
+              <div className="h-4 sm:h-5 w-px bg-slate-200" />
+
               {!readOnly && (
-                <div className="py-2">
+                <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    onClick={() => {
+                      setActiveTab("Profile");
+                      setSearchParams({});
+                    }}
+                    className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
+                      activeTab === "Profile"
+                        ? "bg-white text-[#2563eb] shadow-sm font-semibold"
+                        : "text-[#64748b] hover:text-[#1e3a8a] hover:bg-white/60"
+                    }`}
+                  >
+                    View & Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("Activity");
+                      setSearchParams({ tab: "Activity" });
+                      if (user && !activityData) {
+                        fetchActivityInsights(user.email);
+                      }
+                    }}
+                    className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
+                      activeTab === "Activity"
+                        ? "bg-white text-[#2563eb] shadow-sm font-semibold"
+                        : "text-[#64748b] hover:text-[#1e3a8a] hover:bg-white/60"
+                    }`}
+                  >
+                    Activity insights
+                  </button>
+                </div>
+              )}
+              {readOnly && (
+                <span className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-[#1e3a8a] bg-white border border-slate-200 rounded-lg shadow-sm">
+                  Candidate Profile
+                </span>
+              )}
+            </div>
+
+            {!readOnly && (
+              <div className="flex items-center">
+                <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-lg shadow-sm transition-colors flex items-center justify-center">
                   <CandidateNotificationBell
                     notifications={appNotifications}
                     unreadCount={unreadCount}
@@ -1286,8 +1290,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     onNavigate={onNavigate}
                   />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1306,51 +1310,54 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         )}
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-6 sm:pb-8">
           {activeTab === "Profile" && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
               {!readOnly && (
                 <div className="lg:col-span-1 order-3 lg:order-1">
-                  {/* Quick Actions â€” styled to match employer dashboard sidebar */}
-                  <div
-                    className="rounded-xl overflow-hidden shadow-lg mb-4 sm:mb-6"
-                    style={{
-                      background:
-                        "linear-gradient(to bottom, #1e3a8a, #1d4ed8, #1e3a8a)",
-                    }}
-                  >
+                  {/* Quick Actions — candidate space card */}
+                  <div className="relative overflow-hidden rounded-lg border border-[#e2e8f0] bg-white shadow-sm mb-4 sm:mb-6">
                     {/* Header */}
-                    <div className="px-6 pt-5 pb-4 border-b border-blue-700">
-                      <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4 text-yellow-300" />
+                    <div className="px-4 sm:px-5 py-3 border-b border-[#e2e8f0] bg-white flex items-center justify-between">
+                      <h3 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider flex items-center gap-2">
+                        <Lightbulb className="w-4 h-4 text-[#2563eb]" />
                         Quick Actions
                       </h3>
                     </div>
+                    {/* Candidate space status item */}
+                    <div className="px-4 sm:px-5 py-2.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-500">
+                        Workspace
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#bfdbfe] bg-[#eff6ff] px-2.5 py-0.5 text-xs font-semibold text-[#2563eb] whitespace-nowrap">
+                        <Sparkles className="w-3.5 h-3.5 text-[#2563eb] flex-shrink-0" /> Candidate space
+                      </span>
+                    </div>
                     {/* Profile completion bar */}
-                    <div className="px-6 py-4 bg-blue-800/50">
+                    <div className="px-5 py-3.5 bg-slate-50/70 border-b border-[#e2e8f0]">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs text-blue-200 font-semibold tracking-wide">
+                        <span className="text-xs text-slate-700 font-semibold tracking-wide">
                           Profile Strength
                         </span>
-                        <span className="text-xs font-bold text-white bg-blue-600/60 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-[#2563eb] bg-[#eff6ff] border border-[#bfdbfe] px-2 py-0.5 rounded-full">
                           {completionPercentage}%
                         </span>
                       </div>
-                      <div className="w-full bg-blue-900/70 rounded-full h-2 overflow-hidden">
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                         <div
-                          className="h-2 rounded-full transition-all duration-700"
+                          className={`h-2 rounded-full transition-all duration-700 ${
+                            completionPercentage >= 80
+                              ? "bg-emerald-500"
+                              : completionPercentage >= 50
+                                ? "bg-[#2563eb]"
+                                : "bg-amber-500"
+                          }`}
                           style={{
                             width: `${completionPercentage}%`,
-                            background:
-                              completionPercentage >= 80
-                                ? "linear-gradient(to right, #34d399, #10b981)"
-                                : completionPercentage >= 50
-                                  ? "linear-gradient(to right, #60a5fa, #22d3ee)"
-                                  : "linear-gradient(to right, #f59e0b, #fbbf24)",
                           }}
                         />
                       </div>
-                      <p className="text-[10px] text-blue-300 mt-1.5">
+                      <p className="text-[11px] text-[#64748b] mt-1.5">
                         {completionPercentage < 50
                           ? "Add more details to stand out"
                           : completionPercentage < 80
@@ -1359,7 +1366,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       </p>
                     </div>
                     {/* Nav items */}
-                    <nav className="py-3 px-3 space-y-1">
+                    <nav className="p-2.5 space-y-1">
                       {(
                         [
                           {
@@ -1507,27 +1514,30 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               setActiveQuickAction(item.key);
                               item.action();
                             }}
-                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left font-medium transition-all duration-200 ${
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left font-medium transition-all duration-150 ${
                               isActive
-                                ? "bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40"
-                                : "text-white hover:bg-blue-700/60"
+                                ? "bg-[#2563eb] text-white shadow-sm font-semibold"
+                                : "text-slate-700 hover:bg-[#eff6ff] hover:text-[#1e3a8a]"
                             }`}
-                            style={{ fontSize: "15px" }}
+                            style={{ fontSize: "14px" }}
                           >
                             <span
-                              className={`flex-shrink-0 ${isActive ? "text-white" : "text-blue-200"}`}
+                              className={`flex-shrink-0 ${isActive ? "text-white" : "text-[#2563eb]"}`}
                             >
                               {item.icon}
                             </span>
                             <span
-                              className={`flex-1 leading-tight ${isActive ? "font-semibold" : "font-medium"}`}
+                              className={`flex-1 leading-tight ${isActive ? "font-semibold text-white" : "font-medium"}`}
                             >
                               {item.label}
                             </span>
                             {item.badge ? (
                               <span
-                                className="flex-shrink-0 min-w-[22px] h-[22px] px-1 rounded-full font-bold flex items-center justify-center bg-emerald-400 text-slate-900"
-                                style={{ fontSize: "11px" }}
+                                className={`flex-shrink-0 min-w-[20px] h-[20px] px-1.5 rounded-full font-bold flex items-center justify-center text-[11px] ${
+                                  isActive
+                                    ? "bg-white text-[#2563eb]"
+                                    : "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
+                                }`}
                               >
                                 {item.badge}
                               </span>
@@ -1538,10 +1548,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 
                       {/* LinkedIn Import â€” full-width row matching other items */}
                       {!user?.linkedInImported && (
-                        <div className="border-t border-blue-700/60 mt-1 pt-1">
+                        <div className="border-t border-[#e2e8f0] mt-2 pt-2">
                           <LinkedInConnect
                             mode="modal"
-                            className="w-full px-3 py-3 rounded-lg border border-white/30 text-white bg-transparent font-medium text-[15px] hover:bg-blue-700/60"
+                            className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] text-[#1e3a8a] bg-slate-50 font-medium text-xs sm:text-sm hover:bg-[#eff6ff] hover:border-[#bfdbfe] transition-colors"
                             onImport={async (profile: LinkedInProfile) => {
                               // Resolve email â€” user may be null if page just loaded after OAuth redirect
                               const resolvedEmail =
@@ -1654,9 +1664,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         </div>
                       )}
                       {user?.linkedInImported && (
-                        <div className="flex items-center gap-3 px-3 py-3 text-sm text-green-300 font-medium border-t border-blue-700/60 mt-2">
+                        <div className="flex items-center gap-3 px-3 py-2.5 text-xs sm:text-sm text-[#1e3a8a] font-medium border-t border-[#e2e8f0] mt-2 bg-slate-50 rounded-lg">
                           <svg
-                            className="w-5 h-5 flex-shrink-0"
+                            className="w-5 h-5 flex-shrink-0 text-[#0A66C2]"
                             viewBox="0 0 24 24"
                             fill="currentColor"
                           >
@@ -1690,7 +1700,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       {
                         label: "Applications",
                         value: applications.length,
-                        bg: "bg-blue-600",
+                        color: "text-[#2563eb]",
                         onClick: () => onNavigate("my-applications"),
                       },
                       {
@@ -1698,7 +1708,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         value: applications.filter(
                           (a: any) => a.status === "shortlisted",
                         ).length,
-                        bg: "bg-green-600",
+                        color: "text-emerald-600",
                         onClick: () => onNavigate("my-applications"),
                       },
                       {
@@ -1708,19 +1718,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             a.status,
                           ),
                         ).length,
-                        bg: "bg-orange-500",
+                        color: "text-indigo-600",
                         onClick: () => onNavigate("interviews"),
                       },
                     ].map((stat) => (
                       <button
                         key={stat.label}
                         onClick={stat.onClick}
-                        className={`${stat.bg} text-white rounded-xl p-2 sm:p-3 text-center hover:opacity-90 transition-opacity`}
+                        className="bg-white border border-[#e2e8f0] rounded-lg p-2 sm:p-3 text-center hover:border-[#bfdbfe] hover:bg-[#eff6ff]/40 shadow-sm transition-all group"
                       >
-                        <div className="text-lg sm:text-xl font-bold">
+                        <div className={`text-lg sm:text-xl font-bold ${stat.color}`}>
                           {stat.value}
                         </div>
-                        <div className="text-[10px] sm:text-xs font-medium opacity-90 leading-tight mt-0.5">
+                        <div className="text-[10px] sm:text-xs font-medium text-[#64748b] group-hover:text-[#1e3a8a] leading-tight mt-0.5 transition-colors">
                           {stat.label}
                         </div>
                       </button>
@@ -1728,8 +1738,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </div>
 
                   {/* Followed Companies Section */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-                    <h3 className="text-lg font-semibold mb-4">
+                  <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-4 sm:mb-6">
+                    <h3 className="text-sm font-bold text-[#1e3a8a] uppercase tracking-wider mb-4">
                       Followed Companies
                     </h3>
                     {(() => {
@@ -1740,12 +1750,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       if (followed.length === 0)
                         return (
                           <div className="text-center py-3">
-                            <p className="text-sm text-gray-500 mb-2">
+                            <p className="text-sm text-[#64748b] mb-2">
                               No companies followed yet
                             </p>
                             <button
                               onClick={() => onNavigate("companies")}
-                              className="text-blue-600 text-sm hover:underline"
+                              className="text-[#2563eb] hover:text-[#1d4ed8] text-sm font-semibold"
                             >
                               Browse Companies
                             </button>
@@ -1756,9 +1766,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           {followed.map((name, i) => (
                             <div
                               key={i}
-                              className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                              className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-md"
                             >
-                              <span className="text-sm font-medium text-gray-800 truncate">
+                              <span className="text-sm font-medium text-slate-800 truncate">
                                 {name}
                               </span>
                               <button
@@ -1772,7 +1782,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   );
                                   window.location.reload();
                                 }}
-                                className="text-xs text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                                className="text-xs text-rose-600 hover:text-rose-700 ml-2 flex-shrink-0 font-medium"
                               >
                                 Unfollow
                               </button>
@@ -1780,7 +1790,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           ))}
                           <button
                             onClick={() => onNavigate("companies")}
-                            className="text-xs text-blue-600 hover:underline mt-1"
+                            className="text-xs text-[#2563eb] hover:text-[#1d4ed8] font-semibold mt-1"
                           >
                             Browse more companies
                           </button>
@@ -1790,45 +1800,45 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </div>
 
                   {/* Skill Assessments Section */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-                    <h3 className="text-lg font-semibold mb-4">
+                  <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-4 sm:mb-6">
+                    <h3 className="text-sm font-bold text-[#1e3a8a] uppercase tracking-wider mb-4">
                       Skill Assessments
                     </h3>
                     <div className="space-y-4">
-                      <div className="text-center py-4">
-                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <TrendingUp className="w-8 h-8 text-blue-600" />
+                      <div className="text-center py-2">
+                        <div className="w-12 h-12 bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] rounded-full flex items-center justify-center mx-auto mb-3">
+                          <TrendingUp className="w-6 h-6 text-[#2563eb]" />
                         </div>
-                        <h4 className="font-medium text-gray-900 mb-2">
+                        <h4 className="font-semibold text-slate-900 text-sm mb-1">
                           Take New Assessment
                         </h4>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <p className="text-xs text-[#64748b] mb-3">
                           Test your skills and showcase your expertise
                         </p>
                         <button
                           onClick={() => onNavigate("skill-assessment")}
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                          className="bg-[#2563eb] text-white px-4 py-2 rounded-md hover:bg-[#1d4ed8] transition-colors text-xs sm:text-sm font-semibold shadow-sm w-full"
                         >
                           Start Assessment
                         </button>
                       </div>
 
-                      <div className="border-t pt-4">
+                      <div className="border-t border-[#f1f5f9] pt-4">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900">
+                          <h4 className="font-semibold text-slate-900 text-xs sm:text-sm">
                             My Assessments
                           </h4>
                           {myAssessments.length > 3 && (
                             <button
                               onClick={() => onNavigate("skill-assessment")}
-                              className="text-xs text-blue-600 font-medium hover:underline"
+                              className="text-xs text-[#2563eb] hover:text-[#1d4ed8] font-semibold"
                             >
                               View More ({myAssessments.length})
                             </button>
                           )}
                         </div>
                         {myAssessments.length === 0 ? (
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs text-[#64748b]">
                             No assessments completed yet
                           </p>
                         ) : (
@@ -1838,13 +1848,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               .map((a: any, i: number) => (
                                 <div
                                   key={i}
-                                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                                  className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-md"
                                 >
                                   <div>
-                                    <p className="text-sm font-medium text-gray-800">
+                                    <p className="text-xs sm:text-sm font-medium text-slate-800">
                                       {a.skill}
                                     </p>
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-[10px] text-slate-400">
                                       {a.completedAt &&
                                       new Date(a.completedAt).getFullYear() >
                                         1970
@@ -1859,7 +1869,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     </p>
                                   </div>
                                   <span
-                                    className={`text-sm font-bold ${a.score >= 70 ? "text-green-600" : "text-orange-500"}`}
+                                    className={`text-xs font-bold ${a.score >= 70 ? "text-emerald-600" : "text-amber-600"}`}
                                   >
                                     {a.score}%
                                   </span>
@@ -1872,8 +1882,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </div>
 
                   {/* Recommended Jobs */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-5">
+                  <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6">
+                    <h3 className="text-sm font-bold text-[#1e3a8a] uppercase tracking-wider mb-4">
                       Recommended Jobs
                     </h3>
                     <div className="space-y-3">
@@ -1888,15 +1898,15 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           return (
                             <div
                               key={jobId || index}
-                              className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all"
+                              className="border border-[#e2e8f0] rounded-lg p-3.5 hover:border-[#bfdbfe] hover:shadow-sm bg-white transition-all"
                             >
                               <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-medium text-gray-900 text-sm">
+                                <h4 className="font-semibold text-slate-900 text-sm">
                                   {job.jobTitle || job.title}
                                 </h4>
                                 <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                                   {matchPct > 0 && (
-                                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-2 py-0.5 rounded-md">
                                       {matchPct}% Match
                                     </span>
                                   )}
@@ -2017,25 +2027,25 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       )}
                     </div>
                     {recommendedJobs.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                      <div className="mt-4 pt-3 border-t border-[#f1f5f9] flex justify-end">
                         <button
                           onClick={() => onNavigate("job-matches")}
-                          className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors"
+                          className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] transition-colors"
                         >
                           View More â†’
                         </button>
                       </div>
                     )}
 
-                    <div className="mt-4 pt-4 border-t">
+                    <div className="mt-4 pt-4 border-t border-[#f1f5f9]">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-gray-900 text-sm">
+                        <h4 className="font-bold text-[#1e3a8a] text-xs uppercase tracking-wider">
                           Recent Applications
                         </h4>
                         {applications.length > 3 && (
                           <button
                             onClick={() => onNavigate("my-applications")}
-                            className="text-xs text-blue-600 font-medium hover:underline"
+                            className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] hover:underline"
                           >
                             View More ({applications.length})
                           </button>
@@ -2046,28 +2056,28 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           applications.slice(0, 3).map((app, index) => (
                             <div
                               key={app._id || index}
-                              className="border border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all bg-white"
+                              className="border border-[#e2e8f0] rounded-lg p-3 hover:border-slate-300 transition-all bg-white"
                             >
                               <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="min-w-0 flex-1">
-                                  <h5 className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                                  <h5 className="font-semibold text-slate-900 text-sm leading-tight truncate">
                                     {app.jobId?.jobTitle || "Job Position"}
                                   </h5>
-                                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                                  <p className="text-xs text-[#64748b] truncate mt-0.5 font-medium">
                                     {app.jobId?.company || "Company"}
                                   </p>
                                 </div>
                                 <span
-                                  className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold border ${
                                     app.status === "applied"
-                                      ? "bg-blue-100 text-blue-700"
+                                      ? "bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]"
                                       : app.status === "reviewed"
-                                        ? "bg-yellow-100 text-yellow-700"
+                                        ? "bg-amber-50 text-amber-700 border-amber-200"
                                         : app.status === "shortlisted"
-                                          ? "bg-green-100 text-green-700"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                           : app.status === "rejected"
-                                            ? "bg-red-100 text-red-700"
-                                            : "bg-gray-100 text-gray-700"
+                                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                                            : "bg-slate-100 text-slate-700 border-slate-200"
                                   }`}
                                 >
                                   {app.status.charAt(0).toUpperCase() +
@@ -2075,10 +2085,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                                <span className="flex items-center gap-1 text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-medium">
                                   <svg
-                                    className="w-3 h-3 flex-shrink-0"
+                                    className="w-3 h-3 flex-shrink-0 text-slate-400"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -2098,9 +2108,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   </svg>
                                   {app.jobId?.location || "Remote"}
                                 </span>
-                                <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+                                <span className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded font-medium">
                                   <svg
-                                    className="w-3 h-3 flex-shrink-0"
+                                    className="w-3 h-3 flex-shrink-0 text-emerald-500"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -2123,8 +2133,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 </span>
                               </div>
 
-                              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                <p className="text-xs text-gray-400">
+                              <div className="flex items-center justify-between pt-2 border-t border-[#f1f5f9]">
+                                <p className="text-xs text-[#64748b]">
                                   {new Date(app.createdAt).toLocaleDateString(
                                     "en-IN",
                                     {
@@ -2153,7 +2163,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       onNavigate("my-applications");
                                     }
                                   }}
-                                  className="text-xs text-blue-600 font-medium hover:text-blue-800"
+                                  className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8]"
                                 >
                                   View Details
                                 </button>
@@ -2161,16 +2171,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                            <p className="text-gray-700 font-medium text-sm mb-2">
+                          <div className="text-center py-6 bg-slate-50/70 rounded-lg border-2 border-dashed border-slate-200">
+                            <p className="text-slate-700 font-semibold text-sm mb-1">
                               No applications yet
                             </p>
-                            <p className="text-gray-500 text-xs mb-3">
+                            <p className="text-[#64748b] text-xs mb-3">
                               Start applying to jobs and track them here
                             </p>
                             <button
                               onClick={() => onNavigate("job-listings")}
-                              className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                              className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all"
                             >
                               Browse Jobs
                             </button>
@@ -2184,10 +2194,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 
               {/* Main Content Area */}
               <div className="lg:col-span-3 order-1 lg:order-2">
-                {/* Profile Header Card â€” LinkedIn style with cover */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6 overflow-hidden">
+                {/* Profile Header Card — LinkedIn style with cover */}
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] mb-4 sm:mb-6 overflow-hidden relative">
                   {/* Cover Photo */}
-                  <div className="relative h-32 sm:h-40 lg:h-52 bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200 group">
+                  <div className="relative h-32 sm:h-40 lg:h-52 bg-[#f8fafc] border-b border-[#e2e8f0] group">
                     {user?.coverPhoto ? (
                       <img
                         src={user.coverPhoto}
@@ -2197,13 +2207,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     ) : null}
                     {/* Cover upload + remove buttons */}
                     {!readOnly && (
-                      <React.Fragment><div className="absolute top-3 right-3 flex gap-2">
+                      <React.Fragment><div className="absolute top-3 right-3 flex gap-2 z-10">
                         <label
-                          className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full cursor-pointer shadow transition-all"
+                          className="bg-white/95 hover:bg-white p-2 rounded-full cursor-pointer shadow-sm border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-[#2563eb] transition-all"
                           title="Change cover photo"
                         >
                           <svg
-                            className="w-4 h-4 text-gray-600"
+                            className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -2248,7 +2258,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         {user?.coverPhoto && (
                           <button
                             title="Remove cover photo"
-                            className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full shadow transition-all"
+                            className="bg-white/95 hover:bg-white p-2 rounded-full shadow-sm border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-600 transition-all"
                             onClick={() => showConfirm(
                               'Remove Cover Photo',
                               'Are you sure you want to remove your cover photo?',
@@ -2265,11 +2275,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               }
                             )}
                           >
-                            <X className="w-4 h-4 text-gray-600" />
+                            <X className="w-4 h-4" />
                           </button>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 text-right">Supported formats: JPG, JPEG, PNG, WEBP &mdash; Max 5 MB</p>
+                      <p className="text-xs text-slate-400 mt-1 text-right">Supported formats: JPG, JPEG, PNG, WEBP &mdash; Max 5 MB</p>
                       </React.Fragment>
                     )}
                   </div>
@@ -2312,7 +2322,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   className="w-full h-full rounded-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full bg-gray-300 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:bg-gray-400 transition-colors">
+                                <div className="w-full h-full bg-slate-200 rounded-full flex items-center justify-center text-slate-600 font-semibold text-sm hover:bg-slate-300 transition-colors">
                                   {!readOnly
                                     ? "Add photo"
                                     : user?.name?.charAt(0) || "?"}
@@ -2322,7 +2332,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           );
                         })()}
                         {user?.openToWork && (
-                          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow">
+                          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-sm">
                             #OpenToWork
                           </span>
                         )}
@@ -2333,7 +2343,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
-                          <h1 className="text-2xl font-semibold text-gray-900">
+                          <h1 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] tracking-tight">
                             {user?.name || user?.fullName || "Add your name"}
                           </h1>
                           <Edit
@@ -2349,32 +2359,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 education: user?.education || "",
                               });
                             }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] transition-colors"
                           />
                         </div>
-                        <p className="text-gray-600 mb-1">
+                        <p className="text-slate-600 font-medium mb-1">
                           {user?.title ||
                             user?.jobTitle ||
                             "Add your job title"}
                         </p>
 
                         {user?.educationCollege?.college && (
-                          <p className="text-gray-500 text-sm mb-3">
+                          <p className="text-[#64748b] text-sm mb-3">
                             {user.educationCollege.degree
-                              ? `${user.educationCollege.degree}  `
+                              ? `${user.educationCollege.degree} • `
                               : ""}
                             {user.educationCollege.college}
                           </p>
                         )}
                         {!user?.educationCollege?.college &&
                           user?.education && (
-                            <p className="text-gray-500 text-sm mb-3">
+                            <p className="text-[#64748b] text-sm mb-3">
                               {user.education}
                             </p>
                           )}
 
-                        {/* Contact Info */}
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm text-gray-600 mb-3">
+                        {/* Contact Info & Details Chips */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-600 mb-3">
                           <button
                             onClick={() => {
                               setActiveModal("personalDetails");
@@ -2388,10 +2398,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 education: user?.education || "",
                               });
                             }}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] text-slate-700 hover:text-[#1e3a8a] transition-all font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3.5 h-3.5 text-[#2563eb] flex-shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -2411,6 +2421,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             </svg>
                             <span>{user?.location || "Add Location"}</span>
                           </button>
+
                           <button
                             onClick={() => {
                               setActiveModal("personalDetails");
@@ -2424,10 +2435,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 education: user?.education || "",
                               });
                             }}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] text-slate-700 hover:text-[#1e3a8a] transition-all font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3.5 h-3.5 text-[#2563eb] flex-shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -2455,10 +2466,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 education: user?.education || "",
                               });
                             }}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] text-slate-700 hover:text-[#1e3a8a] transition-all font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3.5 h-3.5 text-[#2563eb] flex-shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -2472,9 +2483,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             </svg>
                             <span>{user?.email || "Add Email"}</span>
                           </button>
-                        </div>
-                        {/* Action Links */}
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
+
                           <button
                             onClick={() => {
                               setActiveModal("personalDetails");
@@ -2488,10 +2497,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 education: user?.education || "",
                               });
                             }}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] text-slate-700 hover:text-[#1e3a8a] transition-all font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3.5 h-3.5 text-[#2563eb] flex-shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -2519,10 +2528,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 education: user?.education || "",
                               });
                             }}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] text-slate-700 hover:text-[#1e3a8a] transition-all font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3.5 h-3.5 text-[#2563eb] flex-shrink-0"
                               xmlns="http://www.w3.org/2000/svg"
                               viewBox="0 0 24 24"
                               fill="currentColor"
@@ -2552,7 +2561,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               setResumePopupError("");
                               setShowResumePopup(true);
                             }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-full shadow hover:from-blue-700 hover:to-indigo-700 transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-all"
                           >
                             <Sparkles className="w-4 h-4" />
                             Import Resume
@@ -2564,9 +2573,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Your career preferences */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Your career preferences
                     </h2>
                     <button
@@ -2574,22 +2583,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("careerPreferences");
                         setModalData(user?.careerPreferences || {});
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
-                      {user?.careerPreferences ? "Edit" : "Add"}
+                      {user?.careerPreferences ? "Edit" : "+ Add"}
                     </button>
                   </div>
                   {user?.careerPreferences ? (
                     <CareerPreferencesDisplay prefs={user.careerPreferences} />
                   ) : (
-                    <p className="text-gray-500 text-sm">Add your career preferences to get better job recommendations.</p>
+                    <p className="text-[#64748b] text-sm">Add your career preferences to get better job recommendations.</p>
                   )}
                 </div>
 
                 {/* Education Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Education
                     </h2>
                     <button
@@ -2597,63 +2606,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("educationCollege");
                         setModalData(user?.educationCollege || {});
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
                       {user?.educationCollege &&
                       typeof user.educationCollege === "object" &&
                       user.educationCollege.degree
                         ? "Edit"
-                        : "Add"}
+                        : "+ Add"}
                     </button>
                   </div>
                   <div className="space-y-4">
                     {user?.educationCollege &&
                     typeof user.educationCollege === "object" &&
                     user.educationCollege.degree ? (
-                      <div className="border-b border-gray-100 pb-4">
+                      <div className="border-b border-[#f1f5f9] pb-4">
                         <div className="flex items-start justify-between">
                           <EducationCollegeDisplay data={user.educationCollege} />
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <Edit
-                              onClick={() => {
-                                setActiveModal("educationCollege");
-                                setModalData(user?.educationCollege || {});
-                              }}
-                              className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
-                            />
-                            <button
-                              title="Remove education"
-                              onClick={() => showConfirm(
-                                'Remove Education',
-                                'Are you sure you want to remove your college/university education details?',
-                                async () => {
-                                  const updatedUser = { ...user, educationCollege: {} };
-                                  setUser(updatedUser);
-                                  localStorage.setItem("user", JSON.stringify(updatedUser));
-                                  calculateProfileCompletion(updatedUser);
-                                  try {
-                                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ email: user?.email, educationCollege: {} }),
-                                    });
-                                    setNotification({ type: "success", message: "Education details removed.", isVisible: true });
-                                  } catch {
-                                    setNotification({ type: "error", message: "Failed to remove education details.", isVisible: true });
-                                  }
-                                }
-                              )}
-                              className="text-gray-400 hover:text-red-500"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <Edit
+                            onClick={() => {
+                              setActiveModal("educationCollege");
+                              setModalData(user?.educationCollege || {});
+                            }}
+                            className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] flex-shrink-0 ml-2 transition-colors"
+                          />
                         </div>
                       </div>
                     ) : (
-                      <div className="py-4 text-gray-500 text-sm">
+                      <div className="py-4 text-[#64748b] text-sm">
                         {user?.education ? (
-                          <p className="text-gray-700">{user.education}</p>
+                          <p className="text-slate-700">{user.education}</p>
                         ) : (
                           <p>No education details added yet</p>
                         )}
@@ -2662,100 +2643,44 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     {user?.educationClass12 &&
                     typeof user.educationClass12 === "object" &&
                     user.educationClass12.board ? (
-                      <div className="border-b border-gray-100 pb-4">
+                      <div className="border-b border-[#f1f5f9] pb-4">
                         <div className="flex items-start justify-between">
                           <SchoolEducationDisplay data={user.educationClass12} label="Class XII" />
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <Edit
-                              onClick={() => {
-                                setActiveModal("educationClass12");
-                                setModalData(user?.educationClass12 || {});
-                              }}
-                              className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
-                            />
-                            <button
-                              title="Remove Class XII"
-                              onClick={() => showConfirm(
-                                'Remove Class XII',
-                                'Are you sure you want to remove your Class XII details?',
-                                async () => {
-                                  const updatedUser = { ...user, educationClass12: {} };
-                                  setUser(updatedUser);
-                                  localStorage.setItem("user", JSON.stringify(updatedUser));
-                                  calculateProfileCompletion(updatedUser);
-                                  try {
-                                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ email: user?.email, educationClass12: {} }),
-                                    });
-                                    setNotification({ type: "success", message: "Class XII details removed.", isVisible: true });
-                                  } catch {
-                                    setNotification({ type: "error", message: "Failed to remove Class XII details.", isVisible: true });
-                                  }
-                                }
-                              )}
-                              className="text-gray-400 hover:text-red-500"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <Edit
+                            onClick={() => {
+                              setActiveModal("educationClass12");
+                              setModalData(user?.educationClass12 || {});
+                            }}
+                            className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] flex-shrink-0 ml-2 transition-colors"
+                          />
                         </div>
                       </div>
                     ) : (
-                      <div className="border-b border-gray-100 pb-4">
+                      <div className="border-b border-[#f1f5f9] pb-4">
                         <button
                           onClick={() => {
                             setActiveModal("educationClass12");
                             setModalData({});
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
-                          Add Class XII Details
+                          + Add Class XII Details
                         </button>
                       </div>
                     )}
                     {user?.educationClass10 &&
                     typeof user.educationClass10 === "object" &&
                     user.educationClass10.board ? (
-                      <div className="border-b border-gray-100 pb-4">
+                      <div className="border-b border-[#f1f5f9] pb-4">
                         <div className="flex items-start justify-between">
                           <SchoolEducationDisplay data={user.educationClass10} label="Class X" />
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <Edit
-                              onClick={() => {
-                                setActiveModal("educationClass10");
-                                setModalData(user?.educationClass10 || {});
-                              }}
-                              className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
-                            />
-                            <button
-                              title="Remove Class X"
-                              onClick={() => showConfirm(
-                                'Remove Class X',
-                                'Are you sure you want to remove your Class X details?',
-                                async () => {
-                                  const updatedUser = { ...user, educationClass10: {} };
-                                  setUser(updatedUser);
-                                  localStorage.setItem("user", JSON.stringify(updatedUser));
-                                  calculateProfileCompletion(updatedUser);
-                                  try {
-                                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ email: user?.email, educationClass10: {} }),
-                                    });
-                                    setNotification({ type: "success", message: "Class X details removed.", isVisible: true });
-                                  } catch {
-                                    setNotification({ type: "error", message: "Failed to remove Class X details.", isVisible: true });
-                                  }
-                                }
-                              )}
-                              className="text-gray-400 hover:text-red-500"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <Edit
+                            onClick={() => {
+                              setActiveModal("educationClass10");
+                              setModalData(user?.educationClass10 || {});
+                            }}
+                            className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] flex-shrink-0 ml-2 transition-colors"
+                          />
                         </div>
                       </div>
                     ) : (
@@ -2765,9 +2690,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             setActiveModal("educationClass10");
                             setModalData({});
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
-                          Add Class X Details
+                          + Add Class X Details
                         </button>
                       </div>
                     )}
@@ -2775,32 +2700,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Key Skills Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight flex items-center space-x-2">
                       <span>Key skills</span>
                       <Edit
                         onClick={() => {
                           setActiveModal("skills");
                           setModalData(user?.skills || []);
                         }}
-                        className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                        className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] transition-colors"
                       />
                     </h2>
                   </div>
                   {user?.skills && user.skills.length > 0 ? (
                     <SkillsDisplay skills={user.skills} />
                   ) : (
-                    <p className="text-gray-500">
+                    <p className="text-[#64748b] text-sm">
                       Add your key skills to help recruiters find you
                     </p>
                   )}
                 </div>
 
                 {/* Languages Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Languages
                     </h2>
                     <button
@@ -2808,26 +2733,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("languages");
                         setModalData(user?.languages || "");
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
-                      {user?.languages && user.languages.length > 0
+                      {user?.languages && (Array.isArray(user.languages) ? user.languages.length > 0 : user.languages.trim())
                         ? "Edit"
-                        : "Add"}
+                        : "+ Add"}
                     </button>
                   </div>
                   {user?.languages && (Array.isArray(user.languages) ? user.languages.length > 0 : user.languages.trim()) ? (
                     <LanguagesDisplay languages={user.languages} />
                   ) : (
-                    <p className="text-gray-500">
+                    <p className="text-[#64748b] text-sm">
                       Talk about the languages that you can speak, read or write
                     </p>
                   )}
                 </div>
 
                 {/* Profile Summary Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Profile Summary
                     </h2>
                     <button
@@ -2835,22 +2760,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("profileSummary");
                         setModalData(user?.profileSummary || "");
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
                       {user?.profileSummary && user.profileSummary.trim()
                         ? "Edit"
-                        : "Add"}
+                        : "+ Add"}
                     </button>
                   </div>
                   {user?.profileSummary && user.profileSummary.trim() ? (
                     <p
-                      className="text-gray-700 break-words"
+                      className="text-sm text-[#334e72] leading-relaxed break-words"
                       style={{ overflowWrap: "anywhere" }}
                     >
                       {user.profileSummary}
                     </p>
                   ) : (
-                    <p className="text-gray-500">
+                    <p className="text-sm text-[#64748b] leading-relaxed">
                       Your Profile Summary should mention the highlights of your
                       career and education, what your professional interests
                       are, and what kind of a career you are looking for. Write
@@ -2860,9 +2785,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Employment Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Employment
                     </h2>
                     <button
@@ -2870,7 +2795,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("employment");
                         setModalData({});
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
                       + Add
                     </button>
@@ -2888,7 +2813,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         {empList.map((emp: any, idx: number) => (
                           <div
                             key={idx}
-                            className="border-b border-gray-100 pb-4 last:border-0"
+                            className="border-b border-[#f1f5f9] pb-4 last:border-0"
                           >
                             <div className="flex justify-between items-start">
                               <EmploymentDisplay emp={emp} />
@@ -2898,7 +2823,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     setActiveModal("employment");
                                     setModalData({ ...emp, _editIndex: idx });
                                   }}
-                                  className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                                  className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] transition-colors"
                                 />
                                 <button
                                   onClick={async () => {
@@ -2928,7 +2853,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       },
                                     );
                                   }}
-                                  className="text-red-400 hover:text-red-600 text-xs"
+                                  className="text-slate-400 hover:text-red-600 text-sm font-bold transition-colors leading-none"
                                 >
                                   ×
                                 </button>
@@ -2938,7 +2863,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500">
+                      <p className="text-sm text-[#64748b]">
                         Talk about the company you worked at, your designation
                         and describe what all you did there
                       </p>
@@ -2947,9 +2872,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Projects Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Projects
                     </h2>
                     <button
@@ -2957,7 +2882,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("projects");
                         setModalData({});
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
                       + Add
                     </button>
@@ -2975,7 +2900,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         {list.map((proj: any, idx: number) => (
                           <div
                             key={idx}
-                            className="border-b border-gray-100 pb-4 last:border-0"
+                            className="border-b border-[#f1f5f9] pb-4 last:border-0"
                           >
                             <div className="flex justify-between items-start">
                               <ProjectDisplay proj={proj} />
@@ -2985,7 +2910,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     setActiveModal("projects");
                                     setModalData({ ...proj, _editIndex: idx });
                                   }}
-                                  className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                                  className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] transition-colors"
                                 />
                                 <button
                                   onClick={async () => {
@@ -3015,7 +2940,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       },
                                     );
                                   }}
-                                  className="text-red-400 hover:text-red-600 text-xs"
+                                  className="text-slate-400 hover:text-red-600 text-sm font-bold transition-colors leading-none"
                                 >
                                   ×
                                 </button>
@@ -3025,7 +2950,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500">
+                      <p className="text-sm text-[#64748b]">
                         Talk about your projects that made you proud and
                         contributed to your learnings
                       </p>
@@ -3034,9 +2959,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Internships Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Internships
                     </h2>
                     <button
@@ -3044,7 +2969,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         setActiveModal("internships");
                         setModalData({});
                       }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                     >
                       + Add
                     </button>
@@ -3062,7 +2987,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         {list.map((intern: any, idx: number) => (
                           <div
                             key={idx}
-                            className="border-b border-gray-100 pb-4 last:border-0"
+                            className="border-b border-[#f1f5f9] pb-4 last:border-0"
                           >
                             <div className="flex justify-between items-start">
                               <InternshipDisplay intern={intern} />
@@ -3075,7 +3000,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       _editIndex: idx,
                                     });
                                   }}
-                                  className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                                  className="w-4 h-4 text-slate-400 cursor-pointer hover:text-[#2563eb] transition-colors"
                                 />
                                 <button
                                   onClick={async () => {
@@ -3105,7 +3030,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       },
                                     );
                                   }}
-                                  className="text-red-400 hover:text-red-600 text-xs"
+                                  className="text-slate-400 hover:text-red-600 text-sm font-bold transition-colors leading-none"
                                 >
                                   ×
                                 </button>
@@ -3115,7 +3040,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500">
+                      <p className="text-sm text-[#64748b]">
                         Talk about the company you interned at, what projects
                         you undertook and what special skills you learned
                       </p>
@@ -3124,17 +3049,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Accomplishments Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Accomplishments
                     </h2>
                   </div>
                   <div className="space-y-4">
                     {/* Certifications */}
-                    <div className="border-b border-gray-100 pb-4">
+                    <div className="border-b border-[#f1f5f9] pb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">
+                        <h3 className="font-semibold text-slate-800 text-sm sm:text-base">
                           Certifications
                         </h3>
                         <button
@@ -3142,13 +3067,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             setActiveModal("certifications");
                             setModalData(user?.certifications || {});
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
                           {user?.certifications &&
                           typeof user.certifications === "object" &&
                           user.certifications.certificationName
                             ? "Edit"
-                            : "Add"}
+                            : "+ Add"}
                         </button>
                       </div>
                       {user?.certifications &&
@@ -3156,35 +3081,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       user.certifications.certificationName ? (
                         <CertificationDisplay cert={user.certifications} />
                       ) : (
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-[#64748b] text-sm">
                           Talk about any certified courses that you completed
                         </p>
                       )}
                     </div>
 
                     {/* Awards */}
-                    <div className="border-b border-gray-100 pb-4">
+                    <div className="border-b border-[#f1f5f9] pb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">Awards</h3>
+                        <h3 className="font-semibold text-slate-800 text-sm sm:text-base">Awards</h3>
                         <button
                           onClick={() => {
                             setActiveModal("awards");
                             setModalData(user?.awards || "");
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
-                          {user?.awards && user.awards.trim() ? "Edit" : "Add"}
+                          {user?.awards && user.awards.trim() ? "Edit" : "+ Add"}
                         </button>
                       </div>
                       {user?.awards && user.awards.trim() ? (
                         <p
-                          className="text-gray-700 whitespace-pre-line break-all break-words"
+                          className="text-sm text-[#334e72] whitespace-pre-line break-all break-words"
                           style={{ overflowWrap: "anywhere" }}
                         >
                           {user.awards}
                         </p>
                       ) : (
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-[#64748b] text-sm">
                           Talk about any special recognitions that you received
                           that makes you proud
                         </p>
@@ -3192,9 +3117,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     </div>
 
                     {/* Club & committees */}
-                    <div className="border-b border-gray-100 pb-4">
+                    <div className="border-b border-[#f1f5f9] pb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">
+                        <h3 className="font-semibold text-slate-800 text-sm sm:text-base">
                           Club & committees
                         </h3>
                         <button
@@ -3202,13 +3127,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             setActiveModal("clubsCommittees");
                             setModalData(user?.clubsCommittees || {});
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
                           {user?.clubsCommittees &&
                           typeof user.clubsCommittees === "object" &&
                           user.clubsCommittees.clubName
                             ? "Edit"
-                            : "Add"}
+                            : "+ Add"}
                         </button>
                       </div>
                       {user?.clubsCommittees &&
@@ -3216,13 +3141,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       user.clubsCommittees.clubName ? (
                         <div>
                           <p
-                            className="text-gray-900 font-medium break-words"
+                            className="text-slate-900 font-semibold break-words"
                             style={{ overflowWrap: "anywhere" }}
                           >
                             {user.clubsCommittees.designation} at{" "}
                             {user.clubsCommittees.clubName}
                           </p>
-                          <p className="text-gray-500 text-sm">
+                          <p className="text-[#64748b] text-xs sm:text-sm">
                             {user.clubsCommittees.startMonth}{" "}
                             {user.clubsCommittees.startYear} -{" "}
                             {user.clubsCommittees.currentlyWorking
@@ -3232,18 +3157,18 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               `  ${user.clubsCommittees.associatedEducation}`}
                           </p>
                           <p
-                            className="text-gray-700 text-sm mt-1 break-all break-words"
+                            className="text-slate-700 text-sm mt-1 break-all break-words"
                             style={{ overflowWrap: "anywhere" }}
                           >
                             {user.clubsCommittees.description}
                           </p>
                           {user.clubsCommittees.mediaFile && (
-                            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                              <p className="text-xs text-gray-600 mb-1">
+                            <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                              <p className="text-xs text-[#64748b] mb-1 font-medium">
                                 Attached media:
                               </p>
                               <p
-                                className="text-sm text-gray-900 font-medium break-words"
+                                className="text-sm text-slate-900 font-medium break-words"
                                 style={{ overflowWrap: "anywhere" }}
                               >
                                 {user.clubsCommittees.mediaFile}
@@ -3252,7 +3177,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           )}
                         </div>
                       ) : (
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-[#64748b] text-sm">
                           Add details of position of responsibilities that you
                           have held
                         </p>
@@ -3260,9 +3185,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     </div>
 
                     {/* Competitive exams */}
-                    <div className="border-b border-gray-100 pb-4">
+                    <div className="border-b border-[#f1f5f9] pb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">
+                        <h3 className="font-semibold text-slate-800 text-sm sm:text-base">
                           Competitive exams
                         </h3>
                         <button
@@ -3281,7 +3206,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               year: "",
                             });
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
                           + Add
                         </button>
@@ -3298,13 +3223,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             {list.map((exam: any, idx: number) => (
                               <div
                                 key={idx}
-                                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                                className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
                               >
                                 <div>
-                                  <p className="text-gray-900 font-medium text-sm">
+                                  <p className="text-slate-900 font-semibold text-sm">
                                     {exam.examName}
                                   </p>
-                                  <p className="text-gray-500 text-xs">
+                                  <p className="text-[#64748b] text-xs font-medium">
                                     {[
                                       exam.score && `Score: ${exam.score}`,
                                       exam.year && `Year: ${exam.year}`,
@@ -3325,7 +3250,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                         year: exam.year || "",
                                       });
                                     }}
-                                    className="text-gray-400 hover:text-blue-600"
+                                    className="text-slate-400 hover:text-[#2563eb] transition-colors"
                                   >
                                     <Edit className="w-3.5 h-3.5" />
                                   </button>
@@ -3357,7 +3282,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                         },
                                       );
                                     }}
-                                    className="text-red-400 hover:text-red-600 text-xs font-bold"
+                                    className="text-slate-400 hover:text-red-600 text-sm font-bold transition-colors"
                                   >
                                     ×
                                   </button>
@@ -3366,7 +3291,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-sm">
+                          <p className="text-[#64748b] text-sm">
                             Talk about any competitive exam that you appeared
                             for and the rank received
                           </p>
@@ -3377,7 +3302,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     {/* Academic achievements */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">
+                        <h3 className="font-semibold text-slate-800 text-sm sm:text-base">
                           Academic achievements
                         </h3>
                         <button
@@ -3385,24 +3310,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             setActiveModal("academicAchievements");
                             setModalData(user?.academicAchievements || "");
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                         >
                           {user?.academicAchievements &&
                           user.academicAchievements.trim()
                             ? "Edit"
-                            : "Add"}
+                            : "+ Add"}
                         </button>
                       </div>
                       {user?.academicAchievements &&
                       user.academicAchievements.trim() ? (
                         <p
-                          className="text-gray-700 whitespace-pre-line break-words"
+                          className="text-sm text-[#334e72] whitespace-pre-line break-words"
                           style={{ overflowWrap: "anywhere" }}
                         >
                           {user.academicAchievements}
                         </p>
                       ) : (
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-[#64748b] text-sm">
                           Talk about any academic achievement whether in college
                           or school that deserves a mention
                         </p>
@@ -3412,26 +3337,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
 
                 {/* Resume Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 mb-5 sm:mb-6 hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight">
                       Resume
                     </h2>
                   </div>
-                  <p className="text-gray-500 mb-4">
+                  <p className="text-sm text-[#64748b] mb-4 leading-relaxed">
                     Your resume is the first impression you make on potential
                     employers. Craft it carefully to secure your desired job or
                     internship.
                   </p>
                   {user?.resume ? (
-                    <div className="border border-gray-300 rounded-lg p-4">
+                    <div className="border border-[#e2e8f0] bg-slate-50/60 rounded-lg p-4">
                       <div className="flex items-center space-x-3">
-                        <FileText className="w-8 h-8 text-blue-600" />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">
+                        <FileText className="w-8 h-8 text-[#2563eb] flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">
                             {user.resume.name || "Resume.pdf"}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs text-[#64748b]">
                             Uploaded on {user.resume.uploadDate || "Recently"}
                           </p>
                         </div>
@@ -3527,12 +3452,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             }
                           }}
                         />
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() =>
                               document.getElementById("resume-update")?.click()
                             }
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            className="inline-flex items-center text-xs sm:text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8] px-2.5 py-1 rounded-md hover:bg-[#eff6ff] transition-all"
                           >
                             Update
                           </button>
@@ -3564,7 +3489,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 }
                               );
                             }}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                            className="inline-flex items-center text-xs sm:text-sm font-semibold text-red-600 hover:text-red-700 px-2.5 py-1 rounded-md hover:bg-red-50 transition-all"
                           >
                             Remove
                           </button>
@@ -3572,8 +3497,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <div className="border-2 border-dashed border-slate-300 hover:border-[#2563eb] bg-slate-50/50 hover:bg-[#eff6ff]/30 rounded-lg p-6 text-center transition-colors">
+                      <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
                       <input
                         type="file"
                         id="resume-upload"
@@ -3672,11 +3597,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         onClick={() =>
                           document.getElementById("resume-upload")?.click()
                         }
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-6 py-2.5 rounded-lg shadow-sm font-semibold text-sm transition-all"
                       >
                         Upload resume
                       </button>
-                      <p className="text-gray-500 text-sm mt-2">
+                      <p className="text-[#64748b] text-xs mt-2 font-medium">
                         Supported formats: doc, docx, rtf, pdf, up to 2MB
                       </p>
                     </div>
@@ -3689,10 +3614,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
           {activeTab === "Activity" && (
             <div className="space-y-6">
               {loadingActivity ? (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-6">
                   <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2563eb]"></div>
+                    <span className="ml-3 text-slate-600 font-medium text-sm">
                       Loading activity insights...
                     </span>
                   </div>
@@ -3700,14 +3625,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               ) : activityData ? (
                 <>
                   {/* Activity Stats Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 hover:border-slate-300 transition-colors">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] rounded-lg flex items-center justify-center">
                             <svg
-                              width="24"
-                              height="24"
+                              width="20"
+                              height="20"
                               viewBox="0 0 24 24"
                               xmlns="http://www.w3.org/2000/svg"
                             >
@@ -3718,26 +3643,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             </svg>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-500">
+                        <div className="ml-3.5">
+                          <p className="text-xs sm:text-sm font-semibold text-[#64748b]">
                             Profile Views
                           </p>
-                          <p className="text-2xl font-bold text-gray-900">
+                          <p className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] mt-0.5">
                             {activityData.profileViews}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 hover:border-slate-300 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                            <div className="w-10 h-10 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg flex items-center justify-center">
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
+                                width="20"
+                                height="20"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -3755,32 +3680,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               </svg>
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">
+                          <div className="ml-3.5">
+                            <p className="text-xs sm:text-sm font-semibold text-[#64748b]">
                               Search Appearances
                             </p>
-                            <p className="text-2xl font-bold text-gray-900">
+                            <p className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] mt-0.5">
                               {activityData.searchAppearances}
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => onNavigate("search-appearances")}
-                          className="text-xs text-blue-600 font-medium hover:underline flex-shrink-0 ml-2"
+                          className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] hover:underline flex-shrink-0 ml-2"
                         >
                           View All
                         </button>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 hover:border-slate-300 transition-colors">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg flex items-center justify-center">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              width="24"
-                              height="24"
+                              width="20"
+                              height="20"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -3794,25 +3719,25 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             </svg>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-500">
+                        <div className="ml-3.5">
+                          <p className="text-xs sm:text-sm font-semibold text-[#64748b]">
                             Applications Sent
                           </p>
-                          <p className="text-2xl font-bold text-gray-900">
+                          <p className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] mt-0.5">
                             {activityData.applicationsSent}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6 hover:border-slate-300 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <div className="w-10 h-10 bg-[#eff6ff] border border-[#dbeafe] text-[#1e3a8a] rounded-lg flex items-center justify-center">
                               <svg
-                                width="24"
-                                height="24"
+                                width="20"
+                                height="20"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 xmlns="http://www.w3.org/2000/svg"
@@ -3844,18 +3769,18 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               </svg>
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">
+                          <div className="ml-3.5">
+                            <p className="text-xs sm:text-sm font-semibold text-[#64748b]">
                               Recruiter Actions
                             </p>
-                            <p className="text-2xl font-bold text-gray-900">
+                            <p className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] mt-0.5">
                               {activityData.recruiterActions}
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => onNavigate("recruiter-actions")}
-                          className="text-xs text-blue-600 font-medium hover:underline flex-shrink-0 ml-2"
+                          className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] hover:underline flex-shrink-0 ml-2"
                         >
                           View All
                         </button>
@@ -3864,38 +3789,40 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </div>
 
                   {/* Recent Activity */}
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight mb-4">
                       Recent Activity
                     </h2>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {activityData.recentActivity.map(
                         (activity: any, index: number) => (
                           <div
                             key={index}
-                            className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg"
+                            className="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
                           >
-                            <svg
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                              <path d="M3 3v5h5" />
-                              <path d="M12 7v5l4 2" />
-                            </svg>
+                            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                <path d="M3 3v5h5" />
+                                <path d="M12 7v5l4 2" />
+                              </svg>
+                            </div>
 
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-900">
                                 {activity.message}
                               </p>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-[#64748b] mt-0.5">
                                 {activity.company} {activity.time}
                               </p>
                             </div>
@@ -3906,11 +3833,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </div>
 
                   {/* Activity Chart */}
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                  <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] p-5 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#1e3a8a] tracking-tight mb-1">
                       Activity Trends
                     </h2>
-                    <p className="text-sm text-gray-500 mb-4">
+                    <p className="text-sm text-[#64748b] mb-4">
                       Your job search activity over the last 7 days
                     </p>
                     {(() => {
@@ -3950,14 +3877,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <div>
                           <div className="flex items-center gap-6 mb-3">
                             <div className="flex items-center gap-2">
-                              <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block"></span>
-                              <span className="text-xs text-gray-600">
+                              <span className="w-3 h-3 rounded-sm bg-[#2563eb] inline-block"></span>
+                              <span className="text-xs font-medium text-[#64748b]">
                                 Applications
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="w-3 h-3 rounded-sm bg-purple-400 inline-block"></span>
-                              <span className="text-xs text-gray-600">
+                              <span className="w-3 h-3 rounded-sm bg-[#6366f1] inline-block"></span>
+                              <span className="text-xs font-medium text-[#64748b]">
                                 Interviews
                               </span>
                             </div>
@@ -3978,7 +3905,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   className="flex-1 flex flex-col items-center justify-end gap-1"
                                 >
                                   {total > 0 && (
-                                    <span className="text-xs font-semibold text-gray-700">
+                                    <span className="text-xs font-semibold text-slate-700">
                                       {total}
                                     </span>
                                   )}
@@ -3987,12 +3914,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     style={{
                                       height: barH,
                                       backgroundColor:
-                                        total > 0 ? "#3b82f6" : "#e5e7eb",
+                                        total > 0 ? "#2563eb" : "#e2e8f0",
                                     }}
                                   >
                                     {day.interviews > 0 && total > 0 && (
                                       <div
-                                        className="absolute top-0 left-0 right-0 bg-purple-400"
+                                        className="absolute top-0 left-0 right-0 bg-[#6366f1]"
                                         style={{
                                           height:
                                             (day.interviews / total) * 100 +
@@ -4001,35 +3928,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       ></div>
                                     )}
                                   </div>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-[#64748b] font-medium">
                                     {day.label}
                                   </span>
                                 </div>
                               );
                             })}
                           </div>
-                          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+                          <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-[#f1f5f9]">
                             <div className="text-center">
-                              <p className="text-2xl font-bold text-blue-600">
+                              <p className="text-2xl sm:text-3xl font-bold text-[#2563eb]">
                                 {activityData.applicationsSent}
                               </p>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs font-medium text-[#64748b] mt-1">
                                 Total Applications
                               </p>
                             </div>
                             <div className="text-center">
-                              <p className="text-2xl font-bold text-purple-500">
+                              <p className="text-2xl sm:text-3xl font-bold text-[#1e3a8a]">
                                 {activityData.recruiterActions}
                               </p>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs font-medium text-[#64748b] mt-1">
                                 Recruiter Actions
                               </p>
                             </div>
                             <div className="text-center">
-                              <p className="text-2xl font-bold text-green-600">
+                              <p className="text-2xl sm:text-3xl font-bold text-emerald-600">
                                 {activityData.searchAppearances}
                               </p>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs font-medium text-[#64748b] mt-1">
                                 Search Appearances
                               </p>
                             </div>
@@ -4047,12 +3974,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 
       {/* First-time Resume Upload Popup */}
       {showResumePopup && !readOnly && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl max-h-[85vh] overflow-y-auto">
-            <div className="p-5">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-xl w-full shadow-2xl border border-[#e2e8f0] max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="p-6 overflow-y-auto">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-[#eff6ff] border border-[#dbeafe] rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-[#2563eb]" />
                 </div>
                 <button
                   onClick={() => {
@@ -4062,33 +3989,33 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     );
                     setShowResumePopup(false);
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-slate-400 hover:text-slate-600 transition-colors p-1"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">
+              <h2 className="text-xl font-bold text-[#1e3a8a] mb-1">
                 Complete your profile faster!
               </h2>
-              <p className="text-gray-500 text-sm mb-5">
+              <p className="text-slate-500 text-sm mb-5 leading-relaxed">
                 Upload your resume and we'll fill your profile with the parsed
                 details â€” phone, skills, experience, education and more. Fields
                 not found in the resume will be cleared.
               </p>
 
               {resumePopupError && (
-                <p className="text-red-500 text-sm mb-3">{resumePopupError}</p>
+                <p className="text-red-500 text-sm mb-3 font-medium">{resumePopupError}</p>
               )}
 
               {resumePopupFile ? (
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg mb-4">
-                  <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 truncate flex-1">
+                <div className="flex items-center gap-3 p-3 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg mb-4">
+                  <FileText className="w-5 h-5 text-[#2563eb] flex-shrink-0" />
+                  <span className="text-sm font-medium text-slate-800 truncate flex-1">
                     {resumePopupFile.name}
                   </span>
                   <button
                     onClick={() => setResumePopupFile(null)}
-                    className="text-gray-400 hover:text-red-500"
+                    className="text-slate-400 hover:text-red-500 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -4097,8 +4024,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 <div
                   className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors mb-4 ${
                     resumePopupDragOver
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                      ? 'border-[#2563eb] bg-[#eff6ff]'
+                      : 'border-slate-300 hover:border-[#2563eb] hover:bg-[#eff6ff]/30'
                   }`}
                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setResumePopupDragOver(true); }}
                   onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setResumePopupDragOver(false); }}
@@ -4370,7 +4297,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     setResumePopupParsing(false);
                   }
                 }}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#2563eb] text-white py-3 rounded-lg font-semibold hover:bg-[#1d4ed8] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center gap-2"
               >
                 {resumePopupParsing ? (
                   <>
@@ -4392,7 +4319,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   );
                   setShowResumePopup(false);
                 }}
-                className="w-full mt-3 text-gray-500 text-sm hover:text-gray-700 py-2"
+                className="w-full mt-2 text-slate-500 text-sm font-medium hover:text-[#1e3a8a] py-2 transition-colors"
               >
                 Skip for now
               </button>
