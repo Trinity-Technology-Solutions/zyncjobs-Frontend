@@ -130,10 +130,10 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
         {/* Header */}
         <div className="text-center mb-10 anim-fade-2">
-          <h1 className="text-4xl md:text-5xl font-extrabold mb-3 text-slate-900">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 text-slate-900 leading-[1.15] tracking-[-0.02em]">
             Create New Job
           </h1>
-          <p className="text-slate-500 text-base">Choose how you'd like to post your job</p>
+          <p className="text-sm sm:text-base text-slate-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">Choose how you'd like to post your job</p>
         </div>
 
         {/* Cards */}

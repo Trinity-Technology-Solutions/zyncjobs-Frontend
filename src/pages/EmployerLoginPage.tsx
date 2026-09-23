@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, Settings, AlertTriangle, KeyRound } from 'lucide-react';
-import BackButton from '../components/BackButton';
+import React, { useState } from 'react';
+import { Eye, EyeOff, Search, BarChart2, Shield, AlertTriangle, KeyRound } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
+import BackButton from '../components/BackButton';
 import { generateEmployerId } from '../utils/employerIdUtils';
 import WorkButton from '../components/animata/button/work-button';
 import { updateUserInStorage } from '../utils/userStorage';
+import AccountLockedModal from '../components/AccountLockedModal';
 
 interface EmployerLoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -20,6 +21,8 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestReset, setSuggestReset] = useState(false);
+  const [lockedMinutes, setLockedMinutes] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
   const [showChangePw, setShowChangePw] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPw, setConfirmNewPw] = useState('');
@@ -90,8 +93,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       let errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
       
       // Handle account lockout (HTTP 423)
-      if ((err as any)?.response?.status === 423 || errorMessage.includes('locked') || errorMessage.includes('too many')) {
-        errorMessage = '🔒 Account temporarily locked due to multiple failed login attempts. Please try again in 15 minutes or reset your password.';
+      if ((err as any)?.locked || (err as any)?.response?.status === 423 || errorMessage.includes('locked') || errorMessage.includes('too many')) {
+        setLockedUntil((err as any)?.lockedUntil || null);
+        setLockedMinutes((err as any)?.lockoutMinutes || 15);
+        setLoading(false);
+        return;
       }
       
       setError(errorMessage);
@@ -128,8 +134,16 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden bg-[#f7f4ef]">
       <Header onNavigate={onNavigate} />
+
+      <AccountLockedModal
+        isOpen={lockedMinutes > 0}
+        lockoutMinutes={lockedMinutes}
+        lockedUntil={lockedUntil}
+        onClose={() => { setLockedMinutes(0); setLockedUntil(null); setError(''); }}
+        onContactSupport={() => { setLockedMinutes(0); setLockedUntil(null); onNavigate('forgot-password'); }}
+      />
 
       {/* Change Password Modal for team members after first login */}
       {showChangePw && (
@@ -170,94 +184,63 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         </div>
       )}
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 lg:min-h-[calc(100vh-97px)]">
 
         {/* LEFT PANEL */}
-        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-          {/* Light decorative blobs like hero page */}
-          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
-          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
+        <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-[#fffaf2] border-r border-[#eadfce]">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full border-[28px] border-orange-100/70" />
+          <div className="absolute -bottom-32 -right-28 w-[30rem] h-[30rem] rounded-full border-[40px] border-blue-100/60" />
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(135deg, transparent 0 49%, rgba(16,42,67,0.05) 49% 50%, transparent 50% 100%)', backgroundSize: '34px 34px' }} />
 
-          <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
+          <div className="relative z-10 flex flex-col justify-between px-12 xl:px-16 py-10 xl:py-12 w-full">
             <BackButton fallback="/" />
-
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-6 bg-orange-50 text-orange-600 border border-orange-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                Employer Portal
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] mb-5 text-[#102a43]">
+                <span className="w-8 h-px bg-orange-500" />
+                For employers
               </div>
-              <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
-                Hire Top Talent<br />
-                <span className="text-orange-500">Faster &amp; Smarter</span>
+              <h1 className="text-4xl xl:text-5xl font-bold leading-[1.08] tracking-tight mb-5 text-[#102a43]">
+                Welcome back<br />
+                <span className="text-orange-500">to your workspace.</span>
               </h1>
-              <p className="text-gray-500 text-base mb-10">
-                Access your hiring dashboard and find the perfect candidates for your team.
+              <p className="text-[#526579] text-base leading-7 max-w-md mb-9">
+                Sign in to manage your hiring pipeline, connect with candidates, and keep your team moving forward.
               </p>
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {[
-                  { icon: Search,    text: 'AI-Powered Candidate Search',        color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: BarChart2, text: 'Hire Across All Fields & Industries', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: Zap,       text: 'Post Jobs in Under 2 Minutes',        color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: Shield,    text: 'Screened & Verified Profiles',        color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Search, text: 'Find relevant candidates faster', color: 'text-[#102a43]', bg: 'bg-blue-100/70' },
+                  { icon: BarChart2, text: 'Keep your hiring work organized', color: 'text-orange-600', bg: 'bg-orange-100/80' },
+                  { icon: Shield, text: 'Hire with verified profiles', color: 'text-[#102a43]', bg: 'bg-blue-100/70' },
                 ].map(({ icon: Icon, text, color, bg }) => (
-                  <div key={text} className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
+                  <div key={text} className="flex items-center gap-3.5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}>
+                      <Icon className={`w-[18px] h-[18px] ${color}`} />
                     </div>
-                    <span className="text-gray-700 text-sm font-medium">{text}</span>
+                    <span className="text-[#263e55] text-sm font-semibold">{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-4 mt-4">
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <Search className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">AI Search</div>
-                  <div className="text-gray-500 text-xs mt-1">Find top candidates instantly</div>
-                </div>
+            <div className="mt-10 flex items-center gap-3 text-xs text-[#526579]">
+              <div className="flex -space-x-2">
+                <span className="w-8 h-8 rounded-full bg-[#102a43] border-2 border-[#fffaf2] flex items-center justify-center text-white"><Search className="w-3.5 h-3.5" /></span>
+                <span className="w-8 h-8 rounded-full bg-orange-500 border-2 border-[#fffaf2] flex items-center justify-center text-white"><Shield className="w-3.5 h-3.5" /></span>
               </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <BarChart2 className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Advanced Analytics</div>
-                  <div className="text-gray-500 text-xs mt-1">Track hiring metrics in detail</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <Settings className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Workflow Automation</div>
-                  <div className="text-gray-500 text-xs mt-1">Automate your hiring process</div>
-                </div>
-              </div>
+              <span>Trusted tools for growing teams</span>
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-4 sm:px-6 py-8 sm:py-12 relative overflow-hidden">
-          {/* Decorative Blobs */}
-          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
-          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
+        <div className="w-full lg:w-[55%] flex items-center justify-center bg-[#f7f4ef] px-4 sm:px-8 lg:px-12 py-8 sm:py-12 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-50 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d8d0c3 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
           
-          <div className="w-full max-w-sm sm:max-w-md">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-4 sm:p-6 lg:p-8">
+          <div className="relative z-10 w-full max-w-xl">
+            <div className="bg-white border border-[#e8e0d5] rounded-[1.25rem] shadow-[0_24px_70px_-36px_rgba(16,42,67,0.5)] p-5 sm:p-8 lg:p-10">
               <div className="mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                  Employer Portal
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900">Access Your Dashboard</h2>
-                <p className="text-gray-500 mt-1 text-sm">Sign in to manage your hiring pipeline</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sign in to your employer account</h2>
+                <p className="text-gray-500 text-sm mt-1">Manage your hiring pipeline from one focused workspace</p>
               </div>
 
               {error && (
@@ -281,12 +264,12 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Email</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Email</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 sm:py-4 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-200 bg-white touch-manipulation"
+                    className="w-full h-12 sm:h-14 px-4 border border-gray-200 rounded-xl text-sm sm:text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
                     placeholder="Enter company email"
                     autoComplete="email"
                     inputMode="email"
@@ -296,7 +279,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-sm font-medium text-gray-700">Password</label>
+                    <label className="block text-sm font-semibold text-gray-700">Password</label>
                     <button type="button" onClick={() => onNavigate('forgot-password')}
                       className={`text-xs font-semibold transition-all ${
                         suggestReset
@@ -311,7 +294,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-12 sm:h-14 px-4 pr-12 sm:pr-14 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-200 bg-white touch-manipulation"
+                      className="w-full h-12 sm:h-14 px-4 pr-12 sm:pr-14 border border-gray-200 rounded-xl text-sm sm:text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
                       placeholder="Enter your password"
                       autoComplete="current-password"
                       required
@@ -334,7 +317,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                 />
               </form>
 
-              <div className="mt-4 sm:mt-6 lg:mt-8 space-y-2 sm:space-y-3">
+              <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4 border-t border-[#eee8df] pt-5 sm:pt-6">
                 <div className="text-center">
                   <span className="text-xs sm:text-sm text-gray-500">Don't have an account? </span>
                   <button 
@@ -342,7 +325,6 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to employer-register');
                       onNavigate('employer-register');
                     }} 
                     className="text-xs sm:text-sm font-semibold text-orange-500 hover:text-orange-600 active:text-orange-700 transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded underline"
@@ -357,7 +339,6 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to login');
                       onNavigate('login');
                     }} 
                     className="text-xs font-medium text-blue-500 hover:text-blue-700 active:text-blue-800 underline transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded"

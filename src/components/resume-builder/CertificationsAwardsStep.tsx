@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, Award, BadgeCheck, Sparkles, Loader2 } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
+import { validateYear, validateCertificationName, validateIssuer } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 export default function CertificationsAwardsStep() {
   const {
@@ -71,24 +73,32 @@ export default function CertificationsAwardsStep() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="md:col-span-1">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
-                    <input type="text" value={cert.name} onChange={e => updateCertification(cert.id, 'name', e.target.value)}
-                      placeholder="Enter certification name"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Issuer</label>
-                    <input type="text" value={cert.issuer} onChange={e => updateCertification(cert.id, 'issuer', e.target.value)}
-                      placeholder="Enter issuing organization"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
-                    <input type="text" value={cert.year} onChange={e => updateCertification(cert.id, 'year', e.target.value)}
-                      placeholder="Year obtained"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
-                  </div>
+                  <ValidatedInput
+                    id={`cert-name-${cert.id}`}
+                    label="Name"
+                    required
+                    value={cert.name}
+                    onCommit={(v) => updateCertification(cert.id, 'name', v)}
+                    validator={validateCertificationName}
+                    placeholder="Enter certification name"
+                    className="md:col-span-1"
+                  />
+                  <ValidatedInput
+                    id={`cert-issuer-${cert.id}`}
+                    label="Issuer"
+                    value={cert.issuer}
+                    onCommit={(v) => updateCertification(cert.id, 'issuer', v)}
+                    validator={validateIssuer}
+                    placeholder="Enter issuing organization"
+                  />
+                  <ValidatedInput
+                    id={`cert-year-${cert.id}`}
+                    label="Year"
+                    value={cert.year}
+                    onCommit={(v) => updateCertification(cert.id, 'year', v)}
+                    validator={validateYear}
+                    placeholder="Year obtained"
+                  />
                 </div>
               </div>
             ))}
@@ -123,30 +133,40 @@ export default function CertificationsAwardsStep() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
-                    <input type="text" value={award.title} onChange={e => updateAward(award.id, 'title', e.target.value)}
-                      placeholder="Enter award title"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Issuer</label>
-                    <input type="text" value={award.issuer} onChange={e => updateAward(award.id, 'issuer', e.target.value)}
-                      placeholder="Issuing organization"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
-                    <input type="text" value={award.year} onChange={e => updateAward(award.id, 'year', e.target.value)}
-                      placeholder="Year"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
-                  </div>
+                  <ValidatedInput
+                    id={`award-title-${award.id}`}
+                    label="Title"
+                    required
+                    value={award.title}
+                    onCommit={(v) => updateAward(award.id, 'title', v)}
+                    validator={validateCertificationName}
+                    placeholder="Enter award title"
+                  />
+                  <ValidatedInput
+                    id={`award-issuer-${award.id}`}
+                    label="Issuer"
+                    value={award.issuer}
+                    onCommit={(v) => updateAward(award.id, 'issuer', v)}
+                    validator={validateIssuer}
+                    placeholder="Issuing organization"
+                  />
+                  <ValidatedInput
+                    id={`award-year-${award.id}`}
+                    label="Year"
+                    value={award.year}
+                    onCommit={(v) => updateAward(award.id, 'year', v)}
+                    validator={validateYear}
+                    placeholder="Year"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-                  <input type="text" value={award.description} onChange={e => updateAward(award.id, 'description', e.target.value)}
+                  <ValidatedInput
+                    id={`award-desc-${award.id}`}
+                    label="Description"
+                    value={award.description}
+                    onCommit={(v) => updateAward(award.id, 'description', v)}
                     placeholder="Brief description"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
+                  />
                 </div>
               </div>
             ))}

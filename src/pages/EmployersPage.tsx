@@ -31,45 +31,45 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white">
         <LiveHeroBackground />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 lg:pt-24 lg:pb-28">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            <div className="lg:col-span-7">
-              <div className="hero-fade-1 inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold tracking-wide uppercase px-4 py-1.5 rounded-full mb-6">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-14 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-18 xl:pt-16 xl:pb-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 xl:gap-12 items-start">
+            <div className="lg:col-span-7 flex flex-col items-start">
+              <div className="hero-fade-1 inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold tracking-wide uppercase px-3.5 py-1.5 rounded-full mb-4">
                 <Sparkles className="w-3.5 h-3.5 animate-pulse-soft" />
                 AI-Powered Hiring Platform
               </div>
-              <h1 className="hero-fade-2 text-4xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-6">
+              <h1 className="hero-fade-2 text-4xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-4 sm:mb-6">
                 Hire the right talent,<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-blue-500 bg-[length:200%_auto] animate-gradient-shift">decoded by AI</span>
               </h1>
-              <p className="hero-fade-3 text-lg text-gray-500 leading-relaxed mb-8 max-w-xl">
+              <p className="hero-fade-3 text-sm sm:text-base text-gray-500 leading-relaxed mb-5 max-w-xl">
                 Post jobs, search verified candidate profiles, and let AI shortlist the best matches — across every field and industry.
               </p>
-              <div className="hero-fade-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
-                <WorkButton text="Explore Our Products" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })} />
+              <div className="hero-fade-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <WorkButton size="md" text="Explore Our Products" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })} />
                 <button
                   onClick={scrollToCallback}
-                  className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-full bg-white hover:bg-orange-50/40 border border-gray-200/90 hover:border-orange-200/80 text-gray-700 hover:text-gray-900 font-semibold text-[15px] tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-gray-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
+                  className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-white hover:bg-orange-50/40 border border-gray-200/90 hover:border-orange-200/80 text-gray-700 hover:text-gray-900 font-semibold text-sm tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-gray-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
                 >
-                  <Phone className="w-4.5 h-4.5 text-gray-500 group-hover:text-orange-600 transition-colors" />
+                  <Phone className="w-4 h-4 text-gray-500 group-hover:text-orange-600 transition-colors" />
                   <span>Sales Enquiry</span>
                 </button>
               </div>
-              <div className="hero-fade-5 mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div className="hero-fade-5 mt-7 lg:mt-8 flex flex-wrap items-center gap-x-5 gap-y-2.5">
                 {[
                   { icon: ShieldCheck, text: '100% verified profiles' },
                   { icon: Bot, text: 'AI-matched shortlists' },
                   { icon: Target, text: 'All fields & industries' },
                 ].map((b) => (
-                  <span key={b.text} className="inline-flex items-center gap-1.5 text-sm text-gray-500">
-                    <b.icon className="w-4 h-4 text-blue-600" /> {b.text}
+                  <span key={b.text} className="inline-flex items-center gap-1.5 text-xs sm:text-[13px] text-gray-500">
+                    <b.icon className="w-3.5 h-3.5 text-blue-600" /> {b.text}
                   </span>
                 ))}
               </div>
             </div>
 
             {/* Hero visual — quick callback form */}
-            <div className="lg:col-span-5 hidden sm:block">
+            <div className="lg:col-span-5 hidden sm:block w-full">
               <HeroCallbackCard />
             </div>
           </div>
@@ -656,49 +656,49 @@ function HeroCallbackCard() {
     setSubmitted(true);
   };
 
-  const inputCls = "w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-shadow bg-gray-50 focus:bg-white";
+  const inputCls = "w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-[13px] sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-shadow bg-gray-50 focus:bg-white";
 
   if (submitted) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-blue-100/70 p-8 text-center">
-        <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-soft">
-          <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+      <div className="w-full max-w-[420px] ml-auto bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-100/70 p-6 sm:p-7 text-center">
+        <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3.5 animate-pulse-soft">
+          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">Request received!</h3>
-        <p className="text-sm text-gray-500">Our team will get back to you shortly at {form.email}.</p>
+        <h3 className="text-base font-bold text-gray-900 mb-1">Request received!</h3>
+        <p className="text-xs sm:text-sm text-gray-500">Our team will get back to you shortly at {form.email}.</p>
       </div>
     );
   }
 
   return (
-    <div className="relative bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-blue-100/70 p-6 lg:p-7">
+    <div className="relative w-full max-w-[420px] ml-auto bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-100/70 p-5 sm:p-6">
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-violet-600 rounded-t-2xl" />
       <p className="text-[11px] font-bold uppercase tracking-widest text-blue-600 mb-1">Request callback</p>
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Get a free demo of our hiring suite</h3>
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <h3 className="text-base sm:text-[17px] font-bold text-gray-900 mb-3.5">Get a free demo of our hiring suite</h3>
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div className="relative">
-          <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="text" value={form.name} onChange={handleNameChange} placeholder="Full name" className={`${inputCls} pl-10`} />
+          <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input type="text" value={form.name} onChange={handleNameChange} placeholder="Full name" className={`${inputCls} pl-[38px]`} />
         </div>
         <div className="relative">
-          <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Mobile number" className={`${inputCls} pl-10`} />
+          <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Mobile number" className={`${inputCls} pl-[38px]`} />
         </div>
         <div className="relative">
-          <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Work email" className={`${inputCls} pl-10`} />
+          <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Work email" className={`${inputCls} pl-[38px]`} />
         </div>
         <div className="relative">
-          <Globe2 className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <select value={form.hiringFor} onChange={(e) => setForm({ ...form, hiringFor: e.target.value })} className={`${inputCls} pl-10 appearance-none`}>
+          <Globe2 className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <select value={form.hiringFor} onChange={(e) => setForm({ ...form, hiringFor: e.target.value })} className={`${inputCls} pl-[38px] appearance-none`}>
             <option>Your company</option>
             <option>Your consultancy</option>
           </select>
-          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <WorkButton type="submit" text="Request callback" className="w-full" />
-        <p className="text-[11px] text-gray-400 text-center">By submitting, you agree to be contacted by our hiring experts.</p>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <WorkButton type="submit" size="md" rounded="rounded-lg" text="Request callback" className="w-full" />
+        <p className="text-[10.5px] text-gray-400 text-center pt-0.5">By submitting, you agree to be contacted by our hiring experts.</p>
       </form>
     </div>
   );

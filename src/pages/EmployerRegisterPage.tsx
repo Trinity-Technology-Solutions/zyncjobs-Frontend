@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, Clock, Target, FileText, X, AlertTriangle, ArrowRight, ArrowLeft, Building2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Search, Shield, CheckCircle, Clock, FileText, AlertTriangle, ArrowRight, ArrowLeft, Building2, AlertCircle, Briefcase, BadgeCheck, UsersRound } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -361,91 +361,67 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   };
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div className="min-h-screen flex flex-col overflow-x-hidden bg-[#f7f4ef]">
       <Header onNavigate={onNavigate} />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 lg:min-h-[calc(100vh-97px)]">
 
         {/* LEFT PANEL */}
-        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
-          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
+        <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-[#fffaf2] border-r border-[#eadfce]">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full border-[28px] border-orange-100/70" />
+          <div className="absolute -bottom-32 -right-28 w-[30rem] h-[30rem] rounded-full border-[40px] border-blue-100/60" />
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(135deg, transparent 0 49%, rgba(16,42,67,0.05) 49% 50%, transparent 50% 100%)', backgroundSize: '34px 34px' }} />
 
-          <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
+          <div className="relative z-10 flex flex-col px-12 xl:px-16 py-10 xl:py-12 w-full">
             <BackButton fallback="/" />
 
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                Employer Portal
+            <div className="mt-10 xl:mt-12">
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] mb-5 text-[#102a43]">
+                <span className="w-8 h-px bg-orange-500" />
+                For employers
               </div>
-              <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
-                Build Your<br />
-                <span className="text-orange-500">Dream Team</span>
+              <h1 className="text-4xl xl:text-5xl font-bold leading-[1.08] tracking-tight mb-5 text-[#102a43]">
+                Put great people<br />
+                <span className="text-orange-500">in the right roles.</span>
               </h1>
-              <p className="text-gray-500 text-base mb-10">
-                Create your employer account and start connecting with top talent.
+              <p className="text-[#526579] text-base leading-7 max-w-md mb-9">
+                Create your company profile once. Then source, shortlist, and hire from one focused workspace.
               </p>
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {[
-                  { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: Zap,       text: 'Instant Job Posting',           color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Search,    text: 'Find relevant candidates faster', color: 'text-[#102a43]', bg: 'bg-blue-100/70' },
+                  { icon: UsersRound, text: 'Build a team around your goals', color: 'text-orange-600', bg: 'bg-orange-100/80' },
+                  { icon: Shield,    text: 'Hire with verified profiles', color: 'text-[#102a43]', bg: 'bg-blue-100/70' },
                 ].map(({ icon: Icon, text, color, bg }) => (
-                  <div key={text} className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
+                  <div key={text} className="flex items-center gap-3.5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}>
+                      <Icon className={`w-[18px] h-[18px] ${color}`} />
                     </div>
-                    <span className="text-gray-700 text-sm font-medium">{text}</span>
+                    <span className="text-[#263e55] text-sm font-semibold">{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-4 mt-4">
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <BarChart2 className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Quick Posting</div>
-                  <div className="text-gray-500 text-xs mt-1">Post jobs in under 2 minutes</div>
-                </div>
+            <div className="mt-auto pt-10 flex items-center gap-3 text-xs text-[#526579]">
+              <div className="flex -space-x-2">
+                <span className="w-8 h-8 rounded-full bg-[#102a43] border-2 border-[#fffaf2] flex items-center justify-center text-white"><Briefcase className="w-3.5 h-3.5" /></span>
+                <span className="w-8 h-8 rounded-full bg-orange-500 border-2 border-[#fffaf2] flex items-center justify-center text-white"><BadgeCheck className="w-3.5 h-3.5" /></span>
               </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Target className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Smart Shortlists</div>
-                  <div className="text-gray-500 text-xs mt-1">AI matches best candidates</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Instant Collaboration</div>
-                  <div className="text-gray-500 text-xs mt-1">Work with your team seamlessly</div>
-                </div>
-              </div>
+              <span>Trusted tools for growing teams</span>
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
-          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
-          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
+        <div className="w-full lg:w-[55%] flex items-center justify-center bg-[#f7f4ef] px-4 sm:px-8 lg:px-12 py-8 sm:py-12 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-50 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d8d0c3 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
 
-          <div className="w-full max-w-md">
-            <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="relative z-10 w-full max-w-xl">
+            <div className="bg-white border border-[#e8e0d5] rounded-[1.25rem] shadow-[0_24px_70px_-36px_rgba(16,42,67,0.5)] p-5 sm:p-8 lg:p-10">
 
               {/* Step Indicator */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#eee8df]">
                 {['Company & GST', 'Verify Email', 'Security'].map((label, i) => {
                   const num = i + 1;
                   const isActive = step === num;
@@ -453,14 +429,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                   return (
                     <React.Fragment key={label}>
                       <div className="flex flex-col items-center gap-1">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                          isDone ? 'bg-green-500 text-white' : isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
+                          isDone ? 'bg-green-500 text-white' : isActive ? 'bg-[#102a43] text-white shadow-md shadow-blue-900/20' : 'bg-[#f3eee7] text-[#9aa6b2]'
                         }`}>
                           {isDone ? <CheckCircle className="w-4 h-4" /> : num}
                         </div>
-                        <span className={`text-xs font-medium ${isActive ? 'text-orange-500' : isDone ? 'text-green-500' : 'text-gray-400'}`}>{label}</span>
+                        <span className={`text-xs font-semibold ${isActive ? 'text-[#102a43]' : isDone ? 'text-green-600' : 'text-[#9aa6b2]'}`}>{label}</span>
                       </div>
-                      {i < 2 && <div className={`flex-1 h-0.5 mx-2 mb-4 transition-all ${step > i + 1 ? 'bg-green-400' : 'bg-gray-200'}`} />}
+                      {i < 2 && <div className={`flex-1 h-0.5 mx-2 mb-5 transition-all ${step > i + 1 ? 'bg-green-400' : 'bg-[#e8e0d5]'}`} />}
                     </React.Fragment>
                   );
                 })}

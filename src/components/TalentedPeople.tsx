@@ -16,12 +16,12 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
         // Trigger animation when entering viewport
         if (entry.isIntersecting) {
           setIsVisible(true);
-        } else {
-          // Reset animation when leaving viewport
-          setIsVisible(false);
+          if (sectionRef.current) {
+            observer.unobserve(sectionRef.current);
+          }
         }
       },
-      { threshold: 0.2 }
+      { threshold: 0.15 }
     );
 
     if (sectionRef.current) {
@@ -36,45 +36,45 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-12 sm:py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
+    <section ref={sectionRef} className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-white via-blue-50/20 to-white overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
         
         {/* LEFT CONTENT */}
         <div 
-          className={`space-y-8 transition-all duration-1000 ${
-            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-20'
+          className={`space-y-4 sm:space-y-5 lg:space-y-6 transition-all duration-1000 ${
+            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12 sm:-translate-x-20'
           }`}
         >
           <div className="flex items-center gap-3">
             <span className="text-blue-600 font-bold text-xs sm:text-sm tracking-widest uppercase">
               Smarter way to get hired
             </span>
-            <div className="h-px w-10 sm:w-16 bg-blue-600"></div>
+            <div className="h-px w-8 sm:w-16 bg-blue-600"></div>
           </div>
           
-          <h2 className="text-[32px] md:text-[40px] font-bold text-gray-900 tracking-tight leading-tight">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
             Discover Your Next <span className="text-orange-500">Career Opportunity</span>
           </h2>
 
-          <p className="text-gray-500 text-lg max-w-md">
+          <p className="text-gray-600 text-sm sm:text-base lg:text-lg max-w-md leading-relaxed">
             Smart job matching powered by AI to connect you with the perfect role faster.
           </p>
 
           {/* Stats - Quality focused */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg">
-            <div className="text-center sm:text-left">
-              <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900">Expert</h3>
-              <p className="text-sm text-gray-500 mt-1">AI Matching</p>
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-6 max-w-lg">
+            <div className="text-left">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Expert</h3>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">AI Matching</p>
             </div>
 
-            <div className="text-center sm:text-left">
-              <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900">Verified</h3>
-              <p className="text-sm text-gray-500 mt-1">Opportunities</p>
+            <div className="text-left">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Verified</h3>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Opportunities</p>
             </div>
 
-            <div className="text-center sm:text-left">
-              <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900">Instant</h3>
-              <p className="text-sm text-gray-500 mt-1">Results</p>
+            <div className="text-left">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Instant</h3>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Results</p>
             </div>
           </div>
 
@@ -82,14 +82,14 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <button 
               onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('role-selection'); }}
-              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
             >
-              Get Started
-              <TrendingUp className="w-5 h-5" />
+              <span>Get Started</span>
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
             <button 
               onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('job-listings'); }}
-              className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center"
+              className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center text-sm sm:text-base w-full sm:w-auto"
             >
               Browse Jobs
             </button>
@@ -99,42 +99,46 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
         {/* RIGHT IMAGE */}
         <div 
           className={`relative transition-all duration-1000 delay-300 ${
-            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-20'
+            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 sm:translate-x-20'
           }`}
         >
           <img
             src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
             alt="Team collaboration and success"
-            className="w-full h-64 sm:h-96 md:h-[500px] object-cover rounded-2xl shadow-2xl"
+            className="w-full h-56 sm:h-80 md:h-[400px] lg:h-[480px] object-cover rounded-2xl shadow-xl"
           />
         </div>
 
       </div>
 
-      {/* Company Logos Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-20">
-        <p className="text-center text-gray-400 text-sm font-medium mb-8">Trusted by top companies</p>
-        <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-12 transition-all duration-500">
-          {[
-            { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          ].map((company, index) => (
-            <img
-              key={index}
-              src={company.logo}
-              alt={company.name}
-              className="h-10 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
-          ))}
+      {/* Company Logos Section / Lightweight Divider Bar */}
+      <div className="w-full bg-white border-y border-slate-100 mt-12 sm:mt-16 py-8 sm:py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <p className="text-center text-gray-400 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-6 sm:mb-8">
+            Trusted by top companies
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10 md:gap-14 lg:gap-16">
+            {[
+              { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+              { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+            ].map((company, index) => (
+              <img
+                key={index}
+                src={company.logo}
+                alt={company.name}
+                className="h-9 sm:h-10 lg:h-11 max-w-[140px] sm:max-w-[160px] w-auto object-contain hover:scale-105 transition-transform duration-200"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>

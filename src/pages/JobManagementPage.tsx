@@ -5,7 +5,6 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { usePageSnapshot } from '../utils/listPageState';
-import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
@@ -56,7 +55,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   usePageSnapshot<{ filter: string; searchTerm: string; sortBy: string }>(
     'zync:list:job-management',
     (snap, scrollY) => {
-      setFilter(snap.filter === 'all' ? 'active' : (snap.filter || 'active'));
+      setFilter(snap.filter === 'all' || snap.filter === 'expired' ? 'active' : (snap.filter || 'active'));
       setSearchTerm(snap.searchTerm || '');
       setSortBy(snap.sortBy || 'posted');
       window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
@@ -176,6 +175,15 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       return;
     }
 
+    const jobsWithApplications = selectedJobs.filter(jobId => {
+      const job = jobs.find(j => getId(j) === jobId);
+      return job && (job.applicationCount || 0) > 0;
+    });
+    if (jobsWithApplications.length > 0) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Cannot delete jobs that have existing applications." } }));
+      return;
+    }
+
     const ok = await (window as any).confirmAsync(`Are you sure you want to delete ${selectedJobs.length} selected job(s)? This action cannot be undone.`);
     if (ok) {
       try {
@@ -289,8 +297,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                          job.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'all' || 
                          (filter === 'active' && (job.status === 'active' || job.status === 'approved' || !job.status)) ||
-                         (filter === 'closed' && job.status === 'closed') ||
-                         (filter === 'expired' && job.status === 'expired');
+                         (filter === 'closed' && job.status === 'closed');
     return matchesSearch && matchesFilter;
   });
 
@@ -298,7 +305,6 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     all: jobs.length,
     active: jobs.filter(job => job.status === 'active' || job.status === 'approved' || !job.status).length,
     closed: jobs.filter(job => job.status === 'closed').length,
-    expired: jobs.filter(job => job.status === 'expired').length
   };
 
   const sortJobs = (jobsToSort: Job[]) => {
@@ -332,7 +338,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage your job postings and track responses</p>
           </div>
           <button
-            onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
+            onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
             className="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
           >
             <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -365,26 +371,23 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-3 sm:mb-4">
               <div className="flex-1 relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <AutocompleteCombobox
+                <input
+                  type="text"
                   value={searchTerm}
-                  onChange={setSearchTerm}
-                  options={[]}
-                  allowCustom
+                  onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search by Title/Ref Code/Job ID"
-                  className="pl-8"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
               </div>
-              <AutocompleteCombobox
+              <select
                 value={sortBy}
-                onChange={(val) => setSortBy(val)}
-                options={[
-                  { value: 'posted', label: 'Sort by: Posted/sent date' },
-                  { value: 'responses', label: 'Sort by: Response count' },
-                  { value: 'title', label: 'Sort by: Job title' },
-                ]}
-                placeholder="Sort by"
-                className="w-56"
-              />
+                onChange={e => setSortBy(e.target.value)}
+                className="w-full sm:w-56 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-700"
+              >
+                <option value="posted">Sort by: Posted/sent date</option>
+                <option value="responses">Sort by: Response count</option>
+                <option value="title">Sort by: Job title</option>
+              </select>
             </div>
           </div>
           
@@ -430,14 +433,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 >
                   Closed Jobs {statusCounts.closed}
                 </button>
-                <button
-                  onClick={() => setFilter('expired')}
-                  className={`text-xs sm:text-sm font-medium ${
-                    filter === 'expired' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Expired Jobs {statusCounts.expired}
-                </button>
+
               </div>
             </div>
           </div>
@@ -458,7 +454,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             </p>
             {jobs.length === 0 && (
               <button
-                onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
+                onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
                 Post Your First Job
@@ -587,7 +583,16 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                          <h3 className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm sm:text-base truncate">
+                          <h3
+                            className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm sm:text-base truncate"
+                            onClick={() => {
+                              if (!jobId) return;
+                              sessionStorage.setItem('selectedJobId', jobId);
+                              sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
+                              sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
+                              onNavigate('application-management');
+                            }}
+                          >
                             {job.jobTitle || job.title || 'Job Position'}
                           </h3>
                           {(job.applicationCount ?? 0) > 0 && (
@@ -694,7 +699,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                             <button
                               onClick={() => {
-                                sessionStorage.setItem('editJobData', JSON.stringify(job));
+                                localStorage.setItem('editJobData', JSON.stringify(job));
                                 onNavigate('job-posting');
                                 setOpenMenuId(null);
                               }}
@@ -725,7 +730,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                                 handleDeleteJob(jobId!);
                                 setOpenMenuId(null);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                              disabled={(job.applicationCount || 0) > 0}
+                              title={(job.applicationCount || 0) > 0 ? 'Cannot delete a job with existing applications' : 'Delete Job'}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <Trash2 className="w-4 h-4" />
                               <span>Delete Job</span>

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { useResumeStore, LanguageItem } from '../../store/useResumeStore';
 import AutocompleteCombobox from '../AutocompleteCombobox';
+import { validateLanguageName } from '../../utils/resumeFieldValidators';
+import ValidatedInput from './ValidatedInput';
 
 const LEVELS: LanguageItem['proficiency'][] = ['Native', 'Fluent', 'Advanced', 'Intermediate', 'Basic'];
 const COMMON_LANGUAGES = ['English', 'Tamil', 'Hindi', 'Malayalam', 'Telugu', 'Kannada', 'French', 'German', 'Spanish', 'Arabic', 'Japanese', 'Mandarin'];
@@ -62,9 +64,14 @@ export default function LanguagesStep() {
         <div className="space-y-2">
           {languages.map((lang) => (
             <div key={lang.id} className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl">
-              <input type="text" value={lang.language} onChange={e => updateLanguage(lang.id, 'language', e.target.value)}
+              <ValidatedInput
+                id={`lang-name-${lang.id}`}
+                value={lang.language}
+                onCommit={(v) => updateLanguage(lang.id, 'language', v)}
+                validator={validateLanguageName}
                 placeholder="Enter a language"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
+                className="flex-1"
+              />
               <AutocompleteCombobox
                 label="Proficiency"
                 value={lang.proficiency}

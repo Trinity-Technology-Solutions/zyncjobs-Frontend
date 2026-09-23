@@ -153,47 +153,31 @@ export const getIncompleteProfileFields = (profile?: any): string[] => {
     incompleteFields.push('employment');
   }
 
-  // Check education
-  const hasEducation = (
-    profile.education ||
-    profile.educationCollege ||
-    profile.degree ||
-    profile.college ||
-    profile.graduation ||
-    profile.university ||
-    profile.masters ||
-    profile.bachelors ||
-    profile.diploma ||
-    profile.certification
-  );
-
-  const hasValidEducation = () => {
-    const fields = [
-      profile.education,
-      profile.educationCollege,
-      profile.degree,
-      profile.college,
-      profile.graduation,
-      profile.university,
-      profile.masters,
-      profile.bachelors,
-      profile.diploma,
-      profile.certification
-    ];
-    
-    return fields.some(field => 
-      field && 
-      field !== 'Not specified' && 
-      field !== 'Fresher' && 
-      field !== '{}' &&
-      typeof field === 'string' &&
-      field.trim().length > 0
-    );
+  // Check education — require at least one field with a meaningful non-empty value
+  const isValidEduValue = (v: any): boolean => {
+    if (!v) return false;
+    const s = String(v).trim();
+    return s.length > 0 && s !== 'Not specified' && s !== 'Fresher' && s !== '{}' && s !== 'undefined' && s !== 'null';
   };
-
-  if (!hasEducation && !hasValidEducation()) {
-    incompleteFields.push('education');
-  }
+  const educationFields = [
+    profile.education,
+    profile.degree,
+    profile.college,
+    profile.graduation,
+    profile.university,
+    profile.masters,
+    profile.bachelors,
+    profile.diploma,
+    profile.certification,
+  ];
+  // For educationCollege object, require degree or college to be filled
+  const hasValidCollegeEdu = (() => {
+    const ec = profile.educationCollege;
+    if (!ec || typeof ec !== 'object') return false;
+    return isValidEduValue(ec.degree) || isValidEduValue(ec.college);
+  })();
+  const hasValidEdu = hasValidCollegeEdu || educationFields.some(f => isValidEduValue(f));
+  if (!hasValidEdu) incompleteFields.push('education');
 
   // Check location
   const hasLocation = (profile.location || '').trim().length > 0 && profile.location?.toLowerCase() !== 'unknown';
@@ -612,26 +596,22 @@ export const computeMatchBreakdown = (job: any, profileOverride?: any) => {
   }
 
   // 5. Education match (10%)
-  // Only calculate if candidate has education details
-  const hasEducation = (
-    profile.educationCollege ||
-    profile.education ||
-    profile.degree ||
-    profile.college ||
-    profile.graduation ||
-    profile.university ||
-    profile.masters ||
-    profile.bachelors ||
-    profile.diploma ||
-    profile.certification ||
-    (profile.education && profile.education !== 'Not specified' && profile.education !== 'Fresher') ||
-    (profile.educationCollege && profile.educationCollege !== '{}')
-  );
-  
-  let educationScore = 0; // Set to 0 by default if no education
+  const isValidEduVal = (v: any) => {
+    if (!v) return false;
+    const s = String(v).trim();
+    return s.length > 0 && s !== 'Not specified' && s !== 'Fresher' && s !== '{}' && s !== 'undefined' && s !== 'null';
+  };
+  const ec = profile.educationCollege;
+  const hasCollegeEdu = ec && typeof ec === 'object' && (isValidEduVal(ec.degree) || isValidEduVal(ec.college));
+  const hasEducation = hasCollegeEdu || [
+    profile.education, profile.degree, profile.college, profile.graduation,
+    profile.university, profile.masters, profile.bachelors, profile.diploma, profile.certification,
+  ].some(isValidEduVal);
+
+  let educationScore = 0;
   if (hasEducation) {
     const eduObj = profile.educationCollege;
-    const eduStr = typeof eduObj === 'object'
+    const eduStr = (eduObj && typeof eduObj === 'object')
       ? String(eduObj?.degree || eduObj?.college || '').toLowerCase()
       : String(profile.education || '').toLowerCase();
     

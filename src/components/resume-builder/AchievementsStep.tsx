@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, Sparkles, Loader2, Pencil, Check, X, RefreshCw, FileText } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
+import { validateJobTitle } from '../../utils/resumeFieldValidators';
 
 export default function AchievementsStep() {
   const { data, addAchievement, updateAchievement, removeAchievement } = useResumeStore();
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<{ id: string; field: 'title' | 'description'; value: string } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<{
     id: string;
     original: string;
@@ -16,18 +18,30 @@ export default function AchievementsStep() {
 
   const quantify = async (id: string) => {
     const item = achievements.find((a) => a.id === id);
-    if (!item?.title.trim()) { alert('Enter an achievement title first'); return; }
+    if (!item) return;
+
+    const rawContent = (item.description?.trim() || item.title?.trim() || '');
+    if (!rawContent) {
+      startEdit(id, 'description', '');
+      return;
+    }
+
     setAiLoading(id);
     setSuggestion(null);
     try {
-      const res = await executeResumeAI({ section: 'achievements', action: 'quantify', content: item.title });
+      const contentToQuantify = item.title?.trim() && item.description?.trim() && item.title.trim() !== item.description.trim()
+        ? `${item.title.trim()} — ${item.description.trim()}`
+        : rawContent;
+
+      const res = await executeResumeAI({ section: 'achievements', action: 'quantify', content: contentToQuantify });
       setSuggestion({
         id,
-        original: item.description || '',
+        original: item.description || item.title || '',
         suggested: res.result || '',
       });
     } catch {
-      updateAchievement(id, 'description', `Achieved significant impact through ${item.title}, improving outcomes and driving measurable results.`);
+      const fallbackTarget = item.description?.trim() || item.title?.trim() || 'key initiatives';
+      updateAchievement(id, 'description', `Achieved significant impact through ${fallbackTarget}, improving outcomes and driving measurable results.`);
     } finally {
       setAiLoading(null);
     }
@@ -43,13 +57,22 @@ export default function AchievementsStep() {
 
   const startEdit = (id: string, field: 'title' | 'description', value: string) => {
     setEditingField({ id, field, value });
+    setEditError(null);
     setSuggestion(null);
   };
 
   const saveEdit = () => {
     if (!editingField) return;
+    if (editingField.field === 'title') {
+      const err = validateJobTitle(editingField.value);
+      if (err) {
+        setEditError(err);
+        return;
+      }
+    }
     updateAchievement(editingField.id, editingField.field, editingField.value);
     setEditingField(null);
+    setEditError(null);
   };
 
   return (
@@ -79,14 +102,22 @@ export default function AchievementsStep() {
                 <div className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
                   <div className="flex items-center justify-between px-5 py-3 bg-gray-50/80 border-b border-gray-100">
                     {isEditingTitle ? (
-                      <div className="flex-1 flex items-center gap-2">
-                        <input type="text" value={editingField.value}
-                          onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                          className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                          autoFocus
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') setEditingField(null); }} />
-                        <button onClick={saveEdit} className="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700">Save</button>
-                        <button onClick={() => setEditingField(null)} className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
+                      <div className="flex-1 flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <input type="text" value={editingField.value}
+                            onChange={(e) => { setEditingField({ ...editingField, value: e.target.value }); if (editError) setEditError(null); }}
+                            aria-invalid={Boolean(editError)}
+                            className={`flex-1 px-2 py-1 text-sm border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white ${
+                              editError ? 'border-red-400 bg-red-50' : 'border-blue-300'
+                            }`}
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') setEditingField(null); }} />
+                          <button onClick={saveEdit} className="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700">Save</button>
+                          <button onClick={() => setEditingField(null)} className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
+                        </div>
+                        {editError && (
+                          <p role="alert" className="text-[11px] text-red-600">{editError}</p>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -126,15 +157,32 @@ export default function AchievementsStep() {
                         ) : (
                           <p className="text-sm text-gray-400 italic">Click AI to generate quantified description</p>
                         )}
-                        <div className="flex items-center gap-1 mt-2">
-                          <button onClick={() => startEdit(item.id, 'description', item.description)}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
-                            <Pencil className="w-3 h-3" /> Edit
+                        <div className="flex items-center gap-2 mt-3 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(item.id, 'description', item.description)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-gray-500" /> Edit
                           </button>
-                          <button onClick={() => quantify(item.id)} disabled={aiLoading === item.id || !item.title.trim()}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                            {aiLoading === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                            AI Quantify
+                          <button
+                            type="button"
+                            onClick={() => quantify(item.id)}
+                            disabled={aiLoading === item.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 hover:border-purple-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                            title={item.description?.trim() || item.title?.trim() ? 'Quantify achievement with AI' : 'Click to add achievement details and quantify with AI'}
+                          >
+                            {aiLoading === item.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                                <span>Quantifying...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                                <span>AI Quantify</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>

@@ -7,10 +7,8 @@ import NewHero from './components/NewHero';
 import OfflineIndicator from './components/OfflineIndicator';
 import Notification from './components/Notification';
 import ChatWidget from './components/ChatWidget';
-import JobAlertsManager from './components/JobAlertsManager';
 import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
-import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import SEOHead from './components/SEOHead';
 // Lazy-load below-fold home page sections
@@ -121,7 +119,9 @@ const LoadingFallback = () => (
 const CandidateProfileViewWrapper: React.FC<{
   onNavigate: (page: string, params?: any) => void;
   navigate: (path: string) => void;
-}> = ({ onNavigate, navigate }) => {
+  onLogout: () => void;
+  user: any;
+}> = ({ onNavigate, navigate, onLogout, user }) => {
   const [searchParams] = useSearchParams();
   const candidateId = searchParams.get('id') || sessionStorage.getItem('viewCandidateId') || '';
   const handleBack = () => {
@@ -131,7 +131,7 @@ const CandidateProfileViewWrapper: React.FC<{
   };
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={handleBack} />
+      <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={handleBack} onLogout={onLogout} />
     </Suspense>
   );
 };
@@ -174,15 +174,19 @@ const DashboardRoute: React.FC<{
   const searchParams = new URLSearchParams(location.search);
   const hash = location.hash.replace('#', '');
   
-  // Determine intended role from query param, hash, or referrer
-  // Employer contexts: #interviews, #applications, #team, ?role=employer
+  // Determine intended role from query param, hash, stored lastUserType, or
+  // localStorage user record — so an employer who refreshes after a long idle
+  // period is sent to /employer-login, not the candidate /login page.
   const employerHashes = ['interviews', 'applications', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'];
-  const intendedRole = searchParams.get('role') || (employerHashes.includes(hash) ? 'employer' : 'candidate');
-  const redirectTo = intendedRole === 'employer' ? '/employer-login' : '/login';
+  const storedLastType = (() => { try { return localStorage.getItem('lastUserType') || JSON.parse(localStorage.getItem('user') || '{}').userType || ''; } catch { return ''; } })();
+  const intendedRole = searchParams.get('role') || (employerHashes.includes(hash) ? 'employer' : null) || storedLastType || 'candidate';
+  const redirectTo = intendedRole === 'employer' ? '/employer-login'
+    : (intendedRole === 'admin' || intendedRole === 'super_admin' || intendedRole === 'recruiter') ? '/admin/login'
+    : '/login';
 
   return (
     <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
-      <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
+      <Notification {...notification} onClose={() => setNotification((n: { type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }) => ({ ...n, isVisible: false }))} />
       {user?.type === 'admin' || user?.type === 'super_admin' || user?.type === 'recruiter' ? (
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
@@ -218,6 +222,11 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   if (localStorage.getItem('app_version') !== APP_VERSION) {
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('lastUserType');
+    localStorage.removeItem('zync:logged_out');
     localStorage.setItem('app_version', APP_VERSION);
   }
 })();
@@ -250,7 +259,7 @@ function getInitialUser(): UserType | null {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const analytics = useAnalytics();
+  useAnalytics();
   const [maintenance, setMaintenance] = useState(false);
   const fetchSavedJobs = useSavedJobsStore(s => s.fetchSavedJobs);
   const resetSavedJobs = useSavedJobsStore(s => s.reset);
@@ -312,6 +321,9 @@ function App() {
     if (page.startsWith('job-detail/')) { const id = page.replace('job-detail/', ''); navigate(`/job-detail?id=${id}`); return; }
     if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
     if (page === 'login') { navigate('/login'); return; }
+    if (page === 'employer-login') { navigate('/employer-login'); return; }
+    if (page === 'candidate-register') { navigate('/candidate-register'); return; }
+    if (page === 'employer-register') { navigate('/employer-register'); return; }
     if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
     if (page === 'bulk-job-import') { navigate('/bulk-job-import'); return; }
@@ -329,7 +341,7 @@ function App() {
     resetSavedJobs();
 
     // Read ALL sources BEFORE clearing anything
-    let userType: string | null | undefined = user?.type;
+    let userType: string | null = user?.type || null;
 
     if (!userType || userType === 'candidate') {
       userType = localStorage.getItem('lastUserType') || userType;
@@ -488,7 +500,7 @@ function App() {
     const handleForceLogout = () => {
       // Read ALL sources BEFORE clearing anything — the remembered role from a
       // manual logout takes priority, since manual logout already wiped storage.
-      let userType: string | null | undefined = getPendingLogoutRole() || localStorage.getItem('lastUserType');
+      let userType: string | null = (getPendingLogoutRole() || localStorage.getItem('lastUserType')) || null;
 
       if (!userType) {
         try {
@@ -619,7 +631,32 @@ function App() {
 
       // Verify token silently — only update state if data actually changed
       try {
-        const userData = await accountAPI.getMe();
+        let userData = await accountAPI.getMe();
+        // If getMe() returned null (e.g. expired access token), attempt one
+        // silent refresh before giving up so a long-idle employer session
+        // is restored correctly instead of being redirected to candidate login.
+        if (!userData) {
+          try {
+            const refreshToken = tokenStorage.getRefresh();
+            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: refreshToken ? JSON.stringify({ refreshToken }) : JSON.stringify({}),
+              credentials: 'include',
+            });
+            if (res.ok) {
+              const data = await res.json();
+              tokenStorage.setAccess(data.accessToken);
+              if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
+              userData = await accountAPI.getMe();
+            }
+          } catch { /* refresh failed — fall through to clear below */ }
+        }
+        // Skip overwriting or clearing user if a login just happened in the last 5 seconds
+        if (Date.now() - loginTimestamp.current < 5000) {
+          setUserLoading(false);
+          return;
+        }
         if (!userData) {
           tokenStorage.clear();
           setUser(null);
@@ -642,11 +679,6 @@ function App() {
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
           const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
-          // Skip overwriting user if a login just happened in the last 5 seconds
-          if (Date.now() - loginTimestamp.current < 5000) {
-            setUserLoading(false);
-            return;
-          }
           setUser(prev => {
             if (prev?.type === userType && prev?.email === userData.email && prev?.name === freshName) return prev;
             return {
@@ -669,6 +701,10 @@ function App() {
           } catch { /* ignore */ }
         }
       } catch {
+        if (Date.now() - loginTimestamp.current < 5000) {
+          setUserLoading(false);
+          return;
+        }
         tokenStorage.clear();
         localStorage.removeItem('user');
         setUser(null);
@@ -728,10 +764,6 @@ function App() {
     return <MaintenancePage onRetry={handleRetry} />;
   }
 
-  if (user?.type === 'recruiter' && !location.pathname.startsWith('/admin/')) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
-
   // Handle OAuth callback (skip admin invite pages — they use token param too)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('token') && !location.pathname.startsWith('/admin/accept-invite')) {
@@ -751,7 +783,7 @@ function App() {
         type={notification.type}
         message={notification.message}
         isVisible={notification.isVisible}
-        onClose={() => setNotification(n => ({ ...n, isVisible: false }))}
+        onClose={() => setNotification((n: { type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }) => ({ ...n, isVisible: false }))}
       />
 
       <Suspense fallback={<LoadingFallback />}>
@@ -762,9 +794,9 @@ function App() {
               user?.type === 'employer' ? (
                 <EmployersPage {...nav} />
               ) : (
-              <div className="min-h-screen bg-white overflow-x-clip">
+              <div className="min-h-screen bg-white overflow-x-clip -mt-[var(--header-h)]">
                 <Header {...nav} />
-                <NewHero onNavigate={handleNavigation} user={user as any} />
+                <NewHero onNavigate={handleNavigation} />
                 <CompanyCarousel />
                 <LatestJobs onNavigate={handleNavigation} />
                 <HowItWorks onNavigate={handleNavigation} />
@@ -804,7 +836,7 @@ function App() {
                 : user
                   ? <Navigate to="/dashboard" replace />
                   : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
-                    onShowNotification={n => showNotification(n.message, n.type)} />
+                    onShowNotification={(n: { message: string; type: 'success' | 'error' | 'info' }) => showNotification(n.message, n.type)} />
             } />
             <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
             <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
@@ -878,14 +910,14 @@ function App() {
               </AuthGuard>
             } />
 
-            <Route path="/settings" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
-                <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
-              </AuthGuard>
-            } />
+             <Route path="/settings" element={
+               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer', 'recruiter']}>
+                 <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
+               </AuthGuard>
+             } />
 
             <Route path="/my-jobs" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate', 'employer']}>
                 <>
                   <Header {...nav} />
                   <MyJobsPage {...nav} />
@@ -957,11 +989,15 @@ function App() {
             } />
 
             <Route path="/candidate-ranking" element={
-              <CandidateRankingPage onNavigate={nav.onNavigate} user={user} onLogout={handleLogout} />
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+                <CandidateRankingPage onNavigate={nav.onNavigate} user={user} onLogout={handleLogout} />
+              </AuthGuard>
             } />
 
             <Route path="/ai-recruiter" element={
-              <AIRecruiterAssistant onNavigate={nav.onNavigate} onLogout={handleLogout} user={user} />
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+                <AIRecruiterAssistant onNavigate={nav.onNavigate} onLogout={handleLogout} user={user} />
+              </AuthGuard>
             } />
 
             <Route path="/skill-gap-analysis" element={
@@ -1019,7 +1055,7 @@ function App() {
 
             <Route path="/candidate-profile-view" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
-                <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
+                <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} onLogout={handleLogout} user={user} />
               </AuthGuard>
             } />
 

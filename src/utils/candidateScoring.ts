@@ -44,46 +44,59 @@ export const tokenize = (str: string): string[] => {
   return out;
 };
 
-export const localScore = (app: any, skills: string[], jobDataForScore: any): number => {
+// Returns detailed breakdown for transparency
+export const scoreBreakdown = (app: any, skills: string[], jobDataForScore: any): {
+  score: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  jobSkills: string[];
+  skillsScore: number;
+  titleScore: number;
+  expScore: number;
+} => {
   const jobSkillsForScore: string[] = Array.isArray(jobDataForScore?.skills) ? jobDataForScore.skills : [];
   const jobTitleForScore: string = jobDataForScore?.jobTitle || jobDataForScore?.title || '';
-  const jobDescForScore: string = jobDataForScore?.description || jobDataForScore?.jobDescription || '';
 
-  // 1. Skill match (50%) — against job skills + description keywords
-  const jobKw: string[] = [];
-  jobSkillsForScore.forEach(s => tokenize(s).forEach(k => { if (!jobKw.includes(k)) jobKw.push(k); }));
-  tokenize(jobDescForScore).forEach(k => { if (k.length > 3 && !jobKw.includes(k)) jobKw.push(k); });
-  const matchedSkills = skills.filter(cs =>
-    tokenize(cs).some(ct => jobKw.some(jk => ct === jk || ct.includes(jk) || jk.includes(ct)))
+  // 1. Skill match (60%) — match candidate skills against each required job skill
+  const matchedSkills = jobSkillsForScore.filter(js =>
+    tokenize(js).some(jt =>
+      skills.some(cs => tokenize(cs).some(ct => ct === jt || ct.includes(jt) || jt.includes(ct)))
+    )
   );
-  const sScore = jobSkillsForScore.length > 0
-    ? Math.min(100, Math.round((matchedSkills.length / jobSkillsForScore.length) * 100))
-    : skills.length > 0 ? 40 : 10;
+  const missingSkills = jobSkillsForScore.filter(js => !matchedSkills.includes(js));
 
-  // 2. Title match (25%)
+  let sScore: number;
+  if (jobSkillsForScore.length > 0) {
+    const ratio = matchedSkills.length / jobSkillsForScore.length;
+    const breadthBonus = skills.length >= 5 ? 10 : skills.length >= 3 ? 5 : 0;
+    sScore = Math.min(100, Math.round(ratio * 100) + breadthBonus);
+  } else if (skills.length > 0) {
+    sScore = Math.min(70, 30 + skills.length * 5);
+  } else {
+    sScore = 20;
+  }
+
+  // 2. Title match (20%)
   const candTitleToks = tokenize(app.candidateJobTitle || app.jobTitle || '');
   const jobTitleToks = tokenize(jobTitleForScore);
   const titleHits = candTitleToks.filter(w => jobTitleToks.some(jw => w === jw || w.includes(jw) || jw.includes(w))).length;
   const tScore = jobTitleToks.length > 0 && candTitleToks.length > 0
-    ? Math.min(100, Math.round((titleHits / jobTitleToks.length) * 100)) : 0;
+    ? Math.min(100, Math.round((titleHits / jobTitleToks.length) * 100)) : 30;
 
-  // 3. Experience score (15%) — years + keyword relevance
+  // 3. Experience score (20%)
   const expText = (app.candidateExperience || app.experience || '').toLowerCase();
   const expYears = parseInt(expText.match(/(\d+)/)?.[1] || '0');
-  const expHits = jobTitleToks.filter(w => expText.includes(w)).length;
-  const expRelevance = jobTitleToks.length > 0 ? Math.min(100, Math.round((expHits / jobTitleToks.length) * 100)) : 0;
-  const eScore = Math.round(expRelevance * 0.6 + Math.min(40, expYears * 8) * 0.4);
+  const eScore = expYears >= 5 ? 90 : expYears >= 3 ? 75 : expYears >= 1 ? 60 : expText ? 45 : 30;
 
-  // 4. Profile completeness bonus (10%)
-  let completeness = 0;
-  if (app.resumeUrl && !['resume_from_quick_apply','resume_from_profile','resume_uploaded'].includes(app.resumeUrl)) completeness += 40;
-  if (skills.length >= 3) completeness += 30;
-  if (app.candidateEducation && app.candidateEducation !== 'Not specified') completeness += 15;
-  if (app.candidateJobTitle) completeness += 15;
-
-  return Math.min(99, Math.max(1, Math.round(
-    sScore * 0.50 + tScore * 0.25 + eScore * 0.15 + completeness * 0.10
+  const score = Math.min(99, Math.max(1, Math.round(
+    sScore * 0.60 + tScore * 0.20 + eScore * 0.20
   )));
+
+  return { score, matchedSkills, missingSkills, jobSkills: jobSkillsForScore, skillsScore: sScore, titleScore: tScore, expScore: eScore };
+};
+
+export const localScore = (app: any, skills: string[], jobDataForScore: any): number => {
+  return scoreBreakdown(app, skills, jobDataForScore).score;
 };
 
 // ── Full chain: stored AI score → backend hybrid-score → local fallback ──
