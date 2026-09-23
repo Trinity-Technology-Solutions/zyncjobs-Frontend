@@ -777,8 +777,8 @@ Answer the student's question directly and specifically based on the assessment 
   });
 
   // Color gradients for bars
-  const barColors = ['#6366F1', '#8B5CF6', '#EC4899', '#10B981', '#F59E0B'];
-  const barColorsEnd = ['#A78BFA', '#C084FC', '#F472B6', '#34D399', '#FBBF24'];
+  const barColors = ['#2563eb', '#1d4ed8', '#0284c7', '#0d9488', '#10b981'];
+  const barColorsEnd = ['#3b82f6', '#2563eb', '#38bdf8', '#14b8a6', '#34d399'];
 
   const currentQuestion = assessment?.questions?.[currentQ];
   const isMcq = currentQuestion?.type === 'mcq';
@@ -788,291 +788,265 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── DASHBOARD ──────────────────────────────────────────────────────────────
   if (step === 'dashboard') return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-[#f8fafc]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* ── TOP HERO ── */}
-        <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 rounded-3xl p-8 mb-8 overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-5 right-1/4 w-96 h-96 bg-indigo-500 rounded-full blur-[150px]" />
-            <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-purple-500 rounded-full blur-[130px]" />
-          </div>
-          <div className="relative flex items-center gap-8 flex-wrap">
-            {/* Left: Welcome */}
-            <div className="flex-1 min-w-[240px]">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/10">
-                  <Brain className="w-6 h-6 text-indigo-300" />
-                </div>
+        {/* ── CLEAN PAGE HEADER & STATS ── */}
+        <div className="mb-8 pb-6 border-b border-[#e2e8f0]">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#eff6ff] text-[#2563eb] text-xs font-semibold border border-[#bfdbfe] mb-2">
+                <Brain className="w-3.5 h-3.5" /> Technical Skill Assessments
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] tracking-tight">
+                Validate Your Skills
+              </h1>
+              <p className="text-sm text-[#526780] mt-1 max-w-2xl">
+                Standardized assessments to benchmark your technical proficiency, identify areas for growth, and showcase verified credentials to employers.
+              </p>
+            </div>
+
+            {/* Quick Metrics Strip */}
+            {myAssessments.length > 0 ? (
+              <div className="flex items-center gap-4 sm:gap-6 bg-white border border-[#e2e8f0] rounded-lg px-5 py-3 shadow-xs">
                 <div>
-                  <p className="text-white/60 text-xs font-medium uppercase tracking-wider">AI Skill Assessment</p>
-                  <h1 className="text-xl sm:text-2xl font-bold text-white">
-                    Welcome back{user?.name ? `, ${user.name}` : ''} 👋
-                  </h1>
+                  <span className="text-[11px] font-semibold text-[#526780] uppercase tracking-wider block">Completed</span>
+                  <span className="text-lg font-bold text-[#1e3a8a]">{myAssessments.length}</span>
+                </div>
+                <div className="h-8 w-px bg-[#e2e8f0]" />
+                <div>
+                  <span className="text-[11px] font-semibold text-[#526780] uppercase tracking-wider block">Passed</span>
+                  <span className="text-lg font-bold text-emerald-600">{passedCount}</span>
+                </div>
+                <div className="h-8 w-px bg-[#e2e8f0]" />
+                <div>
+                  <span className="text-[11px] font-semibold text-[#526780] uppercase tracking-wider block">Avg Score</span>
+                  <span className="text-lg font-bold text-[#2563eb]">{avgScore || 0}%</span>
                 </div>
               </div>
-              <p className="text-indigo-300/70 text-sm">Measure your skills with AI-powered assessments & earn verified certificates</p>
-              <div className="flex gap-3 mt-5">
-                <button onClick={() => {
-                  if (myAssessments.length > 0) {
-                    const last = myAssessments[0];
-                    setSelectedSkill(last.skill);
-                    generateAssessment(last.skill);
-                  } else if (aiSkillSuggestions.length > 0) {
-                    setSelectedSkill(aiSkillSuggestions[0].name);
-                    generateAssessment(aiSkillSuggestions[0].name);
+            ) : (
+              <button
+                onClick={() => {
+                  if (filteredSkills.length > 0) {
+                    setSelectedSkill(filteredSkills[0].name);
+                    generateAssessment(filteredSkills[0].name);
                   } else {
                     const el = document.getElementById('skill-search');
                     if (el) el.focus();
                   }
                 }}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-100 transition-all shadow-lg shadow-black/20 disabled:opacity-60">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                  {loading ? 'Generating...' : (myAssessments.length > 0 ? 'Continue Assessment' : 'Start Assessment')}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all shadow-xs disabled:opacity-60"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                {loading ? 'Generating...' : 'Start Assessment'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── UNIFIED SEARCH & FILTER TOOLBAR ── */}
+        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-xs p-3.5 sm:p-4 mb-8">
+          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="skill-search"
+                type="text"
+                value={selectedSkill}
+                onChange={e => setSelectedSkill(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && selectedSkill && generateAssessment()}
+                placeholder="Search assessments by skill (e.g., React, Python, AWS)..."
+                className="w-full pl-10 pr-9 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-md text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white transition-all"
+              />
+              {selectedSkill && (
+                <button
+                  onClick={() => setSelectedSkill('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setSelectedSkill(''); const el = document.getElementById('skill-search'); if (el) el.focus(); }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white border border-white/10 rounded-xl text-sm font-medium hover:bg-white/20 transition-all">
-                  <Search className="w-4 h-4" /> Browse Skills
-                </button>
-              </div>
+              )}
             </div>
 
-            {/* Right: Overall Readiness */}
-            <div className="flex items-center gap-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-5">
-              {/* Readiness Ring */}
-              <div className="relative w-20 h-20 flex-shrink-0">
-                <svg className="w-20 h-20 -rotate-90" viewBox="0 0 72 72">
-                  <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
-                  <circle cx="36" cy="36" r="30" fill="none" stroke="url(#readinessGrad)" strokeWidth="6" strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 30}`} strokeDashoffset={`${2 * Math.PI * 30 * (1 - (avgScore || 0) / 100)}`} className="transition-all duration-1000" />
-                  <defs><linearGradient id="readinessGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#818CF8" /><stop offset="100%" stopColor="#A78BFA" /></linearGradient></defs>
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-black text-white">{avgScore || 0}<span className="text-xs text-indigo-300">%</span></span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-indigo-200/60 text-xs uppercase tracking-wider mb-1">Overall Readiness</p>
-                <p className="text-white text-sm font-medium">
-                  {myAssessments.length > 0 ? `${passedCount} Passed` : 'Not started'}
-                </p>
-                {myAssessments.length > 0 && (
-                  <p className="text-emerald-400 text-xs mt-0.5">↑ {Math.round(passedCount / Math.max(1, myAssessments.length) * 100)}% pass rate</p>
-                )}
+            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+              <select
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                aria-label="Filter by category"
+                className="px-3 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-md text-xs sm:text-sm text-slate-700 outline-none focus:border-[#2563eb] focus:bg-white font-medium"
+              >
+                <option value="">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              <div className="flex items-center gap-1 border border-[#e2e8f0] rounded-md p-0.5 bg-[#f8fafc]">
+                {['All', ...new Set(fallbackSkills.map((s: any) => s.difficulty).filter(Boolean))].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setSelectedDifficulty(d)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                      selectedDifficulty === d
+                        ? 'bg-white text-[#1e3a8a] shadow-xs border border-[#cbd5e1]'
+                        : 'text-[#526780] hover:text-[#1e3a8a]'
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── 3-COLUMN LAYOUT ── */}
-        <div className="flex gap-6 flex-col lg:flex-row">
+        {/* ── 2-COLUMN CONTENT LAYOUT ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* === LEFT COLUMN (Categories + History) === */}
-          <div className="w-full lg:w-[260px] flex-shrink-0 space-y-6">
+          {/* === MAIN CONTENT (Left 8 cols = ~67%) === */}
+          <div className="lg:col-span-8 space-y-8">
 
-            {/* Search */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input id="skill-search" type="text" value={selectedSkill} onChange={e => setSelectedSkill(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && selectedSkill && generateAssessment()}
-                  placeholder="Search skills..."
-                  className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400"
-                />
-              </div>
-            </div>
-
-            {/* Categories */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Categories</h3>
-              <div className="space-y-1">
-                <button onClick={() => setSelectedCategory('')}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors font-medium ${!selectedCategory ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'}`}>
-                  All Categories
-                </button>
-                {categories.map(cat => (
-                  <button key={cat} onClick={() => setSelectedCategory(cat)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors font-medium ${selectedCategory === cat ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'}`}>
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Assessment History */}
-            {myAssessments.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Recent Activity</h3>
-                <div className="space-y-2">
-                  {myAssessments.slice(0, 4).map((a: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ${
-                        a.score >= 70 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                      }`}>{a.skill?.slice(0, 2).toUpperCase()}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{a.skill}</p>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold ${a.score >= 70 ? 'text-emerald-600' : 'text-amber-500'}`}>{a.score}%</span>
-                          <span className="text-[10px] text-gray-400">{a.completedAt ? new Date(a.completedAt).toLocaleDateString() : ''}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* === CENTER: Main Content === */}
-          <div className="flex-1 min-w-0 space-y-6">
-
-            {/* ── Analytics KPIs ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { label: 'Assessments', value: myAssessments.length, icon: FileText, color: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50' },
-                { label: 'Passed', value: passedCount, icon: Award, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50' },
-                { label: 'Certificates', value: myAssessments.filter((a: any) => a.score >= 70).length, icon: Star, color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50' },
-                { label: 'Avg Score', value: `${avgScore}%`, icon: TrendingUp, color: 'from-purple-500 to-pink-600', bg: 'bg-purple-50' },
-              ].map((k, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className={`w-9 h-9 rounded-xl ${k.bg} flex items-center justify-center`}>
-                      <k.icon className="w-4 h-4 text-gray-600" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-black text-gray-900">{k.value}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{k.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* ── Featured Assessments ── */}
+            {/* Available Assessments */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">Featured Assessments</h2>
-                <div className="flex gap-1.5">
-                  {['All', ...new Set(fallbackSkills.map((s: any) => s.difficulty).filter(Boolean))].map(d => (
-                    <button key={d} onClick={() => setSelectedDifficulty(d)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selectedDifficulty === d ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{d}</button>
-                  ))}
-                </div>
+                <h2 className="text-base sm:text-lg font-bold text-[#1e3a8a]">Available Assessments</h2>
+                <span className="text-xs text-[#526780] font-medium">{filteredSkills.length} available</span>
               </div>
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {filteredSkills.length > 0 ? (
-                  filteredSkills.map((s: any) => {
+
+              {filteredSkills.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredSkills.map((s: any) => {
                     const SkillIcon = skillIconMapComp[s.icon] || Code;
+                    const skillHistory = myAssessments.filter((a: any) => a.skill === s.name);
+                    const attempted = skillHistory.length;
+                    const bestScore = attempted ? Math.max(...skillHistory.map((a: any) => a.score)) : null;
+                    const qCount = questionTypes.reduce((acc, t) => {
+                      const counts: Record<string, number> = { mcq: 5, coding: 2, debugging: 3, scenario: 3, viva: 0 };
+                      return acc + (counts[t] || 2);
+                    }, 0);
+
                     return (
-                      <button key={s.name} onClick={() => { setSelectedSkill(s.name); generateAssessment(s.name); }}
-                        className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
-                          <div className={`w-full h-full rounded-full ${s.color || 'bg-indigo-500'} blur-2xl`} />
-                        </div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                            <SkillIcon className="w-5 h-5 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-gray-900 text-sm truncate">{s.name}</p>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">
-                              {s.difficulty || 'Intermediate'} • {s.duration || 30} min
-                            </p>
-                          </div>
-                        </div>
-                        {/* Real stats from user history */}
-                        {(() => {
-                          const skillHistory = myAssessments.filter((a: any) => a.skill === s.name);
-                          const attempted = skillHistory.length;
-                          const bestScore = attempted ? Math.max(...skillHistory.map((a: any) => a.score)) : null;
-                          const qCount = questionTypes.reduce((acc, t) => {
-                            const counts: Record<string, number> = { mcq: 5, coding: 2, debugging: 3, scenario: 3, viva: 0 };
-                            return acc + (counts[t] || 2);
-                          }, 0);
-                          return (
-                            <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-3">
-                              <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{qCount} Q</span>
-                              {attempted > 0 ? (
-                                <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                                  <CheckCircle className="w-3 h-3" />Best: {bestScore}%
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-400" />{s.rating || '4.5'}</span>
-                              )}
+                      <div
+                        key={s.name}
+                        className="bg-white rounded-lg border border-[#e2e8f0] p-4 hover:border-[#bfdbfe] hover:shadow-xs transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-2.5">
+                            <div className="w-8 h-8 bg-[#eff6ff] border border-[#bfdbfe] rounded-md flex items-center justify-center text-[#2563eb] flex-shrink-0">
+                              <SkillIcon className="w-4 h-4" />
                             </div>
-                          );
-                        })()}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-gray-400">{s.candidates || '120K'} candidates</span>
-                          <span className="flex items-center gap-1 text-xs font-semibold text-indigo-600 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                            Start <ArrowRight className="w-3 h-3" />
-                          </span>
+                            <span className="text-[11px] font-medium text-[#526780] bg-slate-100 px-2 py-0.5 rounded">
+                              {s.difficulty || 'Intermediate'}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-[#1e3a8a] text-sm mb-1 truncate">{s.name}</h3>
+                          <p className="text-xs text-[#526780] mb-3">
+                            {s.duration || 30} mins • {qCount} Questions
+                          </p>
                         </div>
-                      </button>
+
+                        <div className="border-t border-[#f1f5f9] pt-3 flex items-center justify-between">
+                          {attempted > 0 ? (
+                            <span className={`text-xs font-semibold flex items-center gap-1 ${bestScore! >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              <CheckCircle className="w-3.5 h-3.5" /> Best: {bestScore}%
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">{s.candidates || '120K'} candidates</span>
+                          )}
+                          <button
+                            onClick={() => { setSelectedSkill(s.name); generateAssessment(s.name); }}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] transition-colors"
+                          >
+                            Start <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     );
-                  })
-                ) : (
-                  <div className="col-span-full text-center py-10 text-sm text-gray-400">
-                    No assessments match the selected filters.
-                  </div>
-                )}
-              </div>
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg border border-[#e2e8f0] p-10 text-center text-sm text-slate-500">
+                  No assessments found matching the selected filters.
+                </div>
+              )}
             </div>
 
-            {/* ── Assessment Types (Feature Cards) ── */}
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Assessment Types</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Assessment Formats */}
+            <div className="bg-white rounded-lg border border-[#e2e8f0] p-6 shadow-xs">
+              <div className="mb-4">
+                <h2 className="text-base font-bold text-[#1e3a8a]">Assessment Formats</h2>
+                <p className="text-xs text-[#526780]">Select the formats to include in generated assessments</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {assessmentTypes.slice(0, 4).map(t => {
                   const Icon = iconMap[t.icon] || Code;
+                  const isSelected = questionTypes.includes(t.id);
                   return (
-                    <button key={t.id} onClick={() => setQuestionTypes(prev =>
-                      prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id]
-                    )}
-                      className={`group bg-white rounded-2xl border shadow-sm p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 ${
-                        questionTypes.includes(t.id) ? 'border-indigo-200 ring-2 ring-indigo-500/20' : 'border-gray-100'
+                    <button
+                      key={t.id}
+                      onClick={() => setQuestionTypes(prev =>
+                        prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id]
+                      )}
+                      className={`p-3.5 rounded-lg border text-left transition-all ${
+                        isSelected
+                          ? 'border-[#2563eb] bg-[#eff6ff]/40 ring-1 ring-[#2563eb]'
+                          : 'border-[#e2e8f0] bg-white hover:border-[#bfdbfe]'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-md flex items-center justify-center mb-2.5 ${
+                        isSelected ? 'bg-[#2563eb] text-white' : 'bg-[#eff6ff] text-[#2563eb]'
                       }`}>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${
-                        questionTypes.includes(t.id) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-50'
-                      }`}>
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-4 h-4" />
                       </div>
-                      <p className="font-semibold text-gray-900 text-sm mb-1">{t.label}</p>
-                      <p className="text-xs text-gray-500 leading-relaxed">{t.desc}</p>
+                      <p className="font-semibold text-[#1e3a8a] text-xs mb-0.5">{t.label}</p>
+                      <p className="text-[11px] text-[#526780] leading-snug line-clamp-2">{t.desc}</p>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* ── Previous Assessments (full width, for logged in users) ── */}
+            {/* Assessment History */}
             {myAssessments.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="bg-white rounded-lg border border-[#e2e8f0] p-6 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-bold text-gray-900">Assessment History</h2>
-                  <span className="text-xs text-gray-400">{myAssessments.length} total</span>
+                  <div>
+                    <h2 className="text-base font-bold text-[#1e3a8a]">Assessment History</h2>
+                    <p className="text-xs text-[#526780]">Your completed test evaluations and scores</p>
+                  </div>
+                  <span className="text-xs text-[#526780] font-medium">{myAssessments.length} total</span>
                 </div>
-                <div className="space-y-3">
+                <div className="divide-y divide-[#f1f5f9]">
                   {myAssessments.map((a: any, i: number) => (
-                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                        a.score >= 70 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'
-                      }`}>{a.skill?.slice(0, 2).toUpperCase()}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-gray-800">{a.skill}</span>
-                          <span className={`text-sm font-bold ${a.score >= 70 ? 'text-emerald-600' : 'text-amber-500'}`}>{a.score}%</span>
+                    <div key={i} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-md flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                          a.score >= 70 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}>
+                          {a.skill?.slice(0, 2).toUpperCase()}
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div className={`h-1.5 rounded-full transition-all duration-500 ${a.score >= 70 ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${a.score}%` }} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[#1e3a8a] truncate">{a.skill}</p>
+                          <p className="text-[11px] text-[#526780]">
+                            {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : 'Recent'}
+                          </p>
                         </div>
                       </div>
-                      {a.score >= 70 && <span className="text-xs bg-emerald-50 text-emerald-600 border border-emerald-200 px-2.5 py-0.5 rounded-full font-medium">Passed</span>}
-                      <button onClick={() => onNavigate('assessment-review', { assessmentId: a.assessmentId })}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-                        Review <ExternalLink className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          a.score >= 70 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}>
+                          {a.score}% {a.score >= 70 ? 'Passed' : ''}
+                        </span>
+                        <button
+                          onClick={() => onNavigate('assessment-review', { assessmentId: a.assessmentId })}
+                          className="text-xs text-[#2563eb] hover:text-[#1e3a8a] font-semibold flex items-center gap-1"
+                        >
+                          Review <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1080,30 +1054,12 @@ Answer the student's question directly and specifically based on the assessment 
             )}
           </div>
 
-          {/* === RIGHT COLUMN (AI Insights + Progress) === */}
-          <div className="w-full lg:w-[280px] flex-shrink-0 space-y-6">
+          {/* === SIDEBAR (Right 4 cols = ~33%) === */}
+          <div className="lg:col-span-4 space-y-6">
 
-            {/* AI Coach */}
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 shadow-lg shadow-indigo-200">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-xs font-bold text-white/80 uppercase tracking-wider">AI Coach</span>
-              </div>
-              <p className="text-white/90 text-sm leading-relaxed mb-4">
-                {aiCoachMessage || 'Start your first assessment to unlock personalized AI recommendations.'}
-              </p>
-              <button onClick={getAIRecommendations} disabled={recommendationLoading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/15 backdrop-blur-sm text-white rounded-xl text-xs font-semibold hover:bg-white/25 transition-all border border-white/10 disabled:opacity-60 disabled:cursor-not-allowed">
-                {recommendationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5" />}
-                {recommendationLoading ? 'Analyzing...' : 'Get AI Recommendation'}
-              </button>
-            </div>
-
-            {/* Skill Readiness Progress (computed from real assessment scores) */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Skill Readiness</h3>
+            {/* Skill Readiness Card */}
+            <div className="bg-white rounded-lg border border-[#e2e8f0] p-5 shadow-xs">
+              <h3 className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-3">Skill Readiness</h3>
               <div className="space-y-3">
                 {(myAssessments.length > 0
                   ? Object.entries(skillReadinessMap).sort(([,a]: any, [,b]: any) => b - a).slice(0, 5)
@@ -1114,12 +1070,14 @@ Answer the student's question directly and specifically based on the assessment 
                   return (
                     <div key={name}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-medium text-gray-700">{name}</span>
-                        <span className="font-bold text-gray-900">{score}%</span>
+                        <span className="font-medium text-slate-700">{name}</span>
+                        <span className="font-bold text-[#1e3a8a]">{score}%</span>
                       </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full transition-all duration-700"
-                          style={{ width: `${score}%`, background: `linear-gradient(90deg, ${barColors[i % barColors.length]}, ${barColorsEnd[i % barColorsEnd.length]})` }} />
+                      <div className="w-full bg-[#e2e8f0] rounded-full h-1.5">
+                        <div
+                          className="h-1.5 rounded-full transition-all duration-700"
+                          style={{ width: `${score}%`, backgroundColor: barColors[i % barColors.length] }}
+                        />
                       </div>
                     </div>
                   );
@@ -1127,58 +1085,99 @@ Answer the student's question directly and specifically based on the assessment 
               </div>
             </div>
 
-            {/* Career Target (editable) */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            {/* Target Role & Gap Card */}
+            <div className="bg-white rounded-lg border border-[#e2e8f0] p-5 shadow-xs">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                  <Briefcase className="w-5 h-5 text-amber-600" />
+                <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] rounded-md flex items-center justify-center text-[#2563eb]">
+                  <Briefcase className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
-                  <input type="text" value={targetRole} onChange={e => setTargetRole(e.target.value)}
-                    className="text-sm font-bold text-gray-900 bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 outline-none w-full"
+                  <input
+                    type="text"
+                    value={targetRole}
+                    onChange={e => setTargetRole(e.target.value)}
+                    className="text-sm font-bold text-[#1e3a8a] bg-transparent border-b border-dashed border-[#cbd5e1] focus:border-[#2563eb] outline-none w-full"
                   />
-                  <p className="text-[10px] text-gray-400">Target Role (click to edit)</p>
+                  <p className="text-[10px] text-[#526780]">Target Role (click to edit)</p>
                 </div>
               </div>
-              <div className="space-y-2">
-                {[
-                  { label: 'Current Readiness', value: avgScore || 0 },
-                  { label: 'Required', value: 85 },
-                  { label: 'Gap', value: Math.max(0, 85 - (avgScore || 0)) },
-                ].map((item, i) => (
-                  <div key={i} className="flex justify-between text-xs">
-                    <span className="text-gray-500">{item.label}</span>
-                    <span className={`font-bold ${i === 2 ? (item.value > 0 ? 'text-amber-600' : 'text-emerald-600') : 'text-gray-900'}`}>{item.value}%</span>
-                  </div>
-                ))}
+              <div className="space-y-2 pt-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#526780]">Current Readiness</span>
+                  <span className="font-bold text-[#1e3a8a]">{avgScore || 0}%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#526780]">Benchmark Target</span>
+                  <span className="font-bold text-[#1e3a8a]">85%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#526780]">Readiness Gap</span>
+                  <span className={`font-bold ${Math.max(0, 85 - (avgScore || 0)) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {Math.max(0, 85 - (avgScore || 0))}%
+                  </span>
+                </div>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2 mt-3">
-                <div className="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-700" style={{ width: `${Math.min(100, avgScore || 0)}%` }} />
+              <div className="w-full bg-[#e2e8f0] rounded-full h-1.5 mt-3">
+                <div
+                  className="h-1.5 rounded-full bg-[#2563eb] transition-all duration-700"
+                  style={{ width: `${Math.min(100, avgScore || 0)}%` }}
+                />
+              </div>
+              <button
+                onClick={() => onNavigate('skill-gap-analysis')}
+                className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] pt-2 border-t border-[#f1f5f9]"
+              >
+                <TrendingUp className="w-3.5 h-3.5" /> Full Skill Gap Analysis
+              </button>
+            </div>
+
+            {/* AI Coach Card */}
+            <div className="bg-[#eff6ff] rounded-lg border border-[#bfdbfe] p-5 shadow-xs">
+              <div className="flex items-center gap-2 mb-2.5">
+                <Sparkles className="w-4 h-4 text-[#2563eb]" />
+                <span className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider">AI Coach Insight</span>
+              </div>
+              <p className="text-slate-700 text-xs leading-relaxed mb-3.5">
+                {aiCoachMessage || 'Complete your first assessment to unlock personalized recommendations.'}
+              </p>
+              <div className="space-y-2">
+                <button
+                  onClick={getAIRecommendations}
+                  disabled={recommendationLoading}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-[#1e3a8a] border border-[#bfdbfe] rounded-md text-xs font-semibold transition-all shadow-xs disabled:opacity-60"
+                >
+                  {recommendationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2563eb]" /> : <Lightbulb className="w-3.5 h-3.5 text-[#2563eb]" />}
+                  {recommendationLoading ? 'Analyzing...' : 'Get Recommendation'}
+                </button>
+                <button
+                  onClick={() => { setAiMentorOpen(true); setMentorChat([]); }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-[#334e72] border border-[#e2e8f0] rounded-md text-xs font-semibold transition-all shadow-xs"
+                >
+                  <Bot className="w-3.5 h-3.5 text-[#2563eb]" /> Ask AI Mentor
+                </button>
               </div>
             </div>
 
-            {/* AI Insight: Recommended */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-amber-500" />
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Quick Actions</h3>
-              </div>
-              <div className="space-y-2">
-                <button onClick={() => { setSelectedSkill(''); setStep('dashboard'); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
-                  <RotateCcw className="w-3.5 h-3.5" /> New Assessment
+            {/* Quick Links Card */}
+            <div className="bg-white rounded-lg border border-[#e2e8f0] p-4 shadow-xs">
+              <div className="space-y-1">
+                <button
+                  onClick={() => onNavigate('home')}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium text-[#334e72] hover:bg-[#eff6ff] hover:text-[#1e3a8a] transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <Globe className="w-3.5 h-3.5 text-[#2563eb]" /> Browse Matching Jobs
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                 </button>
-                <button onClick={() => { setAiMentorOpen(true); setMentorChat([]); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
-                  <Bot className="w-3.5 h-3.5" /> AI Mentor Chat
-                </button>
-                <button onClick={() => onNavigate('skill-gap-analysis')}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
-                  <TrendingUp className="w-3.5 h-3.5" /> Skill Gap Analysis
-                </button>
-                <button onClick={() => onNavigate('home')}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
-                  <Globe className="w-3.5 h-3.5" /> Browse Jobs
+                <button
+                  onClick={() => onNavigate('career-coach')}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium text-[#334e72] hover:bg-[#eff6ff] hover:text-[#1e3a8a] transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#2563eb]" /> Talk to Career Coach
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                 </button>
               </div>
             </div>
@@ -1189,64 +1188,66 @@ Answer the student's question directly and specifically based on the assessment 
 
       {/* ── FLOATING AI MENTOR MODAL (available on all steps) ── */}
       {aiMentorOpen && step === 'dashboard' && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-lg shadow-xl border border-[#e2e8f0] w-full max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: '80vh' }}>
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2e8f0] bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-white" />
+                <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] rounded-md flex items-center justify-center shadow-xs">
+                  <Bot className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">AI Mentor</p>
-                  <p className="text-xs text-gray-400">Ask anything about your skills or assessments</p>
+                  <p className="text-sm font-bold text-[#1e3a8a]">AI Mentor</p>
+                  <p className="text-xs text-[#526780]">Ask anything about your skills or assessments</p>
                 </div>
               </div>
-              <button onClick={() => setAiMentorOpen(false)} className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
-                <X className="w-4 h-4 text-gray-500" />
+              <button onClick={() => setAiMentorOpen(false)} className="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors text-slate-500">
+                <X className="w-4 h-4" />
               </button>
             </div>
             {/* Chat */}
-            <div ref={mentorChatRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-[200px]">
+            <div ref={mentorChatRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-[200px] bg-[#f8fafc]">
               {mentorChat.length === 0 && (
                 <div className="text-center py-8">
-                  <Bot className="w-10 h-10 text-indigo-200 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">Hi! I'm your AI Mentor.</p>
-                  <p className="text-xs text-gray-400 mt-1">Ask me about any skill, concept, or how to improve your assessment scores.</p>
+                  <div className="w-12 h-12 rounded-full bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center mx-auto mb-3">
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#1e3a8a]">Hi! I'm your AI Mentor.</p>
+                  <p className="text-xs text-[#526780] mt-1 max-w-xs mx-auto">Ask me about any skill, concept, or how to improve your assessment scores.</p>
                 </div>
               )}
               {mentorChat.map((m, i) => (
                 <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${
-                    m.role === 'ai' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    m.role === 'ai' ? 'bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb]' : 'bg-slate-200 text-slate-700'
                   }`}>{m.role === 'ai' ? 'AI' : 'U'}</div>
-                  <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                    m.role === 'ai' ? 'bg-gray-50 border border-gray-100 text-gray-700' : 'bg-indigo-600 text-white'
+                  <div className={`max-w-[80%] px-4 py-2.5 rounded-xl text-xs leading-relaxed ${
+                    m.role === 'ai' ? 'bg-white border border-[#e2e8f0] text-slate-800 shadow-xs' : 'bg-[#2563eb] text-white shadow-xs'
                   }`}>{m.content}</div>
                 </div>
               ))}
               {mentorLoading && (
                 <div className="flex gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
-                  <div className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl">
-                    <div className="flex gap-1 items-center">
-                      {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                  <div className="w-7 h-7 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center text-xs font-bold flex-shrink-0">AI</div>
+                  <div className="bg-white border border-[#e2e8f0] px-4 py-2.5 rounded-xl shadow-xs">
+                    <div className="flex gap-1.5 items-center">
+                      {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-[#2563eb] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
                     </div>
                   </div>
                 </div>
               )}
             </div>
             {/* Input */}
-            <div className="px-5 py-4 border-t border-gray-100">
+            <div className="px-5 py-4 border-t border-[#e2e8f0] bg-white">
               <div className="flex gap-2">
                 <input
                   type="text" value={mentorInput} onChange={e => setMentorInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && askMentor()}
                   placeholder="Ask about any skill or concept..."
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  className="flex-1 px-3.5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb]"
                   autoFocus
                 />
-                <button onClick={askMentor} disabled={mentorLoading || !mentorInput.trim()} className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                <button onClick={askMentor} disabled={mentorLoading || !mentorInput.trim()} className="w-10 h-10 bg-[#2563eb] hover:bg-blue-700 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 text-white shadow-xs flex-shrink-0">
                   {mentorLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
                 </button>
               </div>
@@ -1259,49 +1260,52 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── ASSESSMENT DETAIL ──────────────────────────────────────────────────────
   if (step === 'detail' && assessment) return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="max-w-2xl w-full mx-auto px-4 py-8 sm:py-12 flex-1">
         <BackButton onClick={() => setStep('dashboard')} className="mb-6" />
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 p-8 text-center">
-            <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10">
-              <Brain className="w-8 h-8 text-indigo-300" />
+        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 pb-6 border-b border-[#e2e8f0] mb-6">
+            <div className="w-12 h-12 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg flex items-center justify-center text-[#2563eb] shadow-xs flex-shrink-0">
+              <Brain className="w-6 h-6" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-1">{assessment.skill} Assessment</h1>
-            <p className="text-indigo-300/60 text-sm">AI-powered skill validation</p>
+            <div>
+              <span className="text-[11px] font-semibold text-[#2563eb] uppercase tracking-wider block">Skill Assessment</span>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">{assessment.skill} Evaluation</h1>
+              <p className="text-xs sm:text-sm text-[#526780]">Standardized technical validation & benchmarking</p>
+            </div>
           </div>
 
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { icon: Clock, label: 'Duration', value: `${assessment.timeLimit} min` },
+                { icon: Clock, label: 'Duration', value: `${assessment.timeLimit} mins` },
                 { icon: Target, label: 'Difficulty', value: assessment.difficulty },
                 { icon: Award, label: 'Passing Score', value: `${assessment.passingScore}%` },
-                { icon: FileText, label: 'Questions', value: `${assessment.totalQuestions} Q` },
+                { icon: FileText, label: 'Questions', value: `${assessment.totalQuestions} Qs` },
               ].map((s, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-4 text-center">
-                  <s.icon className="w-5 h-5 text-indigo-500 mx-auto mb-1.5" />
-                  <div className="text-sm font-bold text-gray-800">{s.value}</div>
-                  <div className="text-xs text-gray-500">{s.label}</div>
+                <div key={i} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 text-center">
+                  <s.icon className="w-4 h-4 text-[#2563eb] mx-auto mb-1" />
+                  <div className="text-sm font-bold text-[#1e3a8a]">{s.value}</div>
+                  <div className="text-[11px] text-[#526780]">{s.label}</div>
                 </div>
               ))}
             </div>
 
             {/* Skills Covered */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Skills Covered</p>
-              <div className="flex flex-wrap gap-2">
+              <h3 className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-2.5">Skills Covered</h3>
+              <div className="flex flex-wrap gap-1.5">
                 {assessment.skillsCovered.map((s: string, i: number) => (
-                  <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium border border-indigo-100">{s}</span>
+                  <span key={i} className="px-2.5 py-1 bg-[#eff6ff] text-[#1e40af] rounded-md text-xs font-medium border border-[#bfdbfe]">{s}</span>
                 ))}
               </div>
             </div>
 
             {/* Question Type Breakdown */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Question Types</p>
+              <h3 className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-2.5">Question Types</h3>
               <div className="space-y-2">
                 {(() => {
                   const counts: Record<string, number> = {};
@@ -1309,20 +1313,30 @@ Answer the student's question directly and specifically based on the assessment 
                     counts[q.type] = (counts[q.type] || 0) + 1;
                   });
                   return Object.entries(counts).map(([type, count]) => (
-                    <div key={type} className="flex items-center gap-3 text-sm">
-                      <span className="capitalize font-medium text-gray-700 w-24">{type}</span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-2">
-                        <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${(count / assessment.totalQuestions) * 100}%` }} />
+                    <div key={type} className="flex items-center gap-3 text-xs sm:text-sm">
+                      <span className="capitalize font-medium text-slate-700 w-24 text-xs">{type}</span>
+                      <div className="flex-1 bg-[#e2e8f0] rounded-full h-1.5">
+                        <div className="bg-[#2563eb] h-1.5 rounded-full" style={{ width: `${(count / assessment.totalQuestions) * 100}%` }} />
                       </div>
-                      <span className="text-gray-500 text-xs">{count} Q</span>
+                      <span className="text-[#526780] text-xs font-semibold">{count} Q</span>
                     </div>
                   ));
                 })()}
+              </div>
             </div>
+
+            {/* Instructions */}
+            <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-xs text-[#526780] space-y-1">
+              <p className="font-semibold text-slate-700">Before you begin:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>The timer runs continuously once started.</li>
+                <li>You can navigate between questions and change answers before submitting.</li>
+                <li>A score of {assessment.passingScore}% or higher earns a verified skill badge.</li>
+              </ul>
             </div>
 
             <button onClick={startAssessment}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200">
+              className="w-full bg-[#2563eb] hover:bg-blue-700 text-white py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
               <Play className="w-4 h-4" /> Start Assessment
             </button>
           </div>
@@ -1335,166 +1349,180 @@ Answer the student's question directly and specifically based on the assessment 
   // ── IN PROGRESS ────────────────────────────────────────────────────────────
   if (step === 'in-progress' && assessment) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col">
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col">
         {/* Top Bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-800/80 backdrop-blur-sm border-b border-slate-700/50">
-          <div>
-            <p className="text-sm font-semibold text-white">{assessment.skill} Assessment</p>
-            <p className="text-xs text-slate-400">Question {currentQ + 1} of {assessment.totalQuestions}</p>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-[#e2e8f0] shadow-xs">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (window.confirm('Are you sure you want to leave? Your assessment progress will be lost.')) {
+                  setStep('dashboard');
+                }
+              }}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+            >
+              Exit
+            </button>
+            <div className="h-4 w-px bg-[#e2e8f0]" />
+            <div>
+              <p className="text-sm font-bold text-[#1e3a8a]">{assessment.skill} Assessment</p>
+              <p className="text-xs text-[#526780]">Question {currentQ + 1} of {assessment.totalQuestions}</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-700/50 rounded-xl px-3 py-1.5">
-              <Clock className="w-3.5 h-3.5 text-indigo-300" />
-              <span className={`text-sm font-mono font-bold ${timeLeft < 300 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+            <div className="flex items-center gap-2 bg-[#eff6ff] border border-[#bfdbfe] rounded-md px-3 py-1">
+              <Clock className="w-3.5 h-3.5 text-[#2563eb]" />
+              <span className={`text-sm font-mono font-bold ${timeLeft < 300 ? 'text-red-600 animate-pulse' : 'text-[#1e3a8a]'}`}>
                 {formatTime(timeLeft)}
               </span>
             </div>
-            <div className="flex gap-1">
+            <div className="hidden sm:flex gap-1.5 items-center">
               {Array.from({ length: assessment.totalQuestions }).map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full ${answers[i] !== null ? 'bg-emerald-500' : i === currentQ ? 'bg-indigo-400 animate-pulse' : 'bg-slate-600'}`} />
+                <div key={i} className={`w-2.5 h-2.5 rounded-full ${answers[i] !== null && answers[i] !== undefined && answers[i] !== '' ? 'bg-emerald-600' : i === currentQ ? 'bg-[#2563eb] ring-2 ring-blue-300' : 'bg-slate-200'}`} />
               ))}
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-8 max-w-4xl mx-auto w-full">
-          {/* Question Type Badge */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-              isMcq ? 'bg-blue-900/30 text-blue-300 border border-blue-700/30' :
-              isCoding ? 'bg-emerald-900/30 text-emerald-300 border border-emerald-700/30' :
-              isDebugging ? 'bg-amber-900/30 text-amber-300 border border-amber-700/30' :
-              isScenario ? 'bg-purple-900/30 text-purple-300 border border-purple-700/30' :
-              'bg-slate-700 text-slate-300 border border-slate-600'
-            }`}>
-              {currentQuestion?.type?.toUpperCase() || 'MCQ'}
-            </span>
-          </div>
-
-          {/* MCQ */}
-          {isMcq && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-white leading-relaxed">{currentQuestion.question}</h2>
-              <div className="space-y-3">
-                {currentQuestion.options?.map((opt: string, i: number) => (
-                  <button key={i} onClick={() => { const a = [...answers]; a[currentQ] = i; setAnswers(a); }}
-                    className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl border text-left transition-all ${
-                      answers[currentQ] === i ? 'bg-indigo-600/20 border-indigo-500/50 text-white' : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:border-slate-500'
-                    }`}>
-                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                      answers[currentQ] === i ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-400'
-                    }`}>{String.fromCharCode(65 + i)}</span>
-                    <span className="text-sm">{opt}</span>
-                  </button>
-                ))}
-              </div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
+          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8 space-y-6">
+            {/* Question Type Badge */}
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
+                {currentQuestion?.type?.toUpperCase() || 'MCQ'}
+              </span>
             </div>
-          )}
 
-          {/* Coding */}
-          {isCoding && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold text-white mb-2">{currentQuestion.title}</h2>
-                <p className="text-sm text-slate-400">{currentQuestion.description}</p>
-              </div>
-              <div className="bg-slate-950 rounded-xl border border-slate-700/50 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
-                  <div className="w-3 h-3 rounded-full bg-red-500/50" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/50" />
-                  <span className="text-xs text-slate-500 ml-2">code-editor</span>
-                </div>
-                <textarea
-                  value={answers[currentQ] !== null && answers[currentQ] !== undefined ? answers[currentQ] : (currentQuestion.starterCode || '')}
-                  onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
-                  onFocus={() => { if (answers[currentQ] === null || answers[currentQ] === undefined) { const a = [...answers]; a[currentQ] = currentQuestion.starterCode || ''; setAnswers(a); } }}
-                  className="w-full bg-transparent text-sm text-slate-200 font-mono p-4 outline-none resize-none min-h-[200px]"
-                  placeholder="Write your code here..."
-                />
-                <div className="flex items-center justify-between px-4 py-2 border-t border-slate-700/50">
-                  <span className="text-xs text-slate-500">You can clear and rewrite from scratch</span>
-                  <button
-                    onClick={() => { const a = [...answers]; a[currentQ] = ''; setAnswers(a); }}
-                    className="text-xs text-slate-400 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-slate-800"
-                  >Clear All</button>
+            {/* MCQ */}
+            {isMcq && (
+              <div className="space-y-6">
+                <h2 className="text-base sm:text-lg font-bold text-[#1e3a8a] leading-relaxed">{currentQuestion.question}</h2>
+                <div className="space-y-3">
+                  {currentQuestion.options?.map((opt: string, i: number) => {
+                    const isSelected = answers[currentQ] === i;
+                    return (
+                      <button key={i} onClick={() => { const a = [...answers]; a[currentQ] = i; setAnswers(a); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-lg border text-left transition-all ${
+                          isSelected ? 'bg-[#eff6ff] border-2 border-[#2563eb] text-[#1e3a8a] shadow-xs' : 'bg-[#f8fafc] border-[#e2e8f0] text-slate-800 hover:border-[#bfdbfe] hover:bg-[#eff6ff]/40'
+                        }`}>
+                        <span className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                          isSelected ? 'bg-[#2563eb] text-white' : 'bg-white border border-[#cbd5e1] text-[#526780]'
+                        }`}>{String.fromCharCode(65 + i)}</span>
+                        <span className="text-sm font-medium">{opt}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Debugging */}
-          {isDebugging && (
-            <div className="space-y-5">
-              <p className="text-sm text-slate-400">{currentQuestion.description}</p>
-              <div className="bg-slate-950 rounded-xl border border-slate-700/50 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-xs text-slate-500">buggy-code</span>
-                </div>
-                <pre className="p-4 text-sm text-red-300 font-mono overflow-x-auto whitespace-pre-wrap">{currentQuestion.buggyCode}</pre>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-400 mb-2">Your fix</p>
-                <textarea value={answers[currentQ] || ''} onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/40 min-h-[120px] resize-none"
-                  placeholder="Explain the bug and your fix..."
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Scenario */}
-          {isScenario && (
-            <div className="space-y-5">
-              <div className="bg-indigo-950/50 border border-indigo-800/30 rounded-xl p-5">
-                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">Scenario</p>
-                <p className="text-white text-sm">{currentQuestion.scenario}</p>
-              </div>
-              <p className="text-sm font-medium text-slate-300">{currentQuestion.question}</p>
-              <textarea value={answers[currentQ] || ''} onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
-                className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/40 min-h-[150px] resize-none"
-                placeholder="Explain your approach..."
-              />
-              {currentQuestion.expectedPoints && (
+            {/* Coding */}
+            {isCoding && (
+              <div className="space-y-5">
                 <div>
-                  <p className="text-xs text-slate-500 mb-2">Consider addressing:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {currentQuestion.expectedPoints.map((p: string, i: number) => (
-                      <span key={i} className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs border border-slate-700">{p}</span>
-                    ))}
+                  <h2 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-1.5">{currentQuestion.title}</h2>
+                  <p className="text-sm text-[#526780] leading-relaxed">{currentQuestion.description}</p>
+                </div>
+                <div className="rounded-lg border border-[#cbd5e1] overflow-hidden shadow-xs">
+                  <div className="flex items-center justify-between px-4 py-2 bg-slate-100 border-b border-[#cbd5e1]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                      <span className="text-xs text-slate-600 font-mono ml-2">code-editor</span>
+                    </div>
+                    <button
+                      onClick={() => { const a = [...answers]; a[currentQ] = ''; setAnswers(a); }}
+                      className="text-xs text-slate-600 hover:text-red-600 transition-colors px-2 py-0.5 rounded hover:bg-slate-200"
+                    >Clear</button>
+                  </div>
+                  <textarea
+                    value={answers[currentQ] !== null && answers[currentQ] !== undefined ? answers[currentQ] : (currentQuestion.starterCode || '')}
+                    onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
+                    onFocus={() => { if (answers[currentQ] === null || answers[currentQ] === undefined) { const a = [...answers]; a[currentQ] = currentQuestion.starterCode || ''; setAnswers(a); } }}
+                    className="w-full bg-slate-900 text-slate-100 font-mono p-4 outline-none resize-none min-h-[220px] text-sm"
+                    placeholder="Write your code here..."
+                  />
+                  <div className="px-4 py-2 bg-slate-50 border-t border-[#cbd5e1] text-xs text-slate-500">
+                    Write clean, runnable code. You can clear and rewrite anytime.
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* Debugging */}
+            {isDebugging && (
+              <div className="space-y-5">
+                <p className="text-sm text-[#526780] leading-relaxed">{currentQuestion.description}</p>
+                <div className="rounded-lg border border-amber-200 bg-amber-50/40 overflow-hidden shadow-xs">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-amber-100/60 border-b border-amber-200 text-xs text-amber-800 font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Buggy snippet</span>
+                  </div>
+                  <pre className="p-4 text-xs sm:text-sm text-amber-950 font-mono overflow-x-auto whitespace-pre-wrap">{currentQuestion.buggyCode}</pre>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-2">Your Fix & Explanation</p>
+                  <textarea value={answers[currentQ] || ''} onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
+                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white min-h-[120px] resize-none"
+                    placeholder="Explain the bug and provide your fixed solution..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Scenario */}
+            {isScenario && (
+              <div className="space-y-5">
+                <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-lg p-5">
+                  <p className="text-xs font-bold text-[#2563eb] uppercase tracking-wider mb-1.5">Scenario</p>
+                  <p className="text-[#1e3a8a] text-sm leading-relaxed">{currentQuestion.scenario}</p>
+                </div>
+                <p className="text-sm font-semibold text-slate-800">{currentQuestion.question}</p>
+                <textarea value={answers[currentQ] || ''} onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white min-h-[150px] resize-none"
+                  placeholder="Explain your approach in detail..."
+                />
+                {currentQuestion.expectedPoints && (
+                  <div>
+                    <p className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-2">Consider addressing:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentQuestion.expectedPoints.map((p: string, i: number) => (
+                        <span key={i} className="px-2.5 py-1 bg-[#f8fafc] text-slate-700 rounded-md text-xs border border-[#e2e8f0] font-medium">{p}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom Navigation */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-800/80 backdrop-blur-sm border-t border-slate-700/50">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-white border-t border-[#e2e8f0] shadow-xs">
+          <div className="flex gap-2 items-center">
             <button onClick={() => setCurrentQ(Math.max(0, currentQ - 1))} disabled={currentQ === 0}
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-xl text-sm text-slate-300 hover:bg-slate-700 disabled:opacity-30 transition-all">
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e2e8f0] hover:bg-slate-50 text-slate-700 rounded-md text-xs sm:text-sm font-medium disabled:opacity-40 transition-all shadow-xs">
               <ChevronLeft className="w-4 h-4" /> Prev
             </button>
             <div className="hidden sm:flex gap-1.5 items-center">
               {assessment.questions.map((_: any, i: number) => (
                 <button key={i} onClick={() => setCurrentQ(i)}
-                  className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-all ${
-                    i === currentQ ? 'bg-indigo-500 text-white' :
-                    answers[i] !== null ? 'bg-emerald-900/50 text-emerald-300 border border-emerald-700/30' :
-                    'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  className={`w-7 h-7 rounded-md text-[11px] font-semibold transition-all ${
+                    i === currentQ ? 'bg-[#2563eb] text-white shadow-xs' :
+                    answers[i] !== null ? 'bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]' :
+                    'bg-white border border-[#e2e8f0] text-slate-600 hover:bg-slate-50'
                   }`}>{i + 1}</button>
               ))}
             </div>
             <button onClick={() => setCurrentQ(Math.min(assessment.totalQuestions - 1, currentQ + 1))} disabled={currentQ === assessment.totalQuestions - 1}
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-xl text-sm text-slate-300 hover:bg-slate-700 disabled:opacity-30 transition-all">
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e2e8f0] hover:bg-slate-50 text-slate-700 rounded-md text-xs sm:text-sm font-medium disabled:opacity-40 transition-all shadow-xs">
               Next <ChevronRight className="w-4 h-4" />
             </button>
           </div>
           <button onClick={submitAssessment} disabled={loading}
-            className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold text-sm hover:from-indigo-700 hover:to-purple-700 disabled:opacity-40 transition-all flex items-center gap-2 shadow-lg">
+            className="px-5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-md font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs disabled:opacity-40">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Submit Assessment
           </button>
@@ -1505,40 +1533,39 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── RESULT ──────────────────────────────────────────────────────────────────
   if (step === 'result' && result) return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl w-full mx-auto px-4 py-8 space-y-6 flex-1">
         {/* Hero Score */}
-        <div className={`relative rounded-3xl p-8 text-center overflow-hidden ${
-          result.passed ? 'bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900' : 'bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900'
+        <div className={`relative overflow-hidden rounded-lg p-6 sm:p-8 text-center shadow-sm ${
+          result.passed ? 'border border-emerald-200 bg-emerald-50 text-emerald-900' : 'border border-amber-200 bg-amber-50 text-amber-900'
         }`}>
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-white rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl" />
-          </div>
+          <div className={`absolute inset-x-0 top-0 h-1 ${result.passed ? 'bg-emerald-600' : 'bg-amber-600'}`} />
           <div className="relative">
-            <div className="inline-flex items-center justify-center w-28 h-28 rounded-full border-4 border-white/20 mb-4">
-              <span className={`text-5xl font-black ${result.passed ? 'text-emerald-300' : 'text-amber-300'}`}>{result.score}</span>
-              <span className="text-white/40 text-2xl">%</span>
+            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full border-4 ${result.passed ? 'border-emerald-200 bg-white' : 'border-amber-200 bg-white'} shadow-xs mb-3`}>
+              <span className={`text-4xl font-black ${result.passed ? 'text-emerald-700' : 'text-amber-800'}`}>{result.score}</span>
+              <span className={`text-xl font-bold ml-0.5 ${result.passed ? 'text-emerald-600' : 'text-amber-600'}`}>%</span>
             </div>
-            <p className="text-2xl font-bold text-white mb-1">{result.passed ? 'Assessment Passed!' : 'Keep Practicing!'}</p>
-            <p className={`text-sm ${result.passed ? 'text-emerald-300/70' : 'text-amber-300/70'}`}>{result.skill}</p>
+            <p className={`text-2xl font-bold mb-1 ${result.passed ? 'text-emerald-900' : 'text-amber-900'}`}>
+              {result.passed ? 'Assessment Passed!' : 'Keep Practicing!'}
+            </p>
+            <p className={`text-sm font-semibold ${result.passed ? 'text-emerald-700' : 'text-amber-700'}`}>{result.skill}</p>
           </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Skill Breakdown */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Skill Breakdown</h3>
+          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+            <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Skill Breakdown</h3>
             <div className="space-y-3">
               {Object.entries(result.skillBreakdown || {}).map(([skill, score]: [string, any]) => (
                 <div key={skill}>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium text-gray-700">{skill}</span>
-                    <span className={`font-bold ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{score}%</span>
+                    <span className="font-medium text-slate-700">{skill}</span>
+                    <span className={`font-bold ${score >= 80 ? 'text-emerald-700' : score >= 60 ? 'text-[#1e3a8a]' : 'text-rose-600'}`}>{score}%</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className={`h-2 rounded-full ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500'}`}
+                  <div className="w-full bg-[#e2e8f0] rounded-full h-2">
+                    <div className={`h-2 rounded-full ${score >= 80 ? 'bg-emerald-600' : score >= 60 ? 'bg-[#2563eb]' : 'bg-rose-500'}`}
                       style={{ width: `${score}%` }} />
                   </div>
                 </div>
@@ -1547,21 +1574,21 @@ Answer the student's question directly and specifically based on the assessment 
           </div>
 
           {/* Question-by-Question */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Question Results</h3>
+          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+            <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Question Results</h3>
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {result.questions?.map((q: any, i: number) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    q.correct === undefined ? 'bg-blue-100 text-blue-600' : q.isCorrect ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    q.correct === undefined ? 'bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]' : q.isCorrect ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
                   }`}>{q.correct === undefined ? '~' : q.isCorrect ? '✓' : '✗'}</div>
                   <div className="min-w-0">
-                    <p className="text-xs text-gray-700 font-medium leading-relaxed">{q.question || q.title || q.scenario || q.description}</p>
+                    <p className="text-xs text-slate-800 font-medium leading-relaxed">{q.question || q.title || q.scenario || q.description}</p>
                     {q.correct === undefined && (
-                      <p className="text-[11px] text-blue-500 mt-1 capitalize">{q.type} — open ended</p>
+                      <p className="text-[11px] text-[#2563eb] mt-1 capitalize font-medium">{q.type} — open ended</p>
                     )}
                     {!q.isCorrect && q.correct !== undefined && (
-                      <p className="text-[11px] text-emerald-600 mt-1">Correct: {q.options?.[q.correct]}</p>
+                      <p className="text-[11px] text-emerald-700 mt-1 font-semibold">Correct: {q.options?.[q.correct]}</p>
                     )}
                   </div>
                 </div>
@@ -1570,40 +1597,40 @@ Answer the student's question directly and specifically based on the assessment 
           </div>
 
           {/* Strong & Weak Areas */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Strong Areas</h3>
+          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+            <h3 className="font-bold text-[#1e3a8a] text-sm mb-3">Strong Areas</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(result.skillBreakdown || {}).filter(([_, s]) => (s as number) >= 80).map(([skill]) => (
-                <span key={skill} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium border border-emerald-200">{skill}</span>
+                <span key={skill} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-md text-xs font-semibold border border-emerald-200">{skill}</span>
               ))}
-              {Object.entries(result.skillBreakdown || {}).filter(([_, s]) => (s as number) < 80).length === 0 && (
-                <p className="text-xs text-gray-500">No strong areas identified</p>
+              {Object.entries(result.skillBreakdown || {}).filter(([_, s]) => (s as number) >= 80).length === 0 && (
+                <p className="text-xs text-[#526780]">No strong areas identified</p>
               )}
             </div>
-            <h3 className="font-semibold text-gray-900 mt-6 mb-4">Needs Improvement</h3>
+            <h3 className="font-bold text-[#1e3a8a] text-sm mt-6 mb-3">Needs Improvement</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(result.skillBreakdown || {}).filter(([_, s]) => (s as number) < 60).map(([skill]) => (
-                <span key={skill} className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-xs font-medium border border-red-200">{skill}</span>
+                <span key={skill} className="px-3 py-1.5 bg-amber-50 text-amber-800 rounded-md text-xs font-semibold border border-amber-200">{skill}</span>
               ))}
               {Object.entries(result.skillBreakdown || {}).filter(([_, s]) => (s as number) < 60).length === 0 && (
-                <p className="text-xs text-gray-500">Great job! All areas look strong.</p>
+                <p className="text-xs text-[#526780]">Great job! All assessed areas look strong.</p>
               )}
             </div>
           </div>
 
           {/* Time & Stats */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Assessment Stats</h3>
-            <div className="space-y-4">
+          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+            <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Assessment Stats</h3>
+            <div className="space-y-3">
               {[
                 { label: 'Time Spent', value: formatTime(result.timeSpent || 0) },
                 { label: 'Correct Answers', value: `${result.correctCount}/${result.totalQuestions}` },
                 { label: 'Difficulty', value: result.difficulty || 'Intermediate' },
-                { label: 'Status', value: result.passed ? 'Passed' : 'Not passed', color: result.passed ? 'text-emerald-600' : 'text-amber-600' },
+                { label: 'Status', value: result.passed ? 'Passed' : 'Not passed', color: result.passed ? 'text-emerald-700' : 'text-amber-700' },
               ].map((s, i) => (
-                <div key={i} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-sm text-gray-500">{s.label}</span>
-                  <span className={`text-sm font-semibold ${s.color || 'text-gray-900'}`}>{s.value}</span>
+                <div key={i} className="flex justify-between items-center py-2 border-b border-[#f1f5f9] last:border-0">
+                  <span className="text-sm text-[#526780]">{s.label}</span>
+                  <span className={`text-sm font-semibold ${s.color || 'text-[#1e3a8a]'}`}>{s.value}</span>
                 </div>
               ))}
             </div>
@@ -1612,18 +1639,18 @@ Answer the student's question directly and specifically based on the assessment 
 
         {/* Certificate */}
         {result.passed && (
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 text-center">
-            <Award className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-            <h3 className="font-bold text-gray-900 text-lg mb-1">Congratulations!</h3>
-            <p className="text-sm text-gray-500 mb-1">You passed the {result.skill} assessment.</p>
-            {aiCertificateNote && <p className="text-xs text-emerald-600 italic mb-4">"{aiCertificateNote}"</p>}
-            {!aiCertificateNote && <p className="text-xs text-gray-400 mb-4">Download your certificate</p>}
-            <div className="flex justify-center gap-3">
+          <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-lg p-6 text-center shadow-xs">
+            <Award className="w-10 h-10 text-[#2563eb] mx-auto mb-2" />
+            <h3 className="font-bold text-[#1e3a8a] text-lg mb-1">Congratulations!</h3>
+            <p className="text-sm text-[#526780] mb-1">You passed the {result.skill} assessment.</p>
+            {aiCertificateNote && <p className="text-xs text-[#2563eb] italic mb-4">"{aiCertificateNote}"</p>}
+            {!aiCertificateNote && <p className="text-xs text-[#526780] mb-4">Download your verified credential</p>}
+            <div className="flex justify-center gap-3 flex-wrap">
               <button onClick={() => generateCertificateNote(result.skill, result.score)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all shadow-xs">
                 <Download className="w-4 h-4" /> {aiCertificateNote ? 'Download Certificate' : 'Generate Certificate'}
               </button>
-              <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all">
+              <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0077b5] hover:bg-[#006399] text-white rounded-lg text-sm font-semibold transition-all shadow-xs">
                 <Linkedin className="w-4 h-4" /> Share on LinkedIn
               </button>
             </div>
@@ -1631,15 +1658,15 @@ Answer the student's question directly and specifically based on the assessment 
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap sm:flex-nowrap">
           <button onClick={async () => {
             const skill = result?.skill || selectedSkill;
             const score = result?.score ?? 0;
             try { await aiGenerateSkillGap(skill, score, result?.skillBreakdown); } catch {}
             setStep('skill-gap');
           }}
-            className="flex-1 border border-gray-200 text-gray-700 py-3.5 rounded-2xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-            <TrendingUp className="w-4 h-4" /> View Skill Gap
+            className="flex-1 bg-white hover:bg-slate-50 border border-[#e2e8f0] hover:border-[#bfdbfe] text-[#1e3a8a] py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
+            <TrendingUp className="w-4 h-4 text-[#2563eb]" /> View Skill Gap
           </button>
           <button onClick={async () => {
             const skill = result?.skill || selectedSkill;
@@ -1650,49 +1677,49 @@ Answer the student's question directly and specifically based on the assessment 
             } catch {}
             setStep('learning-path');
           }}
-            className="flex-1 border border-gray-200 text-gray-700 py-3.5 rounded-2xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-            <BookOpen className="w-4 h-4" /> Learning Path
+            className="flex-1 bg-white hover:bg-slate-50 border border-[#e2e8f0] hover:border-[#bfdbfe] text-[#1e3a8a] py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
+            <BookOpen className="w-4 h-4 text-[#2563eb]" /> Learning Path
           </button>
           <button onClick={() => { setResult(null); setAssessment(null); setStep('dashboard'); }}
-            className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-medium hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-md">
+            className="flex-1 bg-[#2563eb] hover:bg-blue-700 text-white py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
             <RotateCcw className="w-4 h-4" /> New Assessment
           </button>
         </div>
 
         {/* AI Mentor */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden">
           <button onClick={() => setAiMentorOpen(!aiMentorOpen)}
-            className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+            className="w-full flex items-center justify-between p-5 hover:bg-[#f8fafc] transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                <Bot className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] rounded-md flex items-center justify-center shadow-xs">
+                <Bot className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900">AI Mentor</p>
-                <p className="text-xs text-gray-500">Ask why an answer was wrong or get explanations</p>
+                <p className="text-sm font-bold text-[#1e3a8a]">AI Mentor</p>
+                <p className="text-xs text-[#526780]">Ask why an answer was wrong or get detailed explanations</p>
               </div>
             </div>
-            {aiMentorOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {aiMentorOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
           </button>
           {aiMentorOpen && (
-            <div className="px-5 pb-5 border-t border-gray-50">
+            <div className="px-5 pb-5 border-t border-[#e2e8f0] bg-[#f8fafc]">
               <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto mb-3">
                 {mentorChat.map((m, i) => (
                   <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${
-                      m.role === 'ai' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                    <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      m.role === 'ai' ? 'bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb]' : 'bg-slate-200 text-slate-700'
                     }`}>{m.role === 'ai' ? 'AI' : 'U'}</div>
-                    <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                      m.role === 'ai' ? 'bg-gray-50 border border-gray-100 text-gray-700' : 'bg-indigo-600 text-white'
+                    <div className={`max-w-[80%] px-4 py-2.5 rounded-xl text-xs leading-relaxed ${
+                      m.role === 'ai' ? 'bg-white border border-[#e2e8f0] text-slate-800 shadow-xs' : 'bg-[#2563eb] text-white shadow-xs'
                     }`}>{m.content}</div>
                   </div>
                 ))}
                 {mentorLoading && (
                   <div className="flex gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
-                    <div className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl">
-                      <div className="flex gap-1 items-center">
-                        {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                    <div className="w-7 h-7 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center text-xs font-bold flex-shrink-0">AI</div>
+                    <div className="bg-white border border-[#e2e8f0] px-4 py-2.5 rounded-xl shadow-xs">
+                      <div className="flex gap-1.5 items-center">
+                        {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-[#2563eb] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
                       </div>
                     </div>
                   </div>
@@ -1702,9 +1729,9 @@ Answer the student's question directly and specifically based on the assessment 
                 <input type="text" value={mentorInput} onChange={e => setMentorInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && askMentor()}
                   placeholder="Ask why an answer was wrong or get explanations..."
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  className="flex-1 px-3.5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] bg-white"
                 />
-                <button onClick={askMentor} disabled={mentorLoading} className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                <button onClick={askMentor} disabled={mentorLoading} className="w-10 h-10 bg-[#2563eb] hover:bg-blue-700 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 text-white shadow-xs flex-shrink-0">
                   {mentorLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
                 </button>
               </div>
@@ -1737,67 +1764,67 @@ Answer the student's question directly and specifically based on the assessment 
     };
 
     return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <button onClick={() => result ? setStep('result') : setStep('dashboard')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+      <div className="max-w-3xl w-full mx-auto px-4 py-8 sm:py-12 flex-1">
+        <button onClick={() => result ? setStep('result') : setStep('dashboard')} className="flex items-center gap-1.5 text-sm font-semibold text-[#2563eb] hover:text-[#1e3a8a] mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" /> {result ? 'Back to Results' : 'Back to Dashboard'}
         </button>
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-sm">
-              <TrendingUp className="w-6 h-6 text-white" />
+        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 mb-8">
+            <div className="w-12 h-12 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#2563eb] flex items-center justify-center shadow-xs flex-shrink-0">
+              <TrendingUp className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Skill Gap Analysis</h2>
-              <p className="text-sm text-gray-500">Target: Senior {gapSkill} Developer</p>
+              <h2 className="text-xl font-bold text-[#1e3a8a]">Skill Gap Analysis</h2>
+              <p className="text-sm text-[#526780]">Target: Senior {gapSkill} Developer</p>
             </div>
           </div>
 
           {/* Current vs Required */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div className="text-center bg-gray-50 rounded-2xl p-6">
-              <div className="text-4xl font-black text-indigo-600 mb-1">{currentScore}%</div>
-              <div className="text-sm text-gray-500">Current Score</div>
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-8">
+            <div className="text-center bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-5 sm:p-6">
+              <div className="text-3xl sm:text-4xl font-black text-[#2563eb] mb-1">{currentScore}%</div>
+              <div className="text-xs sm:text-sm text-[#526780] font-medium">Current Score</div>
             </div>
-            <div className="text-center bg-gray-50 rounded-2xl p-6">
-              <div className="text-4xl font-black text-emerald-600 mb-1">85%</div>
-              <div className="text-sm text-gray-500">Required for Senior</div>
+            <div className="text-center bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-5 sm:p-6">
+              <div className="text-3xl sm:text-4xl font-black text-emerald-600 mb-1">85%</div>
+              <div className="text-xs sm:text-sm text-[#526780] font-medium">Required for Senior</div>
             </div>
           </div>
 
           {/* Gap Bar */}
           <div className="mb-8">
-            <div className="flex justify-between text-xs text-gray-500 mb-2">
+            <div className="flex justify-between text-xs text-[#526780] font-medium mb-2">
               <span>Current: {currentScore}%</span>
-              <span className={currentScore >= 85 ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold'}>
+              <span className={currentScore >= 85 ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-semibold'}>
                 {currentScore >= 85 ? 'Target reached! 🎉' : `Gap: ${85 - currentScore}%`}
               </span>
               <span>Target: 85%</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-4 relative overflow-hidden">
-              <div className="bg-indigo-500 h-4 rounded-full transition-all duration-700" style={{ width: `${currentScore}%` }} />
+            <div className="w-full bg-[#e2e8f0] rounded-full h-3.5 relative overflow-hidden">
+              <div className="bg-[#2563eb] h-3.5 rounded-full transition-all duration-700" style={{ width: `${currentScore}%` }} />
               {currentScore < 85 && (
-                <div className="absolute top-0 h-4 bg-emerald-500/30" style={{ left: `${currentScore}%`, width: `${85 - currentScore}%` }} />
+                <div className="absolute top-0 h-3.5 bg-emerald-500/20" style={{ left: `${currentScore}%`, width: `${85 - currentScore}%` }} />
               )}
-              <div className="absolute top-0 border-l-2 border-dashed border-emerald-500 h-4" style={{ left: '85%' }} />
+              <div className="absolute top-0 border-l-2 border-dashed border-emerald-600 h-3.5" style={{ left: '85%' }} />
             </div>
           </div>
 
           {/* Sub-skill breakdown from actual assessment */}
           {Object.keys(breakdown).length > 0 && (
             <div className="mb-8">
-              <h3 className="font-semibold text-gray-900 mb-4">Your {gapSkill} Sub-skill Scores</h3>
+              <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Your {gapSkill} Sub-skill Scores</h3>
               <div className="space-y-3">
                 {Object.entries(breakdown).sort(([, a], [, b]) => b - a).map(([skill, score]) => (
                   <div key={skill}>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="font-medium text-gray-700">{skill}</span>
-                      <span className={`font-bold ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{score}%</span>
+                      <span className="font-medium text-slate-700">{skill}</span>
+                      <span className={`font-bold ${score >= 80 ? 'text-emerald-700' : score >= 60 ? 'text-[#1e3a8a]' : 'text-rose-600'}`}>{score}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className={`h-2 rounded-full transition-all duration-500 ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-400' : 'bg-red-400'}`}
+                    <div className="w-full bg-[#e2e8f0] rounded-full h-2">
+                      <div className={`h-2 rounded-full transition-all duration-500 ${score >= 80 ? 'bg-emerald-600' : score >= 60 ? 'bg-[#2563eb]' : 'bg-rose-500'}`}
                         style={{ width: `${score}%` }} />
                     </div>
                   </div>
@@ -1809,10 +1836,10 @@ Answer the student's question directly and specifically based on the assessment 
           {/* Strong areas */}
           {strongSubSkills.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-3">Strong Areas</h3>
+              <h3 className="font-bold text-[#1e3a8a] text-sm mb-3">Strong Areas</h3>
               <div className="flex flex-wrap gap-2">
                 {strongSubSkills.map(([skill, score]) => (
-                  <span key={skill} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium border border-emerald-200">
+                  <span key={skill} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-md text-xs font-semibold border border-emerald-200">
                     {skill} · {score}%
                   </span>
                 ))}
@@ -1821,10 +1848,10 @@ Answer the student's question directly and specifically based on the assessment 
           )}
 
           {/* Missing / weak skills */}
-          <h3 className="font-semibold text-gray-900 mb-4">Skills to Improve</h3>
+          <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Skills to Improve</h3>
           {skillGapLoading ? (
-            <div className="flex items-center gap-3 py-6 text-gray-400">
-              <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+            <div className="flex items-center gap-3 py-6 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin text-[#2563eb]" />
               <span className="text-sm">Analyzing your assessment results...</span>
             </div>
           ) : aiMissingSkills.length > 0 ? (
@@ -1833,16 +1860,16 @@ Answer the student's question directly and specifically based on the assessment 
                 const name = typeof skill === 'string' ? skill : (skill as any).name || skill;
                 const subScore = breakdown[name];
                 return (
-                  <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-lg bg-amber-50/60 border border-amber-200">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">{name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-semibold text-slate-800">{name}</p>
+                      <p className="text-xs text-[#526780]">
                         {subScore !== undefined ? `Scored ${subScore}% — needs improvement` : 'Not yet assessed'}
                       </p>
                     </div>
                     <button onClick={() => { setSelectedSkill(name); generateAssessment(name); }}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+                      className="text-xs font-bold text-[#2563eb] hover:text-[#1e3a8a] transition-colors">
                       Assess
                     </button>
                   </div>
@@ -1852,20 +1879,20 @@ Answer the student's question directly and specifically based on the assessment 
           ) : (
             <div className="space-y-3">
               {weakSubSkills.length > 0 ? weakSubSkills.map(([skill, score]) => (
-                <div key={skill} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <div key={skill} className="flex items-center gap-4 p-4 rounded-lg bg-amber-50/60 border border-amber-200">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">{skill}</p>
-                    <p className="text-xs text-gray-500">Scored {score}% — needs improvement</p>
+                    <p className="text-sm font-semibold text-slate-800">{skill}</p>
+                    <p className="text-xs text-[#526780]">Scored {score}% — needs improvement</p>
                   </div>
                   <button onClick={() => { setSelectedSkill(skill); generateAssessment(skill); }}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Assess</button>
+                    className="text-xs font-bold text-[#2563eb] hover:text-[#1e3a8a] transition-colors">Assess</button>
                 </div>
               )) : (
                 <div className="text-center py-6">
                   <button onClick={handleEnterSkillGap}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors">
-                    <Sparkles className="w-4 h-4" /> Generate AI Skill Gap
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#eff6ff] text-[#1e3a8a] border border-[#bfdbfe] rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors">
+                    <Sparkles className="w-4 h-4 text-[#2563eb]" /> Generate AI Skill Gap
                   </button>
                 </div>
               )}
@@ -1878,7 +1905,7 @@ Answer the student's question directly and specifically based on the assessment 
           await aiGenerateLearningPath(gapSkill, missing.length > 0 ? missing : generateSkillsCoveredFallback(gapSkill));
           setStep('learning-path');
         }}
-          className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200">
+          className="w-full mt-6 bg-[#2563eb] hover:bg-blue-700 text-white py-3.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
           <BookOpen className="w-4 h-4" /> View Learning Path
         </button>
       </div>
@@ -1889,45 +1916,43 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── LEARNING PATH ──────────────────────────────────────────────────────────
   if (step === 'learning-path') return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <button onClick={() => setStep('skill-gap')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+      <div className="max-w-3xl w-full mx-auto px-4 py-8 sm:py-12 flex-1">
+        <button onClick={() => setStep('skill-gap')} className="flex items-center gap-1.5 text-sm font-semibold text-[#2563eb] hover:text-[#1e3a8a] mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Skill Gap
         </button>
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-sm">
-              <BookOpen className="w-6 h-6 text-white" />
+        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 mb-8">
+            <div className="w-12 h-12 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#2563eb] flex items-center justify-center shadow-xs flex-shrink-0">
+              <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Learning Roadmap</h2>
-              <p className="text-sm text-gray-500">4-week plan to close your skill gap</p>
+              <h2 className="text-xl font-bold text-[#1e3a8a]">Learning Roadmap</h2>
+              <p className="text-sm text-[#526780]">4-week structured plan to close your skill gap</p>
             </div>
           </div>
 
           <div className="relative">
-            <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-400 via-purple-400 to-emerald-400 hidden sm:block" />
-            <div className="space-y-8">
+            <div className="absolute left-[21px] top-0 bottom-0 w-0.5 bg-[#bfdbfe] hidden sm:block" />
+            <div className="space-y-6">
               {aiLearningPath.length > 0 ? (
                 aiLearningPath.map((w: any, i: number) => {
-                  const colors = ['from-indigo-500 to-blue-600', 'from-purple-500 to-pink-600', 'from-emerald-500 to-teal-600', 'from-orange-500 to-red-600'];
-                  const color = colors[i % colors.length];
                   const weekLabel = w.week || `Week ${i + 1}`;
                   return (
                     <div key={i} className="relative pl-0 sm:pl-16">
-                      <div className={`absolute left-0 top-1 w-[47px] h-[47px] bg-gradient-to-br ${color} rounded-2xl hidden sm:flex items-center justify-center text-white text-xs font-black shadow-lg ring-4 ring-white`}>{weekLabel}</div>
-                      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-3 mb-3 sm:hidden">
-                          <div className={`w-10 h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center text-white text-xs font-black`}>{weekLabel}</div>
-                          <div className="font-bold text-gray-900">{w.title}</div>
+                      <div className="absolute left-0 top-1 w-11 h-11 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] rounded-lg hidden sm:flex items-center justify-center text-xs font-bold shadow-xs ring-4 ring-white">{weekLabel}</div>
+                      <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5 hover:border-[#bfdbfe] hover:shadow-xs transition-all">
+                        <div className="flex items-center gap-3 mb-2 sm:hidden">
+                          <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] rounded-lg flex items-center justify-center text-xs font-bold">{weekLabel}</div>
+                          <div className="font-bold text-[#1e3a8a]">{w.title}</div>
                         </div>
-                        <div className="hidden sm:block font-bold text-gray-900 text-lg mb-1">{w.title}</div>
-                        <p className="text-sm text-gray-500 mb-3">{w.desc}</p>
+                        <div className="hidden sm:block font-bold text-[#1e3a8a] text-base mb-1">{w.title}</div>
+                        <p className="text-sm text-[#526780] mb-3 leading-relaxed">{w.desc}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {(w.skills || []).map((s: string, j: number) => (
-                            <span key={j} className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">{s}</span>
+                            <span key={j} className="px-2.5 py-1 bg-[#f8fafc] text-slate-700 rounded-md text-xs font-medium border border-[#e2e8f0]">{s}</span>
                           ))}
                         </div>
                       </div>
@@ -1935,16 +1960,16 @@ Answer the student's question directly and specifically based on the assessment 
                   );
                 })
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p className="font-medium text-gray-700">Complete a Skill Gap Analysis first</p>
-                  <p className="text-sm mt-1">The AI will generate a personalized learning path based on your missing skills</p>
+                <div className="text-center py-12 text-[#526780]">
+                  <BookOpen className="w-12 h-12 mx-auto mb-3 text-[#bfdbfe]" />
+                  <p className="font-semibold text-[#1e3a8a]">Complete a Skill Gap Analysis first</p>
+                  <p className="text-sm mt-1">The AI will generate a personalized learning path based on your missing skills.</p>
                 </div>
               )}
             </div>
           </div>
           <button onClick={() => onNavigate('home')}
-            className="mt-6 w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3.5 rounded-2xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-200">
+            className="mt-6 w-full bg-[#2563eb] hover:bg-blue-700 text-white py-3.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
             <Briefcase className="w-4 h-4" /> Browse Matching Jobs
           </button>
         </div>

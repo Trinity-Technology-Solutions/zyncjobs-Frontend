@@ -144,12 +144,12 @@ function extractExperience(text: string): Array<{ title: string; company: string
 
 // Welcome screen quick-start cards (shown when no messages)
 const STARTER_CARDS = [
-  { icon: <Target className="w-5 h-5" />, label: 'Plan my career path', color: 'from-violet-500 to-indigo-500' },
-  { icon: <FileText className="w-5 h-5" />, label: 'Review my resume & ATS score', color: 'from-blue-500 to-cyan-500' },
-  { icon: <BookOpen className="w-5 h-5" />, label: 'What skills am I missing?', color: 'from-emerald-500 to-teal-500' },
-  { icon: <Award className="w-5 h-5" />, label: 'Interview preparation tips', color: 'from-orange-500 to-amber-500' },
-  { icon: <TrendingUp className="w-5 h-5" />, label: 'How to increase my salary?', color: 'from-pink-500 to-rose-500' },
-  { icon: <Map className="w-5 h-5" />, label: 'Build my career roadmap', color: 'from-purple-500 to-violet-500' },
+  { icon: <Target className="w-4 h-4" />, label: 'Plan my career path' },
+  { icon: <FileText className="w-4 h-4" />, label: 'Review my resume & ATS score' },
+  { icon: <BookOpen className="w-4 h-4" />, label: 'What skills am I missing?' },
+  { icon: <Award className="w-4 h-4" />, label: 'Interview preparation tips' },
+  { icon: <TrendingUp className="w-4 h-4" />, label: 'How to increase my salary?' },
+  { icon: <Map className="w-4 h-4" />, label: 'Build my career roadmap' },
 ];
 
 // Bottom input quick chips
@@ -183,10 +183,10 @@ const LEFT_CATEGORIES = [
 ];
 
 const RIGHT_QUICK_NAV = [
-  { icon: <Map className="w-3.5 h-3.5" />, label: 'Career Roadmap', page: 'career-roadmap', color: 'text-blue-600 bg-blue-50 border-blue-100' },
-  { icon: <BarChart2 className="w-3.5 h-3.5" />, label: 'Skill Gap Analysis', page: 'skill-gap-analysis', color: 'text-purple-600 bg-purple-50 border-purple-100' },
-  { icon: <Star className="w-3.5 h-3.5" />, label: 'Skill Assessment', page: 'skill-assessment', color: 'text-orange-600 bg-orange-50 border-orange-100' },
-  { icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Job Recommendations', page: 'job-listings', color: 'text-green-600 bg-green-50 border-green-100' },
+  { icon: <Map className="w-3.5 h-3.5" />, label: 'Career Roadmap', page: 'career-roadmap' },
+  { icon: <BarChart2 className="w-3.5 h-3.5" />, label: 'Skill Gap Analysis', page: 'skill-gap-analysis' },
+  { icon: <Star className="w-3.5 h-3.5" />, label: 'Skill Assessment', page: 'skill-assessment' },
+  { icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Job Recommendations', page: 'job-listings' },
 ];
 
 function renderContent(text: string) {
@@ -203,13 +203,13 @@ function renderContent(text: string) {
   };
 
   const parseBold = (line: string) =>
-    line.split(/\*\*(.*?)\*\*/g).map((p, j) => j % 2 === 1 ? <strong key={j} className="font-semibold text-gray-900">{p}</strong> : p);
+    line.split(/\*\*(.*?)\*\*/g).map((p, j) => j % 2 === 1 ? <strong key={j} className="font-semibold text-slate-900">{p}</strong> : p);
 
   lines.forEach((line, i) => {
     if (line.startsWith('- ') || line.startsWith('• ')) {
       listItems.push(
-        <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#2563eb] flex-shrink-0" />
           <span>{parseBold(line.replace(/^[-•]\s/, ''))}</span>
         </li>
       );
@@ -680,8 +680,8 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
         </div>
       }
     >
-      {/* ChatGPT-style 3-column layout: each column scrolls independently, input pinned bottom */}
-      <div className="h-screen flex flex-col bg-[#fafafa]">
+      {/* 3-column candidate workspace: sidebars and center scroll independently */}
+      <div className="h-screen flex flex-col bg-[#f8fafc]">
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
         <div className="flex flex-1 min-h-0">
@@ -689,66 +689,66 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
           {/* Mobile sidebar toggle — hidden when sidebar is open */}
           {!showLeftSidebar && (
             <button onClick={() => setShowLeftSidebar(true)}
-              className="md:hidden fixed top-20 left-3 z-40 w-9 h-9 bg-[#0f0f0f] text-white rounded-xl flex items-center justify-center shadow-lg border border-white/10">
+              className="md:hidden fixed top-24 left-3 z-40 w-9 h-9 bg-white text-[#2563eb] rounded-lg flex items-center justify-center shadow-md border border-[#bfdbfe] hover:bg-blue-50 transition-colors">
               <MessageSquare className="w-4 h-4" />
             </button>
           )}
 
           {/* Mobile overlay backdrop */}
           {showLeftSidebar && (
-            <div onClick={() => setShowLeftSidebar(false)} className="md:hidden fixed inset-0 z-30 bg-black/40" />
+            <div onClick={() => setShowLeftSidebar(false)} className="md:hidden fixed inset-0 z-30 bg-slate-900/30 backdrop-blur-xs" />
           )}
 
-          {/* LEFT SIDEBAR — ChatGPT-style, hidden on mobile unless toggled */}
-          <aside className={`${showLeftSidebar ? 'fixed left-0 top-0 bottom-0 z-40 w-72' : 'hidden'} md:flex md:flex-shrink-0 md:w-[220px] bg-[#0f0f0f] border-r border-white/5 text-white flex-col min-h-0`}>
-            <div className="flex-shrink-0 p-3 border-b border-white/5">
-              <button onClick={resetChat} className="w-full flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white text-sm font-medium px-3 py-2.5 rounded-xl transition-all">
+          {/* LEFT SIDEBAR — Clean candidate design */}
+          <aside className={`${showLeftSidebar ? 'fixed left-0 top-0 bottom-0 z-40 w-72' : 'hidden'} md:flex md:flex-shrink-0 md:w-[230px] bg-white border-r border-[#e2e8f0] text-slate-700 flex-col min-h-0`}>
+            <div className="flex-shrink-0 p-3.5 border-b border-[#e2e8f0]">
+              <button onClick={resetChat} className="w-full flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2.5 rounded-md transition-colors shadow-xs">
                 <Plus className="w-4 h-4" /> New Chat
               </button>
             </div>
-            {/* Topics + Pinned — fixed (no scroll) */}
-            <div className="flex-shrink-0 px-2 pt-3 pb-1 space-y-1">
+            {/* Topics + Pinned */}
+            <div className="flex-shrink-0 px-2.5 pt-3.5 pb-1 space-y-1">
               <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest px-2 mb-1.5">Topics</p>
+                <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider px-2 mb-1.5">Topics</p>
                 {LEFT_CATEGORIES.map((c, i) => (
                   <button key={i} onClick={() => c.msg ? sendMessage(c.msg) : c.page ? onNavigate?.(c.page) : undefined}
-                    className="w-full flex items-center gap-2.5 text-[13px] text-gray-400 hover:text-white hover:bg-white/[0.08] px-2 py-1.5 rounded-lg transition-all text-left">
-                    <span className="text-gray-500">{c.icon}</span> {c.label}
+                    className="w-full flex items-center gap-2.5 text-xs font-medium text-[#526780] hover:text-[#1e3a8a] hover:bg-slate-50 px-2.5 py-1.5 rounded-md transition-colors text-left">
+                    <span className="text-[#2563eb] flex-shrink-0">{c.icon}</span> <span className="truncate">{c.label}</span>
                   </button>
                 ))}
               </div>
-              <div className="border-t border-white/5 mx-2" />
+              <div className="border-t border-[#e2e8f0] mx-2 my-2" />
               {sessions.filter(s => s.pinned).length > 0 && (
                 <div className="space-y-0.5">
                   {sessions.filter(s => s.pinned).map(s => (
                     <button key={s.id} onClick={() => loadSession(s)}
-                      className={`w-full group flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] transition-all text-left mb-0.5 ${s.id === activeId ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-white hover:bg-white/[0.08]'}`}>
-                      <Star className="w-3 h-3 text-yellow-500 flex-shrink-0" />
+                      className={`w-full group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors text-left mb-0.5 ${s.id === activeId ? 'bg-[#eff6ff] text-[#1e40af] font-semibold border border-[#bfdbfe]' : 'text-[#526780] hover:text-[#1e3a8a] hover:bg-slate-50'}`}>
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
                       <span className="truncate flex-1">{s.title}</span>
-                      <span onClick={(e) => togglePin(s.id, e)} className="opacity-0 group-hover:opacity-100 text-yellow-400 hover:text-yellow-300 transition-opacity text-[10px] px-1" title="Unpin">✕</span>
+                      <span onClick={(e) => togglePin(s.id, e)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity text-xs px-1" title="Unpin">✕</span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
             {/* Recent — independently scrollable */}
-            <div className="flex-1 min-h-0 flex flex-col px-2 pb-3">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest px-2 mb-1.5 flex items-center gap-1 flex-shrink-0">
-                <Clock className="w-2.5 h-2.5" /> Recent
+            <div className="flex-1 min-h-0 flex flex-col px-2.5 pb-3">
+              <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider px-2 mb-1.5 flex items-center gap-1.5 flex-shrink-0">
+                <Clock className="w-3 h-3 text-[#2563eb]" /> Recent
               </p>
-              <div className="flex-1 overflow-y-auto min-h-0 space-y-1.5 scrollbar-thin-dark">
+              <div className="flex-1 overflow-y-auto min-h-0 space-y-1 scrollbar-thin px-0.5">
                 {sessions.filter(s => !s.pinned).length === 0 ? (
-                  <p className="text-xs text-gray-600 px-2 py-1">No recent chats</p>
+                  <p className="text-xs text-[#94a3b8] px-2 py-1">No recent chats</p>
                 ) : (
                   groupSessionsByDate(sessions.filter(s => !s.pinned)).map(group => (
                     <div key={group.label}>
-                      <p className="text-[11px] text-gray-600 font-medium px-2 py-1 sticky top-0 bg-[#0f0f0f]">{group.label}</p>
+                      <p className="text-[10px] text-[#64748b] font-semibold px-2 py-1 sticky top-0 bg-white border-b border-slate-100">{group.label}</p>
                       {group.items.map(s => (
                         <button key={s.id} onClick={() => loadSession(s)}
-                          className={`w-full group flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] transition-all text-left mb-0.5 ${s.id === activeId ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-white hover:bg-white/[0.08]'}`}>
-                          <MessageSquare className="w-3 h-3 flex-shrink-0" />
+                          className={`w-full group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors text-left mb-0.5 ${s.id === activeId ? 'bg-[#eff6ff] text-[#1e40af] font-semibold border border-[#bfdbfe]' : 'text-[#526780] hover:text-[#1e3a8a] hover:bg-slate-50'}`}>
+                          <MessageSquare className={`w-3.5 h-3.5 flex-shrink-0 ${s.id === activeId ? 'text-[#2563eb]' : 'text-[#94a3b8]'}`} />
                           <span className="truncate flex-1">{s.title}</span>
-                          <span onClick={(e) => togglePin(s.id, e)} className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-yellow-400 transition-opacity" title="Pin this chat"><Pin className="w-3 h-3" /></span>
+                          <span onClick={(e) => togglePin(s.id, e)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-amber-500 transition-opacity" title="Pin this chat"><Pin className="w-3 h-3" /></span>
                         </button>
                       ))}
                     </div>
@@ -759,51 +759,51 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
           </aside>
 
           {/* CENTER PANEL — full-height, proper scrollbar at right edge */}
-          <div className="flex-1 flex flex-col min-h-0 bg-white">
+          <div className="flex-1 flex flex-col min-h-0 bg-[#f8fafc]">
             {/* Sticky chat header — full-width background, centered content */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-100">
-              <div className="max-w-[760px] mx-auto px-4 sm:px-6 py-3">
-                <BackButton className="mb-2" />
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md flex-shrink-0">
-                      <Sparkles className="w-4 h-4 text-white" />
+            <div className="flex-shrink-0 bg-white border-b border-[#e2e8f0]">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5">
+                <BackButton fallback="/dashboard" className="mb-2.5" />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center shadow-xs flex-shrink-0">
+                      <Sparkles className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <h1 className="text-sm font-bold text-gray-900 leading-tight truncate">AI Career Coach</h1>
-                      <p className="text-[11px] text-gray-400 truncate">Personalized to your profile</p>
+                      <h1 className="text-base font-bold text-[#1e3a8a] leading-tight truncate">AI Career Coach</h1>
+                      <p className="text-xs text-[#64748b] truncate">Personalized career guidance & mentorship</p>
                     </div>
                   </div>
-                  <button onClick={resetChat} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-lg transition-all flex-shrink-0">
-                    <RefreshCw className="w-3 h-3" /> New Chat
+                  <button onClick={resetChat} className="flex items-center gap-1.5 text-xs font-semibold text-[#526780] hover:text-[#1e3a8a] bg-slate-50 hover:bg-slate-100 border border-[#e2e8f0] px-3 py-1.5 rounded-md transition-colors flex-shrink-0 shadow-2xs">
+                    <RefreshCw className="w-3.5 h-3.5" /> New Chat
                   </button>
                 </div>
                 {(currentRole || skills.length > 0) && (
-                  <div className="hidden sm:flex flex-wrap gap-1.5 mt-2">
-                    {currentRole && <span className="text-[11px] bg-gray-50 border border-gray-200 text-gray-600 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><Briefcase className="w-3 h-3 text-blue-500" /> {currentRole}</span>}
-                    {targetRole && <span className="text-[11px] bg-gray-50 border border-gray-200 text-gray-600 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><Target className="w-3 h-3 text-violet-500" /> → {targetRole}</span>}
-                    {atsScore && <span className="text-[11px] bg-gray-50 border border-gray-200 text-gray-600 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><BarChart2 className="w-3 h-3 text-green-500" /> ATS {atsScore}%</span>}
-                    {skills.length > 0 && <span className="text-[11px] bg-gray-50 border border-gray-200 text-gray-600 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-500" /> {skills.length} skills</span>}
+                  <div className="hidden sm:flex flex-wrap gap-1.5 mt-3 pt-2.5 border-t border-slate-100">
+                    {currentRole && <span className="text-xs bg-[#eff6ff] border border-[#bfdbfe] text-[#1e40af] px-2.5 py-0.5 rounded-md font-medium flex items-center gap-1.5"><Briefcase className="w-3 h-3 text-[#2563eb]" /> {currentRole}</span>}
+                    {targetRole && <span className="text-xs bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-0.5 rounded-md font-medium flex items-center gap-1.5"><Target className="w-3 h-3 text-[#2563eb]" /> → {targetRole}</span>}
+                    {atsScore && <span className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-0.5 rounded-md font-medium flex items-center gap-1.5"><BarChart2 className="w-3 h-3 text-emerald-600" /> ATS {atsScore}%</span>}
+                    {skills.length > 0 && <span className="text-xs bg-blue-50 border border-blue-200 text-[#1e40af] px-2.5 py-0.5 rounded-md font-medium flex items-center gap-1.5"><Zap className="w-3 h-3 text-[#2563eb]" /> {skills.length} skills</span>}
                   </div>
                 )}
               </div>
             </div>
             {/* Scrollable messages — full-width container, scrollbar at right edge */}
-            <div ref={chatRef} className="flex-1 overflow-y-auto min-h-0 scrollbar-thin bg-[#fafafa]">
-              <div className="max-w-[760px] mx-auto px-4 sm:px-6 py-4 space-y-4">
+            <div ref={chatRef} className="flex-1 overflow-y-auto min-h-0 scrollbar-thin bg-[#f8fafc]">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
                 {messages.length <= 1 && messages[0]?.role === 'assistant' && (
-                  <div className="flex flex-col items-center justify-center min-h-[260px] sm:min-h-[360px]">
-                    <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-violet-200 mb-4">
-                      <Sparkles className="w-7 h-7 text-white" />
+                  <div className="flex flex-col items-center justify-center min-h-[260px] sm:min-h-[340px] text-center my-4">
+                    <div className="w-12 h-12 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] flex items-center justify-center shadow-sm text-[#2563eb] mb-3.5">
+                      <Sparkles className="w-6 h-6" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-1">How can I help you today?</h2>
-                    <p className="text-sm text-gray-400 mb-6">Your AI Career Coach — ask anything about your career</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
+                    <h2 className="text-2xl font-bold text-[#1e3a8a] mb-1.5">How can I help you today?</h2>
+                    <p className="text-sm text-[#526780] mb-6 max-w-md">Your personal career coach — ask about job strategy, resume improvements, skill gaps, or interview prep.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
                       {STARTER_CARDS.map((card, i) => (
                         <button key={i} onClick={() => sendMessage(card.label)}
-                          className="flex items-center gap-3 bg-white border border-gray-200 hover:border-violet-300 hover:shadow-md rounded-2xl px-4 py-3 text-left transition-all group">
-                          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center flex-shrink-0 text-white`}>{card.icon}</div>
-                          <span className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900 leading-tight">{card.label}</span>
+                          className="flex items-center gap-3 bg-white border border-[#e2e8f0] hover:border-[#bfdbfe] hover:bg-[#eff6ff]/30 rounded-lg p-3.5 text-left transition-all group shadow-xs">
+                          <div className="w-8 h-8 rounded-md bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] flex items-center justify-center flex-shrink-0 group-hover:bg-[#2563eb] group-hover:text-white transition-colors">{card.icon}</div>
+                          <span className="text-xs sm:text-sm font-semibold text-[#1e3a8a] group-hover:text-[#1e40af] leading-tight">{card.label}</span>
                         </button>
                       ))}
                     </div>
@@ -814,40 +814,40 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                   if (isInitialWelcome) return null;
                   return (
                     <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm ${msg.role === 'assistant' ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gradient-to-br from-gray-700 to-gray-800'}`}>
-                        {msg.role === 'assistant' ? <Sparkles className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-white" />}
+                      <div className={`w-8 h-8 rounded-md flex-shrink-0 flex items-center justify-center shadow-xs ${msg.role === 'assistant' ? 'bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb]' : 'bg-[#2563eb] text-white'}`}>
+                        {msg.role === 'assistant' ? <Sparkles className="w-4 h-4" /> : <User className="w-4 h-4" />}
                       </div>
                       <div className="flex flex-col gap-2 max-w-[720px]">
-                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed space-y-2 ${msg.role === 'assistant' ? 'bg-white border border-gray-100 shadow-sm text-gray-800 rounded-tl-sm' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-md'}`}>
+                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed space-y-2 ${msg.role === 'assistant' ? 'bg-white border border-[#e2e8f0] shadow-sm text-slate-800 rounded-tl-sm' : 'bg-[#2563eb] text-white rounded-tr-sm shadow-sm'}`}>
                           {msg.attachment && (
                             <div className="mb-2">
                               {msg.attachment.previewUrl || msg.attachment.type?.startsWith('image/') ? (
                                 <div className="space-y-1.5 my-1">
                                   {msg.attachment.previewUrl && (
-                                    <div className="inline-block max-w-sm rounded-xl overflow-hidden border border-white/25 shadow-sm bg-black/25 p-1">
+                                    <div className="inline-block max-w-sm rounded-lg overflow-hidden border border-white/30 shadow-sm bg-black/20 p-1">
                                       <img
                                         src={msg.attachment.previewUrl}
                                         alt={msg.attachment.name}
-                                        className="max-h-64 max-w-full w-auto h-auto object-contain rounded-lg mx-auto block"
+                                        className="max-h-64 max-w-full w-auto h-auto object-contain rounded mx-auto block"
                                       />
                                     </div>
                                   )}
-                                  <div className="flex items-center gap-1.5 text-[11px] text-white/80 font-medium px-0.5">
+                                  <div className="flex items-center gap-1.5 text-xs text-white/90 font-medium px-0.5">
                                     <Paperclip className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate max-w-[200px]">{msg.attachment.name}</span>
                                     {msg.attachment.size ? <span className="opacity-75">• {formatFileSize(msg.attachment.size)}</span> : null}
                                   </div>
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-3 bg-white/15 backdrop-blur-md border border-white/20 p-2.5 rounded-xl text-white">
-                                  <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0 shadow-xs">
-                                    <FileText className="w-5 h-5 text-white" />
+                                <div className="flex items-center gap-3 bg-white/15 backdrop-blur-xs border border-white/25 p-2.5 rounded-lg text-white">
+                                  <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center flex-shrink-0 shadow-xs">
+                                    <FileText className="w-4 h-4 text-white" />
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-[260px]">
                                       {msg.attachment.name}
                                     </p>
-                                    <p className="text-[10px] text-white/70">
+                                    <p className="text-[10px] text-white/80">
                                       {getFileTypeLabel(msg.attachment.name, msg.attachment.type)}
                                       {msg.attachment.size ? ` • ${formatFileSize(msg.attachment.size)}` : ''}
                                     </p>
@@ -860,16 +860,16 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                           {msg.content ? renderContent(msg.content) : null}
                         </div>
                         {msg.role === 'assistant' && i === messages.length - 1 && msg.content && !loading && (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1.5 pt-1">
                             {FOLLOWUP_ACTIONS.slice(0, 3).map((a, fi) => (
                               <button key={fi} onClick={() => sendMessage(a.msg)}
-                                className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-violet-700 bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 px-2.5 py-1 rounded-full transition-all">
+                                className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-[#1e40af] hover:text-[#1e3a8a] bg-white hover:bg-blue-50 border border-[#bfdbfe] px-2.5 py-1 rounded-full transition-colors shadow-2xs">
                                 {a.icon} {a.label}
                               </button>
                             ))}
                             {FOLLOWUP_ACTIONS.slice(0, 2).map((a, fi) => (
                               <button key={fi} onClick={() => sendMessage(a.msg)}
-                                className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-violet-700 bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 px-2 py-1 rounded-full transition-all">
+                                className="sm:hidden flex items-center gap-1.5 text-xs font-medium text-[#1e40af] hover:text-[#1e3a8a] bg-white hover:bg-blue-50 border border-[#bfdbfe] px-2.5 py-1 rounded-full transition-colors shadow-2xs">
                                 {a.icon} {a.label}
                               </button>
                             ))}
@@ -881,12 +881,12 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                 })}
                 {loading && (
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                    <div className="w-8 h-8 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center flex-shrink-0 shadow-xs">
+                      <Sparkles className="w-4 h-4" />
                     </div>
-                    <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
+                    <div className="bg-white border border-[#e2e8f0] px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
                       <div className="flex gap-1.5 items-center">
-                        {[0, 150, 300].map(d => (<span key={d} className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />))}
+                        {[0, 150, 300].map(d => (<span key={d} className="w-2 h-2 bg-[#2563eb] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />))}
                       </div>
                     </div>
                   </div>
@@ -894,59 +894,59 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
               </div>
             </div>
             {/* Fixed input — full-width background, centered content */}
-            <div className="flex-shrink-0 bg-white border-t border-gray-100">
+            <div className="flex-shrink-0 bg-white border-t border-[#e2e8f0]">
               <div className="max-w-[760px] mx-auto px-4 sm:px-6 py-3">
-                <div className="bg-white rounded-xl shadow-lg shadow-black/5 border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] focus-within:border-[#2563eb] focus-within:ring-2 focus-within:ring-blue-500/10 transition-all overflow-hidden">
                   {uploadedFile && (
                     <div className="px-3 pt-2.5 pb-1 flex items-center">
                       {uploadedFile.previewUrl || uploadedFile.type?.startsWith('image/') ? (
-                        <div className="relative group flex items-center gap-3 bg-violet-50/90 border border-violet-200 p-2 pr-3 rounded-xl shadow-xs">
+                        <div className="relative group flex items-center gap-3 bg-[#eff6ff] border border-[#bfdbfe] p-2 pr-3 rounded-lg shadow-xs">
                           {uploadedFile.previewUrl ? (
-                            <div className="w-12 h-12 rounded-lg bg-white border border-violet-200/80 flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0 shadow-xs">
+                            <div className="w-12 h-12 rounded-md bg-white border border-[#bfdbfe] flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0 shadow-xs">
                               <img
                                 src={uploadedFile.previewUrl}
                                 alt={uploadedFile.name}
-                                className="max-w-full max-h-full object-contain mx-auto my-auto rounded-md"
+                                className="max-w-full max-h-full object-contain mx-auto my-auto rounded-xs"
                               />
                             </div>
                           ) : (
-                            <div className="w-12 h-12 rounded-lg bg-violet-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                            <div className="w-12 h-12 rounded-md bg-[#2563eb] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
                               <Paperclip className="w-5 h-5" />
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-[260px]">
+                            <p className="text-xs font-semibold text-[#1e3a8a] truncate max-w-[180px] sm:max-w-[260px]">
                               {uploadedFile.name}
                             </p>
-                            <p className="text-[10px] text-violet-600 font-medium">
+                            <p className="text-[10px] text-[#2563eb] font-medium">
                               Image • {formatFileSize(uploadedFile.size)}
                             </p>
                           </div>
                           <button
                             onClick={() => setUploadedFile(null)}
                             title="Remove attachment"
-                            className="w-5 h-5 rounded-full bg-violet-200/70 hover:bg-red-500 hover:text-white text-violet-700 flex items-center justify-center text-xs font-bold transition-all ml-1"
+                            className="w-5 h-5 rounded-full bg-[#dbeafe] hover:bg-rose-500 hover:text-white text-[#1e40af] flex items-center justify-center text-xs font-bold transition-all ml-1"
                           >
                             ✕
                           </button>
                         </div>
                       ) : (
-                        <div className="relative group flex items-center gap-3 bg-violet-50/90 border border-violet-200 p-2 pr-3 rounded-xl shadow-xs">
-                          <div className="w-11 h-11 rounded-lg bg-violet-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                        <div className="relative group flex items-center gap-3 bg-[#eff6ff] border border-[#bfdbfe] p-2 pr-3 rounded-lg shadow-xs">
+                          <div className="w-11 h-11 rounded-md bg-[#2563eb] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
                             <FileText className="w-5 h-5" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-[260px]">
+                            <p className="text-xs font-semibold text-[#1e3a8a] truncate max-w-[180px] sm:max-w-[260px]">
                               {uploadedFile.name}
                             </p>
-                            <p className="text-[10px] text-violet-600 font-medium">
+                            <p className="text-[10px] text-[#2563eb] font-medium">
                               {getFileTypeLabel(uploadedFile.name, uploadedFile.type)} • {formatFileSize(uploadedFile.size)}
                             </p>
                           </div>
                           <button
                             onClick={() => setUploadedFile(null)}
                             title="Remove attachment"
-                            className="w-5 h-5 rounded-full bg-violet-200/70 hover:bg-red-500 hover:text-white text-violet-700 flex items-center justify-center text-xs font-bold transition-all ml-1"
+                            className="w-5 h-5 rounded-full bg-[#dbeafe] hover:bg-rose-500 hover:text-white text-[#1e40af] flex items-center justify-center text-xs font-bold transition-all ml-1"
                           >
                             ✕
                           </button>
@@ -956,33 +956,33 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                   )}
                   <div className="flex items-end gap-1.5 px-3 py-2.5">
                     <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,image/*" className="hidden" onChange={handleFileUpload} />
-                    <button onClick={() => fileInputRef.current?.click()} title="Upload resume or image" className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all flex-shrink-0"><Paperclip className="w-4 h-4" /></button>
-                    {/* <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
+                    <button onClick={() => fileInputRef.current?.click()} title="Upload resume or image" className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#2563eb] hover:bg-[#eff6ff] rounded-md transition-all flex-shrink-0"><Paperclip className="w-4 h-4" /></button>
+                    {/* <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-slate-400 hover:text-[#2563eb] hover:bg-[#eff6ff]'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
                     <button onClick={() => { if (isSpeaking) { window.speechSynthesis?.cancel(); setIsSpeaking(false); } setSpeakerEnabled(p => !p); }}
                       title={speakerEnabled ? 'Speaker on — click to mute' : 'Speaker off — click to enable'}
-                      className={`flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 ${speakerEnabled ? 'text-violet-600 bg-violet-50' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>
+                      className={`flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 ${speakerEnabled ? 'text-[#2563eb] bg-[#eff6ff]' : 'text-slate-400 hover:text-[#2563eb] hover:bg-[#eff6ff]'}`}>
                       <Volume2 className="w-4 h-4" />
                     </button> */}
                     <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
                       placeholder={isListening ? '🎤 Listening...' : 'Ask anything about your career...'} rows={1}
-                      className="flex-1 resize-none outline-none text-sm text-gray-800 placeholder-gray-400 bg-transparent py-2 min-h-[40px]"
+                      className="flex-1 resize-none outline-none text-sm text-slate-800 placeholder-slate-400 bg-transparent py-2 min-h-[40px]"
                       style={{ lineHeight: '1.5', maxHeight: '120px' }}
                       onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }} />
                     <button onClick={handleSend} disabled={(!input.trim() && !uploadedFile) || loading}
-                      className="w-9 h-9 bg-violet-600 hover:bg-violet-700 rounded-lg flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 shadow-sm">
+                      className="w-9 h-9 bg-[#2563eb] hover:bg-blue-700 text-white rounded-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 shadow-xs">
                       <ArrowRight className="w-4 h-4 text-white" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 pb-2.5 flex-wrap border-t border-gray-50 pt-2">
+                  <div className="flex items-center gap-1.5 px-3 pb-2.5 flex-wrap border-t border-[#f1f5f9] pt-2">
                     {QUICK_ACTIONS.slice(0, 3).map((action, i) => (
                       <button key={i} onClick={() => sendMessage(action.label)}
-                        className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full transition-colors">
+                        className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-[#1e3a8a] bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] px-2.5 py-1 rounded-md transition-colors">
                         {action.icon} {action.label}
                       </button>
                     ))}
                     {QUICK_ACTIONS.slice(0, 2).map((action, i) => (
                       <button key={i} onClick={() => sendMessage(action.label)}
-                        className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-2 py-1 rounded-full transition-colors">
+                        className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-[#1e3a8a] bg-slate-50 hover:bg-[#eff6ff] border border-slate-200 hover:border-[#bfdbfe] px-2 py-1 rounded-md transition-colors">
                         {action.icon} {action.label}
                       </button>
                     ))}
@@ -993,37 +993,37 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
           </div>
 
           {/* RIGHT SIDEBAR — 340px, no bottom scrollbar */}
-          <aside className="hidden lg:flex w-[340px] flex-shrink-0 flex-col bg-white border-l border-gray-100 overflow-y-auto overflow-x-hidden min-h-0 scrollbar-thin">
-            <div className="flex-shrink-0 p-4 border-b border-gray-100">
-              <h3 className="text-[13px] font-semibold text-gray-800 flex items-center gap-2">
-                <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center"><BarChart2 className="w-3 h-3 text-white" /></div>
+          <aside className="hidden lg:flex w-[340px] flex-shrink-0 flex-col bg-white border-l border-[#e2e8f0] overflow-y-auto overflow-x-hidden min-h-0 scrollbar-thin">
+            <div className="flex-shrink-0 p-4 border-b border-[#e2e8f0]">
+              <h3 className="text-[13px] font-semibold text-[#1e3a8a] flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-[#eff6ff] border border-[#bfdbfe] flex items-center justify-center text-[#2563eb] shadow-xs"><BarChart2 className="w-3 h-3" /></div>
                 Live Career Insights
               </h3>
             </div>
-            <div className="flex-1 p-3 space-y-3">
-              <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-2xl p-4 border border-violet-100">
+            <div className="flex-1 p-3.5 space-y-3">
+              <div className="bg-[#eff6ff] rounded-lg p-3.5 border border-[#bfdbfe]">
                 <div className="flex items-start justify-between mb-2 gap-2">
-                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Resume ATS Score</p>
-                  <span className="text-[10px] text-violet-500 font-semibold bg-violet-100 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                  <p className="text-[11px] font-semibold text-[#1e3a8a] uppercase tracking-wide">Resume ATS Score</p>
+                  <span className="text-[10px] text-[#1e40af] font-semibold bg-white border border-[#bfdbfe] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
                     {atsScore ? (atsScore >= 80 ? 'Excellent' : atsScore >= 60 ? 'Good' : 'Needs Work') : 'No data'}
                   </span>
                 </div>
                 <div className="flex items-end gap-1.5">
-                  <span className={`text-3xl font-bold ${atsScore ? 'text-violet-700' : 'text-gray-300'}`}>{atsScore ?? '—'}</span>
-                  {atsScore && <span className="text-sm text-gray-400 mb-1">/100</span>}
+                  <span className={`text-3xl font-bold ${atsScore ? 'text-[#1e3a8a]' : 'text-slate-300'}`}>{atsScore ?? '—'}</span>
+                  {atsScore && <span className="text-xs text-slate-500 mb-1">/100</span>}
                 </div>
                 {atsScore !== null && atsScore !== undefined ? (
-                  <div className="mt-2.5 h-2 bg-violet-100 rounded-full overflow-hidden">
-                    <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${atsScore}%`, background: atsScore >= 80 ? '#10b981' : atsScore >= 60 ? '#8b5cf6' : '#f59e0b' }} />
+                  <div className="mt-2.5 h-2 bg-white/80 border border-[#bfdbfe] rounded-full overflow-hidden">
+                    <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${atsScore}%`, background: atsScore >= 80 ? '#10b981' : atsScore >= 60 ? '#2563eb' : '#f59e0b' }} />
                   </div>
                 ) : (
-                  <p className="text-[11px] text-gray-400 mt-2">Upload a resume in chat to analyze</p>
+                  <p className="text-[11px] text-slate-500 mt-2">Upload a resume in chat to analyze</p>
                 )}
               </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-lg p-3.5 border border-[#e2e8f0] shadow-xs">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Career Readiness</p>
-                  {(() => { const done = [!!currentRole, !!targetRole, skills.length > 0, !!atsScore].filter(Boolean).length; const pct = Math.round(done / 4 * 100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct === 100 ? 'text-emerald-600 bg-emerald-50' : pct >= 50 ? 'text-violet-600 bg-violet-50' : 'text-amber-600 bg-amber-50'}`}>{pct}% complete</span>; })()}
+                  <p className="text-[11px] font-semibold text-[#1e3a8a] uppercase tracking-wide">Career Readiness</p>
+                  {(() => { const done = [!!currentRole, !!targetRole, skills.length > 0, !!atsScore].filter(Boolean).length; const pct = Math.round(done / 4 * 100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct === 100 ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : pct >= 50 ? 'text-[#1e40af] bg-[#eff6ff] border border-[#bfdbfe]' : 'text-amber-800 bg-amber-50 border border-amber-200'}`}>{pct}% complete</span>; })()}
                 </div>
                 <div className="space-y-1.5">
                   {[
@@ -1033,37 +1033,37 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                     { label: 'Resume analyzed', done: !!atsScore, detail: atsScore ? `ATS ${atsScore}%` : null },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      {item.done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />}
-                      <span className={`text-[12px] flex-1 truncate ${item.done ? 'text-gray-700' : 'text-gray-400'}`}>{item.label}</span>
-                      {item.detail && <span className="text-[10px] text-gray-400 truncate max-w-[80px]">{item.detail}</span>}
+                      {item.done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />}
+                      <span className={`text-[12px] flex-1 truncate ${item.done ? 'text-slate-700' : 'text-slate-400'}`}>{item.label}</span>
+                      {item.detail && <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{item.detail}</span>}
                     </div>
                   ))}
                 </div>
               </div>
               {skills.length > 0 ? (
-                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Your Skills</p>
+                <div className="bg-white rounded-lg p-3.5 border border-[#e2e8f0] shadow-xs">
+                  <p className="text-[11px] font-semibold text-[#1e3a8a] uppercase tracking-wide mb-2">Your Skills</p>
                   <div className="flex flex-wrap gap-1">
-                    {skills.slice(0, 8).map((s, i) => (<span key={i} className="text-[10px] bg-white text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium truncate max-w-full">{s}</span>))}
-                    {skills.length > 8 && <span className="text-[11px] text-blue-400 flex-shrink-0">+{skills.length - 8} more</span>}
+                    {skills.slice(0, 8).map((s, i) => (<span key={i} className="text-[10px] bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe] px-2 py-0.5 rounded-md font-medium truncate max-w-full">{s}</span>))}
+                    {skills.length > 8 && <span className="text-[11px] text-blue-600 font-medium flex-shrink-0">+{skills.length - 8} more</span>}
                   </div>
                 </div>
               ) : (
-                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Your Skills</p>
-                  <p className="text-[11px] text-gray-400">Upload a resume to extract skills</p>
+                <div className="bg-[#f8fafc] rounded-lg p-3.5 border border-[#e2e8f0]">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Your Skills</p>
+                  <p className="text-[11px] text-slate-400">Upload a resume to extract skills</p>
                 </div>
               )}
               {missingSkills.length > 0 && (
-                <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
-                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Skill Gaps</p>
-                  <div className="flex flex-wrap gap-1">{missingSkills.slice(0, 6).map((s, i) => (<span key={i} className="text-[10px] bg-white text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium truncate max-w-full">{s}</span>))}</div>
+                <div className="bg-white rounded-lg p-3.5 border border-amber-200 shadow-xs">
+                  <p className="text-[11px] font-semibold text-amber-900 uppercase tracking-wide mb-2">Skill Gaps</p>
+                  <div className="flex flex-wrap gap-1">{missingSkills.slice(0, 6).map((s, i) => (<span key={i} className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md font-medium truncate max-w-full">{s}</span>))}</div>
                 </div>
               )}
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide px-0.5">Navigate</p>
+              <div className="space-y-1.5 pt-1">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-0.5">Navigate</p>
                 {RIGHT_QUICK_NAV.map((item, i) => (
-                  <button key={i} onClick={() => onNavigate?.(item.page)} className={`w-full flex items-center gap-2 text-[12px] font-medium px-3 py-2 rounded-xl border transition-all hover:shadow-sm ${item.color}`}>
+                  <button key={i} onClick={() => onNavigate?.(item.page)} className={`w-full flex items-center gap-2 text-[12px] font-medium px-3 py-2 rounded-lg border transition-all hover:shadow-xs ${item.color}`}>
                     {item.icon} {item.label} <ChevronRight className="w-3 h-3 ml-auto opacity-60 flex-shrink-0" />
                   </button>
                 ))}
