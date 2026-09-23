@@ -1234,7 +1234,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                 </div>
               )}
               
-              {/* Write Review Section - Always show for candidates */}
+              {/* Write Review Section - Only for candidates */}
               {isCandidate && (
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
                   <div className="p-3 bg-gray-50 rounded-lg">
@@ -1474,6 +1474,11 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     Write a Review
                   </button>
                 )}
+                {isEmployer && (
+                  <span className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-medium">
+                    👁 Viewing as Company Owner
+                  </span>
+                )}
               </div>
               
               {/* Overall Rating */}
@@ -1588,6 +1593,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   >
                     Write the First Review
                   </button>
+                ) : isEmployer ? (
+                  <p className="text-sm text-gray-500">
+                    No reviews yet for your company. Reviews from candidates will appear here.
+                  </p>
                 ) : (
                   <p className="text-sm text-gray-500">
                     Login as a candidate to write a review

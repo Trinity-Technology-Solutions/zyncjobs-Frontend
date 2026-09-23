@@ -52,24 +52,31 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       if (response.ok) {
         const savedSettings = await response.json();
         setSettings(prev => ({ ...prev, ...savedSettings }));
+        await loadCandidateData({ ...settings, ...savedSettings });
       } else {
         const saved = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
-        if (saved) setSettings(JSON.parse(saved));
+        const parsed = saved ? JSON.parse(saved) : null;
+        if (parsed) setSettings(parsed);
+        await loadCandidateData(parsed || settings);
       }
     } catch {
       const saved = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
-      if (saved) setSettings(JSON.parse(saved));
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed) setSettings(parsed);
+      await loadCandidateData(parsed || settings);
     }
-    await loadCandidateData();
   };
 
-  const loadCandidateData = async () => {
+  const loadCandidateData = async (overrideSettings?: typeof settings) => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const userEmail = user.email;
       if (!userEmail) return;
 
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || sessionStorage.getItem('accessToken') || '';
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!response.ok) return;
 
       const allApplications = await response.json();
@@ -103,10 +110,12 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           ? Math.min(100, Math.max(0, Math.round(aiOverall)))
           : Math.round(skillsMatch * 0.6 + experienceMatch * 0.4);
 
-        const shouldReject = settings.autoReject && (
-          skillsMatch < settings.minSkillsMatch ||
-          experienceMatch < settings.minExperienceMatch ||
-          overallScore < settings.minOverallScore
+        // Read latest settings from DB response (passed in) or current state
+        const currentSettings = overrideSettings || settings;
+        const shouldReject = currentSettings.autoReject && (
+          (currentSettings.rejectReasons.skillsMismatch && skillsMatch < currentSettings.minSkillsMatch) ||
+          (currentSettings.rejectReasons.insufficientExperience && experienceMatch < currentSettings.minExperienceMatch) ||
+          overallScore < currentSettings.minOverallScore
         );
 
         let rejectionReason = null;
@@ -173,7 +182,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     if (candidateSkills.length === 0) return 0;
 
     const matched = requiredSkills.filter(req =>
-      candidateSkills.some(cs => cs.includes(req) || req.includes(cs))
+      candidateSkills.some((cs: string) => cs.includes(req) || req.includes(cs))
     ).length;
     return Math.round((matched / requiredSkills.length) * 100);
   };
@@ -264,9 +273,6 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       });
 
       if (response.ok) {
-        // Settings saved — do NOT auto-reject existing applications here.
-        // AI rejection only happens when employer manually triggers "AI Auto-Shortlist"
-        // in ApplicationManagementPage, then reviews and confirms each rejection.
         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'AI auto-rejection settings saved. These will apply when you run AI Auto-Shortlist on applications.' } }));
       } else {
         throw new Error('API save failed');
@@ -275,7 +281,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       localStorage.setItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`, JSON.stringify(settings));
       window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Settings saved locally." } }));
     }
-    await loadCandidateData();
+    await loadCandidateData(settings);
     if (onSave) onSave(settings);
   };
 

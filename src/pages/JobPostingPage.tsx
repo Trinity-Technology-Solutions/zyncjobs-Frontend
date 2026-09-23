@@ -459,13 +459,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const handleDefaultBannerSelect = (url: string) => {
     updateJobData('jobHeaderImage', url);
     setBannerType('default');
-    setShowBannerPicker(false);
+    // Picker stays open so user sees the selection highlighted; Done button closes it
   };
 
   const handleUploadedBanner = (url: string) => {
     updateJobData('jobHeaderImage', url);
     setBannerType('uploaded');
-    setShowBannerPicker(false);
+    // Keep picker open so user can see the uploaded result; they close it manually
   };
 
   const handleUploadRemove = () => {
@@ -518,6 +518,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     }
     return '';
   };
+
+  const jobDataRef = React.useRef(jobData);
+  useEffect(() => { jobDataRef.current = jobData; }, [jobData]);
 
   const updateJobData = (field: keyof JobData, value: any) => {
     setJobData(prev => ({ ...prev, [field]: value }));
@@ -653,8 +656,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     }
   }, []);
 
-  // When job title changes while on step 6, clear and regenerate JD for the new role
+  // Track the job title that was last used to generate the JD
   const prevJobTitleRef = React.useRef(jobData.jobTitle);
+  const lastGeneratedTitleRef = React.useRef(jobData.jobTitle);
   const titleChangedRef = React.useRef(false);
 
   useEffect(() => {
@@ -662,11 +666,22 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     prevJobTitleRef.current = jobData.jobTitle;
     if (jobData.jobTitle && jobData.jobTitle !== prev) {
       titleChangedRef.current = true;
+      // Always immediately update skills + education for the new title
+      const { skills: newSkills, education: newEducation } = getJobTitleDefaults(jobData.jobTitle);
+      setJobData(p => ({
+        ...p,
+        skills: newSkills,
+        educationLevel: newEducation,
+        // Also clear JD/resp/req so they regenerate fresh at step 6
+        jobDescription: '',
+        responsibilities: [],
+        requirements: [],
+      }));
+      // Fetch AI skill suggestions for the new title
+      fetchAISkillsForTitle(jobData.jobTitle);
       if (currentStep === 6) {
         titleChangedRef.current = false;
-        updateJobData('jobDescription', '');
-        updateJobData('responsibilities', []);
-        updateJobData('requirements', []);
+        lastGeneratedTitleRef.current = jobData.jobTitle;
         setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
       }
     }
@@ -677,9 +692,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   useEffect(() => {
     if (currentStep === 6 && titleChangedRef.current && jobData.jobTitle) {
       titleChangedRef.current = false;
-      updateJobData('jobDescription', '');
-      updateJobData('responsibilities', []);
-      updateJobData('requirements', []);
+      lastGeneratedTitleRef.current = jobData.jobTitle;
+      // Clear stale content immediately before generating for new title
+      setJobData(prev => ({ ...prev, jobDescription: '', responsibilities: [], requirements: [] }));
       setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1115,17 +1130,19 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       return;
     }
     setIsGeneratingDescription(true);
+    // Always read latest state via ref to avoid stale closure
+    const currentJobData = jobDataRef.current;
     try {
-      const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
+      const shouldIncludeSalary = salaryModified && currentJobData.minSalary && currentJobData.maxSalary;
       const context = {
-        jobType: jobData.jobType,
-        skills: jobData.skills,
-        salary: shouldIncludeSalary ? `${jobData.currency} ${formatSalary(jobData.minSalary)} - ${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
-        benefits: jobData.benefits,
-        educationLevel: jobData.educationLevel,
+        jobType: currentJobData.jobType,
+        skills: forceUpdate ? [] : currentJobData.skills,
+        salary: shouldIncludeSalary ? `${currentJobData.currency} ${formatSalary(currentJobData.minSalary)} - ${formatSalary(currentJobData.maxSalary)} ${currentJobData.payRate}` : undefined,
+        benefits: currentJobData.benefits,
+        educationLevel: currentJobData.educationLevel,
         existingDescription: '',  // always generate fresh — never recycle old JD
-        responsibilities: jobData.responsibilities.filter(Boolean),
-        requirements: jobData.requirements.filter(Boolean),
+        responsibilities: [],     // always empty so AI generates for the current jobTitle
+        requirements: [],         // always empty so AI generates for the current jobTitle
       };
 
       // Try AI first — fall back to local only if AI fails
@@ -1153,19 +1170,24 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         const { skills: titleSkills, education } = getJobTitleDefaults(jobTitle);
         const { responsibilities: titleResponsibilities, requirements: titleRequirements } = getJobTitleResponsibilitiesAndRequirements(jobTitle);
         const combinedSkills = [...new Set([...parsedSkills, ...titleSkills])].slice(0, 12);
-        if (jobData.skills.length === 0 || jobData.skills.every(s => ['AWS','Azure','GitHub','IT','Java','Linux','Python','SQL','Version control'].includes(s))) {
+        if (currentJobData.skills.length === 0 || currentJobData.skills.every(s => ['AWS','Azure','GitHub','IT','Java','Linux','Python','SQL','Version control'].includes(s))) {
           updateJobData('skills', combinedSkills);
         }
-        if (jobData.educationLevel === "Bachelor's degree") updateJobData('educationLevel', education);
-        if (jobData.responsibilities.length === 0) updateJobData('responsibilities', titleResponsibilities);
-        if (jobData.requirements.length === 0) updateJobData('requirements', titleRequirements);
+        if (currentJobData.educationLevel === "Bachelor's degree") updateJobData('educationLevel', education);
+        if (currentJobData.responsibilities.length === 0) updateJobData('responsibilities', titleResponsibilities);
+        if (currentJobData.requirements.length === 0) updateJobData('requirements', titleRequirements);
       } else {
-        updateJobData('skills', [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15));
-        // On regenerate, also extract responsibilities and requirements from the new JD
+        // forceUpdate: always replace skills/responsibilities/requirements for the new title
+        const { skills: titleSkills, education } = getJobTitleDefaults(jobTitle);
+        const { responsibilities: titleResponsibilities, requirements: titleRequirements } = getJobTitleResponsibilitiesAndRequirements(jobTitle);
+        const combinedSkills = [...new Set([...parsedSkills, ...titleSkills])].slice(0, 12);
+        updateJobData('skills', combinedSkills);
+        updateJobData('educationLevel', education);
+        // Extract from new JD first; fall back to title defaults
         const extractedResp = extractSectionFromJD(jdText, ['What You Will Do', 'Key Responsibilities', 'Job Responsibilities', 'Responsibilities']);
         const extractedReq = extractSectionFromJD(jdText, ['What We Are Looking For', 'Requirements', 'Qualifications']);
-        if (extractedResp.length > 0) updateJobData('responsibilities', extractedResp);
-        if (extractedReq.length > 0) updateJobData('requirements', extractedReq);
+        updateJobData('responsibilities', extractedResp.length > 0 ? extractedResp : titleResponsibilities);
+        updateJobData('requirements', extractedReq.length > 0 ? extractedReq : titleRequirements);
       }
       setNotification({ type: 'success', message: 'Job description generated!', isVisible: true });
     } catch (error) {
@@ -3095,7 +3117,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         
         <div className="flex justify-end mt-4">
           <button
-            onClick={() => generateJobDescription(jobData.jobTitle, true)}
+            onClick={() => {
+              // Clear stale JD/responsibilities/requirements before regenerating for current title
+              setJobData(prev => ({ ...prev, jobDescription: '', responsibilities: [], requirements: [] }));
+              setTimeout(() => generateJobDescription(jobData.jobTitle, true), 50);
+            }}
             disabled={!jobData.jobTitle || isGeneratingDescription}
             className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
           >
@@ -3175,27 +3201,51 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
               <h3 className="font-semibold text-gray-900">Choose Banner Image</h3>
               <button onClick={() => setShowBannerPicker(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
-            <div className="overflow-y-auto p-5 grid grid-cols-2 gap-3">
-              {bannerOptions.map((url) => (
-                <button key={url} type="button" onClick={() => handleDefaultBannerSelect(url)}
-                  className={`relative h-28 rounded-lg overflow-hidden border-2 transition-all ${bannerUrl === url ? 'border-blue-600 ring-2 ring-blue-300' : 'border-transparent hover:border-blue-400'}`}>
-                  <img src={url} alt="banner" className="w-full h-full object-cover" />
-                  {bannerUrl === url && (
-                    <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-white drop-shadow" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    </div>
-                  )}
-                </button>
-              ))}
+            {/* Scrollable body: preset grid + custom uploader */}
+            <div className="overflow-y-auto flex-1 min-h-0">
+              {/* Preset banners */}
+              {bannerOptions.length > 0 && (
+                <div className="px-5 pt-4 pb-3">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Preset Banners</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {bannerOptions.map((url) => (
+                      <button key={url} type="button" onClick={() => handleDefaultBannerSelect(url)}
+                        className={`relative h-24 rounded-lg overflow-hidden border-2 transition-all ${bannerUrl === url ? 'border-blue-600 ring-2 ring-blue-300' : 'border-transparent hover:border-blue-400'}`}>
+                        <img src={url} alt="banner" className="w-full h-full object-cover" />
+                        {bannerUrl === url && (
+                          <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center">
+                            <svg className="w-8 h-8 text-white drop-shadow" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom upload / URL */}
+              <div className="px-5 py-4 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Custom Banner</p>
+                <JobBannerUploader
+                  currentBanner={bannerType === 'uploaded' ? jobData.jobHeaderImage : ''}
+                  onChange={handleUploadedBanner}
+                  onRemove={handleUploadRemove}
+                />
+              </div>
             </div>
-            <div className="px-5 py-4 border-t">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Upload Custom Banner</label>
-              <JobBannerUploader
-                currentBanner={bannerType === 'uploaded' ? jobData.jobHeaderImage : ''}
-                onChange={handleUploadedBanner}
-                onRemove={handleUploadRemove}
-              />
-              <p className="text-xs text-gray-400 mt-1">Supported: JPG &#8226; PNG &#8226; WEBP</p>
+
+            {/* Sticky footer */}
+            <div className="shrink-0 px-5 py-3 border-t border-gray-200 bg-white flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-400">
+                {bannerType === 'uploaded' ? '✓ Custom banner selected' : 'Select a preset or upload a custom banner'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowBannerPicker(false)}
+                className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
@@ -3329,11 +3379,24 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
   const handleSubmit = async () => {
     // Check if user is logged in
     if (!user || !user.email) {
-      setNotification({
-        type: 'error',
-        message: 'You must be logged in to post a job',
-        isVisible: true
-      });
+      setNotification({ type: 'error', message: 'You must be logged in to post a job', isVisible: true });
+      return;
+    }
+
+    // Pre-submit field validation — catch missing required fields before hitting API
+    if (!jobData.jobTitle?.trim()) {
+      setNotification({ type: 'error', message: 'Job title is required', isVisible: true });
+      setCurrentStep(1);
+      return;
+    }
+    if (!jobData.jobLocation?.trim()) {
+      setNotification({ type: 'error', message: 'Job location is required', isVisible: true });
+      setCurrentStep(3);
+      return;
+    }
+    if (!jobData.jobDescription?.trim() && !(Array.isArray(jobData.responsibilities) && jobData.responsibilities.filter(Boolean).length > 0)) {
+      setNotification({ type: 'error', message: 'Job description is required. Please go to Step 6 and generate or write a description.', isVisible: true });
+      setCurrentStep(6);
       return;
     }
 
@@ -3390,14 +3453,22 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     const buildJobDescription = (): string => {
       const base = (jobData.jobDescription || '').trim();
       // Always use the base description if it exists — regardless of format
-      if (base) return base;
+      if (base) return base.length <= 5000 ? base : base.slice(0, base.lastIndexOf('.', 5000) + 1 || 5000).trim();
       // Fallback: build from responsibilities + requirements if no base JD
       const respItems = (Array.isArray(jobData.responsibilities) ? jobData.responsibilities : []).filter(Boolean);
       const reqItems = (Array.isArray(jobData.requirements) ? jobData.requirements : []).filter(Boolean);
       let full = '';
       if (respItems.length > 0) full += 'Key Responsibilities\n' + respItems.map(r => '\u2022 ' + r).join('\n') + '\n\n';
       if (reqItems.length > 0) full += 'Requirements\n' + reqItems.map(r => '\u2022 ' + r).join('\n');
-      return full.trim();
+      return full.trim().length <= 5000 ? full.trim() : full.trim().slice(0, full.trim().lastIndexOf('.', 5000) + 1 || 5000).trim();
+    };
+
+    // Map locationType -> workSetting ENUM ('Remote' | 'Hybrid' | 'On-site')
+    const mapWorkSetting = (lt: string): string => {
+      const v = (lt || '').toLowerCase();
+      if (v === 'remote') return 'Remote';
+      if (v === 'hybrid') return 'Hybrid';
+      return 'On-site';
     };
 
     const jobPostData = {
@@ -3442,6 +3513,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       positionId: generatePositionId(jobData.companyName || user?.companyName || ''),
       jobCategory: jobData.jobCategory || '',
       locationType: jobData.locationType || '',
+      workSetting: mapWorkSetting(jobData.locationType),
       language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
       languages: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
       country: jobData.country || '',
@@ -3451,11 +3523,8 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     };
     
     console.log('Posting job for user:', user.email);
-    console.log('JobType being sent:', jobPostData.jobType, 'Type:', typeof jobPostData.jobType);
-    console.log('Benefits being sent:', jobPostData.benefits, 'Type:', typeof jobPostData.benefits, 'IsArray:', Array.isArray(jobPostData.benefits));
-    console.log('Skills being sent:', jobPostData.skills, 'Type:', typeof jobPostData.skills, 'IsArray:', Array.isArray(jobPostData.skills));
-    console.log('Banner image being sent:', jobPostData.jobHeaderImage);
-    console.log('Full payload:', JSON.stringify(jobPostData, null, 2));
+    console.log('description length:', jobPostData.description?.length, '| first 100:', jobPostData.description?.slice(0, 100));
+    console.log('location:', jobPostData.location, '| jobType:', jobPostData.jobType, '| workSetting:', jobPostData.workSetting);
     
     try {
       const url = isEditMode ? `${API_ENDPOINTS.JOBS}/${editJobId}` : API_ENDPOINTS.JOBS;
@@ -3552,7 +3621,13 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         } else {
           try {
             const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error || errorJson.message || errorMessage;
+            console.error('Backend 400 error detail:', errorJson);
+            if (errorJson.errors && Array.isArray(errorJson.errors)) {
+              // express-validator returns { errors: [{msg, path}] }
+              errorMessage = errorJson.errors.map((e: any) => `${e.path}: ${e.msg}`).join(', ');
+            } else {
+              errorMessage = errorJson.error || errorJson.message || JSON.stringify(errorJson);
+            }
           } catch {
             errorMessage = errorText || errorMessage;
           }

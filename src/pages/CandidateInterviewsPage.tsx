@@ -451,7 +451,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
                           {(isUpcoming || interview.status === 'accepted') && joinUrl && (
                             <a
-                              href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
+                              href={joinUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md active:scale-95"

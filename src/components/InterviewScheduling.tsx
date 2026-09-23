@@ -242,12 +242,12 @@ const InterviewScheduling = () => {
               {interview.meetingLink && (
                 <div className="mb-4">
                   <a
-                    href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id || interview.id}/join`}
+                    href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id || interview.id}/host`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
                   >
-                    Join Meeting
+                    Start Meeting (Host)
                   </a>
                 </div>
               )}
