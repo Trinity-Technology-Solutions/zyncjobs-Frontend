@@ -119,7 +119,9 @@ const LoadingFallback = () => (
 const CandidateProfileViewWrapper: React.FC<{
   onNavigate: (page: string, params?: any) => void;
   navigate: (path: string) => void;
-}> = ({ onNavigate, navigate }) => {
+  onLogout: () => void;
+  user: any;
+}> = ({ onNavigate, navigate, onLogout, user }) => {
   const [searchParams] = useSearchParams();
   const candidateId = searchParams.get('id') || sessionStorage.getItem('viewCandidateId') || '';
   const handleBack = () => {
@@ -129,7 +131,7 @@ const CandidateProfileViewWrapper: React.FC<{
   };
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={handleBack} />
+      <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={handleBack} onLogout={onLogout} />
     </Suspense>
   );
 };
@@ -172,11 +174,15 @@ const DashboardRoute: React.FC<{
   const searchParams = new URLSearchParams(location.search);
   const hash = location.hash.replace('#', '');
   
-  // Determine intended role from query param, hash, or referrer
-  // Employer contexts: #interviews, #applications, #team, ?role=employer
+  // Determine intended role from query param, hash, stored lastUserType, or
+  // localStorage user record — so an employer who refreshes after a long idle
+  // period is sent to /employer-login, not the candidate /login page.
   const employerHashes = ['interviews', 'applications', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'];
-  const intendedRole = searchParams.get('role') || (employerHashes.includes(hash) ? 'employer' : 'candidate');
-  const redirectTo = intendedRole === 'employer' ? '/employer-login' : '/login';
+  const storedLastType = (() => { try { return localStorage.getItem('lastUserType') || JSON.parse(localStorage.getItem('user') || '{}').userType || ''; } catch { return ''; } })();
+  const intendedRole = searchParams.get('role') || (employerHashes.includes(hash) ? 'employer' : null) || storedLastType || 'candidate';
+  const redirectTo = intendedRole === 'employer' ? '/employer-login'
+    : (intendedRole === 'admin' || intendedRole === 'super_admin' || intendedRole === 'recruiter') ? '/admin/login'
+    : '/login';
 
   return (
     <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
@@ -625,7 +631,27 @@ function App() {
 
       // Verify token silently — only update state if data actually changed
       try {
-        const userData = await accountAPI.getMe();
+        let userData = await accountAPI.getMe();
+        // If getMe() returned null (e.g. expired access token), attempt one
+        // silent refresh before giving up so a long-idle employer session
+        // is restored correctly instead of being redirected to candidate login.
+        if (!userData) {
+          try {
+            const refreshToken = tokenStorage.getRefresh();
+            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: refreshToken ? JSON.stringify({ refreshToken }) : JSON.stringify({}),
+              credentials: 'include',
+            });
+            if (res.ok) {
+              const data = await res.json();
+              tokenStorage.setAccess(data.accessToken);
+              if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
+              userData = await accountAPI.getMe();
+            }
+          } catch { /* refresh failed — fall through to clear below */ }
+        }
         // Skip overwriting or clearing user if a login just happened in the last 5 seconds
         if (Date.now() - loginTimestamp.current < 5000) {
           setUserLoading(false);
@@ -963,11 +989,15 @@ function App() {
             } />
 
             <Route path="/candidate-ranking" element={
-              <CandidateRankingPage onNavigate={nav.onNavigate} user={user} onLogout={handleLogout} />
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+                <CandidateRankingPage onNavigate={nav.onNavigate} user={user} onLogout={handleLogout} />
+              </AuthGuard>
             } />
 
             <Route path="/ai-recruiter" element={
-              <AIRecruiterAssistant onNavigate={nav.onNavigate} onLogout={handleLogout} user={user} />
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+                <AIRecruiterAssistant onNavigate={nav.onNavigate} onLogout={handleLogout} user={user} />
+              </AuthGuard>
             } />
 
             <Route path="/skill-gap-analysis" element={
@@ -1025,7 +1055,7 @@ function App() {
 
             <Route path="/candidate-profile-view" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
-                <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
+                <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} onLogout={handleLogout} user={user} />
               </AuthGuard>
             } />
 

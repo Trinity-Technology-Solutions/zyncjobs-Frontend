@@ -96,6 +96,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [showLocSug, setShowLocSug] = useState(false);
   const jobTitleRef = useRef<HTMLDivElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
+  const sugFetchRef = useRef<NodeJS.Timeout>();
 
   const filteredJobTitles = useMemo(() => {
     if (!searchTerm.trim()) return jobTitleOptions.slice(0, 8);
@@ -129,6 +130,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [searchTrigger, setSearchTrigger] = useState(0);
   const fetchJobsRef = useRef<(...args: any[]) => void>();
+  const allJobsCacheRef = useRef<any[]>([]);
   const jobsPerPage = 10;
 
   // Preserve search filters + scroll when leaving and returning to this page
@@ -565,10 +567,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   
   useEffect(() => {
     if (jobs.length > 0) {
+      allJobsCacheRef.current = jobs;
       fetchCompanyLogos(jobs);
       const titles = [...new Set(jobs.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean))] as string[];
       setJobTitleOptions(titles.map(t => ({ value: t, label: t })));
       const locs = [...new Set(jobs.map((j: any) => (j.location || '').trim()).filter(Boolean))] as string[];
+      setLocationOptions(locs.map(l => ({ value: l, label: l })));
+    } else if (allJobsCacheRef.current.length > 0) {
+      // Keep suggestions from cache even when search returns 0 results
+      const titles = [...new Set(allJobsCacheRef.current.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean))] as string[];
+      setJobTitleOptions(titles.map(t => ({ value: t, label: t })));
+      const locs = [...new Set(allJobsCacheRef.current.map((j: any) => (j.location || '').trim()).filter(Boolean))] as string[];
       setLocationOptions(locs.map(l => ({ value: l, label: l })));
     }
   }, [jobs]);
@@ -793,7 +802,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Search Section */}
-      <div className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white border-b border-gray-100">
+      <div className="relative bg-gradient-to-b from-blue-50/80 via-white to-white border-b border-gray-100">
         {/* Back Button */}
         <BackButton
           fallback="/"
@@ -811,9 +820,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         />
 
         {/* Subtle Pastel Tints matching CandidateSearch */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/4 -right-24 w-[26rem] h-[26rem] bg-violet-400/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 -right-24 w-[26rem] h-[26rem] bg-violet-400/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl" />
+        </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
           {/* Header Content */}
@@ -901,10 +912,41 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       type="text"
                       value={searchTerm}
                       onChange={e => {
-                        setSearchTerm(e.target.value);
+                        const val = e.target.value;
+                        setSearchTerm(val);
                         setShowJobTitleSug(true);
+                        // Filter from cache immediately for instant suggestions
+                        if (allJobsCacheRef.current.length > 0) {
+                          const q = val.toLowerCase();
+                          const titles = [...new Set(allJobsCacheRef.current
+                            .map((j: any) => (j.title || j.jobTitle || '').trim())
+                            .filter((t: string) => t && (!q || t.toLowerCase().includes(q)))
+                          )] as string[];
+                          setJobTitleOptions(titles.slice(0, 8).map(t => ({ value: t, label: t })));
+                        }
+                        if (sugFetchRef.current) clearTimeout(sugFetchRef.current);
+                        sugFetchRef.current = setTimeout(async () => {
+                          try {
+                            const q = val.trim();
+                            const url = q
+                              ? `${API_ENDPOINTS.BASE_URL}/autocomplete/jobs?q=${encodeURIComponent(q)}`
+                              : `${API_ENDPOINTS.BASE_URL}/autocomplete/jobs`;
+                            const res = await apiFetch(url);
+                            if (res.ok) {
+                              const data = await res.json();
+                              const arr: string[] = Array.isArray(data) ? data : (data.suggestions || data.titles || data.data || []);
+                              if (arr.length > 0) setJobTitleOptions(arr.slice(0, 8).map((t: any) => ({ value: typeof t === 'string' ? t : t.title || t.value || t, label: typeof t === 'string' ? t : t.title || t.value || t })));
+                            }
+                          } catch {}
+                        }, 200);
                       }}
-                      onFocus={() => setShowJobTitleSug(true)}
+                      onFocus={() => {
+                        setShowJobTitleSug(true);
+                        if (allJobsCacheRef.current.length > 0 && jobTitleOptions.length === 0) {
+                          const titles = [...new Set(allJobsCacheRef.current.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean))] as string[];
+                          setJobTitleOptions(titles.slice(0, 8).map(t => ({ value: t, label: t })));
+                        }
+                      }}
                       onBlur={() => setTimeout(() => setShowJobTitleSug(false), 200)}
                       onKeyDown={e => {
                         if (e.key === 'Enter') {
@@ -954,10 +996,46 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       type="text"
                       value={location}
                       onChange={e => {
-                        setLocation(e.target.value);
+                        const val = e.target.value;
+                        setLocation(val);
                         setShowLocSug(true);
+                        // Filter from cache immediately
+                        if (allJobsCacheRef.current.length > 0) {
+                          const q = val.toLowerCase();
+                          const locs = [...new Set(allJobsCacheRef.current
+                            .map((j: any) => (j.location || '').trim())
+                            .filter((l: string) => l && (!q || l.toLowerCase().includes(q)))
+                          )] as string[];
+                          setLocationOptions(locs.slice(0, 8).map(l => ({ value: l, label: l })));
+                        }
+                        if (sugFetchRef.current) clearTimeout(sugFetchRef.current);
+                        sugFetchRef.current = setTimeout(async () => {
+                          try {
+                            const q = val.trim();
+                            const url = q
+                              ? `${API_ENDPOINTS.BASE_URL}/autocomplete/locations?q=${encodeURIComponent(q)}`
+                              : `${API_ENDPOINTS.BASE_URL}/autocomplete/locations`;
+                            const res = await apiFetch(url);
+                            if (res.ok) {
+                              const data = await res.json();
+                              const arr: any[] = Array.isArray(data) ? data : (data.suggestions || data.locations || data.data || []);
+                              if (arr.length > 0) setLocationOptions(arr.slice(0, 8).map((l: any) => ({ value: typeof l === 'string' ? l : l.name || l.city || l.value || l, label: typeof l === 'string' ? l : l.name || l.city || l.value || l })));
+                            }
+                          } catch {}
+                        }, 200);
                       }}
-                      onFocus={() => setShowLocSug(true)}
+                      onFocus={() => {
+                        setShowLocSug(true);
+                        if (locationOptions.length === 0) {
+                          apiFetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`)
+                            .then(r => r.ok ? r.json() : [])
+                            .then(data => {
+                              const arr: any[] = Array.isArray(data) ? data : (data.locations || data.data || []);
+                              setLocationOptions(arr.slice(0, 8).map((l: any) => ({ value: typeof l === 'string' ? l : l.name || l.city || l.value || l, label: typeof l === 'string' ? l : l.name || l.city || l.value || l })));
+                            })
+                            .catch(() => {});
+                        }
+                      }}
                       onBlur={() => setTimeout(() => setShowLocSug(false), 200)}
                       onKeyDown={e => {
                         if (e.key === 'Enter') {
@@ -1188,7 +1266,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
                   <AutocompleteCombobox
-                    label="Job Type"
                     value={filters.jobType}
                     onChange={(val) => handleFilterChange('jobType', val)}
                     options={[
@@ -1199,7 +1276,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       { value: 'Remote', label: 'Remote' },
                     ]}
                     placeholder="Select job type..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
@@ -1493,7 +1569,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
                 <AutocompleteCombobox
-                  label="Job Type"
                   value={filters.jobType}
                   onChange={(val) => handleFilterChange('jobType', val)}
                   options={[
@@ -1504,13 +1579,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     { value: 'Remote', label: 'Remote' },
                   ]}
                   placeholder="Select job type..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
                 <AutocompleteCombobox
-                  label="Experience"
                   value={filters.experience}
                   onChange={(val) => handleFilterChange('experience', val)}
                   options={[
@@ -1520,13 +1593,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     { value: 'Senior', label: 'Senior Level' },
                   ]}
                   placeholder="Select experience level..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
                 <AutocompleteCombobox
-                  label="Salary Range"
                   value={filters.salaryRange}
                   onChange={(val) => handleFilterChange('salaryRange', val)}
                   options={[
@@ -1536,7 +1607,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     { value: '150k+', label: '₹150k+' },
                   ]}
                   placeholder="Select salary range..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
             </div>

@@ -997,6 +997,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           candidateId={viewingCandidateId}
           onNavigate={onNavigate}
           onBack={() => setViewingCandidateId(null)}
+          onLogout={onLogout}
         />
       </div>
     );
@@ -2055,24 +2056,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {interview.meetingLink && (
                               <div className="mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
-                                  href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
+                                  href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/host`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors shadow-sm"
                                 >
                                   <Video className="w-3.5 h-3.5" />
-                                  <span>Join Meeting</span>
+                                  <span>Start Meeting</span>
                                 </a>
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`);
-                                    showToast('Meeting link copied!', 'success');
+                                    showToast('Candidate join link copied!', 'success');
                                   }}
                                   className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-600 border border-gray-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition-colors"
-                                  title="Copy meeting link"
+                                  title="Copy candidate join link"
                                 >
                                   <Link2 className="w-3.5 h-3.5" />
-                                  <span>Copy Link</span>
+                                  <span>Copy Candidate Link</span>
                                 </button>
                               </div>
                             )}
