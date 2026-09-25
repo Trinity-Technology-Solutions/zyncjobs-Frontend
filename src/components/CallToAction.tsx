@@ -34,14 +34,8 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
   return (
     <section 
       ref={sectionRef}
-      className="py-10 sm:py-14 lg:py-16 bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white text-center relative overflow-hidden"
+      className="py-10 sm:py-12 lg:py-14 bg-slate-900 text-white text-center relative overflow-hidden"
     >
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
-      </div>
-      
       <div className={`max-w-3xl mx-auto px-4 sm:px-6 relative z-10 transition-all duration-1000 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
       }`}>

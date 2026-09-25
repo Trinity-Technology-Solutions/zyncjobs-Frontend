@@ -78,10 +78,10 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-slate-50 border-y border-slate-100">
+    <section className="py-10 sm:py-12 lg:py-14 bg-slate-50 border-y border-slate-200/70">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12 lg:mb-14">
+        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-200/70 text-xs font-semibold text-orange-600 mb-3 tracking-wide">
             <span>Categories</span>
           </div>
@@ -94,7 +94,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.map((cat) => {
             const Icon = cat.icon;
 
@@ -111,7 +111,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
                     handleCategoryClick(cat);
                   }
                 }}
-                className="group relative bg-white rounded-xl border border-slate-100 shadow-sm p-5 sm:p-6 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:border-orange-400/80 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 select-none"
+                className="group relative bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:border-orange-300 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 select-none"
               >
                 <div>
                   {/* Top Row: Icon and subtle arrow indicator */}
@@ -146,7 +146,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
         </div>
 
         {/* View All Categories Action */}
-        <div className="mt-10 sm:mt-12 lg:mt-14 text-center">
+        <div className="mt-8 sm:mt-10 text-center">
           <button
             type="button"
             onClick={() => onNavigate && onNavigate('job-listings')}

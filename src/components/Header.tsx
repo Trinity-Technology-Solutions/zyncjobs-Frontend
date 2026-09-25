@@ -27,6 +27,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const { unreadCount: alertUnread } = useJobAlertStore(user?.type === 'candidate' ? user?.email : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
@@ -54,6 +55,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -193,9 +195,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     window.addEventListener('keydown', handleKeyDown);
     
     const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY <= 20) {
+        setIsHeaderVisible(true);
+      } else if (currentScrollY > lastScrollY.current + 2) {
+        setIsHeaderVisible(false);
+      } else if (currentScrollY < lastScrollY.current - 2) {
+        setIsHeaderVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+
       // Use standard scroll detection for the header glass effect
       // We keep it 'light' (isScrolled = true) by default for the new design
-      const scrolled = window.scrollY > 20;
+      const scrolled = currentScrollY > 20;
       
       let isOverDark = false;
       const headerCenterY = 40;
@@ -775,23 +787,27 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     <>
       <GlassFilter />
       <header
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        className="fixed top-0 left-0 right-0 z-50 bg-transparent px-2 pt-2 sm:px-4 sm:pt-3 transition-transform duration-300 ease-in-out"
+        style={{ transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)' }}
+      >
+      <div
+        className="mx-auto w-full max-w-[1440px] rounded-2xl border transition-all duration-300"
         style={isScrolled ? {
-          backdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
-          WebkitBackdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
-          background: 'rgba(255, 255, 255, 0.45)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.5)',
-          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.6)',
+          backdropFilter: 'blur(18px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+          background: 'rgba(255, 255, 255, 0.88)',
+          borderColor: 'transparent',
+          boxShadow: 'none',
         } : {
-          backdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
-          WebkitBackdropFilter: 'blur(24px) saturate(200%) brightness(1.1)',
-          background: 'rgba(20, 20, 25, 0.7)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+          backdropFilter: 'blur(18px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+          background: 'rgba(20, 20, 25, 0.82)',
+          borderColor: 'transparent',
+          boxShadow: 'none',
         }}
       >
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3 sm:py-4">
+      <div className="w-full px-4 sm:px-6 lg:px-7">
+        <div className="flex min-h-[64px] items-center justify-between gap-3 py-2.5 sm:min-h-[68px] sm:gap-4">
           <div className="flex-shrink-0">
             <button 
               onClick={() => onNavigate && onNavigate('home')}
@@ -801,13 +817,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <img 
                 src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
                 alt={siteSettings?.siteTitle || 'ZyncJobs'} 
-                className="h-10 sm:h-12 lg:h-16 w-auto object-contain"
+                className="h-11 sm:h-12 lg:h-[52px] w-auto object-contain"
               />
             </button>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8 text-base" aria-label="Main navigation">
+          <nav className="hidden lg:flex min-w-0 items-center gap-4 xl:gap-6 flex-1 justify-start ml-2 xl:ml-6 text-[15px] 2xl:text-base" aria-label="Main navigation">
             {isEmployerContext ? (
               <>
                 <button
@@ -870,7 +886,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   aria-haspopup="true"
                 >
                   <span>Career Resources</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-5 h-5 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isCareerDropdownOpen && (
                   <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" role="menu">
@@ -940,13 +956,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </nav>
 
           {/* Right side items */}
-          <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto text-base">
+          <div className="hidden lg:flex items-center gap-2 xl:gap-3 ml-auto text-[15px] 2xl:text-base">
 
             {/* For Employers Button - only when not logged in and outside employer context */}
             {!isEmployerContext && !user ? (
               <button 
                 onClick={handleEmployerPageClick}
-                className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded whitespace-nowrap"
+                className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded whitespace-nowrap"
                 title="Go to employer page"
               >
                 For Employers
@@ -958,7 +974,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`group flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                  className={`group flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
                     isDropdownOpen 
                       ? isScrolled
                         ? 'bg-blue-50/90 text-blue-700 shadow-sm border border-blue-200/80 ring-2 ring-blue-500/20' 
@@ -976,26 +992,26 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       <img 
                         src={profilePhoto} 
                         alt={displayName} 
-                        className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
+                        className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-xs ring-2 ring-white shadow-sm tracking-wide">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm tracking-wide">
                         {getInitials(displayName)}
                       </div>
                     )}
                     <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-400/20" />
                   </div>
 
-                  <span className={`text-sm font-semibold max-w-[120px] truncate leading-none ${isScrolled ? 'text-gray-800' : 'text-white'}`}>
+                  <span className={`text-base font-semibold max-w-[140px] truncate leading-none ${isScrolled ? 'text-gray-800' : 'text-white'}`}>
                     {firstName}
                   </span>
 
                   {isDropdownOpen ? (
-                    <PanelRightClose className={`w-4 h-4 transition-colors duration-200 flex-shrink-0 ${
+                    <PanelRightClose className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ${
                       isScrolled ? 'text-blue-600' : 'text-white'
                     }`} />
                   ) : (
-                    <PanelRight className={`w-4 h-4 transition-colors duration-200 flex-shrink-0 ${
+                    <PanelRight className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ${
                       isScrolled ? 'text-gray-400 group-hover:text-blue-600' : 'text-white/70 group-hover:text-white'
                     }`} />
                   )}
@@ -1006,14 +1022,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 {currentPath !== '/employer-login' && (
                   <button 
                     onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
-                    className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                    className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                   >
                     Employer Login
                   </button>
                 )}
                 <button 
                   onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
                 >
                   {currentPath === '/employer-login' ? 'Register' : 'Create Account'}
                 </button>
@@ -1023,7 +1039,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 {currentPath !== '/candidate-register' && currentPath !== '/role-selection' && (
                   <button 
                     onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-register'); }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
                   >
                     Register
                   </button>
@@ -1031,7 +1047,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 {(currentPath === '/candidate-register' || currentPath === '/role-selection') && (
                   <button 
                     onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('login'); }}
-                    className="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                    className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                   >
                     Login
                   </button>
@@ -1046,7 +1062,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   aria-haspopup="true"
                 >
                   <span>Login/Register</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" role="menu">
@@ -1080,7 +1096,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </div>
 
           {/* Mobile menu and profile buttons */}
-          <div className="lg:hidden flex items-center space-x-2 flex-shrink-0">
+          <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
             {user && (
               <div className="relative" ref={mobileDropdownRef}>
                 <button
@@ -1093,13 +1109,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 >
                   <div className="relative flex-shrink-0">
                     {profilePhoto ? (
-                      <img 
-                        src={profilePhoto} 
-                        alt={displayName} 
-                        className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
+                    <img 
+                      src={profilePhoto} 
+                      alt={displayName} 
+                      className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-xs ring-2 ring-white shadow-sm tracking-wide">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm tracking-wide">
                         {getInitials(displayName)}
                       </div>
                     )}
@@ -1111,25 +1127,24 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="relative p-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="relative p-2.5 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-menu"
               type="button"
             >
-              <div className="w-6 h-6 flex flex-col justify-center items-center">
-                <span className={`block h-0.5 w-6 bg-current transform transition-all duration-300 ease-out ${isMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-                <span className={`block h-0.5 w-6 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? 'opacity-0 scale-0' : ''}`} />
-                <span className={`block h-0.5 w-6 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+              <div className="w-7 h-7 flex flex-col justify-center items-center">
+                <span className={`block h-0.5 w-7 bg-current transform transition-all duration-300 ease-out ${isMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+                <span className={`block h-0.5 w-7 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? 'opacity-0 scale-0' : ''}`} />
+                <span className={`block h-0.5 w-7 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
               </div>
             </button>
           </div>
         </div>
       </div>
+      </div>
     </header>
 
-    {/* Spacer to push page content below the fixed header */}
-    <div className="h-[74px] sm:h-[82px] lg:h-[97px]" aria-hidden="true" />
     {renderProfileDrawer()}
     <MobileHamburgerMenu 
       isOpen={isMenuOpen}

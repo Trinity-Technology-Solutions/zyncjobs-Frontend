@@ -297,44 +297,42 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
   return (
     <div
-      className="relative w-full overflow-hidden bg-[#FAFBFC]"
+      className="relative w-full overflow-hidden bg-slate-50"
       style={{ 
-        minHeight: 'clamp(500px, calc(100vh - 80px), 840px)',
+        minHeight: 'clamp(480px, calc(100svh - var(--header-h, 64px)), 760px)',
       }}
     >
       {/* Background Decoratives - Professional Corporate Aesthetic */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        
         {/* Subtle Atmospheric Glows for Depth */}
         <div className="absolute left-[-10%] top-[10%] w-[50%] h-[70%] bg-[#f0f4f8]/60 rounded-full blur-[100px]" />
         <div className="absolute right-[-5%] bottom-[-10%] w-[40%] h-[60%] bg-[#eef2f6]/60 rounded-full blur-[100px]" />
-        
+
         {/* Subtle Dotted Grid in the center-right transition area */}
-        <div 
+        <div
           className="absolute left-[45%] lg:left-[50%] top-[30%] w-[250px] h-[350px] opacity-[0.35]"
-          style={{ 
-            backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)', 
+          style={{
+            backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)',
             backgroundSize: '22px 22px',
             maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)',
             WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)'
-          }} 
+          }}
         />
-        
+
         {/* Left Side: Intricate Parametric Wave Mesh */}
         <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.08] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
           {Array.from({ length: 45 }).map((_, i) => (
-            <path 
-              key={`wave-${i}`} 
+            <path
+              key={`wave-${i}`}
               d={`M -50 ${-100 + i * 25} C ${150 + i * 8} ${100 + i * 15}, ${300 - i * 4} ${500 + i * 12}, ${50 + i * 15} 1100`}
-              stroke="currentColor" 
-              strokeWidth="1" 
+              stroke="currentColor"
+              strokeWidth="1"
             />
           ))}
         </svg>
-
       </div>
 
-      <div className="relative z-10 w-full max-w-[1440px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
                       grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-8 xl:gap-12 items-center">
 
         {/* ════ LEFT — Content ════ */}
@@ -348,12 +346,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
             Let AI Find Your Next Move
           </div>
           
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-[1.1] tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-bold text-gray-900 leading-[1.1] tracking-tight">
             <span className="inline-block whitespace-nowrap">Your <span className="text-orange-500">Dream</span> Job Is</span><br />
             <span className="inline-block whitespace-nowrap">Waiting For You</span>
           </h1>
           
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl lg:max-w-none lg:whitespace-nowrap">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl">
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 

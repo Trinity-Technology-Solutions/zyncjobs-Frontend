@@ -178,7 +178,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
 
   if (loading) {
     return (
-      <div className="bg-white py-16">
+      <div className="bg-white py-10 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">Loading latest jobs...</div>
         </div>
@@ -187,7 +187,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   }
 
   return (
-    <div className="bg-white py-8 sm:py-12">
+    <section className="bg-white py-10 sm:py-12 lg:py-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6 sm:mb-8 space-y-2.5 sm:space-y-3 text-center max-w-3xl mx-auto px-2">
           {/* Heading */}
@@ -209,7 +209,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
               {jobs.map((job) => (
-                <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-lg transition-all duration-300 flex flex-col justify-between h-full">
+                <div key={getId(job)} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full">
                   <div>
                     <div className="flex items-center mb-4 min-w-0">
                       <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-3 sm:mr-4">
@@ -288,7 +288,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
         )}
       </div>
       
-    </div>
+    </section>
   );
 };
 

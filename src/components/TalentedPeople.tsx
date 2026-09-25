@@ -36,8 +36,8 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-white via-blue-50/20 to-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
+    <section ref={sectionRef} className="py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-8 lg:gap-10 items-center">
         
         {/* LEFT CONTENT */}
         <div 
@@ -112,9 +112,9 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
       </div>
 
       {/* Company Logos Section / Lightweight Divider Bar */}
-      <div className="w-full bg-white border-y border-slate-100 mt-12 sm:mt-16 py-8 sm:py-10">
+      <div className="w-full bg-slate-50 border-y border-slate-200/70 mt-10 sm:mt-12 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-gray-400 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-6 sm:mb-8">
+          <p className="text-center text-gray-500 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-5 sm:mb-6">
             Trusted by top companies
           </p>
           <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10 md:gap-14 lg:gap-16">
