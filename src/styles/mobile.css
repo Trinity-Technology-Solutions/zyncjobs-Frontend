@@ -1,5 +1,38 @@
 /* Mobile-First Responsive Design */
 
+/* Header height tokens & responsive layout offset */
+:root {
+  --header-h: 74px;
+  --header-offset: 74px;
+}
+@media (min-width: 640px) {
+  :root {
+    --header-h: 82px;
+    --header-offset: 82px;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --header-h: 86px;
+    --header-offset: 86px;
+  }
+}
+
+/* Header offset on shared layout wrapper for all non-home pages */
+#main-content.has-header-offset {
+  padding-top: 74px;
+}
+@media (min-width: 640px) {
+  #main-content.has-header-offset {
+    padding-top: 82px;
+  }
+}
+@media (min-width: 1024px) {
+  #main-content.has-header-offset {
+    padding-top: 86px;
+  }
+}
+
 /* Base mobile styles */
 @media (max-width: 640px) {
   /* Typography */

@@ -184,7 +184,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         </div>
       )}
 
-      <div className="flex flex-1 lg:min-h-[calc(100vh-97px)]">
+      <div className="flex flex-1 lg:min-h-[calc(100vh-86px)]">
 
         {/* LEFT PANEL */}
         <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-[#fffaf2] border-r border-[#eadfce]">

@@ -681,7 +681,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       }
     >
       {/* 3-column candidate workspace: sidebars and center scroll independently */}
-      <div className="h-screen flex flex-col bg-[#f8fafc]">
+      <div className="h-[calc(100vh-74px)] sm:h-[calc(100vh-82px)] lg:h-[calc(100vh-86px)] flex flex-col bg-[#f8fafc]">
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
         <div className="flex flex-1 min-h-0">

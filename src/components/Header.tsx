@@ -787,7 +787,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     <>
       <GlassFilter />
       <header
-        className="fixed top-0 left-0 right-0 z-50 bg-transparent px-2 pt-2 sm:px-4 sm:pt-3 transition-transform duration-300 ease-in-out"
+        className="zync-site-header fixed top-0 left-0 right-0 z-50 bg-transparent px-2 pt-2 sm:px-4 sm:pt-3 transition-transform duration-300 ease-in-out"
         style={{ transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)' }}
       >
       <div

@@ -364,7 +364,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     <div className="min-h-screen flex flex-col overflow-x-hidden bg-[#f7f4ef]">
       <Header onNavigate={onNavigate} />
 
-      <div className="flex flex-1 lg:min-h-[calc(100vh-97px)]">
+      <div className="flex flex-1 lg:min-h-[calc(100vh-86px)]">
 
         {/* LEFT PANEL */}
         <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-[#fffaf2] border-r border-[#eadfce]">

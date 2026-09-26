@@ -266,6 +266,7 @@ function App() {
 
   const [user, setUser] = useState<UserType | null>(getInitialUser);
   const loginTimestamp = React.useRef<number>(0);
+  const isHomePage = location.pathname === '/' && user?.type !== 'employer';
   // If we already have user from localStorage and no refresh token, skip loading state
   const [userLoading, setUserLoading] = useState(() => {
     const hasRefreshToken = !!tokenStorage.getRefresh();
@@ -787,14 +788,14 @@ function App() {
       />
 
       <Suspense fallback={<LoadingFallback />}>
-        <main id="main-content">
+        <main id="main-content" className={isHomePage ? '' : 'has-header-offset pt-[74px] sm:pt-[82px] lg:pt-[86px]'}>
           <Routes>
             {/* -- Public home -- */}
             <Route path="/" element={
               user?.type === 'employer' ? (
                 <EmployersPage {...nav} />
               ) : (
-              <div className="min-h-screen bg-white overflow-x-clip -mt-[var(--header-h)]">
+              <div className="min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
                 <NewHero onNavigate={handleNavigation} />
                 <CompanyCarousel />
@@ -811,10 +812,8 @@ function App() {
 
             <Route path="/candidate-messages" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-                  <div style={{ flexShrink: 0 }}>
-                    <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-                  </div>
+                <div className="h-[calc(100vh-74px)] sm:h-[calc(100vh-82px)] lg:h-[calc(100vh-86px)] flex flex-col overflow-hidden">
+                  <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
                     <CandidateMessagesPage onNavigate={handleNavigation} />
                   </div>
@@ -899,10 +898,8 @@ function App() {
 
             <Route path="/candidate-messages" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-                  <div style={{ flexShrink: 0 }}>
-                    <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-                  </div>
+                <div className="h-[calc(100vh-74px)] sm:h-[calc(100vh-82px)] lg:h-[calc(100vh-86px)] flex flex-col overflow-hidden">
+                  <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
                     <CandidateMessagesPage onNavigate={handleNavigation} />
                   </div>
