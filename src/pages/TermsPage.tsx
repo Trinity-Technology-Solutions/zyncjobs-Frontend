@@ -64,7 +64,7 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
             {activeTab === 'terms' ? <FileText className="w-8 h-8 text-gray-600" /> : <Building2 className="w-8 h-8 text-gray-600" />}
             <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Legal</span>
           </div>
-          <h1 className="text-4xl font-bold mb-2 text-gray-900">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 leading-[1.15] tracking-[-0.02em] text-gray-900">
             <span className={`bg-gradient-to-r bg-clip-text text-transparent ${
               activeTab === 'terms' 
                 ? 'from-blue-600 to-indigo-600' 
@@ -73,7 +73,7 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
               {activeTab === 'terms' ? 'Terms & Conditions' : 'Employer Declaration'}
             </span>
           </h1>
-          <p className="text-gray-600 text-sm">Last updated: June 2025 · ZyncJobs Platform</p>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl px-4">Last updated: June 2025 · ZyncJobs Platform</p>
         </div>
       </div>
 

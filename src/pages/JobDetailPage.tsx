@@ -288,15 +288,21 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     canonicalEl.href = canonicalUrl;
     
     setMeta('og:title', `${jobTitle} at ${companyName}`);
-    setMeta('og:description', description.substring(0, 160) + '...');
+    setMeta('og:description', description.substring(0, 160));
     setMeta('og:url', ogUrl);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'ZyncJobs');
-    const ogImageUrl = `${backendUrl}/og/job-image?id=${job.id || job._id}`;
+    // Use a static, publicly accessible OG image — Facebook requires an absolute URL
+    // that returns a real image (not a blank/dynamic endpoint that may fail).
+    const staticOgImage = `${window.location.origin}/images/zyncjobs-og-image.png`;
+    const jobHeaderImage = job.jobHeaderImage && !job.jobHeaderImage.startsWith('blob:') ? job.jobHeaderImage : null;
+    const ogImageUrl = jobHeaderImage || staticOgImage;
     setMeta('og:image', ogImageUrl);
+    setMeta('og:image:secure_url', ogImageUrl);
     setMeta('og:image:width', '1200');
     setMeta('og:image:height', '630');
     setMeta('og:image:type', 'image/png');
+    setMeta('og:image:alt', `${jobTitle} at ${companyName} | ZyncJobs`);
     
     // Set Twitter meta tags
     const setTwitterMeta = (name: string, content: string) => {
@@ -307,9 +313,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     
     setTwitterMeta('twitter:card', 'summary_large_image');
     setTwitterMeta('twitter:title', `${jobTitle} at ${companyName}`);
-    setTwitterMeta('twitter:description', description.substring(0, 160) + '...');
+    setTwitterMeta('twitter:description', description.substring(0, 160));
     setTwitterMeta('twitter:url', ogUrl);
-    if (job.jobHeaderImage) setTwitterMeta('twitter:image', job.jobHeaderImage);
+    setTwitterMeta('twitter:image', jobHeaderImage || staticOgImage);
   }, [job]);
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
@@ -937,12 +943,18 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
             {/* Benefits */}
             {(() => {
-              // Normalise job.benefits to an array
+              // Normalise job.benefits to an array — handles plain array, CSV string, or HTML string
+              const stripHtml = (html: string) => html.replace(/<[^>]+>/g, '').trim();
+              const extractLiItems = (html: string): string[] =>
+                [...html.matchAll(/<li[^>]*>(.*?)<\/li>/gis)].map(m => stripHtml(m[1])).filter(Boolean);
               let benefitsList: string[] = [];
               if (Array.isArray(job.benefits) && job.benefits.length > 0) {
-                benefitsList = job.benefits.filter(Boolean);
+                benefitsList = job.benefits.flatMap((b: string) =>
+                  typeof b === 'string' && b.includes('<li') ? extractLiItems(b) : [stripHtml(String(b))]
+                ).filter(Boolean);
               } else if (typeof job.benefits === 'string' && job.benefits.trim()) {
-                benefitsList = job.benefits.split(',').map((s: string) => s.trim()).filter(Boolean);
+                const raw = job.benefits.trim();
+                benefitsList = raw.includes('<li') ? extractLiItems(raw) : raw.split(',').map((s: string) => s.trim()).filter(Boolean);
               }
 
               // Fallback: extract from "What We Offer" section in jobDescription

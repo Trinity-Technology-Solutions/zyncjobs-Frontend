@@ -13,6 +13,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@react-pdf/renderer': '@react-pdf/renderer/lib/react-pdf.browser.js',
+      },
+    },
     build: {
       outDir: mode === 'qa' ? 'zync-site' : 'dist',
       rollupOptions: {

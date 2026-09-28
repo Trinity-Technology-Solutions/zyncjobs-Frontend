@@ -101,10 +101,10 @@ const CompanyJobsPage = ({
         
         {/* Company Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
             {companyName}
           </h1>
-          <p className="text-gray-600 text-lg">Company Job Postings & Statistics</p>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl px-4">Company Job Postings & Statistics</p>
         </div>
 
         {loading ? (

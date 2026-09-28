@@ -127,139 +127,91 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
       const storedProfile = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
       const baseProfile = propUser || storedProfile;
       const userId = baseProfile.id || baseProfile._id;
-      
+
       if (!userId) {
         flash('Could not identify user for data export.', false);
         return;
       }
-      
-      // Try to get data from backend first
-      let backendData = null;
+
+      const API = import.meta.env.VITE_API_URL || '/api';
+      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+      let profile: any = { ...baseProfile };
+      let jobs: any[] = [];
+      let applications: any[] = [];
+      let savedJobs: any[] = [];
+
+      // Fetch latest profile
       try {
-        backendData = await accountAPI.exportUserData(userId);
-        console.log('Backend data export successful:', backendData);
-      } catch (error) {
-        console.warn('Backend data export failed, using local data:', error);
-      }
-      
-      // Use backend data if available, otherwise fall back to local data
-      let profile, jobs, applications, savedJobs;
-      
-      if (backendData && backendData.data) {
-        const data = backendData.data;
-        profile = data.profile;
-        jobs = data.jobs || [];
-        applications = data.applications || [];
-        savedJobs = []; // Backend doesn't store saved jobs, get from localStorage
-        
-        // Still get saved jobs from localStorage as fallback
-        const userKey = profile.email || profile.name || 'user';
-        const savedJobsKey = `savedJobDetails_${userKey}`;
-        const savedJobsData = localStorage.getItem(savedJobsKey);
-        if (savedJobsData) {
-          try {
-            savedJobs = JSON.parse(savedJobsData) || [];
-          } catch { /* ignore */ }
-        }
-      } else {
-        // Fallback to original local data method
-        const API = import.meta.env.VITE_API_URL || '/api';
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
-        const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-        
-        profile = { ...baseProfile };
-        jobs = [];
-        applications = [];
-        savedJobs = [];
-        
-        // Fetch profile data
+        const res = await fetch(`${API}/users/${userId}`, { headers: authHeaders });
+        if (res.ok) profile = { ...profile, ...await res.json() };
+      } catch { /* use stored profile */ }
+
+      const email = profile.email || '';
+
+      if (isEmployer) {
+        // Fetch jobs posted by this employer
         try {
-          const email = baseProfile.email || '';
-          if (userId || email) {
-            const [userRes, profileRes] = await Promise.all([
-              userId ? fetch(`${API}/users/${userId}`, { headers: authHeaders }) : Promise.resolve(null),
-              fetch(`${API}/profile/${encodeURIComponent(userId || email)}`, { headers: authHeaders }),
-            ]);
-            if (userRes && userRes.ok) {
-              const userData = await userRes.json();
-              profile = { ...profile, ...userData };
-            }
-            if (profileRes && profileRes.ok) {
-              const profileData = await profileRes.json();
-              profile = { ...profile, ...profileData };
-            }
+          const res = await fetch(`${API}/jobs?employerEmail=${encodeURIComponent(email)}&limit=200`, { headers: authHeaders });
+          if (res.ok) {
+            const data = await res.json();
+            const arr: any[] = Array.isArray(data) ? data : (data.jobs || []);
+            // Accept jobs matching by email OR by userId (postedBy field)
+            jobs = arr.filter((j: any) =>
+              j.employerEmail?.toLowerCase() === email.toLowerCase() ||
+              j.postedBy?.toLowerCase() === email.toLowerCase() ||
+              j.postedByEmail?.toLowerCase() === email.toLowerCase() ||
+              String(j.userId || j.employerId) === String(userId)
+            );
+            // If filter returns nothing, trust the endpoint already scoped to employer
+            if (jobs.length === 0) jobs = arr;
           }
-        } catch { /* use stored profile */ }
-        
-        // Fetch jobs & applications based on user type
-        if (isEmployer) {
-          try {
-            const email = profile.email || '';
-            const [jobsRes, appsRes] = await Promise.all([
-              fetch(`${API}/jobs?employerEmail=${encodeURIComponent(email)}&limit=100`, { headers: authHeaders }),
-              fetch(`${API}/applications?employerEmail=${encodeURIComponent(email)}&limit=200`, { headers: authHeaders }),
-            ]);
-            if (jobsRes.ok) {
-              const allJobs = await jobsRes.json();
-              const arr: any[] = Array.isArray(allJobs) ? allJobs : (allJobs.jobs || []);
-              jobs = arr.filter((j: any) =>
-                j.employerEmail?.toLowerCase() === email.toLowerCase() ||
-                j.postedBy?.toLowerCase() === email.toLowerCase()
-              );
-            }
-            if (appsRes.ok) {
-              const appsData = await appsRes.json();
-              const allApps: any[] = appsData.applications || (Array.isArray(appsData) ? appsData : []);
-              applications = allApps.filter((a: any) =>
-                a.employerEmail?.toLowerCase() === email.toLowerCase()
-              );
-            }
-          } catch { /* use empty arrays */ }
-        } else {
-          try {
-            const email = profile.email || '';
-            const appsRes = await fetch(`${API}/applications/candidate/${encodeURIComponent(email)}`, { headers: authHeaders });
-            if (appsRes.ok) {
-              applications = await appsRes.json();
-            }
-            
-            const userKey = profile.email || profile.name || 'user';
-            const savedJobsKey = `savedJobDetails_${userKey}`;
-            const savedJobsData = localStorage.getItem(savedJobsKey);
-            if (savedJobsData) {
-              try {
-                savedJobs = JSON.parse(savedJobsData) || [];
-              } catch { /* ignore */ }
-            }
-          } catch { /* use empty arrays */ }
-        }
+        } catch { /* empty */ }
+
+        // Fetch applications received by this employer
+        try {
+          const res = await fetch(`${API}/applications?employerEmail=${encodeURIComponent(email)}&limit=500`, { headers: authHeaders });
+          if (res.ok) {
+            const data = await res.json();
+            const arr: any[] = data.applications || (Array.isArray(data) ? data : []);
+            applications = arr.filter((a: any) =>
+              a.employerEmail?.toLowerCase() === email.toLowerCase() ||
+              String(a.employerId || a.postedById) === String(userId)
+            );
+            if (applications.length === 0) applications = arr;
+          }
+        } catch { /* empty */ }
+      } else {
+        // Candidate: fetch their applications
+        try {
+          const res = await fetch(`${API}/applications/candidate/${encodeURIComponent(email)}`, { headers: authHeaders });
+          if (res.ok) applications = await res.json();
+        } catch { /* empty */ }
+
+        // Saved jobs from localStorage
+        const savedJobsData = localStorage.getItem(`savedJobDetails_${email || profile.name || 'user'}`);
+        if (savedJobsData) { try { savedJobs = JSON.parse(savedJobsData) || []; } catch { /* ignore */ } }
       }
 
-      // Build job title lookup map: jobId -> jobTitle
+      // Build jobId -> title lookup
       const jobTitleMap: Record<string, string> = {};
       jobs.forEach((j: any) => {
         const id = j.id || j._id;
-        if (id) jobTitleMap[id] = j.jobTitle || j.title || '';
+        if (id) jobTitleMap[String(id)] = j.jobTitle || j.title || '';
       });
-      
-      // Also fetch individual job titles for applications whose jobId isn't in our jobs list
+
+      // Fetch titles for any application jobIds not already in the map
       const missingJobIds = [...new Set(
         applications
-          .filter((a: any) => a.jobId && !jobTitleMap[a.jobId])
-          .map((a: any) => a.jobId)
-      )];
-      if (missingJobIds.length > 0 && !backendData) {
-        const API = import.meta.env.VITE_API_URL || '/api';
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
-        const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-        
-        await Promise.all((missingJobIds as string[]).map(async (jobId: string) => {
+          .map((a: any) => String(a.jobId?._id || a.jobId?.id || (typeof a.jobId === 'string' ? a.jobId : '')))
+          .filter(id => id && !jobTitleMap[id])
+      )] as string[];
+      if (missingJobIds.length > 0) {
+        await Promise.all(missingJobIds.map(async (jid) => {
           try {
-            const jRes = await fetch(`${API}/jobs/${jobId}`, { headers: authHeaders });
-            if (jRes.ok) {
-              const jData = await jRes.json();
-              jobTitleMap[jobId] = jData.jobTitle || jData.title || '';
-            }
+            const r = await fetch(`${API}/jobs/${jid}`, { headers: authHeaders });
+            if (r.ok) { const d = await r.json(); jobTitleMap[jid] = d.jobTitle || d.title || ''; }
           } catch { /* skip */ }
         }));
       }
@@ -536,7 +488,8 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
             y += 7;
 
             // Applied Role — look up from jobTitleMap
-            const appliedRole = jobTitleMap[app.jobId] || app.jobTitle || app.appliedJobTitle || app.jobName || '';
+            const appJobId = String(app.jobId?._id || app.jobId?.id || (typeof app.jobId === 'string' ? app.jobId : ''));
+            const appliedRole = jobTitleMap[appJobId] || app.jobTitle || app.appliedJobTitle || app.jobName || '';
             checkY(8);
             const arY = y;
             doc.setFillColor(248, 250, 252); doc.rect(margin + 4, arY - 2, contentW - 4, 7, 'F');
@@ -720,7 +673,7 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
 
       <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
         <BackButton
-          fallback="/settings"
+          onClick={() => onNavigate('settings')}
           text="Back to Settings"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-6 transition-colors"
         />

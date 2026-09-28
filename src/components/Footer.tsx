@@ -60,14 +60,14 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
 
   return (
     <footer className="bg-white text-gray-900 border-t border-gray-200" role="contentinfo" aria-label="Site footer">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="mb-6 sm:mb-8">
           <img 
             src="/images/zyncjobs-logo.png" 
             alt="ZyncJobs" 
-            className="h-32 w-auto mb-6"
+            className="h-9 sm:h-11 w-auto mb-3 sm:mb-4 object-contain"
           />
-          <p className="text-gray-600 mb-6 leading-relaxed max-w-2xl">
+          <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-5 leading-relaxed max-w-2xl">
             The smart platform connecting job seekers and employers across every field and industry. Find jobs, hire talent, and grow your career.
           </p>
           <div className="flex items-center gap-4">
@@ -86,16 +86,16 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {!isEmployer && (
           <div>
-            <h4 className="text-lg font-semibold mb-6" id="footer-jobseekers">For Job Seekers</h4>
-            <ul className="space-y-3" aria-labelledby="footer-jobseekers">
+            <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900" id="footer-jobseekers">For Job Seekers</h4>
+            <ul className="space-y-2.5 sm:space-y-3" aria-labelledby="footer-jobseekers">
               {jobSeekerLinks.map((link, index) => (
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left text-sm sm:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     {link.name}
                   </button>
@@ -108,13 +108,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           {/* For Employers — hidden on candidate-facing pages */}
           {!isCandidate && (
           <div>
-            <h4 className="text-lg font-semibold mb-6" id="footer-employers">For Employers</h4>
-            <ul className="space-y-3" aria-labelledby="footer-employers">
+            <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900" id="footer-employers">For Employers</h4>
+            <ul className="space-y-2.5 sm:space-y-3" aria-labelledby="footer-employers">
               {employerLinks.map((link, index) => (
                 <li key={index}>
                   <button
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left text-sm sm:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     {link.name}
                   </button>
@@ -126,13 +126,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           
           {resourceLinks.length > 0 && (
           <div>
-            <h4 className="text-lg font-semibold mb-6" id="footer-resources">Resources</h4>
-            <ul className="space-y-3" aria-labelledby="footer-resources">
+            <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900" id="footer-resources">Resources</h4>
+            <ul className="space-y-2.5 sm:space-y-3" aria-labelledby="footer-resources">
               {resourceLinks.map((link, index) => (
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-left text-sm sm:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     <link.icon className="w-4 h-4 flex-shrink-0" />
                     {link.name}
@@ -144,13 +144,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           )}
           
           <div>
-            <h4 className="text-lg font-semibold mb-6" id="footer-company">Company</h4>
-            <ul className="space-y-3" aria-labelledby="footer-company">
+            <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900" id="footer-company">Company</h4>
+            <ul className="space-y-2.5 sm:space-y-3" aria-labelledby="footer-company">
               {companyLinks.map((link, index) => (
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left text-sm sm:text-base cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     {link.name}
                   </button>
@@ -160,12 +160,12 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           </div>
         </div>
         
-        <div className="border-t border-gray-200 mt-12 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-gray-500 text-sm mb-4 md:mb-0">
+        <div className="border-t border-gray-200 mt-8 sm:mt-10 pt-5 sm:pt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-gray-500 text-xs sm:text-sm text-center sm:text-left">
               © 2026 ZyncJobs. All rights reserved.
             </div>
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex flex-wrap justify-center sm:justify-end gap-4 sm:gap-6 text-xs sm:text-sm">
               {legalLinks.map((link, index) => (
                 <button
                   key={index}

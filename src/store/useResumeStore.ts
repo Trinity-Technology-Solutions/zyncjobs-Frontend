@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { normalizeEducationItems, createDefaultEducationItem } from '../utils/educationFormatter';
 
 export interface PersonalInfo {
   name: string;
@@ -20,15 +21,19 @@ export interface ExperienceItem {
   bullets: string[];
 }
 
+export type EducationLevel = '10th' | '12th' | 'ug' | 'pg' | 'other';
+
 export interface EducationItem {
   id: string;
-  degree: string;       // legacy fallback
-  ugDegree: string;
-  pgDegree: string;
+  level: EducationLevel;
+  degree: string;
+  fieldOfStudy?: string;
+  board?: string;
   institution: string;
-  location: string;
+  location?: string;
   duration: string;
-  grade: string;
+  grade?: string;
+  description?: string;
 }
 
 export interface CertificationItem {
@@ -109,8 +114,8 @@ interface ResumeStore {
   addExperience: () => void;
   updateExperience: (id: string, field: keyof ExperienceItem, value: any) => void;
   removeExperience: (id: string) => void;
-  addEducation: () => void;
-  updateEducation: (id: string, field: keyof EducationItem, value: string) => void;
+  addEducation: (level?: EducationLevel) => void;
+  updateEducation: (id: string, field: keyof EducationItem, value: any) => void;
   removeEducation: (id: string) => void;
   addCertification: () => void;
   updateCertification: (id: string, field: keyof CertificationItem, value: string) => void;
@@ -171,10 +176,10 @@ export const useResumeStore = create<ResumeStore>()(
       canUndo: false,
       canRedo: false,
 
-      update: (field, value) =>
+      update: <K extends keyof ResumeData>(field: K, value: ResumeData[K]) =>
         set((s: ResumeStore) => ({ data: { ...s.data, [field]: value } })),
 
-      updatePersonalInfo: (field, value) =>
+      updatePersonalInfo: (field: keyof PersonalInfo, value: string) =>
         set((s: ResumeStore) => ({
           data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
         })),
@@ -190,7 +195,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      updateExperience: (id, field, value) =>
+      updateExperience: (id: string, field: keyof ExperienceItem, value: any) =>
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
@@ -198,23 +203,23 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      removeExperience: (id) =>
+      removeExperience: (id: string) =>
         set((s: ResumeStore) => ({
           data: { ...s.data, experience: s.data.experience.filter((e: ExperienceItem) => e.id !== id) },
         })),
 
-      addEducation: () =>
+      addEducation: (level?: EducationLevel) =>
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
             education: [
               ...s.data.education,
-              { id: Date.now().toString(), degree: '', ugDegree: '', pgDegree: '', institution: '', location: '', duration: '', grade: '' },
+              createDefaultEducationItem(level || 'ug'),
             ],
           },
         })),
 
-      updateEducation: (id, field, value) =>
+      updateEducation: (id: string, field: keyof EducationItem, value: any) =>
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
@@ -222,7 +227,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      removeEducation: (id) =>
+      removeEducation: (id: string) =>
         set((s: ResumeStore) => ({
           data: { ...s.data, education: s.data.education.filter((e: EducationItem) => e.id !== id) },
         })),
@@ -238,7 +243,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      updateCertification: (id, field, value) =>
+      updateCertification: (id: string, field: keyof CertificationItem, value: string) =>
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
@@ -246,7 +251,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      removeCertification: (id) =>
+      removeCertification: (id: string) =>
         set((s: ResumeStore) => ({
           data: { ...s.data, certifications: s.data.certifications.filter((c: CertificationItem) => c.id !== id) },
         })),
@@ -262,7 +267,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      updateAward: (id, field, value) =>
+      updateAward: (id: string, field: keyof AwardItem, value: string) =>
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
@@ -270,7 +275,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      removeAward: (id) =>
+      removeAward: (id: string) =>
         set((s: ResumeStore) => ({
           data: { ...s.data, awards: s.data.awards.filter((a: AwardItem) => a.id !== id) },
         })),
@@ -286,7 +291,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      updateProject: (id, field, value) =>
+      updateProject: (id: string, field: keyof ProjectItem, value: any) =>
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
@@ -294,7 +299,7 @@ export const useResumeStore = create<ResumeStore>()(
           },
         })),
 
-      removeProject: (id) =>
+      removeProject: (id: string) =>
         set((s: ResumeStore) => ({
           data: { ...s.data, projects: (s.data.projects || []).filter((p: ProjectItem) => p.id !== id) },
         })),
@@ -303,30 +308,30 @@ export const useResumeStore = create<ResumeStore>()(
         set((s: ResumeStore) => ({
           data: { ...s.data, languages: [...(s.data.languages||[]), { id: Date.now().toString(), language: '', proficiency: 'Intermediate' as const }] },
         })),
-      updateLanguage: (id, field, value) =>
+      updateLanguage: (id: string, field: keyof LanguageItem, value: string) =>
         set((s: ResumeStore) => ({ data: { ...s.data, languages: (s.data.languages||[]).map((l: LanguageItem) => l.id===id ? {...l,[field]:value} : l) } })),
-      removeLanguage: (id) =>
+      removeLanguage: (id: string) =>
         set((s: ResumeStore) => ({ data: { ...s.data, languages: (s.data.languages||[]).filter((l: LanguageItem) => l.id!==id) } })),
 
       addAchievement: () =>
         set((s: ResumeStore) => ({
           data: { ...s.data, achievements: [...(s.data.achievements||[]), { id: Date.now().toString(), title: '', description: '' }] },
         })),
-      updateAchievement: (id, field, value) =>
+      updateAchievement: (id: string, field: keyof AchievementItem, value: string) =>
         set((s: ResumeStore) => ({ data: { ...s.data, achievements: (s.data.achievements||[]).map((a: AchievementItem) => a.id===id ? {...a,[field]:value} : a) } })),
-      removeAchievement: (id) =>
+      removeAchievement: (id: string) =>
         set((s: ResumeStore) => ({ data: { ...s.data, achievements: (s.data.achievements||[]).filter((a: AchievementItem) => a.id!==id) } })),
 
       addCustomSection: () =>
         set((s: ResumeStore) => ({
           data: { ...s.data, customSections: [...(s.data.customSections||[]), { id: Date.now().toString(), heading: 'Custom Section', content: '' }] },
         })),
-      updateCustomSection: (id, field, value) =>
+      updateCustomSection: (id: string, field: keyof CustomSection, value: string) =>
         set((s: ResumeStore) => ({ data: { ...s.data, customSections: (s.data.customSections||[]).map((c: CustomSection) => c.id===id ? {...c,[field]:value} : c) } })),
-      removeCustomSection: (id) =>
+      removeCustomSection: (id: string) =>
         set((s: ResumeStore) => ({ data: { ...s.data, customSections: (s.data.customSections||[]).filter((c: CustomSection) => c.id!==id) } })),
 
-      toggleSection: (sectionId) =>
+      toggleSection: (sectionId: string) =>
         set((s: ResumeStore) => {
           const hidden = s.data.hiddenSections || [];
           return {
@@ -387,12 +392,18 @@ export const useResumeStore = create<ResumeStore>()(
     }),
     {
       name: 'zyncjobs-resume-builder',
-      merge: (persisted: any, current: any) => ({
-        ...current,
-        data: { ...defaultData, ...(persisted?.data || {}), ...current.data },
-        history: persisted?.history || [],
-        historyIndex: persisted?.historyIndex ?? 0,
-      }),
+      merge: (persisted: any, current: any) => {
+        const mergedData = { ...defaultData, ...(persisted?.data || {}), ...current.data };
+        if (Array.isArray(mergedData.education)) {
+          mergedData.education = normalizeEducationItems(mergedData.education);
+        }
+        return {
+          ...current,
+          data: mergedData,
+          history: persisted?.history || [],
+          historyIndex: persisted?.historyIndex ?? 0,
+        };
+      },
     }
   )
 );

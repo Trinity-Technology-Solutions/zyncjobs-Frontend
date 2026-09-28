@@ -86,7 +86,7 @@ const TECH_SKILLS = [
   'AWS','Azure','GCP','Docker','Kubernetes','Git','Linux','Terraform','Jenkins','CI/CD',
   'Machine Learning','Deep Learning','TensorFlow','PyTorch','Scikit-learn','Pandas','NumPy','OpenCV',
   'Power BI','PowerBI','Tableau','Excel','MATLAB','R','Hadoop','Spark','Kafka',
-  'REST','GraphQL','Microservices','Agile','Scrum','Figma','Jira','Postman',
+  'REST','GraphQL','Microservices','Agile','Scrum','Figma','Jira','Postman', 'Manual Testing', 'Functional Testing', 'Regression Testing', 'API Testing', 'Playwright', 'Selenium', 'Cypress', 'Jira', 'Bugzilla', 'TestNG', 'JUnit', 'Pytest', 'Postman', 'SDLC', 'STLC', 'Defect Tracking', 'Test Cases', 'Smoke Testing', 'Sanity Testing', 'UAT',
   'MERN Stack','MEAN Stack','Full Stack','Data Analysis','Data Science','NLP','IoT',
   'React.js','Angular.js','Node.js','Vue.js','Next.js','Nest.js',
 ];
@@ -165,11 +165,10 @@ function parseResumeLocally(text: string): ParsedResume {
   // Also extract from skills section — split by colons, commas, pipes, bullets, newlines
   const skillsSection = extractSection(lines, /^(key\s+|technical\s+|core\s+|hard\s+|soft\s+|professional\s+)?skills?(\s+&\s+\w+)?$/i);
   const skillsFromSection = skillsSection
-    .join(' ')
-    .split(/[,|•\n\/:]/)
+    .join('\n')
+    .split(/[,|•\n\/:\t]|\s{2,}/)
     .map(s => s.replace(/^\s*[-–]\s*/, '').trim())
     .filter(s => s.length > 1 && s.length < 50 && /[a-zA-Z]/.test(s) && !SECTION_HEADINGS.has(s.toLowerCase()))
-    // Filter out heading-like words that are not actual skills
     .filter(s => !/^(database|tools?|frameworks?|technology|web|frontend|backend|languages?|platforms?|concepts?|methodologies?)$/i.test(s));
   // Merge, deduplicate
   const allSkills = [...new Set([...skillsFromText, ...skillsFromSection])];
@@ -202,6 +201,23 @@ function parseResumeLocally(text: string): ParsedResume {
         continue;
       }
       if (SKILL_ONLY_PATTERN.test(line)) continue;
+
+      // Fully pipe-separated experience line: "Job Title | Company | Location | Date"
+      // e.g. "QA Engineer | QualityWorks Pvt Ltd | Bengaluru | Aug 2024 - Present"
+      const pipeSegs = line.split(/\s*\|\s*/).map((s: string) => s.trim()).filter(Boolean);
+      const isFullPipeExpLine =
+        pipeSegs.length >= 2 &&
+        /^[A-Z]/.test(pipeSegs[0]) &&
+        !DEGREE_KEYWORDS.test(pipeSegs[0]) &&
+        !INSTITUTION_KEYWORDS.test(line) &&
+        (dateRangePattern.test(line) || pipeSegs.length >= 3);
+      if (isFullPipeExpLine) {
+        const dateSegIdx = pipeSegs.findIndex((s: string) => dateRangePattern.test(s));
+        const expDate = dateSegIdx >= 0 ? pipeSegs[dateSegIdx] : '';
+        if (cur && (cur.jobTitle || cur.company)) workExperiences.push(cur);
+        cur = { jobTitle: pipeSegs[0], company: pipeSegs[1] || '', date: expDate, descriptions: [] };
+        continue;
+      }
 
       // Line like "Dvara KGFS | Chennai" or "8Queens | Chennai" — company with location
       const isPipeCompanyLine = /^[A-Z][\w\s.&'-]+\s*\|\s*[A-Z][a-z]/.test(line) && !dateRangePattern.test(line);
@@ -273,6 +289,29 @@ function parseResumeLocally(text: string): ParsedResume {
 
     for (const line of eduSection) {
       if (/^[•\-–*]/.test(line)) continue;
+      // Fully pipe-separated education line: "Degree | Institution | Year | GPA%"
+      // e.g. "B.Sc. Information Technology | Bangalore University | 2024 | 82%"
+      const eduPipeSegs = line.split(/\s*\|\s*/).map((s: string) => s.trim()).filter(Boolean);
+      if (
+        eduPipeSegs.length >= 2 &&
+        (DEGREE_KEYWORDS.test(eduPipeSegs[0]) || INSTITUTION_KEYWORDS.test(eduPipeSegs[1] || ''))
+      ) {
+        pushCur();
+        const degSeg  = DEGREE_KEYWORDS.test(eduPipeSegs[0]) ? eduPipeSegs[0] : '';
+        const schoolSeg = eduPipeSegs.find((s: string, i: number) =>
+          i > 0 && (INSTITUTION_KEYWORDS.test(s) || (!DEGREE_KEYWORDS.test(s) && !/^\d/.test(s) && !/^\d{1,3}[.%]/.test(s)))
+        ) || eduPipeSegs[1] || '';
+        const yearSeg = eduPipeSegs.find((s: string) => /^\d{4}$/.test(s.trim())) || '';
+        const pctSeg  = eduPipeSegs.find((s: string) => /\d{1,3}\.?\d*\s*%/.test(s)) || '';
+        const gpaSeg  = eduPipeSegs.find((s: string) => /\b(gpa|cgpa)[:\s]*[\d.]+/i.test(s)) || '';
+        const gpaVal  = gpaSeg
+          ? (gpaSeg.match(/[\d.]+/)?.[0] || '')
+          : pctSeg
+          ? pctSeg.replace('%', '').trim() + '%'
+          : '';
+        cur = { degree: degSeg, school: schoolSeg, date: yearSeg, gpa: gpaVal || undefined };
+        continue;
+      }
       const yocMatch = line.match(yearOfCompletionRe);
       const pctMatch = line.match(percentRe);
       const gpaMatch = line.match(gpaRe);

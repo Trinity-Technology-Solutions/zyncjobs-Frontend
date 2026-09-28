@@ -201,11 +201,11 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                   <TrendingUp className="w-3 h-3" /> Real-time Insights
                 </span>
               </div>
-              <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
                 <span className="text-gray-900">AI</span>
                 <span className="text-blue-600"> Skill Gap Insights</span>
               </h1>
-              <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
+              <p className="text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
                 Compare your skills with job requirements and get a personalized AI learning roadmap.
               </p>
             </div>

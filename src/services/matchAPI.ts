@@ -54,18 +54,24 @@ class MatchAPI {
 
   // Get job recommendations (smart feed)
   async getRecommendations(userId: string, limit = 10): Promise<{ jobs: any[]; total: number }> {
-    const key = cacheKey('recommendations', userId, String(limit));
+    // Use userId-only cache key so all callers share the same cached result regardless of limit
+    const key = cacheKey('recommendations', userId);
     const cached = getCached<{ jobs: any[]; total: number }>(key);
-    if (cached) return cached;
-    const res = await fetch(`${API_BASE}/match/recommendations/${userId}?limit=${limit}`);
+    if (cached) {
+      // Slice to requested limit from cached full result
+      return { jobs: cached.jobs.slice(0, limit), total: cached.total };
+    }
+    // Always fetch with max limit so cache is reusable for smaller requests
+    const fetchLimit = Math.max(limit, 20);
+    const res = await fetch(`${API_BASE}/match/recommendations/${userId}?limit=${fetchLimit}`);
     if (!res.ok) {
       const msg = await res.text().catch(() => 'Failed to get recommendations');
       throw new Error(msg || 'Failed to get recommendations');
     }
     const data = await res.json();
     const result = { jobs: Array.isArray(data?.jobs) ? data.jobs : [], total: data?.total ?? 0 };
-    if (result.jobs.length > 0) setCached(key, result, 2 * 60 * 1000); // only cache non-empty results
-    return result;
+    if (result.jobs.length > 0) setCached(key, result, 2 * 60 * 1000);
+    return { jobs: result.jobs.slice(0, limit), total: result.total };
   }
 
   // Get match explanation

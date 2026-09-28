@@ -71,9 +71,14 @@ export const shareToWhatsApp = (content: ReturnType<typeof generateJobShareConte
 };
 
 export const shareToFacebook = (content: ReturnType<typeof generateJobShareContent>) => {
+  // Facebook sharer only reads OG tags from the URL server-side.
+  // Pass the canonical job URL so Facebook's crawler picks up the OG tags.
   const encodedUrl = encodeURIComponent(content.url);
-  const quote = encodeURIComponent(content.text || `${content.title} — ${content.description}`);
-  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${quote}`, '_blank', 'width=600,height=600,noopener,noreferrer');
+  window.open(
+    `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+    '_blank',
+    'width=600,height=600,noopener,noreferrer'
+  );
 };
 
 export const copyToClipboard = async (url: string): Promise<boolean> => {

@@ -130,6 +130,7 @@ export const authAPI = {
         const err: any = new Error(error.error || 'Account is temporarily locked due to too many failed attempts.');
         err.locked = true;
         err.lockoutMinutes = error.lockoutMinutes || 15;
+        err.lockedUntil = error.lockedUntil || null;
         err.remainingAttempts = error.remainingAttempts;
         throw err;
       }

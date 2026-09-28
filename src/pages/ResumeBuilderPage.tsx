@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Save, Undo2, Redo2, Download, FileText, Briefcase, GraduationCap,
   User, Sparkles, Award, FolderOpen, Wrench, ChevronLeft, ChevronRight,
@@ -32,6 +32,16 @@ import WelcomeWizard from '../components/resume-builder/WelcomeWizard';
 import RightPanel from '../components/resume-builder/RightPanel';
 import { useResumeStore, ResumeData } from '../store/useResumeStore';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import {
+  normalizeEducationItems,
+  formatEducationSummary,
+  classifyEducationLevel,
+  formatEducationSubtitle,
+  formatEducationDegreeLabel,
+  formatEducationMeta,
+  formatEducationDateGrade,
+  formatGrade,
+} from '../utils/educationFormatter';
 
 interface Props {
   onNavigate?: (page: string) => void;
@@ -183,10 +193,21 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   // Push history on data changes (debounced)
   const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevDataForHistory = useRef<string | null>(null);
+  // Flag to skip snapshotting data changes caused by undo/redo themselves
+  const skipNextSnapshot = useRef(false);
+
+  // Capture initial baseline snapshot on mount
+  useEffect(() => {
+    pushHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (prevDataForHistory.current === null) { prevDataForHistory.current = dataHash; return; }
     if (dataHash === prevDataForHistory.current) return;
     prevDataForHistory.current = dataHash;
+    // If this change was caused by an undo/redo operation, don't snapshot it
+    if (skipNextSnapshot.current) { skipNextSnapshot.current = false; return; }
     if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
     historyDebounceRef.current = setTimeout(() => { pushHistory(); }, 1500);
     return () => { if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current); };
@@ -245,6 +266,9 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   useEffect(() => {
     const saved = loadVersionData(activeVersion);
     if (saved && JSON.stringify(saved) !== JSON.stringify(data)) {
+      if (Array.isArray(saved.education)) {
+        saved.education = normalizeEducationItems(saved.education);
+      }
       Object.keys(saved).forEach((k) => update(k as any, saved[k]));
     }
   }, []);
@@ -307,8 +331,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               company: e.companyName || e.company || '',
               location: e.location || '',
               duration: e.currentlyWorking
-                ? `${e.startMonth || ''} ${e.startYear || ''} – Present`
-                : `${e.startMonth || ''} ${e.startYear || ''} – ${e.endMonth || ''} ${e.endYear || ''}`,
+                ? `${e.startMonth || ''} ${e.startYear || ''} â€“ Present`
+                : `${e.startMonth || ''} ${e.startYear || ''} â€“ ${e.endMonth || ''} ${e.endYear || ''}`,
               current: !!e.currentlyWorking,
               bullets: e.description ? [e.description] : [''],
             }));
@@ -321,13 +345,17 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         if (p.educationCollege && typeof p.educationCollege === 'object') {
           const ec = p.educationCollege;
           if (ec.college || ec.degree) {
+            const level = classifyEducationLevel(ec.degree, ec.college);
             eduItems.push({
               id: Date.now().toString() + 'edu1',
-              degree: ec.degree || '',
+              level: level === '10th' || level === '12th' ? 'ug' : level,
+              degree: ec.degree || (level === 'pg' ? 'Postgraduate Degree' : 'Undergraduate Degree'),
+              fieldOfStudy: ec.stream || '',
+              board: '',
               institution: ec.college || '',
               location: '',
-              duration: ec.passingYear ? `– ${ec.passingYear}` : '',
-              grade: ec.percentage ? `${ec.percentage}%` : '',
+              duration: ec.passingYear ? (ec.startYear ? `${ec.startYear} â€“ ${ec.passingYear}` : String(ec.passingYear)) : '',
+              grade: ec.percentage ? (String(ec.percentage).includes('%') || String(ec.percentage).toLowerCase().includes('cgpa') ? String(ec.percentage) : `${ec.percentage}%`) : '',
             });
           }
         }
@@ -335,23 +363,33 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           const e12 = typeof p.educationClass12 === 'string' ? JSON.parse(p.educationClass12) : p.educationClass12;
           eduItems.push({
             id: Date.now().toString() + 'edu2',
-            degree: 'Class XII',
+            level: '12th',
+            degree: '12th / Higher Secondary',
+            board: e12.board || '',
+            fieldOfStudy: e12.stream || '',
             institution: e12.school || e12.board || '',
             location: '',
-            duration: e12.year ? `– ${e12.year}` : '',
-            grade: e12.percentage ? `${e12.percentage}%` : '',
+            duration: e12.year ? String(e12.year) : (e12.passingYear ? String(e12.passingYear) : ''),
+            grade: e12.percentage ? (String(e12.percentage).includes('%') ? String(e12.percentage) : `${e12.percentage}%`) : '',
           });
         }
         if (p.educationClass10 && (p.educationClass10.school || p.educationClass10.board)) {
           const e10 = typeof p.educationClass10 === 'string' ? JSON.parse(p.educationClass10) : p.educationClass10;
           eduItems.push({
             id: Date.now().toString() + 'edu3',
-            degree: 'Class X',
+            level: '10th',
+            degree: '10th / Secondary',
+            board: e10.board || '',
+            fieldOfStudy: '',
             institution: e10.school || e10.board || '',
             location: '',
-            duration: e10.year ? `– ${e10.year}` : '',
-            grade: e10.percentage ? `${e10.percentage}%` : '',
+            duration: e10.year ? String(e10.year) : (e10.passingYear ? String(e10.passingYear) : ''),
+            grade: e10.percentage ? (String(e10.percentage).includes('%') ? String(e10.percentage) : `${e10.percentage}%`) : '',
           });
+        }
+        if (eduItems.length === 0 && p.education && typeof p.education === 'string') {
+          const normalized = normalizeEducationItems([{ degree: p.education, institution: '' }]);
+          if (normalized.length > 0) eduItems.push(...normalized);
         }
         if (eduItems.length > 0) update('education', eduItems);
 
@@ -450,7 +488,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const jobTitle = selectedJob.title || selectedJob.jobTitle || '';
       const candidateSkills = data.skills;
       const expText = data.experience.map(e => `${e.title} at ${e.company}${e.duration ? ` (${e.duration})` : ''}`).join('; ');
-      const eduText = data.education.map(e => `${e.degree} at ${e.institution}`).join('; ');
+      const eduText = data.education.map(e => formatEducationSummary(e)).join('; ');
       if (candidateEmail) {
         try {
           await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
@@ -520,7 +558,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         setSubmitError(msg);
       }
     } catch (e: any) {
-      setSubmitError(e?.message || 'Network error — could not reach server');
+      setSubmitError(e?.message || 'Network error â€” could not reach server');
     } finally { setApplying(false); }
   };
 
@@ -592,7 +630,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         access_token = tokenData.access_token;
       }
 
-      // Use parse-upload endpoint — backend handles OCR + LLM parsing, always fresh (no cache)
+      // Use parse-upload endpoint â€” backend handles OCR + LLM parsing, always fresh (no cache)
       const formData = new FormData();
       formData.append('file', file);
       const headers: Record<string, string> = {};
@@ -636,14 +674,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         })));
       }
       if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
-        update('education', parsed.educations.map((e: any) => ({
-          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          degree: e.degree || e.qualification || '',
-          institution: e.school || e.institution || e.college || e.university || '',
-          location: e.location || '',
-          duration: e.date || e.duration || `${e.startYear || ''} – ${e.endYear || e.passingYear || ''}`.trim(),
-          grade: e.grade || e.percentage || e.cgpa || '',
-        })));
+        update('education', normalizeEducationItems(parsed.educations));
       }
       if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
         update('projects', parsed.projects.map((p: any) => ({
@@ -663,7 +694,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           title: w.jobTitle || w.title || w.role || '',
           company: w.company || w.organization || '',
           location: w.location || '',
-          duration: w.date || w.duration || `${w.startDate || ''} – ${w.endDate || 'Present'}`.trim(),
+          duration: w.date || w.duration || `${w.startDate || ''} â€“ ${w.endDate || 'Present'}`.trim(),
           current: !!(w.current || w.currentlyWorking || w.endDate === 'Present'),
           bullets: Array.isArray(w.descriptions) ? w.descriptions
             : Array.isArray(w.bulletPoints) ? w.bulletPoints
@@ -725,30 +756,16 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     setPdfLoading(true);
     try {
       const name = (data.personalInfo?.name || '').trim() || 'Resume';
-      const { pdf, Document } = await import('@react-pdf/renderer');
-      const { createElement } = await import('react');
+      const { pdf } = await import('@react-pdf/renderer');
       const { default: ResumePDFDocument } = await import('../components/resume-builder/ResumePDFDocument');
-      const element = createElement(ResumePDFDocument, { data }) as unknown as React.ReactElement<React.ComponentProps<typeof Document>>;
-      const blob = await pdf(element).toBlob();
+      const blob = await pdf(<ResumePDFDocument data={data} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = `${name}.pdf`; a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('PDF generation failed:', e);
-      // Fallback: print-based PDF (still text-layer)
-      try {
-        const html = buildResumeHTML(data);
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none';
-        document.body.appendChild(iframe);
-        const iDoc = iframe.contentDocument!;
-        iDoc.open(); iDoc.write(html); iDoc.close();
-        await new Promise(r => setTimeout(r, 400));
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => document.body.removeChild(iframe), 2000);
-      } catch { /* silent */ }
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'PDF generation failed. Please try again.' } }));
     } finally {
       setPdfLoading(false);
     }
@@ -758,73 +775,160 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     setPdfLoading(true);
     try {
       const name = (data.personalInfo?.name || '').trim() || 'Resume';
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+      const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = await import('docx');
       const n = data.personalInfo;
+      const hidden = data.hiddenSections || [];
+
+      // Apply hiddenSections â€” mirrors ResumeTemplate / ResumePDFDocument logic
+      const visibleSummary    = hidden.includes('summary')      ? '' : (Array.isArray(data.summary) ? data.summary.join(' ') : data.summary || '');
+      const visibleSkills     = hidden.includes('skills')       ? [] : data.skills;
+      const visibleExp        = hidden.includes('experience')   ? [] : data.experience;
+      const visibleEdu        = hidden.includes('education')    ? [] : data.education;
+      const visibleCerts      = hidden.includes('certs')        ? [] : data.certifications;
+      const visibleProjects   = hidden.includes('projects')     ? [] : data.projects;
+      const visibleLangs      = hidden.includes('languages')    ? [] : data.languages;
+      const visibleAchieve    = hidden.includes('achievements') ? [] : (data.achievements || []);
+      const visibleAwards     = hidden.includes('awards')       ? [] : (data.awards || []);
+      const visibleCustom     = hidden.includes('custom')       ? [] : (data.customSections || []);
+
+      const tmpl = data.template || 'classic';
+
+      // Template-specific heading style
+      const hdrColor = tmpl === 'professional' ? '1e293b' : tmpl === 'executive' ? '1a1a1a' : '333333';
+      const hdrSize  = tmpl === 'compact' ? 22 : 24;
+      const nameSize = tmpl === 'compact' ? 36 : tmpl === 'executive' ? 44 : 40;
+      const nameAlign = (tmpl === 'executive' || tmpl === 'minimal') ? AlignmentType.CENTER : AlignmentType.LEFT;
+      const contactAlign = (tmpl === 'executive' || tmpl === 'minimal') ? AlignmentType.CENTER : AlignmentType.LEFT;
+      const skillSep = tmpl === 'compact' ? ' | ' : tmpl === 'minimal' ? ', ' : '  Â·  ';
+      const expSep   = tmpl === 'compact' ? ' | ' : ', ';
+
+      const mkHdr = (text: string) => new Paragraph({
+        children: [new TextRun({ text, bold: true, size: hdrSize, color: hdrColor })],
+        spacing: { before: tmpl === 'compact' ? 100 : 160, after: 40 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: hdrColor, space: 2 } },
+      });
 
       const mkPara = (text: string, opts: any = {}) =>
-        new Paragraph({ children: [new TextRun({ text, ...opts })], spacing: { after: 60 } });
-      const mkHeading = (text: string) =>
-        new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 160, after: 60 }, border: { bottom: { style: 'single', size: 6, color: '333333', space: 2 } } });
+        new Paragraph({ children: [new TextRun({ text, size: tmpl === 'compact' ? 18 : 20, ...opts })], spacing: { after: tmpl === 'compact' ? 40 : 60 } });
+
       const mkBullet = (text: string) =>
-        new Paragraph({ children: [new TextRun({ text })], bullet: { level: 0 }, spacing: { after: 40 } });
+        new Paragraph({ children: [new TextRun({ text, size: tmpl === 'compact' ? 18 : 20 })], bullet: { level: 0 }, spacing: { after: tmpl === 'compact' ? 30 : 40 } });
 
       const children: any[] = [
-        // Header
-        new Paragraph({ children: [new TextRun({ text: n.name || '', bold: true, size: 36 })], alignment: AlignmentType.CENTER, spacing: { after: 60 } }),
+        new Paragraph({ children: [new TextRun({ text: n.name || '', bold: true, size: nameSize })], alignment: nameAlign, spacing: { after: 60 } }),
         new Paragraph({
-          children: [new TextRun({ text: [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  '), size: 20, color: '555555' })],
-          alignment: AlignmentType.CENTER, spacing: { after: 120 },
+          children: [new TextRun({ text: [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  '), size: 18, color: '555555' })],
+          alignment: contactAlign, spacing: { after: 120 },
         }),
       ];
 
-      if (data.summary) {
-        children.push(mkHeading('Professional Summary'));
-        children.push(mkPara(Array.isArray(data.summary) ? data.summary.join(' ') : data.summary));
-      }
-      if (data.skills.length > 0) {
-        children.push(mkHeading('Skills'));
-        children.push(mkPara(data.skills.join('  ·  ')));
-      }
-      if (data.experience.length > 0) {
-        children.push(mkHeading('Experience'));
-        data.experience.forEach(exp => {
-          children.push(new Paragraph({ children: [new TextRun({ text: `${exp.title}${exp.company ? ` — ${exp.company}` : ''}`, bold: true }), new TextRun({ text: exp.duration ? `  |  ${exp.duration}` : '', color: '777777' })], spacing: { after: 40 } }));
+      // Section order mirrors template section ordering in ResumeTemplate.tsx
+      const addSummary = () => {
+        if (!visibleSummary) return;
+        const label = tmpl === 'executive' ? 'Executive Summary' : tmpl === 'minimal' ? 'About' : 'Professional Summary';
+        children.push(mkHdr(label));
+        children.push(mkPara(visibleSummary));
+      };
+      const addSkills = () => {
+        if (!visibleSkills.length) return;
+        const label = tmpl === 'executive' ? 'Areas of Expertise' : tmpl === 'professional' ? 'Skills' : 'Skills';
+        children.push(mkHdr(label));
+        children.push(mkPara(visibleSkills.join(skillSep)));
+      };
+      const addExperience = () => {
+        if (!visibleExp.length) return;
+        const label = tmpl === 'executive' ? 'Career History' : 'Experience';
+        children.push(mkHdr(label));
+        visibleExp.forEach(exp => {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: `${exp.title}${exp.company ? `${expSep}${exp.company}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 }),
+              new TextRun({ text: exp.duration ? `  |  ${exp.duration}` : '', color: '777777', size: 18 }),
+            ],
+            spacing: { after: 40 },
+          }));
           exp.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
         });
-      }
-      if (data.education.length > 0) {
-        children.push(mkHeading('Education'));
-        data.education.forEach(edu => {
-          const deg = edu.ugDegree || edu.pgDegree || edu.degree || '';
-          children.push(mkPara(`${deg}${edu.institution ? ` — ${edu.institution}` : ''}${edu.duration ? `  |  ${edu.duration}` : ''}${edu.grade ? `  |  ${edu.grade}` : ''}`));
+      };
+      const addEducation = () => {
+        if (!visibleEdu.length) return;
+        const label = tmpl === 'executive' ? 'Education & Credentials' : 'Education';
+        children.push(mkHdr(label));
+        visibleEdu.forEach(edu => {
+          children.push(mkPara(formatEducationSummary(edu), { bold: true }));
+          if (edu.description?.trim()) children.push(mkPara(edu.description.trim(), { color: '555555' }));
         });
-      }
-      if (data.certifications.length > 0) {
-        children.push(mkHeading('Certifications'));
-        data.certifications.forEach(c => children.push(mkPara(`${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.year ? `  (${c.year})` : ''}`)));
-      }
-      if (data.projects.length > 0) {
-        children.push(mkHeading('Projects'));
-        data.projects.forEach(p => {
-          children.push(new Paragraph({ children: [new TextRun({ text: `${p.name}${p.role ? ` — ${p.role}` : ''}`, bold: true })], spacing: { after: 40 } }));
+      };
+      const addCerts = () => {
+        if (!visibleCerts.length) return;
+        children.push(mkHdr('Certifications'));
+        visibleCerts.forEach(c => children.push(mkPara(`${c.name}${c.issuer ? ` â€” ${c.issuer}` : ''}${c.year ? `  (${c.year})` : ''}`)));
+      };
+      const addProjects = () => {
+        if (!visibleProjects.length) return;
+        children.push(mkHdr('Projects'));
+        visibleProjects.forEach(p => {
+          children.push(new Paragraph({ children: [new TextRun({ text: `${p.name}${p.role ? ` â€” ${p.role}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 })], spacing: { after: 40 } }));
           if (p.url) children.push(mkPara(p.url, { color: '2563eb' }));
           p.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
         });
-      }
-      if (data.languages.length > 0) {
-        children.push(mkHeading('Languages'));
-        children.push(mkPara(data.languages.map(l => `${l.language} (${l.proficiency})`).join('  ·  ')));
-      }
-      if (data.achievements?.length > 0) {
-        children.push(mkHeading('Achievements'));
-        data.achievements.forEach((a: any) => {
-          if (a.title) children.push(new Paragraph({ children: [new TextRun({ text: a.title, bold: true })], spacing: { after: 30 } }));
+      };
+      const addLanguages = () => {
+        if (!visibleLangs.length) return;
+        children.push(mkHdr('Languages'));
+        children.push(mkPara(visibleLangs.map(l => `${l.language} (${l.proficiency})`).join(skillSep)));
+      };
+      const addAchievements = () => {
+        if (!visibleAchieve.length) return;
+        children.push(mkHdr('Achievements'));
+        visibleAchieve.forEach((a: any) => {
+          if (a.title) children.push(new Paragraph({ children: [new TextRun({ text: a.title, bold: true, size: tmpl === 'compact' ? 18 : 20 })], spacing: { after: 30 } }));
           if (a.description) children.push(mkPara(a.description));
         });
+      };
+      const addAwards = () => {
+        if (!visibleAwards.length) return;
+        const label = tmpl === 'executive' ? 'Awards & Recognition' : 'Awards';
+        children.push(mkHdr(label));
+        visibleAwards.forEach((a: any) => {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: `${a.title}${a.issuer ? ` â€” ${a.issuer}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 }),
+              new TextRun({ text: a.year ? `  (${a.year})` : '', color: '777777', size: 18 }),
+            ],
+            spacing: { after: 40 },
+          }));
+          if (a.description) children.push(mkPara(a.description, { color: '555555' }));
+        });
+      };
+      const addCustom = () => {
+        visibleCustom.filter((s: any) => s.content).forEach((s: any) => {
+          children.push(mkHdr(s.heading));
+          children.push(mkPara(s.content));
+        });
+      };
+
+      // Section ordering per template â€” mirrors ResumeTemplate.tsx section order
+      switch (tmpl) {
+        case 'professional':
+          // professional: summary + experience + projects in main; skills/edu/certs in sidebar
+          // DOCX is single-column so we approximate: summary, exp, projects, skills, edu, certs, awards, langs, achieve, custom
+          addSummary(); addExperience(); addProjects(); addSkills(); addEducation(); addCerts(); addAwards(); addLanguages(); addAchievements(); addCustom();
+          break;
+        case 'executive':
+          addSummary(); addSkills(); addExperience(); addEducation(); addCerts(); addAwards(); addProjects(); addLanguages(); addAchievements(); addCustom();
+          break;
+        case 'minimal':
+          addSummary(); addSkills(); addExperience(); addEducation(); addCerts(); addAwards(); addProjects(); addLanguages(); addAchievements(); addCustom();
+          break;
+        default:
+          // classic, modern, compact
+          addSummary(); addSkills(); addExperience(); addEducation(); addCerts(); addAwards(); addProjects(); addLanguages(); addAchievements(); addCustom();
       }
 
+      const marginPt = tmpl === 'compact' ? 576 : 720;
       const doc = new Document({
-        sections: [{ properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } }, children }],
+        sections: [{ properties: { page: { margin: { top: marginPt, right: marginPt, bottom: marginPt, left: marginPt } } }, children }],
       });
       const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
@@ -833,7 +937,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('DOCX generation failed:', e);
-      // Fallback: HTML as .doc (still text-parseable)
+      // Fallback: HTML as .doc (still text-parseable, no Print dialog)
       const html = buildResumeHTML(data);
       const blob = new Blob([html], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
@@ -848,7 +952,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const resumeEmpty = !data.experience.length && !data.skills.length && !data.summary && !data.education.length;
   const onboardingKey = `resume_onboarding_done_${user?.email || 'anon'}`;
 
-  // ── Quick Apply render functions ──────────────────────────────────────────
+  // â”€â”€ Quick Apply render functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const renderChooseJob = () => {
     const filteredJobs = jobs.filter((j: any) =>
       !jobSearch || (j.title || j.jobTitle || '').toLowerCase().includes(jobSearch.toLowerCase())
@@ -902,7 +1006,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                         <p className="text-sm font-semibold text-gray-900 truncate">{job.title || job.jobTitle || 'Untitled'}</p>
                         {isApplied && <span className="text-[10px] text-green-600 font-medium shrink-0">Applied </span>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">{job.company || job.companyName || ''} · {job.location || ''}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{job.company || job.companyName || ''} Â· {job.location || ''}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
                       {jobSkills.length > 0 && (
@@ -1046,7 +1150,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           {selectedJob && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
               <p className="text-sm font-semibold text-gray-900">{selectedJob.title || selectedJob.jobTitle}</p>
-              <p className="text-xs text-gray-500">{selectedJob.company || ''} · {selectedJob.location || ''}</p>
+              <p className="text-xs text-gray-500">{selectedJob.company || ''} Â· {selectedJob.location || ''}</p>
             </div>
           )}
 
@@ -1054,7 +1158,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           <div className="p-4 border border-gray-200 rounded-xl space-y-2">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" /> Resume</p>
             <div className="text-xs text-gray-600 space-y-1">
-              <p>{data.personalInfo.name || 'Your Name'} · {data.personalInfo.email} · {data.personalInfo.phone}</p>
+              <p>{data.personalInfo.name || 'Your Name'} Â· {data.personalInfo.email} Â· {data.personalInfo.phone}</p>
               {data.skills.length > 0 && <p>Skills: {data.skills.slice(0, 10).join(', ')}</p>}
               {data.experience.length > 0 && <p>Experience: {data.experience.map(e => `${e.title} at ${e.company}`).join(', ')}</p>}
             </div>
@@ -1088,14 +1192,14 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       {/* Hidden file input for import */}
       <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileImport} />
 
-      {/* ── AI Suggestions Panel (Grammarly-like) ────────────────────── */}
+      {/* â”€â”€ AI Suggestions Panel (Grammarly-like) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showSuggestions && (
         <div className="fixed right-4 top-20 z-40 max-w-full sm:right-6 sm:top-24 md:right-8 md:top-28 lg:right-12 lg:top-32">
           <AISuggestionsPanel onClose={() => setShowSuggestions(false)} onNavigate={(section) => { setActiveIdPersisted(section); setShowSuggestions(false); }} />
         </div>
       )}
 
-      {/* ── Welcome Wizard (3-step onboarding) ─────────────────────────── */}
+      {/* â”€â”€ Welcome Wizard (3-step onboarding) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showOnboarding && resumeEmpty && !sessionStorage.getItem(onboardingKey) && (
         <WelcomeWizard
           goal={wizardGoal}
@@ -1210,7 +1314,13 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"
+          <button onClick={() => {
+            // Cancel any pending debounced snapshot before undoing,
+            // then set flag so the resulting data change is not re-snapshotted.
+            if (historyDebounceRef.current) { clearTimeout(historyDebounceRef.current); historyDebounceRef.current = null; }
+            skipNextSnapshot.current = true;
+            undo();
+          }} disabled={!canUndo} title="Undo (Ctrl+Z)"
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
               canUndo
                 ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
@@ -1219,7 +1329,13 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             <Undo2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Undo</span>
           </button>
-          <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"
+          <button onClick={() => {
+            // Cancel any pending debounced snapshot before redoing,
+            // then set flag so the resulting data change is not re-snapshotted.
+            if (historyDebounceRef.current) { clearTimeout(historyDebounceRef.current); historyDebounceRef.current = null; }
+            skipNextSnapshot.current = true;
+            redo();
+          }} disabled={!canRedo} title="Redo (Ctrl+Y)"
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
               canRedo
                 ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
@@ -1276,7 +1392,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </div>
       </div>
 
-      {/* AI Interview mode — replaces 3-column layout */}
+      {/* AI Interview mode â€” replaces 3-column layout */}
       {aiMode ? (
         <AIInterviewStep onComplete={() => setAiMode(false)} />
       ) : (
@@ -1538,7 +1654,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               </div>
             ) : (
               <div className="flex flex-col">
-                {/* Step navigation bar — above the form */}
+                {/* Step navigation bar â€” above the form */}
                 <div className="flex items-center justify-between px-4 py-3 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm sticky top-0 z-10">
                   <button
                     onClick={() => setActiveIdPersisted(orderedNav[Math.max(0, activeIdx - 1)].id)}
@@ -1572,10 +1688,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       </div>
       )}
 
-      {/* ── Ask AI Widget (floating) ──────────────────────────────────── */}
+      {/* â”€â”€ Ask AI Widget (floating) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showAskAI && <AskAIWidget onClose={() => setShowAskAI(false)} resumeContext={`Resume: ${data.personalInfo.name}, ${data.skills.length} skills, ${data.experience.length} experiences`} />}
 
-      {/* ── Ask AI floating button ────────────────────────────────────── */}
+      {/* â”€â”€ Ask AI floating button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {!showAskAI && !aiMode && (
         <button onClick={() => setShowAskAI(true)}
           className="fixed bottom-4 right-4 z-40 w-12 h-12 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 flex items-center justify-center transition-all hover:scale-105">
@@ -1583,7 +1699,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </button>
       )}
 
-      {/* ── Completion Dashboard (Phase 13) ────────────────────────────── */}
+      {/* â”€â”€ Completion Dashboard (Phase 13) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showCompletion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8">
@@ -1648,6 +1764,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   );
 }
 
+// â”€â”€â”€ jsPDF-based PDF generator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Produces a real application/pdf Blob using jspdf (already a project dep).
+// Reads data.template to apply template-specific typography and layout.
+// Mirrors the section ordering and hiddenSections logic of ResumeTemplate.tsx.
 function sanitizeText(s: any): string {
   if (!s) return '';
   return String(s)
@@ -1660,10 +1780,25 @@ function sanitizeText(s: any): string {
 
 function buildResumeHTML(data: ResumeData): string {
   const n = data.personalInfo;
-  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${sanitizeText(e.title)}</b> at <b>${sanitizeText(e.company)}</b>${e.duration ? ` — ${sanitizeText(e.duration)}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
-  const edu = data.education.map(e => `<div>${sanitizeText(e.degree)} at ${sanitizeText(e.institution)}${e.duration ? ` — ${sanitizeText(e.duration)}` : ''}</div>`).join('');
-  const certs = data.certifications.map(c => `<div>${sanitizeText(c.name)} — ${sanitizeText(c.issuer)}${c.year ? ` (${sanitizeText(c.year)})` : ''}</div>`).join('');
-  const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${sanitizeText(p.name)}</b>${p.role ? ` — ${sanitizeText(p.role)}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${sanitizeText(e.title)}</b> at <b>${sanitizeText(e.company)}</b>${e.duration ? ` â€” ${sanitizeText(e.duration)}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const edu = data.education.map(e => {
+    const institution = sanitizeText(formatEducationSubtitle(e));
+    const degree = sanitizeText(formatEducationDegreeLabel(e));
+    const meta = sanitizeText(formatEducationMeta(e));
+    return `<div style="margin-bottom:8px">` +
+      `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
+        `<b>${institution || degree}</b>` +
+        (e.duration ? `<span style="color:#6b7280;font-size:12px">${sanitizeText(e.duration)}</span>` : '') +
+      `</div>` +
+      `<div style="display:flex;justify-content:space-between;align-items:baseline;color:#4b5563;font-size:13px">` +
+        `<span>${institution ? degree : ''}${meta ? ` (${meta})` : ''}</span>` +
+        (e.grade ? `<span style="color:#4b5563;font-size:12px">${sanitizeText(formatGrade(e.grade))}</span>` : '') +
+      `</div>` +
+      (e.description ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;white-space:pre-line">${sanitizeText(e.description)}</div>` : '') +
+    `</div>`;
+  }).join('');
+  const certs = data.certifications.map(c => `<div>${sanitizeText(c.name)} â€” ${sanitizeText(c.issuer)}${c.year ? ` (${sanitizeText(c.year)})` : ''}</div>`).join('');
+  const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${sanitizeText(p.name)}</b>${p.role ? ` â€” ${sanitizeText(p.role)}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
   const langs = data.languages.map(l => `<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px">${sanitizeText(l.language)} (${sanitizeText(l.proficiency)})</span>`).join('');
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${n.name || 'Resume'}</title>
@@ -1679,7 +1814,7 @@ function buildResumeHTML(data: ResumeData): string {
   .skill-tag{display:inline-block;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px;border:1px solid #bfdbfe}
 </style></head><body>
 <h1>${n.name || ''}</h1>
-<div class="contact">${[n.email, n.phone, n.location].filter(Boolean).join(' · ')}${n.linkedin ? ' · ' + n.linkedin : ''}${n.portfolio ? ' · ' + n.portfolio : ''}</div>
+<div class="contact">${[n.email, n.phone, n.location].filter(Boolean).join(' Â· ')}${n.linkedin ? ' Â· ' + n.linkedin : ''}${n.portfolio ? ' Â· ' + n.portfolio : ''}</div>
 ${data.summary ? `<div class="section"><div class="section-title">Professional Summary</div><p style="font-size:13px;margin:0">${data.summary}</p></div>` : ''}
 ${exp ? `<div class="section"><div class="section-title">Experience</div>${exp}</div>` : ''}
 ${edu ? `<div class="section"><div class="section-title">Education</div>${edu}</div>` : ''}

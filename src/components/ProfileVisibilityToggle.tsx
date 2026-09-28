@@ -26,10 +26,10 @@ const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
   <button
     onClick={onToggle}
     className={`relative flex-shrink-0 w-11 h-6 rounded-full border-2 transition-colors duration-200 focus:outline-none ${
-      on ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'
+      on ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-200 border-slate-200'
     }`}
   >
-    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md border border-gray-200 transition-transform duration-200 ${
+    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
       on ? 'translate-x-5' : 'translate-x-0'
     }`} />
   </button>
@@ -139,16 +139,16 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
 
   if (compact) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Profile Visibility</h3>
-          {saving && <span className="text-xs text-gray-400">Saving...</span>}
-          {saved && <span className="text-xs text-green-600 font-medium">✓ Saved</span>}
+          <h3 className="text-sm font-bold text-[#1e3a8a] uppercase tracking-wider">Profile Visibility</h3>
+          {saving && <span className="text-xs text-[#64748b]">Saving...</span>}
+          {saved && <span className="text-xs text-emerald-600 font-semibold">✓ Saved</span>}
         </div>
         {/* Open to Work toggle */}
-        <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
-          <Briefcase className="w-4 h-4 text-green-600 flex-shrink-0" />
-          <span className="text-sm font-medium text-green-800 flex-1">Open to Work</span>
+        <div className="flex items-center gap-2.5 p-2.5 bg-emerald-50/70 rounded-md border border-emerald-200/80">
+          <Briefcase className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="text-xs sm:text-sm font-semibold text-emerald-900 flex-1">Open to Work</span>
           <Toggle on={openToWork} onToggle={toggleOpenToWork} />
         </div>
       </div>

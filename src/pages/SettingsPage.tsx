@@ -211,7 +211,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col space-y-4">
               <BackButton
-                fallback="/dashboard"
+                onClick={() => onNavigate('dashboard')}
                 text="Back to Dashboard"
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors self-start"
               />

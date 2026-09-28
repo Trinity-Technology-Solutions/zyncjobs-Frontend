@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Briefcase, TrendingUp, Award, Users, FileText, Rocket, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Briefcase, TrendingUp, Award, AlertCircle, CheckCircle2, Compass, Sparkles } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
-import WorkButton from '../components/animata/button/work-button';
 import Header from '../components/Header';
 import analytics from '../services/analytics';
 
@@ -213,122 +212,94 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Header onNavigate={onNavigate} />
 
-      <div className="flex flex-1 flex-col lg:flex-row">
-        {/* LEFT PANEL */}
-        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-blue-100 opacity-40" />
-          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
+      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+        <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-10">
+        {/* Candidate career guide */}
+        <aside className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] text-[#1e3a8a] lg:min-h-[700px]">
+          <div className="absolute inset-x-0 top-0 h-2 bg-[#f97316]" />
+          <div className="absolute -right-20 -top-16 h-56 w-56 rounded-full border-[28px] border-[#bfdbfe]" />
+          <div className="relative flex h-full flex-col px-6 py-7 sm:px-9 lg:px-10 lg:py-10">
+            <div className="flex items-center justify-between">
+              <BackButton fallback="/" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#bfdbfe] bg-white/70 px-3 py-1.5 text-xs font-semibold text-[#2563eb]">
+                <Sparkles className="h-3.5 w-3.5" /> Candidate space
+              </span>
+            </div>
 
-          <div className="relative z-10 flex flex-col px-16 py-12 w-full justify-between">
-            <BackButton fallback="/" />
-
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-blue-50 text-blue-600 border border-blue-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-                Job Seeker Portal
-              </div>
-              <h1 className="text-4xl font-bold leading-tight mb-3 text-gray-900">
-                Find Your<br />
-                <span className="text-blue-500">Dream Job</span>
-              </h1>
-              <p className="text-gray-500 text-base mb-6">
-                Create your account and start your career journey today.
-              </p>
-              <div className="space-y-3">
+            <div className="mt-12 lg:mt-16">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#2563eb]">Your next role starts here</p>
+              <h1 className="mt-3 text-3xl font-bold leading-tight text-[#1e3a8a] sm:text-4xl">Build a profile employers want to meet.</h1>
+              <p className="mt-4 max-w-md text-sm leading-6 text-[#526780] sm:text-base">Join a career platform that keeps your search organised, personal, and moving forward.</p>
+              <div className="mt-8 space-y-3.5">
                 {[
-                  { icon: Briefcase, text: 'Access Thousands of Jobs', color: 'text-blue-600', bg: 'bg-blue-50' },
-                  { icon: TrendingUp, text: 'AI-Powered Job Matching', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: Award, text: 'Build Professional Profile', color: 'text-blue-600', bg: 'bg-blue-50' },
-                  { icon: Users, text: 'Connect with Top Companies', color: 'text-orange-500', bg: 'bg-orange-50' },
-                ].map(({ icon: Icon, text, color, bg }) => (
-                  <div key={text} className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${bg}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
+                  { icon: Compass, text: 'Discover roles matched to your goals' },
+                  { icon: TrendingUp, text: 'Get recommendations as you grow' },
+                  { icon: Award, text: 'Showcase your skills with confidence' },
+                ].map(({ icon: Icon, text }) => (
+                  <div key={text} className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#2563eb] shadow-sm">
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <span className="text-gray-700 text-sm font-medium">{text}</span>
+                    <span className="text-sm font-medium text-[#334e72]">{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-4 mt-4">
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Easy Profile Setup</div>
-                  <div className="text-gray-500 text-xs mt-1">Build your profile in 2 minutes</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <Rocket className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">One-Click Apply</div>
-                  <div className="text-gray-500 text-xs mt-1">Apply to jobs instantly</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Briefcase className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">Track Applications</div>
-                  <div className="text-gray-500 text-xs mt-1">Monitor all your applications</div>
-                </div>
+            <div className="mt-10 border-t border-[#bfdbfe] pt-5">
+              <div className="flex items-center gap-3 rounded-md bg-white/80 p-4 shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fff7ed] text-[#f97316]"><Briefcase className="h-5 w-5" /></div>
+                <div><p className="text-sm font-semibold text-[#1e3a8a]">Profile-first applications</p><p className="mt-0.5 text-xs text-[#64748b]">Keep everything ready when a role clicks.</p></div>
               </div>
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-4 sm:px-6 py-8 sm:py-12 relative overflow-hidden min-h-screen lg:min-h-0">
-          {/* Decorative Blobs */}
-          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
-          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
+        {/* Registration workspace */}
+        <section className="relative flex min-w-0 items-start justify-center overflow-hidden rounded-lg border border-[#e2e8f0] bg-white px-5 py-8 shadow-[0_18px_55px_-35px_rgba(30,64,175,0.32)] sm:px-9 sm:py-10 lg:px-12">
+          <div className="absolute inset-x-0 top-0 h-1 bg-[#f97316]" />
           
-          <div className="w-full max-w-sm sm:max-w-md">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-4 sm:p-6 lg:p-8">
+          <div className="relative z-10 w-full max-w-lg">
+            <div>
               {/* Step Indicator */}
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-start justify-between mb-9">
                 {['Basic Info', 'Verify Email', 'Password'].map((label, i) => {
                   const num = i + 1;
                   const isActive = step === num;
                   const isDone = step > num;
                   return (
                     <React.Fragment key={label}>
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                          isDone ? 'bg-green-500 text-white' : isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'
+                          isDone ? 'bg-[#2563eb] text-white' : isActive ? 'bg-[#1e40af] text-white shadow-sm' : 'bg-[#eff6ff] text-[#94a3b8]'
                         }`}>
                           {isDone ? '✓' : num}
                         </div>
-                        <span className={`text-xs font-medium ${isActive ? 'text-blue-500' : isDone ? 'text-green-500' : 'text-gray-400'}`}>{label}</span>
+                        <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? 'text-[#1e40af]' : isDone ? 'text-[#2563eb]' : 'text-[#94a3b8]'}`}>{label}</span>
                       </div>
-                      {i < 2 && <div className={`flex-1 h-0.5 mx-2 mb-4 transition-all ${step > i + 1 ? 'bg-green-400' : 'bg-gray-200'}`} />}
+                      {i < 2 && <div className={`flex-1 h-px mx-2 mt-4 transition-all ${step > i + 1 ? 'bg-[#93c5fd]' : 'bg-[#e2e8f0]'}`} />}
                     </React.Fragment>
                   );
                 })}
               </div>
 
-              <div className="mb-4 sm:mb-5">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Create Account</h2>
-                <p className="text-gray-500 text-sm mt-1">Start your career journey</p>
+              <div className="mb-7">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#2563eb]"><CheckCircle2 className="h-4 w-4" /> Free for job seekers</div>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#1e3a8a] sm:text-3xl">Create your candidate profile</h2>
+                <p className="mt-2 text-sm leading-6 text-[#64748b]">A few details now, then opportunities that fit you.</p>
               </div>
 
               {error && (
-                <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <div className="mb-5 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
                   <span className="text-red-500 text-xs mt-0.5">⚠</span>
                   <span className="text-red-600 text-sm">{error}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 {/* STEP 1 - Basic Info */}
                 {step === 1 && (
                   <>
@@ -337,7 +308,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       <div className="relative">
                         <input
                           type="text" name="name" value={formData.name} onChange={handleChange}
-                          className={`w-full h-12 sm:h-14 px-4 pr-10 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                          className={`w-full h-12 sm:h-14 px-4 pr-10 border rounded-md text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.name ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                           placeholder="Enter your full name" required
                         />
                         {fieldErrors.name && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
@@ -349,7 +320,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       <div className="relative">
                         <input
                           type="email" name="email" value={formData.email} onChange={handleChange}
-                          className={`w-full h-12 sm:h-14 px-4 pr-10 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                          className={`w-full h-12 sm:h-14 px-4 pr-10 border rounded-md text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                           placeholder="Enter your email" 
                           autoComplete="email"
                           inputMode="email"
@@ -363,7 +334,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       type="button"
                       onClick={handleSendOTP}
                       disabled={loading}
-                      className="w-full h-12 sm:h-14 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
+                      className="w-full h-12 sm:h-14 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md font-semibold text-sm sm:text-base shadow-sm shadow-blue-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
                     >
                       {loading ? 'Sending...' : 'Continue →'}
                     </button>
@@ -384,7 +355,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                           const value = e.target.value.replace(/\D/g, '').slice(0, 6);
                           setFormData({ ...formData, otp: value });
                         }}
-                        className="w-full h-14 px-4 border border-gray-200 rounded-xl text-center text-2xl font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                        className="w-full h-14 px-4 border border-slate-200 rounded-md text-center text-2xl font-bold tracking-widest text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition"
                         placeholder="000000"
                         maxLength={6}
                       />
@@ -393,7 +364,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       type="button"
                       onClick={handleVerifyOTP}
                       disabled={loading || formData.otp.length !== 6}
-                      className="w-full h-12 sm:h-14 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
+                      className="w-full h-12 sm:h-14 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md font-semibold text-sm sm:text-base shadow-sm shadow-blue-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]"
                     >
                       {loading ? 'Verifying...' : 'Verify Email'}
                     </button>
@@ -402,7 +373,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                         type="button"
                         onClick={handleResendOTP}
                         disabled={resendTimer > 0 || loading}
-                        className="text-sm text-blue-500 hover:text-blue-600 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+                        className="text-sm text-blue-600 hover:text-blue-700 font-semibold disabled:text-slate-400 disabled:cursor-not-allowed"
                       >
                         {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
                       </button>
@@ -410,7 +381,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                     <button
                       type="button"
                       onClick={() => { setStep(1); setError(''); setFormData({ ...formData, otp: '' }); }}
-                      className="w-full h-12 sm:h-14 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm sm:text-base hover:bg-gray-50 active:bg-gray-100 transition-all touch-manipulation min-h-[48px]"
+                      className="w-full h-12 sm:h-14 border border-slate-200 text-slate-600 rounded-xl font-semibold text-sm sm:text-base hover:bg-slate-50 active:bg-slate-100 transition-all touch-manipulation min-h-[48px]"
                     >
                       ← Back
                     </button>
@@ -425,7 +396,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       <div className="relative">
                         <input
                           type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
-                          className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                          className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-md text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                           placeholder="Create a password" required
                         />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2 touch-manipulation">
@@ -458,7 +429,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       <div className="relative">
                         <input
                           type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
-                          className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.confirmPassword ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                          className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-md text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.confirmPassword ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                           placeholder="Confirm your password" required
                         />
                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2 touch-manipulation">
@@ -467,29 +438,26 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       </div>
                       {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>}
                     </div>
-                    <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className={`flex items-start gap-3 p-3.5 rounded-md border transition-colors ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}`}>
                       <input
                         type="checkbox" id="terms-candidate" checked={agreedToTerms}
                         onChange={e => setAgreedToTerms(e.target.checked)}
-                        className="mt-0.5 w-4 h-4 accent-blue-500 cursor-pointer flex-shrink-0"
+                        className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
                       />
                       <label htmlFor="terms-candidate" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
                         I agree to ZyncJobs'{' '}
-                        <button type="button" onClick={() => onNavigate('terms')} className="text-blue-500 hover:text-blue-700 underline font-semibold">Terms & Conditions</button>
+                        <button type="button" onClick={() => onNavigate('terms')} className="text-blue-600 hover:text-blue-700 underline font-semibold">Terms & Conditions</button>
                         {' '}and{' '}
-                        <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-500 hover:text-blue-700 underline font-semibold">Privacy Policy</button>.
+                        <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-600 hover:text-blue-700 underline font-semibold">Privacy Policy</button>.
                       </label>
                     </div>
-                    <WorkButton
-                      type="submit"
-                      disabled={loading || !agreedToTerms || !otpVerified}
-                      text={loading ? 'Creating Account...' : 'Create Account'}
-                      className="w-full"
-                    />
+                    <button type="submit" disabled={loading || !agreedToTerms || !otpVerified} className="w-full min-h-[48px] rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                      {loading ? 'Creating Account...' : 'Create Account'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => { setStep(2); setError(''); }}
-                      className="w-full h-12 sm:h-14 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm sm:text-base hover:bg-gray-50 active:bg-gray-100 transition-all touch-manipulation min-h-[48px]"
+                      className="w-full h-12 sm:h-14 border border-slate-200 text-slate-600 rounded-xl font-semibold text-sm sm:text-base hover:bg-slate-50 active:bg-slate-100 transition-all touch-manipulation min-h-[48px]"
                     >
                       ← Back
                     </button>
@@ -497,10 +465,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 )}
               </form>
 
-              <div className="my-4 sm:my-5 flex items-center gap-2 sm:gap-3">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs sm:text-sm text-gray-400 px-1 sm:px-2 whitespace-nowrap">or continue with</span>
-                <div className="flex-1 h-px bg-gray-200" />
+              <div className="my-6 sm:my-7 flex items-center gap-2 sm:gap-3">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs sm:text-sm text-slate-400 px-1 sm:px-2 whitespace-nowrap">or continue with</span>
+                <div className="flex-1 h-px bg-slate-200" />
               </div>
 
               <button
@@ -508,13 +476,12 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Google candidate register clicked');
                   // Track Google OAuth attempt
                   analytics.trackEvent('oauth_attempt', 'registration', 'google_candidate');
                   sessionStorage.setItem('oauthIntent', 'register');
                   window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/candidate`;
                 }}
-                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation min-h-[44px] sm:min-h-[48px]"
+                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[44px] sm:min-h-[48px]"
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -533,10 +500,9 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to login');
                       onNavigate('login');
                     }} 
-                    className="text-xs sm:text-sm font-semibold text-blue-500 hover:text-blue-600 active:text-blue-700 transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded underline"
+                    className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 active:text-blue-800 transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded underline"
                   >
                     Sign in
                   </button>
@@ -548,7 +514,6 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Navigating to employer-register');
                       onNavigate('employer-register');
                     }} 
                     className="text-xs font-medium text-orange-500 hover:text-orange-700 active:text-orange-800 underline transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded"
@@ -559,9 +524,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
               </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
+  </div>
   );
 };
 

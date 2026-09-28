@@ -41,8 +41,8 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => 
             </div>
           </div>
           
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 text-gray-900">About ZyncJobs</h1>
-          <p className="text-base sm:text-lg text-gray-600 mb-6">Connecting Talent with Opportunity — Across Every Industry</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">About ZyncJobs</h1>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto px-4">Connecting Talent with Opportunity — Across Every Industry</p>
           
           {/* Mission Statement */}
           <div className="max-w-3xl mx-auto bg-white/60 backdrop-blur-sm border border-orange-200 rounded-2xl p-6 shadow-lg">

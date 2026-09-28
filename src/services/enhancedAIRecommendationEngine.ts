@@ -1,6 +1,7 @@
 export interface EnhancedJobRecommendation {
   job: any;
   matchScore: number;
+  skillScore?: number;
   skillMatch: {
     matched: string[];
     missing: string[];

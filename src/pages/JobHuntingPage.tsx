@@ -40,8 +40,8 @@ const JobHuntingPage: React.FC<JobHuntingPageProps> = ({ onNavigate }) => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Job Hunting 🧑💻</h1>
-          <p className="text-xl text-gray-600">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">Job Hunting 🧑💻</h1>
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
             Master the art of job hunting with proven strategies and expert tips
           </p>
         </div>

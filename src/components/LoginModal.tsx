@@ -105,23 +105,24 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
         return;
       }
       
-      // Store user data in localStorage
-      updateUserInStorage(response.user);
-      
       // Use consistent name from backend - prioritize name field, fallback to fullName or email
       const displayName = response.user.fullName || response.user.name || response.user.email.split('@')[0];
+      
+      // Store user data in localStorage with consistent name
+      updateUserInStorage({ ...response.user, name: displayName });
       
       // Show success toast
       showToast(`Welcome back, ${displayName}!`, 'success');
       
-      // Call onLogin with user data
+      // Call onLogin with user data including id
       console.log('Raw API response userType:', response.user.userType);
       const userType: 'candidate' | 'employer' = (apiUserType === 'employer' || apiUserType === 'recruiter') ? 'employer' : 'candidate';
       console.log('Mapped user type for app:', userType);
       onLogin({ 
         name: displayName, 
         type: userType,
-        email: response.user.email
+        email: response.user.email,
+        id: response.user.id
       });
       
       // Always go to dashboard after login

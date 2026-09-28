@@ -96,6 +96,7 @@ export const API_ENDPOINTS = {
 
   // Admin Invite
   ADMIN_INVITE: `${config.API_URL}/admin/users/invite-admin`,
+  ADMIN_CREATE_ADMIN: `${config.API_URL}/admin/users/create-admin`,
   ADMIN_ACCEPT_INVITE: `${config.API_URL}/admin/users/accept-invite`,
 
   // Candidate Credentialing

@@ -187,16 +187,16 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   }
 
   return (
-    <div className="bg-white py-16">
+    <div className="bg-white py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-16 space-y-4 text-center max-w-3xl mx-auto">
+        <div className="mb-6 sm:mb-8 space-y-2.5 sm:space-y-3 text-center max-w-3xl mx-auto px-2">
           {/* Heading */}
-          <h2 className="text-[32px] md:text-[40px] font-bold text-gray-900 tracking-tight leading-tight">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
             Recent Job <span className="text-orange-500">Openings</span>
           </h2>
 
           {/* Subtitle */}
-          <p className="text-lg text-gray-600">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600">
             Discover the latest opportunities from verified employers, updated in real-time.
           </p>
         </div>
@@ -207,11 +207,12 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
               {jobs.map((job) => (
-                <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
-                    <div className="flex items-center mb-4">
-                      <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
+                <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-lg transition-all duration-300 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-center mb-4 min-w-0">
+                      <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-3 sm:mr-4">
                         <CompanyLogo
                           companyName={job.company || ''}
                           storedLogo={job.companyLogo || companyLogos[(job.company || '').toLowerCase()] || ''}
@@ -220,22 +221,24 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                           className="rounded"
                         />
                       </div>
-                      <div>
-                        <h5 className="font-semibold text-gray-900">{job.company}</h5>
-                        <span className="text-gray-600 text-sm">{job.jobTitle}</span>
-                        <div className="text-gray-500 text-xs mt-1">{job.location}</div>
+                      <div className="min-w-0 flex-1">
+                        <h5 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{job.company}</h5>
+                        <p className="text-gray-600 text-xs sm:text-sm truncate font-medium">{job.jobTitle}</p>
+                        <div className="text-gray-500 text-xs mt-0.5 truncate">{job.location}</div>
                       </div>
                     </div>
                     
                     {job.urgentNote && (
                       <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
-                        <p className="text-sm text-orange-700 font-medium line-clamp-2">{job.urgentNote}</p>
+                        <p className="text-xs sm:text-sm text-orange-700 font-medium line-clamp-2">{job.urgentNote}</p>
                       </div>
                     )}
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{formatJobDescription(job.description || '', 100)}</p>
-                    
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex space-x-2">
+                    <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">{formatJobDescription(job.description || '', 100)}</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3.5 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => onNavigate && onNavigate('job-detail', { 
                             jobTitle: job.jobTitle, 
@@ -243,21 +246,21 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                             companyName: job.company,
                             jobData: job
                           })}
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                          className="bg-blue-600 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
                         >
                           View Details
                         </button>
                         {user?.email === job.postedBy && (
                           <button
                             onClick={() => deleteJob(getId(job) || '')}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                            className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-red-700 transition-colors"
                           >
                             Delete
                           </button>
                         )}
                       </div>
-                      <div className="text-right">
-                        <span className="font-semibold text-gray-900 text-sm">
+                      <div className="text-right flex-shrink-0">
+                        <span className="font-semibold text-gray-900 text-xs sm:text-sm">
                           {job.salary ? formatSalary(job.salary, job.currency || job.salary?.currency) :
                            job.salaryMin && job.salaryMax ?
                            formatSalary({ min: job.salaryMin, max: job.salaryMax, currency: job.currency }) :
@@ -266,12 +269,13 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                     </div>
                     
-                    <div className="flex justify-between items-center text-sm text-gray-500">
+                    <div className="flex justify-between items-center text-xs sm:text-sm text-gray-500 pt-1">
                       <span>{getTimeAgo(job.createdAt)}</span>
-                      <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded">{job.jobType}</span>
+                      <span className="bg-blue-50 text-blue-700 font-medium px-2.5 py-1 rounded text-xs">{job.jobType}</span>
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
             
             <div className="text-center">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, X, ZoomIn, ZoomOut, Check, AlertCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Upload, X, ZoomIn, ZoomOut, Check, AlertCircle, Image as ImageIcon, Trash2, Link } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
 
@@ -21,48 +21,55 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
-  const [rawPreview, setRawPreview] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [isUrlBlob, setIsUrlBlob] = useState(false); // true = object URL (needs revoke), false = external URL
   const [bannerUrl, setBannerUrl] = useState(currentBanner || '');
   const [urlInput, setUrlInput] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   const [urlValidating, setUrlValidating] = useState(false);
-  const [urlPreviewOk, setUrlPreviewOk] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setBannerUrl(currentBanner || '');
   }, [currentBanner]);
 
+  // Revoke object URLs on cleanup
   useEffect(() => {
     return () => {
-      if (rawPreview) URL.revokeObjectURL(rawPreview);
+      if (cropSrc && isUrlBlob) URL.revokeObjectURL(cropSrc);
     };
-  }, [rawPreview]);
+  }, [cropSrc, isUrlBlob]);
 
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!ALLOWED_TYPES.includes(file.type) || !ALLOWED_EXTENSIONS.includes(ext)) {
+    if (!ALLOWED_TYPES.includes(file.type) || !ALLOWED_EXTENSIONS.includes(ext))
       return 'Only JPG, JPEG, PNG, and WEBP files are allowed';
-    }
-    if (file.size > MAX_SIZE) {
-      return 'File size exceeds 5MB limit';
-    }
-    if (file.size === 0) {
-      return 'File is empty';
-    }
+    if (file.size > MAX_SIZE) return 'File size exceeds 5MB limit';
+    if (file.size === 0) return 'File is empty';
     return null;
+  };
+
+  const openCropper = (src: string, isBlob: boolean) => {
+    setCropSrc(src);
+    setIsUrlBlob(isBlob);
+    setShowCropper(true);
+  };
+
+  const closeCropper = () => {
+    setShowCropper(false);
+    if (cropSrc && isUrlBlob) {
+      URL.revokeObjectURL(cropSrc);
+    }
+    setCropSrc(null);
+    setIsUrlBlob(false);
   };
 
   const handleFile = (file: File) => {
     setError(null);
     const validationError = validateFile(file);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (validationError) { setError(validationError); return; }
     const preview = URL.createObjectURL(file);
-    setRawPreview(preview);
-    setShowCropper(true);
+    openCropper(preview, true);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -82,6 +89,13 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
     setShowCropper(false);
     setUploading(true);
     setError(null);
+
+    // Revoke object URL if it was a file blob
+    if (cropSrc && isUrlBlob) {
+      URL.revokeObjectURL(cropSrc);
+    }
+    setCropSrc(null);
+    setIsUrlBlob(false);
 
     try {
       const formData = new FormData();
@@ -108,10 +122,6 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
-      if (rawPreview) {
-        URL.revokeObjectURL(rawPreview);
-        setRawPreview(null);
-      }
     }
   };
 
@@ -119,20 +129,19 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
     setBannerUrl('');
     setUrlInput('');
     setUrlError(null);
-    if (rawPreview) {
-      URL.revokeObjectURL(rawPreview);
-      setRawPreview(null);
-    }
     setError(null);
     onRemove();
   };
 
+  // Route URL images through the cropper so they can be adjusted
   const handleUrlApply = async () => {
     const url = urlInput.trim();
     if (!url) { setUrlError('Please enter a URL'); return; }
     try { new URL(url); } catch { setUrlError('Invalid URL format'); return; }
     setUrlError(null);
     setUrlValidating(true);
+
+    // Verify the URL loads as an image
     try {
       await new Promise<void>((resolve, reject) => {
         const img = new Image();
@@ -142,13 +151,14 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
       });
     } catch {
       setUrlValidating(false);
-      setUrlError('Cannot load this URL as an image. It may be blocked or not an image file.');
+      setUrlError('Cannot load this URL as an image. Try right-clicking the image → "Copy image address".');
       return;
     }
+
     setUrlValidating(false);
-    setBannerUrl(url);
-    onChange(url);
     setUrlInput('');
+    // Open cropper with the external URL directly (no blob revoke needed)
+    openCropper(url, false);
   };
 
   return (
@@ -167,40 +177,41 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
         </div>
       )}
 
+      {/* Banner preview with replace/delete controls */}
       {bannerUrl && !showCropper && !uploading ? (
         <div className="relative rounded-lg overflow-hidden bg-gray-900 group">
           <img
             src={bannerUrl}
             alt="Job banner"
             className="w-full h-36 object-cover opacity-80"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
-            }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 to-purple-900/30" />
           <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 bg-white/90 rounded-lg hover:bg-white text-gray-700 shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/90 rounded-lg hover:bg-white text-gray-700 text-xs font-medium shadow-sm transition-colors"
               title="Replace banner"
             >
-              <Upload size={16} />
+              <Upload size={13} />
+              Replace
             </button>
             <button
               type="button"
               onClick={handleRemove}
-              className="p-2 bg-white/90 rounded-lg hover:bg-white text-red-600 shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/90 rounded-lg hover:bg-white text-red-600 text-xs font-medium shadow-sm transition-colors"
               title="Remove banner"
             >
-              <Trash2 size={16} />
+              <Trash2 size={13} />
+              Remove
             </button>
           </div>
           <div className="absolute bottom-2 left-2">
-            <span className="text-[10px] text-white/70 bg-black/40 px-2 py-0.5 rounded">1200 x 400</span>
+            <span className="text-[10px] text-white/70 bg-black/40 px-2 py-0.5 rounded">1200 × 400</span>
           </div>
         </div>
       ) : !showCropper && !uploading ? (
+        /* Drop zone — shown when no banner */
         <div
           className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
             dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
@@ -211,72 +222,41 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
           onClick={() => fileInputRef.current?.click()}
         >
           <ImageIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm font-medium text-gray-700 mb-1">
-            Click to upload or drag & drop
-          </p>
-          <p className="text-xs text-gray-500">
-            JPG, PNG, or WEBP &middot; Max 5MB
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Recommended: 1200 x 400 px
-          </p>
+          <p className="text-sm font-medium text-gray-700 mb-1">Click to upload or drag & drop</p>
+          <p className="text-xs text-gray-500">JPG, PNG, or WEBP &middot; Max 5MB</p>
+          <p className="text-xs text-gray-400 mt-1">Recommended: 1200 × 400 px</p>
         </div>
       ) : null}
 
-      {/* URL paste input */}
-      <div className="space-y-2">
-        <div className="flex gap-2 items-start">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={urlInput}
-              onChange={(e) => { setUrlInput(e.target.value); setUrlError(null); setUrlPreviewOk(null); }}
-              onPaste={() => {
-                setTimeout(() => {
-                  setUrlInput(prev => prev.trim());
-                  setUrlError(null);
-                  setUrlPreviewOk(null);
-                }, 0);
-              }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlApply(); } }}
-              placeholder="Or paste an image URL here..."
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                urlError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-              }`}
-            />
-            {urlError && <p className="text-xs text-red-600 mt-1">{urlError}</p>}
+      {/* URL input — always visible so user can paste a URL */}
+      {!showCropper && !uploading && (
+        <div className="space-y-1.5">
+          <div className="flex gap-2 items-start">
+            <div className="relative flex-1">
+              <Link size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => { setUrlInput(e.target.value); setUrlError(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlApply(); } }}
+                placeholder="Or paste an image URL..."
+                className={`w-full border rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  urlError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleUrlApply}
+              disabled={!urlInput.trim() || urlValidating}
+              className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            >
+              {urlValidating ? 'Checking...' : 'Use URL'}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleUrlApply}
-            disabled={!urlInput.trim() || urlValidating}
-            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-          >
-            {urlValidating ? 'Checking...' : 'Use URL'}
-          </button>
+          {urlError && <p className="text-xs text-red-600">{urlError}</p>}
         </div>
-        {/* Live URL preview */}
-        {urlInput.trim() && (() => { try { new URL(urlInput.trim()); return true; } catch { return false; } })() && (
-          <div className="relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200" style={{height: '80px'}}>
-            <img
-              src={urlInput.trim()}
-              alt="URL preview"
-              className="w-full h-full object-cover"
-              onLoad={() => setUrlPreviewOk(true)}
-              onError={() => setUrlPreviewOk(false)}
-            />
-            {urlPreviewOk === false && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-500 text-xs text-center px-2">
-                <span className="text-lg mb-1">⚠️</span>
-                Cannot load this URL as image.<br/>Try right-clicking the image → "Copy image address"
-              </div>
-            )}
-            {urlPreviewOk === true && (
-              <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">✓ Image loaded</div>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       <input
         ref={fileInputRef}
@@ -286,16 +266,10 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
         className="hidden"
       />
 
-      {showCropper && rawPreview && (
+      {showCropper && cropSrc && (
         <CropModal
-          src={rawPreview}
-          onClose={() => {
-            setShowCropper(false);
-            if (rawPreview) {
-              URL.revokeObjectURL(rawPreview);
-              setRawPreview(null);
-            }
-          }}
+          src={cropSrc}
+          onClose={closeCropper}
           onApply={handleCropApply}
         />
       )}
@@ -303,7 +277,8 @@ function JobBannerUploader({ currentBanner, onChange, onRemove }: JobBannerUploa
   );
 }
 
-// Crop modal with fixed 3:1 aspect ratio, outputs 1200x400
+// ─── Crop Modal ───────────────────────────────────────────────────────────────
+
 interface CropModalProps {
   src: string;
   onClose: () => void;
@@ -313,7 +288,6 @@ interface CropModalProps {
 function CropModal({ src, onClose, onApply }: CropModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -331,17 +305,28 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       imgRef.current = img;
-      const scaleW = CANVAS_W / img.width;
-      const scaleH = CANVAS_H / img.height;
-      const initZoom = Math.max(scaleW, scaleH);
+      const initZoom = Math.max(CANVAS_W / img.width, CANVAS_H / img.height);
       setZoom(initZoom);
       setOffset({ x: 0, y: 0 });
       setImgLoaded(true);
       setCropError(null);
     };
     img.onerror = () => {
-      setCropError('Failed to load image for cropping. The file may be corrupted or unsupported.');
-      setImgLoaded(false);
+      // Try without crossOrigin for same-origin or permissive URLs
+      const img2 = new Image();
+      img2.onload = () => {
+        imgRef.current = img2;
+        const initZoom = Math.max(CANVAS_W / img2.width, CANVAS_H / img2.height);
+        setZoom(initZoom);
+        setOffset({ x: 0, y: 0 });
+        setImgLoaded(true);
+        setCropError(null);
+      };
+      img2.onerror = () => {
+        setCropError('Failed to load image for cropping. The URL may be blocked by CORS or is not a valid image.');
+        setImgLoaded(false);
+      };
+      img2.src = src;
     };
     img.src = src;
   }, [src]);
@@ -352,12 +337,10 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
     if (!canvas || !img) return;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-
     const drawW = img.width * zoom;
     const drawH = img.height * zoom;
     const x = (CANVAS_W - drawW) / 2 + offset.x;
     const y = (CANVAS_H - drawH) / 2 + offset.y;
-
     ctx.drawImage(img, x, y, drawW, drawH);
   }, [zoom, offset]);
 
@@ -382,14 +365,10 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
     setDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
   };
-
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!dragging) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    setOffset(clampOffset(dragStart.current.ox + dx, dragStart.current.oy + dy, zoom));
+    setOffset(clampOffset(dragStart.current.ox + e.clientX - dragStart.current.x, dragStart.current.oy + e.clientY - dragStart.current.y, zoom));
   };
-
   const handleMouseUp = () => setDragging(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -397,13 +376,10 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
     setDragging(true);
     dragStart.current = { x: t.clientX, y: t.clientY, ox: offset.x, oy: offset.y };
   };
-
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!dragging) return;
     const t = e.touches[0];
-    const dx = t.clientX - dragStart.current.x;
-    const dy = t.clientY - dragStart.current.y;
-    setOffset(clampOffset(dragStart.current.ox + dx, dragStart.current.oy + dy, zoom));
+    setOffset(clampOffset(dragStart.current.ox + t.clientX - dragStart.current.x, dragStart.current.oy + t.clientY - dragStart.current.y, zoom));
   };
 
   const changeZoom = (delta: number) => {
@@ -418,9 +394,7 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
   const resetZoom = () => {
     const img = imgRef.current;
     if (!img) return;
-    const scaleW = CANVAS_W / img.width;
-    const scaleH = CANVAS_H / img.height;
-    const initZoom = Math.max(scaleW, scaleH);
+    const initZoom = Math.max(CANVAS_W / img.width, CANVAS_H / img.height);
     setZoom(initZoom);
     setOffset({ x: 0, y: 0 });
   };
@@ -429,20 +403,16 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
     const img = imgRef.current;
     if (!img) return;
     setApplying(true);
-
     const scale = OUT_W / CANVAS_W;
-
     const offscreen = document.createElement('canvas');
     offscreen.width = OUT_W;
     offscreen.height = OUT_H;
     const ctx = offscreen.getContext('2d')!;
-
     const drawW = img.width * zoom * scale;
     const drawH = img.height * zoom * scale;
     const x = (OUT_W - drawW) / 2 + offset.x * scale;
     const y = (OUT_H - drawH) / 2 + offset.y * scale;
     ctx.drawImage(img, x, y, drawW, drawH);
-
     offscreen.toBlob(blob => {
       if (blob) onApply(blob);
       setApplying(false);
@@ -450,102 +420,107 @@ function CropModal({ src, onClose, onApply }: CropModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Crop Job Banner</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Drag to reposition &middot; Scroll or use controls to zoom</p>
+            <p className="text-xs text-gray-500 mt-0.5">Drag to reposition · Scroll or use controls to zoom</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
         </div>
 
-        {cropError && (
-          <div className="mx-6 mt-4 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            <AlertCircle size={16} className="shrink-0" />
-            {cropError}
-          </div>
-        )}
-
-        {!cropError && (<>
-          <div className="px-6 pt-5 pb-3">
-            <div
-              ref={containerRef}
-              className="relative rounded-xl overflow-hidden border-2 border-blue-200 bg-gray-100"
-              style={{ width: '100%', aspectRatio: `${ASPECT}` }}
-            >
-              <canvas
-                ref={canvasRef}
-                width={CANVAS_W}
-                height={CANVAS_H}
-                className="w-full h-full block"
-                style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleMouseUp}
-                onWheel={e => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 0.05 : -0.05); }}
-              />
-              {!imgLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                  <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full" />
-                </div>
-              )}
+        {cropError ? (
+          <div className="m-6 flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">Cannot load image</p>
+              <p className="mt-0.5 text-red-600">{cropError}</p>
+              <p className="mt-1 text-red-500 text-xs">Try downloading the image and uploading it directly instead.</p>
             </div>
           </div>
-
-          <div className="flex items-center justify-center gap-3 px-6 pb-4">
-            <button onClick={() => changeZoom(-0.1)} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
-              <ZoomOut size={16} />
-            </button>
-            <input
-              type="range" min={0} max={100} step={1}
-              value={Math.round(((zoom - 1) / 3) * 100)}
-              onChange={e => {
-                const img = imgRef.current;
-                if (!img) return;
-                const minZoom = Math.max(CANVAS_W / img.width, CANVAS_H / img.height);
-                const newZoom = minZoom + (parseInt(e.target.value) / 100) * (4 - minZoom);
-                setZoom(newZoom);
-                setOffset(prev => clampOffset(prev.x, prev.y, newZoom));
-              }}
-              className="w-40 accent-blue-600"
-            />
-            <button onClick={() => changeZoom(0.1)} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
-              <ZoomIn size={16} />
-            </button>
-            <button onClick={resetZoom} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500 transition-colors text-xs font-medium px-3">
-              Reset
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 px-6 pb-6">
-            <div className="text-[11px] text-gray-400">
-              Output: 1200 x 400 px
-            </div>
-            <div className="flex gap-3">
-              <button onClick={onClose} className="px-5 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleApply}
-                disabled={!imgLoaded || applying || !!cropError}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center gap-2 shadow-sm"
+        ) : (
+          <>
+            {/* Canvas area */}
+            <div className="px-6 pt-5 pb-3">
+              <div
+                className="relative rounded-xl overflow-hidden border-2 border-blue-200 bg-gray-100"
+                style={{ width: '100%', aspectRatio: `${ASPECT}` }}
               >
-                {applying ? (
-                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing...</>
-                ) : (
-                  <><Check size={16} />Apply Banner</>
+                <canvas
+                  ref={canvasRef}
+                  width={CANVAS_W}
+                  height={CANVAS_H}
+                  className="w-full h-full block"
+                  style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleMouseUp}
+                  onWheel={e => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 0.05 : -0.05); }}
+                />
+                {!imgLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                    <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full" />
+                  </div>
                 )}
+              </div>
+            </div>
+
+            {/* Zoom controls */}
+            <div className="flex items-center justify-center gap-3 px-6 pb-4">
+              <button onClick={() => changeZoom(-0.1)} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
+                <ZoomOut size={16} />
+              </button>
+              <input
+                type="range" min={0} max={100} step={1}
+                value={Math.round(((zoom - 1) / 3) * 100)}
+                onChange={e => {
+                  const img = imgRef.current;
+                  if (!img) return;
+                  const minZoom = Math.max(CANVAS_W / img.width, CANVAS_H / img.height);
+                  const newZoom = minZoom + (parseInt(e.target.value) / 100) * (4 - minZoom);
+                  setZoom(newZoom);
+                  setOffset(prev => clampOffset(prev.x, prev.y, newZoom));
+                }}
+                className="w-40 accent-blue-600"
+              />
+              <button onClick={() => changeZoom(0.1)} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
+                <ZoomIn size={16} />
+              </button>
+              <button onClick={resetZoom} className="px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500 text-xs font-medium transition-colors">
+                Reset
               </button>
             </div>
-          </div>
-        </>)}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 px-6 pb-6 shrink-0">
+              <span className="text-[11px] text-gray-400">Output: 1200 × 400 px</span>
+              <div className="flex gap-3">
+                <button onClick={onClose} className="px-5 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApply}
+                  disabled={!imgLoaded || applying || !!cropError}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  {applying ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing...</>
+                  ) : (
+                    <><Check size={16} />Apply Banner</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -389,7 +389,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
     <div className="w-full">
       {label && (
         <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1.5">
-          {label} {required && <span className="text-red-500">*</span>}
+          {label.replace(/\s*\*\s*$/, '')} {required && <span className="text-red-500">*</span>}
         </label>
       )}
       <div className="relative">
@@ -465,7 +465,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             id={listboxId}
             aria-label={label || 'Options'}
             className="
-              absolute z-50 mt-1 w-full max-h-60 overflow-auto
+              absolute z-[9999] mt-1 w-full max-h-60 overflow-auto
               bg-white border border-gray-200 rounded-lg shadow-lg
               animate-dropdown-in
             "

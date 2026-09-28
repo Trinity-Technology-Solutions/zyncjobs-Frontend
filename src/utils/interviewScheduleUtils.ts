@@ -63,12 +63,15 @@ export const formatInterviewTime = (interview: InterviewLike): string => {
   return explicit || 'Time TBD';
 };
 
-// Prefer the real meeting URL over the backend redirect endpoint, which has
-// been observed redirecting users to unrelated third-party pages.
-export const getInterviewJoinUrl = (interview: InterviewLike): string | null => {
+// Always route through the backend join endpoint — this enforces the time-window
+// expiry check server-side. Direct meet.google.com / zoom.us links bypass expiry.
+export const getInterviewJoinUrl = (interview: InterviewLike & { _id?: string; id?: string }): string | null => {
+  const id = interview._id || interview.id;
+  if (!id) return null;
   const link = interview.meetingLink || interview.joinUrl || interview.meetLink;
-  if (link && /^https?:\/\//i.test(link)) return link;
-  return null;
+  if (!link) return null;
+  const apiBase = (import.meta as any).env?.VITE_API_URL?.replace('/api', '') || '';
+  return `${apiBase}/api/meetings/interview/${id}/join`;
 };
 
 // Verifies a generated link actually belongs to the requested platform.

@@ -585,11 +585,11 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-5 py-2 text-indigo-200 text-sm mb-8 shadow-lg">
             <Mic className="w-4 h-4" /> Interview Mastery Guide
           </div>
-          <h1 className="text-5xl sm:text-6xl font-black text-white mb-5 leading-[1.1] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-white mb-2.5 leading-[1.15] tracking-[-0.02em]">
             Ace Every <br className="sm:hidden" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300">Interview</span>
           </h1>
-          <p className="text-lg sm:text-xl text-indigo-200/70 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-sm sm:text-base text-indigo-200/70 max-w-2xl mx-auto mb-4 leading-relaxed px-4">
             Proven strategies, real examples, and expert tips to land your dream job with confidence.
           </p>
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6">

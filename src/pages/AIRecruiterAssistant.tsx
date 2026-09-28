@@ -349,11 +349,11 @@ return (
                 </div>
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold tracking-[-0.02em] leading-[1.15] flex items-center gap-2">
                   AI Recruiter Assistant
                   <span className="hidden sm:inline-flex text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-blue-500/30 to-violet-500/30 border border-white/20 text-blue-200 rounded-full px-2 py-0.5">Beta</span>
                 </h1>
-                <p className="text-blue-300/90 text-xs sm:text-sm mt-0.5">Agentic AI talent sourcing · screening · ranked shortlists</p>
+                <p className="text-blue-300/90 text-sm sm:text-base leading-relaxed mt-0.5 max-w-2xl">Agentic AI talent sourcing · screening · ranked shortlists</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">

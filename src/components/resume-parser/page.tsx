@@ -162,16 +162,21 @@ function ParsedResultsTable({ resume }: { resume: ParsedResume }) {
       {resume.educations.length > 0 && (
         <SectionCard title="Education" icon={<SvgIcon name="edu" />}>
           <div className="space-y-3">
-            {resume.educations.map((edu: any, i: number) => (
-              <div key={i} className={`${i > 0 ? 'pt-3 border-t border-gray-100' : ''}`}>
-                <div className="font-medium text-gray-900 text-sm">{edu.school || '—'}</div>
-                <div className="text-blue-600 text-xs font-medium mt-0.5">{edu.degree}</div>
-                <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                  {edu.date && <span><SvgIcon name="calendar" className="w-3.5 h-3.5 inline mr-0.5" />{edu.date}</span>}
-                  {edu.gpa && <span><SvgIcon name="starSmall" className="w-3.5 h-3.5 inline mr-0.5 text-yellow-500" />{edu.gpa}</span>}
+            {resume.educations.map((edu: any, i: number) => {
+              const isSchool = /\b(sslc|hsc|10th|12th|matriculation|higher secondary|secondary school|school)\b/i.test(edu.degree + ' ' + edu.school);
+              const gpaLabel = isSchool ? 'Percentage' : /\b(cgpa|gpa)\b/i.test(String(edu.gpa)) ? 'CGPA' : (String(edu.gpa || '').includes('%') ? 'Percentage' : 'GPA/CGPA');
+              const gpaDisplay = String(edu.gpa || '').replace(/[^\d.%]/g, '') + (String(edu.gpa || '').includes('%') ? '' : (isSchool ? '%' : ''));
+              return (
+                <div key={i} className={`${i > 0 ? 'pt-3 border-t border-gray-100' : ''}`}>
+                  <div className="font-medium text-gray-900 text-sm">{edu.school || '—'}</div>
+                  {edu.degree && <div className="text-blue-600 text-xs font-medium mt-0.5">{edu.degree}</div>}
+                  <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+                    {edu.date && <span><SvgIcon name="calendar" className="w-3.5 h-3.5 inline mr-0.5" />{isSchool ? 'Year' : 'Year'}: {edu.date}</span>}
+                    {edu.gpa && <span><SvgIcon name="starSmall" className="w-3.5 h-3.5 inline mr-0.5 text-yellow-500" />{gpaLabel}: {gpaDisplay}</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </SectionCard>
       )}

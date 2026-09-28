@@ -130,17 +130,17 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
         {/* Header */}
         <div className="text-center mb-10 anim-fade-2">
-          <h1 className="text-4xl md:text-5xl font-extrabold mb-3 text-slate-900">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 text-slate-900 leading-[1.15] tracking-[-0.02em]">
             Create New Job
           </h1>
-          <p className="text-slate-500 text-base">Choose how you'd like to post your job</p>
+          <p className="text-sm sm:text-base text-slate-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">Choose how you'd like to post your job</p>
         </div>
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto items-stretch anim-fade-3">
 
           {/* Manual Creation — purple theme */}
-          <div onClick={() => onNavigate('job-posting', { mode: 'manual' })}
+          <div onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting', { mode: 'manual' }); }}
             className="card-manual card-float rounded-2xl p-7 cursor-pointer backdrop-blur-sm flex flex-col">
 
             <div className="flex items-center gap-4 mb-5">
@@ -181,7 +181,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
           </div>
 
           {/* Parse Job Details — orange theme */}
-          <div onClick={() => onNavigate('job-parsing')}
+          <div onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-parsing'); }}
             className="card-ai card-float rounded-2xl p-6 cursor-pointer flex flex-col">
 
             <div className="flex items-center gap-4 mb-5">

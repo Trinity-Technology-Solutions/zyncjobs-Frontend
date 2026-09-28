@@ -172,6 +172,10 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           const matched = Array.isArray(data.jobs) ? data.jobs : [];
             if (matched.length > 0) {
               setJobs(matched.map((j: any) => {
+                // Prefer backend-provided score; only recalculate if absent
+                if (j.matchScore != null && j.matchScore > 0) {
+                  return { ...j, matchPercentage: Math.round(j.matchScore) };
+                }
                 const jobData = { ...j, title: j.title || j.jobTitle || '', skills: Array.isArray(j.skills) ? j.skills : [] };
                 const { overall } = computeMatchBreakdown(jobData);
                 return { ...j, matchPercentage: overall };
@@ -199,6 +203,9 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           const matches = Array.isArray(data.matches) ? data.matches : [];
           if (matches.length > 0) {
             setJobs(matches.map((j: any) => {
+              if (j.matchScore != null && j.matchScore > 0) {
+                return { ...j, matchPercentage: Math.round(j.matchScore) };
+              }
               const jobData = { ...j, title: j.title || j.jobTitle || '', skills: Array.isArray(j.skills) ? j.skills : [] };
               const { overall } = computeMatchBreakdown(jobData);
               return { ...j, matchPercentage: overall };

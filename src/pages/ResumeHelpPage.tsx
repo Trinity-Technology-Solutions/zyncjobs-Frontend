@@ -167,11 +167,11 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
               </div>
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 leading-[1.15] tracking-[-0.02em] bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
               Resume Tips & Guide
             </h1>
             
-            <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed">
+            <p className="text-sm sm:text-base text-blue-100 mb-4 leading-relaxed max-w-2xl mx-auto px-4">
               Master the art of creating compelling resumes that get noticed by recruiters and land interviews
             </p>
             
