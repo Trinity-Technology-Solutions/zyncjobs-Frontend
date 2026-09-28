@@ -140,7 +140,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto items-stretch anim-fade-3">
 
           {/* Manual Creation — purple theme */}
-          <div onClick={() => onNavigate('job-posting', { mode: 'manual' })}
+          <div onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting', { mode: 'manual' }); }}
             className="card-manual card-float rounded-2xl p-7 cursor-pointer backdrop-blur-sm flex flex-col">
 
             <div className="flex items-center gap-4 mb-5">
@@ -181,7 +181,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
           </div>
 
           {/* Parse Job Details — orange theme */}
-          <div onClick={() => onNavigate('job-parsing')}
+          <div onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-parsing'); }}
             className="card-ai card-float rounded-2xl p-6 cursor-pointer flex flex-col">
 
             <div className="flex items-center gap-4 mb-5">

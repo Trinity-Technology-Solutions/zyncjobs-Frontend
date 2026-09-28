@@ -1232,6 +1232,25 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
+
+            {/* View Company Page Button */}
+            <button
+              onClick={() => {
+                const name = companyName && companyName !== 'Company' ? companyName : user?.companyName || user?.company || '';
+                if (!name) return;
+                localStorage.setItem('selectedCompany', JSON.stringify({ name, _id: user?.companyId || '' }));
+                sessionStorage.setItem('companyDetailsTab', 'reviews');
+                onNavigate('company-details');
+              }}
+              className="bg-white border border-gray-300 text-gray-700 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors text-xs shadow-sm flex items-center gap-1"
+              title="View your company page"
+            >
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span className="hidden sm:inline">Company Page</span>
+            </button>
             
             {/* Post Job Button */}
             {canPostJobs ? (
@@ -2414,9 +2433,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   notifications.map((notification) => (
                     <div key={notification.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-start space-x-4">
-                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">
-                          {NotificationService.getNotificationIcon(notification.type)}
-                        </div>
+                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0"
+                          dangerouslySetInnerHTML={{ __html: NotificationService.getNotificationIcon(notification.type) }} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-1">
                             <h3 className="text-sm font-semibold text-gray-900">{notification.title}</h3>
@@ -2613,11 +2631,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       }}
                     >
                       <div className="flex items-start space-x-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 ${
                           NotificationService.getNotificationColor(notification.type)
-                        }`}>
-                          {NotificationService.getNotificationIcon(notification.type)}
-                        </div>
+                        }`}
+                          dangerouslySetInnerHTML={{ __html: NotificationService.getNotificationIcon(notification.type) }} />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-gray-900 mb-1">{notification.title}</h4>
                           <p className="text-sm text-gray-600 mb-2 line-clamp-2">{notification.message}</p>

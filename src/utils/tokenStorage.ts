@@ -20,13 +20,13 @@ export const tokenStorage = {
     sessionStorage.setItem(ACCESS_KEY, token);
   },
 
-  // Refresh token — sessionStorage only (per-tab) + backend httpOnly cookie.
-  // getRefresh still reads localStorage as a transitional fallback for sessions
-  // created before this hardening; setRefresh removes the localStorage copy.
+  // Refresh token — localStorage (survives page refresh) + sessionStorage.
+  // Previously sessionStorage-only which caused employer sessions to be lost
+  // after a page refresh when the access token had expired (idle > 15 min).
   getRefresh: () => sessionStorage.getItem(REFRESH_KEY) || localStorage.getItem(REFRESH_KEY),
   setRefresh: (token: string) => {
+    localStorage.setItem(REFRESH_KEY, token);
     sessionStorage.setItem(REFRESH_KEY, token);
-    localStorage.removeItem(REFRESH_KEY);
   },
 
   // Admin token — sessionStorage only (admin sessions end on tab close)
