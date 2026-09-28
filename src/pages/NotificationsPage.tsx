@@ -239,7 +239,7 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className={`font-medium ${!notification.read ? 'text-gray-900' : 'text-gray-700'}`}>
-                        {notification.title}
+                        {notification.title.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]/gu, '').trim()}
                       </h3>
                       <span className="text-sm text-gray-500 whitespace-nowrap ml-4">
                         {formatTime(notification.createdAt)}

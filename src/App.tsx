@@ -666,7 +666,13 @@ function App() {
           // If user logged in as employer (stored in lastUserType), preserve that
           // even if DB role is super_admin/admin (dual-role account)
           const lastUserType = localStorage.getItem('lastUserType');
-          const resolvedRawType = (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
+          // CRITICAL: if lastUserType=employer but cookie-based getMe() returned
+          // a different role (e.g. candidate from a stale httpOnly cookie), trust
+          // lastUserType so a long-idle employer refresh doesn't land on candidate.
+          const cookieReturnedWrongRole = lastUserType === 'employer' && rawType === 'candidate';
+          const resolvedRawType = cookieReturnedWrongRole
+            ? 'employer'
+            : (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
             ? 'employer'
             : lastUserType === 'recruiter' && ['super_admin', 'admin', 'manager'].includes(rawType)
               ? 'recruiter'
