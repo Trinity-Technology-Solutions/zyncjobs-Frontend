@@ -19,7 +19,7 @@ const steps = [
       'Save jobs & track applications',
       'AI-personalized job recommendations',
     ],
-    gradient: 'from-blue-50/60 via-sky-50/40 to-indigo-100/40',
+    gradient: 'from-slate-50 via-slate-50 to-slate-100',
     glow: 'bg-blue-400',
     chipBg: 'bg-blue-600',
   },
@@ -34,7 +34,7 @@ const steps = [
       'Filter by location, salary & job type',
       'Smart match score on every job',
     ],
-    gradient: 'from-violet-50/60 via-purple-50/30 to-violet-100/40',
+    gradient: 'from-slate-50 via-slate-50 to-slate-100',
     glow: 'bg-violet-400',
     chipBg: 'bg-violet-600',
   },
@@ -49,7 +49,7 @@ const steps = [
       'Instant ATS score & improvement tips',
       'Tailor resumes per application',
     ],
-    gradient: 'from-cyan-50/60 via-sky-50/40 to-cyan-100/40',
+    gradient: 'from-slate-50 via-slate-50 to-slate-100',
     glow: 'bg-cyan-400',
     chipBg: 'bg-cyan-600',
   },
@@ -64,7 +64,7 @@ const steps = [
       'Real-time status tracking',
       'Notifications at every stage',
     ],
-    gradient: 'from-orange-50/60 via-amber-50/30 to-orange-100/40',
+    gradient: 'from-slate-50 via-slate-50 to-slate-100',
     glow: 'bg-orange-400',
     chipBg: 'bg-orange-500',
   },
@@ -141,14 +141,11 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section id="how-it-works" className="relative bg-[#f0f6ff] overflow-x-clip border-t border-blue-100/60">
-      {/* Subtle ambient light glows */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-12 right-12 w-[28rem] h-[28rem] bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
+    <section id="how-it-works" className="relative bg-slate-50 overflow-x-clip border-y border-slate-200/70">
 
       {/* 1. Section header in standard document flow — fades out cleanly once steps pin */}
       <div
-        className="relative pt-12 sm:pt-16 lg:pt-20 pb-4 sm:pb-6 lg:pb-8 text-center px-4 max-w-4xl mx-auto z-10 transition-opacity duration-200"
+        className="relative pt-10 sm:pt-12 lg:pt-16 pb-4 sm:pb-5 lg:pb-6 text-center px-4 max-w-4xl mx-auto z-10 transition-opacity duration-200"
         style={{
           opacity: Math.max(0, 1 - progress * 8),
           pointerEvents: progress > 0.05 ? 'none' : 'auto',
@@ -184,9 +181,6 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
               className={`absolute inset-0 bg-gradient-to-br ${t.gradient} transition-opacity duration-700 pointer-events-none`}
               style={{ opacity: i === active ? 1 : 0 }}
             >
-              <div className={`absolute -top-24 -left-24 w-96 h-96 ${t.glow}/10 rounded-full blur-3xl`} />
-              <div className={`absolute -bottom-32 -right-24 w-[28rem] h-[28rem] ${t.glow}/5 rounded-full blur-3xl`} />
-              <div className="absolute top-1/3 right-1/3 w-40 h-40 bg-white/60 rounded-full blur-2xl" />
             </div>
           ))}
 

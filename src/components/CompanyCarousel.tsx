@@ -15,7 +15,7 @@ const CompanyCarousel: React.FC = () => {
   const duplicatedCompanies = [...COMPANIES, ...COMPANIES, ...COMPANIES];
 
   return (
-    <div className="w-full bg-white py-6 sm:py-8 border-y border-slate-100 overflow-hidden">
+    <div className="w-full bg-slate-50 py-5 sm:py-6 border-y border-slate-200/70 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-center text-xs font-bold text-gray-400 tracking-[0.2em] uppercase mb-4 sm:mb-6">
           Trusted by Top Companies
@@ -23,8 +23,8 @@ const CompanyCarousel: React.FC = () => {
         
         <div className="relative w-full overflow-hidden">
           {/* Gradient overlays for smooth fade on edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-10 sm:w-20 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-10 sm:w-20 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute left-0 top-0 bottom-0 w-10 sm:w-20 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-10 sm:w-20 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none"></div>
 
           {/* Marquee container */}
           <div className="flex items-center gap-12 sm:gap-16 md:gap-24 animate-[marquee_30s_linear_infinite] w-max">

@@ -11,12 +11,12 @@
   :root { --header-h: 82px; }
 }
 @media (min-width: 1024px) {
-  :root { --header-h: 97px; }
+  :root { --header-h: 86px; }
 }
 
 /* Push every page's main content below the fixed header */
 #main-content {
-  padding-top: var(--header-h);
+  /* padding-top: var(--header-h); handled by Header spacer */
 }
 
 

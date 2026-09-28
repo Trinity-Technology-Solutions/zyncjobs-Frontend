@@ -21,9 +21,9 @@ const JOB_ROLES = [
 ];
 
 const DIFFICULTY = [
-  { id: 'easy', label: 'Fresher', color: 'bg-green-100 text-green-700 border-green-300' },
-  { id: 'medium', label: 'Mid-Level', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
-  { id: 'hard', label: 'Senior', color: 'bg-red-100 text-red-700 border-red-300' },
+  { id: 'easy', label: 'Fresher', color: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+  { id: 'medium', label: 'Mid-Level', color: 'bg-amber-50 text-amber-700 border-amber-300' },
+  { id: 'hard', label: 'Senior', color: 'bg-red-50 text-red-700 border-red-300' },
 ];
 
 interface SimMessage { role: 'ai' | 'user'; content: string; score?: number; feedback?: string; }
@@ -228,43 +228,40 @@ Format rules:
 
   // ── Setup Screen ──────────────────────────────────────────────────────────────
   if (step === 'setup') return (
-    <div className="max-w-3xl mx-auto">
-      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 mb-6 overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-5 right-5 w-40 h-40 bg-indigo-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-5 left-5 w-60 h-60 bg-purple-400 rounded-full blur-3xl" />
-        </div>
-        <div className="relative flex items-center gap-4">
-          <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/10">
-            <Brain className="w-7 h-7 text-indigo-300" />
+    <div className="w-full space-y-6">
+      <div className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] text-[#1e3a8a] p-6 sm:p-8 shadow-sm">
+        <div className="absolute inset-x-0 top-0 h-1 bg-[#2563eb]" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-12 h-12 bg-white border border-[#bfdbfe] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+            <Brain className="w-6 h-6 text-[#2563eb]" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">AI Mock Interview</h2>
-            <p className="text-indigo-300/80 text-sm">Practice with AI — get scored & feedback instantly</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">AI Mock Interview</h2>
+            <p className="text-[#526780] text-sm">Practice with AI — get scored & feedback instantly</p>
           </div>
-          <div className="ml-auto hidden sm:flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-2">
-            <Clock className="w-4 h-4 text-indigo-300" />
-            <span className="text-indigo-200 text-xs font-medium">~{MAX_QUESTIONS * 3} min</span>
+          <div className="sm:ml-auto inline-flex items-center gap-2 bg-white border border-[#bfdbfe] rounded-md px-3.5 py-1.5 shadow-sm self-start sm:self-center">
+            <Clock className="w-3.5 h-3.5 text-[#2563eb]" />
+            <span className="text-[#1e3a8a] text-xs font-semibold">~{MAX_QUESTIONS * 3} min</span>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 space-y-7">
+      <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8 lg:p-10 space-y-6 sm:space-y-8">
         {/* Role Selection */}
         <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-3">Select Job Role</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-3">
+          <label className="block text-sm font-semibold text-[#1e3a8a] mb-3">Select Job Role</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
             {JOB_ROLES.map(r => (
               <button key={r} onClick={() => setRole(r)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all text-left ${
-                  role === r ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50/50'
+                className={`px-4 py-2.5 rounded-md text-sm font-medium border transition-all text-left ${
+                  role === r ? 'bg-[#2563eb] text-white border-[#2563eb] shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#bfdbfe] hover:bg-blue-50/40'
                 }`}>
                 {r}
               </button>
             ))}
             <button onClick={() => setRole('custom')}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${
-                role === 'custom' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'border-dashed border-gray-200 text-gray-500 hover:border-indigo-200 hover:bg-indigo-50/50'
+              className={`px-4 py-2.5 rounded-md text-sm font-medium border transition-all ${
+                role === 'custom' ? 'bg-[#2563eb] text-white border-[#2563eb] shadow-sm' : 'border-dashed border-slate-300 text-slate-600 hover:border-[#bfdbfe] hover:bg-blue-50/40'
               }`}>
               + Custom Role
             </button>
@@ -273,19 +270,19 @@ Format rules:
             <input
               type="text" placeholder="Enter your job role..."
               value={customRole} onChange={e => setCustomRole(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 bg-gray-50"
+              className="w-full h-12 px-4 border border-slate-200 rounded-md text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 bg-slate-50 focus:bg-white transition-all"
             />
           )}
         </div>
 
         {/* Difficulty */}
         <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-3">Experience Level</label>
-          <div className="flex gap-3">
+          <label className="block text-sm font-semibold text-[#1e3a8a] mb-3">Experience Level</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {DIFFICULTY.map(d => (
               <button key={d.id} onClick={() => setDifficulty(d.id)}
-                className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-all ${
-                  difficulty === d.id ? d.color + ' border-2 shadow-sm' : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-200'
+                className={`py-3 rounded-md text-sm font-medium border transition-all ${
+                  difficulty === d.id ? `${d.color} border-2 shadow-sm font-semibold` : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                 }`}>
                 {d.label}
               </button>
@@ -294,20 +291,20 @@ Format rules:
         </div>
 
         {/* What to expect */}
-        <div className="bg-gradient-to-br from-gray-50 to-indigo-50/30 rounded-2xl p-5 border border-gray-100">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">What to expect</p>
-          <div className="grid sm:grid-cols-2 gap-2.5">
+        <div className="bg-[#eff6ff] rounded-lg p-5 sm:p-6 border border-[#dbeafe]">
+          <p className="text-xs font-semibold text-[#2563eb] uppercase tracking-wider mb-3">What to expect</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
             {[
               { icon: MessageSquare, text: `${MAX_QUESTIONS} role-specific questions` },
               { icon: Star, text: 'AI scores each answer out of 10' },
               { icon: Zap, text: 'Instant feedback after every answer' },
               { icon: Award, text: 'Final performance report' },
             ].map((item, i) => (
-              <div key={i} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-50">
-                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <item.icon className="w-4 h-4 text-indigo-600" />
+              <div key={i} className="flex items-center gap-3 bg-white rounded-md px-4 py-3 border border-[#e2e8f0] shadow-sm">
+                <div className="w-8 h-8 bg-[#eff6ff] rounded-md flex items-center justify-center flex-shrink-0 text-[#2563eb]">
+                  <item.icon className="w-4 h-4" />
                 </div>
-                <span className="text-sm text-gray-700">{item.text}</span>
+                <span className="text-sm font-medium text-[#334e72]">{item.text}</span>
               </div>
             ))}
           </div>
@@ -316,7 +313,7 @@ Format rules:
         <button
           onClick={startInterview}
           disabled={!selectedRole.trim()}
-          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+          className="w-full min-h-[48px] rounded-md bg-[#2563eb] text-white py-3.5 font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-sm shadow-blue-600/20"
         >
           <Play className="w-4 h-4" /> Start Mock Interview
         </button>
@@ -326,56 +323,53 @@ Format rules:
 
   // ── Report Screen ─────────────────────────────────────────────────────────────
   if (step === 'report') return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="w-full space-y-6">
       {/* Score Hero */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-center overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-60 h-60 bg-indigo-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-400 rounded-full blur-3xl" />
-        </div>
+      <div className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] p-8 sm:p-10 text-center text-[#1e3a8a] shadow-sm">
+        <div className="absolute inset-x-0 top-0 h-1 bg-[#2563eb]" />
         <div className="relative">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full border-4 border-white/20 mb-4">
-            <span className={`text-4xl font-black ${avgScore >= 8 ? 'text-emerald-400' : avgScore >= 6 ? 'text-yellow-400' : 'text-red-400'}`}>
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full border-4 border-[#bfdbfe] bg-white shadow-sm mb-4">
+            <span className={`text-4xl font-black ${avgScore >= 8 ? 'text-emerald-600' : avgScore >= 6 ? 'text-[#2563eb]' : 'text-red-600'}`}>
               {avgScore}
             </span>
-            <span className="text-white/40 text-xl mt-3">/10</span>
+            <span className="text-[#94a3b8] text-xl mt-3">/10</span>
           </div>
-          <p className="text-2xl font-bold text-white mb-1">
+          <p className="text-2xl font-bold text-[#1e3a8a] mb-1">
             {avgScore >= 8 ? 'Excellent Performance!' : avgScore >= 6 ? 'Good Job!' : 'Keep Practicing!'}
           </p>
-          <p className="text-indigo-300/70 text-sm">{selectedRole} · {DIFFICULTY.find(d => d.id === difficulty)?.label}</p>
+          <p className="text-[#526780] text-sm">{selectedRole} · {DIFFICULTY.find(d => d.id === difficulty)?.label}</p>
         </div>
       </div>
 
       {/* Per-question breakdown */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h3 className="font-semibold text-gray-900 mb-5">Question-by-Question Breakdown</h3>
+      <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+        <h3 className="font-bold text-[#1e3a8a] mb-5">Question-by-Question Breakdown</h3>
         <div className="space-y-4">
           {scores.map((s, i) => (
             <div key={i} className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                s >= 8 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : s >= 6 ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-red-50 text-red-600 border border-red-200'
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                s >= 8 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : s >= 6 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-red-50 text-red-700 border border-red-200'
               }`}>{s}/10</div>
               <div className="flex-1">
-                <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className="w-full bg-slate-100 rounded-full h-2.5">
                   <div className={`h-2.5 rounded-full transition-all ${
                     s >= 8 ? 'bg-emerald-500' : s >= 6 ? 'bg-amber-500' : 'bg-red-500'
                   }`} style={{ width: `${s * 10}%` }} />
                 </div>
-                {feedbacks[i] && <p className="text-xs text-gray-500 mt-1.5">{feedbacks[i]}</p>}
+                {feedbacks[i] && <p className="text-xs text-[#526780] mt-1.5">{feedbacks[i]}</p>}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <button onClick={() => { setStep('setup'); }}
-          className="flex-1 border border-gray-200 text-gray-700 py-3.5 rounded-2xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+          className="flex-1 border border-slate-200 text-slate-700 py-3 rounded-md font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 min-h-[44px]">
           <RotateCcw className="w-4 h-4" /> New Interview
         </button>
         <button onClick={() => { setStep('interview'); startInterview(); }}
-          className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-medium hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-md">
+          className="flex-1 bg-[#2563eb] text-white py-3 rounded-md font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm min-h-[44px]">
           <RefreshCw className="w-4 h-4" /> Retry Same Role
         </button>
       </div>
@@ -384,22 +378,22 @@ Format rules:
 
   // ── Interview Chat Screen ─────────────────────────────────────────────────────
   return (
-    <div className="max-w-3xl mx-auto flex flex-col bg-slate-900 rounded-3xl overflow-hidden shadow-xl" style={{ height: '75vh' }}>
+    <div className="w-full flex flex-col bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden" style={{ height: '75vh' }}>
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-800/80 backdrop-blur-sm px-5 py-3.5 border-b border-slate-700/50 flex-shrink-0">
+      <div className="flex items-center justify-between bg-white px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Bot className="w-4 h-4 text-white" />
+          <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] rounded-md flex items-center justify-center text-[#2563eb] shadow-sm">
+            <Bot className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{selectedRole} Interview</p>
-            <p className="text-xs text-slate-400">Question {Math.min(questionCount, MAX_QUESTIONS)} of {MAX_QUESTIONS}</p>
+            <p className="text-sm font-semibold text-[#1e3a8a]">{selectedRole} Interview</p>
+            <p className="text-xs text-[#64748b]">Question {Math.min(questionCount, MAX_QUESTIONS)} of {MAX_QUESTIONS}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           {scores.length > 0 && (
-            <div className="flex items-center gap-2 bg-slate-700/50 rounded-xl px-3 py-1.5">
-              <Star className="w-3.5 h-3.5 text-yellow-400" />
+            <div className="flex items-center gap-2 bg-[#eff6ff] border border-[#bfdbfe] rounded-md px-3 py-1.5">
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
               <span className={`text-sm font-bold ${getScoreColor(Math.round(scores.reduce((a,b)=>a+b,0)/scores.length))}`}>
                 {Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)}/10
               </span>
@@ -409,7 +403,7 @@ Format rules:
             {Array.from({ length: MAX_QUESTIONS }).map((_, i) => (
               <div key={i} className={`w-2.5 h-2.5 rounded-full ${
                 i < scores.length ? (scores[i] >= 7 ? 'bg-emerald-500' : 'bg-amber-500') :
-                i === scores.length ? 'bg-indigo-400 animate-pulse' : 'bg-slate-600'
+                i === scores.length ? 'bg-[#2563eb] animate-pulse' : 'bg-slate-200'
               }`} />
             ))}
           </div>
@@ -417,32 +411,32 @@ Format rules:
       </div>
 
       {/* Chat messages */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-slate-900">
+      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-4 bg-[#f8fafc]">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center ${
-              msg.role === 'ai' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20' : 'bg-slate-700'
+            <div className={`w-8 h-8 rounded-md flex-shrink-0 flex items-center justify-center shadow-sm ${
+              msg.role === 'ai' ? 'bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb]' : 'bg-[#2563eb] text-white'
             }`}>
-              {msg.role === 'ai' ? <Bot className="w-4 h-4 text-white" /> : <User className="w-4 h-4 text-white" />}
+              {msg.role === 'ai' ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
             </div>
-            <div className={`max-w-[75%] space-y-2`}>
+            <div className={`max-w-[85%] lg:max-w-[75%] space-y-2`}>
               {msg.content.length > 0 && (
-                <div className={`px-5 py-3.5 rounded-2xl text-sm leading-relaxed ${
+                <div className={`px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
                   msg.role === 'ai'
-                    ? 'bg-slate-800 border border-slate-700/50 text-slate-100 rounded-tl-sm shadow-sm'
-                    : 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-tr-sm shadow-lg shadow-indigo-500/10'
+                    ? 'bg-white border border-[#e2e8f0] text-slate-800 rounded-tl-sm'
+                    : 'bg-[#2563eb] text-white rounded-tr-sm'
                 }`}>
                   {msg.content}
                 </div>
               )}
               {msg.role === 'ai' && msg.score !== undefined && (
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                  msg.score >= 8 ? 'bg-emerald-900/30 border-emerald-700/30 text-emerald-300' :
-                  msg.score >= 6 ? 'bg-amber-900/30 border-amber-700/30 text-amber-300' :
-                  'bg-red-900/30 border-red-700/30 text-red-300'
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs ${
+                  msg.score >= 8 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                  msg.score >= 6 ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                  'bg-red-50 border-red-200 text-red-700'
                 }`}>
-                  <span className="font-bold text-sm">{msg.score}/10</span>
-                  {msg.feedback && <span className="text-xs opacity-80">{msg.feedback.slice(0, 80)}{msg.feedback.length > 80 ? '...' : ''}</span>}
+                  <span className="font-bold">{msg.score}/10</span>
+                  {msg.feedback && <span className="opacity-90">{msg.feedback.slice(0, 80)}{msg.feedback.length > 80 ? '...' : ''}</span>}
                 </div>
               )}
             </div>
@@ -450,12 +444,12 @@ Format rules:
         ))}
         {loading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/20">
-              <Bot className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Bot className="w-4 h-4" />
             </div>
-            <div className="bg-slate-800 border border-slate-700/50 px-5 py-3.5 rounded-2xl shadow-sm">
+            <div className="bg-white border border-[#e2e8f0] px-5 py-3.5 rounded-2xl shadow-sm">
               <div className="flex gap-1.5">
-                {[0,200,400].map(d => <span key={d} className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                {[0,200,400].map(d => <span key={d} className="w-2 h-2 bg-[#2563eb] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
               </div>
             </div>
           </div>
@@ -463,7 +457,7 @@ Format rules:
       </div>
 
       {/* Input */}
-      <div className="bg-slate-800/80 backdrop-blur-sm border-t border-slate-700/50 p-4 flex-shrink-0">
+      <div className="bg-white border-t border-slate-200 p-4 sm:p-5 flex-shrink-0">
         <div className="flex gap-3">
           <textarea
             value={input}
@@ -471,11 +465,12 @@ Format rules:
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAnswer(); } }}
             placeholder="Type your answer here... (Enter to send)"
             rows={1}
-            className="flex-1 bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/50 resize-none"
+            className="flex-1 bg-slate-50 border border-slate-200 rounded-md px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-400/25 focus:border-blue-500 focus:bg-white resize-none transition-colors"
           />
           <button onClick={sendAnswer} disabled={!input.trim() || loading}
-            className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center hover:from-indigo-600 hover:to-purple-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all self-end shadow-lg shadow-indigo-500/20">
-            <Send className="w-4 h-4 text-white" />
+            className="w-11 h-11 bg-[#2563eb] hover:bg-blue-700 rounded-md flex items-center justify-center text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors self-end shadow-sm"
+          >
+            <Send className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -503,10 +498,10 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
       step: '02',
       icon: Mic,
       title: 'During the Interview',
-      color: 'from-purple-500 to-purple-600',
-      bg: 'bg-purple-50',
-      border: 'border-purple-200',
-      text: 'text-purple-700',
+      color: 'from-blue-600 to-indigo-600',
+      bg: 'bg-blue-50',
+      border: 'border-blue-200',
+      text: 'text-blue-700',
       tips: ['Use STAR method for behavioral questions', 'Listen carefully before answering', 'Show enthusiasm and positive energy', 'Ask clarifying questions when needed'],
     },
     {
@@ -523,10 +518,10 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
       step: '04',
       icon: Clock,
       title: 'Follow Up',
-      color: 'from-orange-500 to-orange-600',
-      bg: 'bg-orange-50',
-      border: 'border-orange-200',
-      text: 'text-orange-700',
+      color: 'from-blue-500 to-indigo-600',
+      bg: 'bg-blue-50',
+      border: 'border-blue-200',
+      text: 'text-blue-700',
       tips: ['Send thank-you email within 24 hours', 'Reference specific conversation points', 'Reiterate your enthusiasm for the role', 'Connect on LinkedIn with a personal note'],
     },
   ];
@@ -543,10 +538,10 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
   ];
 
   const starExamples = [
-    { letter: 'S', label: 'Situation', color: 'bg-blue-500', desc: 'Set the scene — what was the context?', example: '"Our team was behind on a critical product launch with 2 weeks to go..."' },
-    { letter: 'T', label: 'Task', color: 'bg-purple-500', desc: 'What was your responsibility?', example: '"I was responsible for coordinating 3 teams and ensuring delivery..."' },
-    { letter: 'A', label: 'Action', color: 'bg-emerald-500', desc: 'What specific steps did YOU take?', example: '"I created a daily standup, identified blockers, and re-prioritized tasks..."' },
-    { letter: 'R', label: 'Result', color: 'bg-orange-500', desc: 'What was the measurable outcome?', example: '"We launched on time, increasing Q3 revenue by 18%..."' },
+    { letter: 'S', label: 'Situation', color: 'bg-[#2563eb]', desc: 'Set the scene — what was the context?', example: '"Our team was behind on a critical product launch with 2 weeks to go..."' },
+    { letter: 'T', label: 'Task', color: 'bg-[#1e40af]', desc: 'What was your responsibility?', example: '"I was responsible for coordinating 3 teams and ensuring delivery..."' },
+    { letter: 'A', label: 'Action', color: 'bg-emerald-600', desc: 'What specific steps did YOU take?', example: '"I created a daily standup, identified blockers, and re-prioritized tasks..."' },
+    { letter: 'R', label: 'Result', color: 'bg-[#1e3a8a]', desc: 'What was the measurable outcome?', example: '"We launched on time, increasing Q3 revenue by 18%..."' },
   ];
 
   const stats = [
@@ -556,61 +551,53 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
   ];
 
   const tagColors: Record<string, string> = {
-    Opening: 'bg-blue-100 text-blue-700',
-    Motivation: 'bg-purple-100 text-purple-700',
-    'Self-awareness': 'bg-emerald-100 text-emerald-700',
-    Goals: 'bg-orange-100 text-orange-700',
-    Transition: 'bg-pink-100 text-pink-700',
-    Behavioral: 'bg-indigo-100 text-indigo-700',
-    Negotiation: 'bg-yellow-100 text-yellow-700',
+    Opening: 'bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]',
+    Motivation: 'bg-slate-100 text-slate-700 border border-slate-200',
+    'Self-awareness': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    Goals: 'bg-blue-50 text-[#1e40af] border border-[#bfdbfe]',
+    Transition: 'bg-slate-100 text-slate-700 border border-slate-200',
+    Behavioral: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+    Negotiation: 'bg-blue-50 text-[#1e40af] border border-blue-200',
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Hero */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 overflow-hidden">
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-          backgroundSize: '40px 40px'
-        }} />
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-8 left-1/4 w-80 h-80 bg-indigo-500 rounded-full blur-[100px]" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full blur-[120px]" />
-          <div className="absolute top-1/2 right-10 w-64 h-64 bg-pink-500 rounded-full blur-[80px]" />
-        </div>
-        <div className="relative max-w-5xl mx-auto px-4 py-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-5 py-2 text-indigo-200 text-sm mb-8 shadow-lg">
-            <Mic className="w-4 h-4" /> Interview Mastery Guide
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-white mb-2.5 leading-[1.15] tracking-[-0.02em]">
-            Ace Every <br className="sm:hidden" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300">Interview</span>
-          </h1>
-          <p className="text-sm sm:text-base text-indigo-200/70 max-w-2xl mx-auto mb-4 leading-relaxed px-4">
-            Proven strategies, real examples, and expert tips to land your dream job with confidence.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-            {stats.map((s, i) => (
-              <div key={i} className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl px-7 py-5 text-center min-w-[160px] hover:bg-white/[0.10] transition-colors">
-                <s.icon className="w-5 h-5 text-indigo-300 mx-auto mb-2" />
-                <div className="text-3xl sm:text-4xl font-black text-white mb-1">{s.value}</div>
-                <div className="text-indigo-200/60 text-xs leading-relaxed">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 py-12">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
         {/* Back */}
         <BackButton fallback="/" className="mb-6" />
 
+        {/* Hero Banner */}
+        <div className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] text-[#1e3a8a] p-6 sm:p-10 mb-8 shadow-sm">
+          <div className="absolute inset-x-0 top-0 h-1 bg-[#2563eb]" />
+          <div className="relative max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#bfdbfe] bg-white/80 px-4 py-1.5 text-xs font-semibold text-[#2563eb] mb-4 shadow-sm">
+              <Mic className="w-3.5 h-3.5" /> Interview Mastery Guide
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1e3a8a] tracking-tight mb-2.5">
+              Ace Every Interview
+            </h1>
+            <p className="text-sm sm:text-base text-[#526780] max-w-2xl mx-auto mb-6 leading-relaxed">
+              Proven strategies, real examples, and expert tips to land your dream job with confidence.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+              {stats.map((s, i) => (
+                <div key={i} className="bg-white rounded-lg border border-[#e2e8f0] p-4 sm:p-5 text-center shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-[#eff6ff] text-[#2563eb] flex items-center justify-center mx-auto mb-2">
+                    <s.icon className="w-4 h-4" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] mb-1">{s.value}</div>
+                  <div className="text-xs text-[#64748b] leading-relaxed">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
-        <div className="mb-10">
-          <div className="inline-flex gap-1 bg-white rounded-2xl p-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.04)] border border-gray-100/80 flex-wrap">
+        <div className="mb-8">
+          <div className="inline-flex gap-1.5 bg-white rounded-lg p-1.5 border border-[#e2e8f0] shadow-sm flex-wrap">
             {[
               { key: 'tips', label: 'Tips', icon: Star },
               { key: 'questions', label: 'Questions', icon: MessageSquare },
@@ -623,13 +610,13 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
                   setActiveTab(tab.key as any);
                   setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
                 }}
-                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-md text-sm font-semibold transition-all ${
                   activeTab === tab.key
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-200'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    ? 'bg-[#2563eb] text-white shadow-sm'
+                    : 'text-[#526780] hover:text-[#1e3a8a] hover:bg-slate-50'
                 }`}
               >
-                <tab.icon className={`w-4 h-4 ${activeTab === tab.key ? '' : 'text-gray-400'}`} />
+                <tab.icon className={`w-4 h-4 ${activeTab === tab.key ? 'text-white' : 'text-[#64748b]'}`} />
                 {tab.label}
               </button>
             ))}
@@ -641,22 +628,21 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
           <div className="space-y-8">
             <div className="grid md:grid-cols-2 gap-6">
               {phases.map((phase, i) => (
-                <div key={i} className="group bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-                  <div className={`bg-gradient-to-r ${phase.color} p-5 flex items-center gap-4 relative overflow-hidden`}>
-                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/5 rounded-full -mr-8 -mt-8" />
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                      <phase.icon className="w-6 h-6 text-white" />
+                <div key={i} className="group bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden transition-all duration-200">
+                  <div className="bg-[#eff6ff] border-b border-[#dbeafe] p-5 flex items-center gap-4 relative overflow-hidden">
+                    <div className="w-11 h-11 bg-white border border-[#bfdbfe] rounded-lg flex items-center justify-center flex-shrink-0 text-[#2563eb] shadow-sm">
+                      <phase.icon className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-white/50 text-xs font-bold tracking-[0.15em]">STEP {phase.step}</div>
-                      <div className="text-white font-bold text-lg">{phase.title}</div>
+                      <div className="text-[#2563eb] text-xs font-bold tracking-[0.15em]">STEP {phase.step}</div>
+                      <div className="text-[#1e3a8a] font-bold text-lg">{phase.title}</div>
                     </div>
                   </div>
                   <div className="p-5 space-y-3.5">
                     {phase.tips.map((tip, j) => (
                       <div key={j} className="flex items-start gap-3">
-                        <CheckCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${phase.text}`} />
-                        <span className="text-gray-600 text-sm leading-relaxed">{tip}</span>
+                        <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#2563eb]" />
+                        <span className="text-[#526780] text-sm leading-relaxed">{tip}</span>
                       </div>
                     ))}
                   </div>
@@ -665,12 +651,13 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
             </div>
 
             {/* Pro Tips Banner */}
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-6 sm:p-8">
+            <div className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] p-6 sm:p-8 shadow-sm">
+              <div className="absolute inset-x-0 top-0 h-1 bg-[#2563eb]" />
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-400 rounded-xl flex items-center justify-center shadow-sm">
-                  <Zap className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-full bg-white border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center shadow-sm">
+                  <Zap className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg">Pro Tips from Hiring Managers</h3>
+                <h3 className="font-bold text-[#1e3a8a] text-lg">Pro Tips from Hiring Managers</h3>
               </div>
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
@@ -678,11 +665,11 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
                   { icon: ThumbsUp, tip: 'Mirror the interviewer\'s energy — match their pace and formality level' },
                   { icon: Users, tip: 'Print 3 copies of your resume even if they have it digitally' },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3.5 bg-white/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white">
-                    <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-4.5 h-4.5 text-amber-600" />
+                  <div key={i} className="flex items-start gap-3.5 bg-white rounded-lg p-4 shadow-sm border border-[#e2e8f0]">
+                    <div className="w-9 h-9 rounded-md bg-[#eff6ff] text-[#2563eb] flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-4.5 h-4.5" />
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">{item.tip}</p>
+                    <p className="text-sm font-medium text-[#334e72] leading-relaxed">{item.tip}</p>
                   </div>
                 ))}
               </div>
@@ -693,54 +680,54 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
         {/* Questions Tab */}
         {activeTab === 'questions' && (
           <div>
-            <div className="flex items-center gap-3 mb-7">
-              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                <MessageSquare className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-9 h-9 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center shadow-sm">
+                <MessageSquare className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-lg">Common Interview Questions</h2>
-                <p className="text-gray-500 text-sm">Click any question to see the expert hint.</p>
+                <h2 className="font-bold text-[#1e3a8a] text-lg">Common Interview Questions</h2>
+                <p className="text-[#526780] text-sm">Click any question to see the expert hint.</p>
               </div>
             </div>
             <div className="space-y-2.5">
               {commonQuestions.map((item, i) => (
                 <div
                   key={i}
-                  className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-200 cursor-pointer ${
-                    openFaq === i ? 'shadow-md border-indigo-100' : 'hover:shadow-md hover:border-gray-200'
+                  className={`bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden transition-all duration-200 cursor-pointer ${
+                    openFaq === i ? 'border-[#bfdbfe]' : 'hover:border-slate-300'
                   }`}
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                 >
                   <div className="flex items-center justify-between p-4 sm:p-5">
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 transition-colors ${
-                        openFaq === i ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gray-200 text-gray-500'
+                      <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${
+                        openFaq === i ? 'bg-[#2563eb] text-white' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {String(i + 1).padStart(2, '0')}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-gray-900 text-sm sm:text-base">"{item.q}"</span>
+                        <span className="font-semibold text-[#1e3a8a] text-sm sm:text-base">"{item.q}"</span>
                         <span className={`ml-2.5 text-[11px] px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap ${tagColors[item.tag]}`}>{item.tag}</span>
                       </div>
                     </div>
-                    <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                      openFaq === i ? 'bg-indigo-100' : 'bg-gray-100'
+                    <div className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
+                      openFaq === i ? 'bg-[#eff6ff] text-[#2563eb]' : 'bg-slate-100 text-slate-400'
                     }`}>
                       {openFaq === i
-                        ? <ChevronUp className="w-4 h-4 text-indigo-600" />
-                        : <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ? <ChevronUp className="w-4 h-4" />
+                        : <ChevronDown className="w-4 h-4" />
                       }
                     </div>
                   </div>
                   {openFaq === i && (
-                    <div className="px-4 sm:px-5 pb-5 border-t border-gray-50">
-                      <div className="flex items-start gap-3.5 mt-4 bg-gradient-to-br from-indigo-50 to-purple-50/50 rounded-xl p-4 border border-indigo-100/50">
-                        <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Star className="w-4 h-4 text-indigo-600" />
+                    <div className="px-4 sm:px-5 pb-5 border-t border-slate-100">
+                      <div className="flex items-start gap-3.5 mt-4 bg-[#eff6ff] rounded-lg p-4 border border-[#dbeafe]">
+                        <div className="w-8 h-8 bg-white border border-[#bfdbfe] text-[#2563eb] rounded-md flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <Star className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider mb-1">Expert Hint</p>
-                          <p className="text-indigo-900 text-sm font-medium leading-relaxed">{item.hint}</p>
+                          <p className="text-xs font-semibold text-[#2563eb] uppercase tracking-wider mb-1">Expert Hint</p>
+                          <p className="text-[#1e3a8a] text-sm font-medium leading-relaxed">{item.hint}</p>
                         </div>
                       </div>
                     </div>
@@ -753,45 +740,45 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
 
         {/* STAR Tab */}
         {activeTab === 'star' && (
-          <div className="space-y-10">
+          <div className="space-y-8">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
-                <Target className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center shadow-sm">
+                <Target className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-lg">The STAR Method</h2>
-                <p className="text-gray-500 text-sm">A structured framework for behavioral interview answers with impact.</p>
+                <h2 className="font-bold text-[#1e3a8a] text-lg">The STAR Method</h2>
+                <p className="text-[#526780] text-sm">A structured framework for behavioral interview answers with impact.</p>
               </div>
             </div>
 
             {/* Timeline layout */}
             <div className="relative">
               {/* Vertical connecting line */}
-              <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-400 via-purple-400 via-emerald-400 to-orange-400 hidden sm:block" />
+              <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-[#bfdbfe] hidden sm:block" />
 
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {starExamples.map((item, i) => (
                   <div key={i} className="relative pl-0 sm:pl-16">
                     {/* Timeline dot */}
-                    <div className={`absolute left-0 top-1 w-[47px] h-[47px] ${item.color} rounded-2xl hidden sm:flex items-center justify-center text-white text-xl font-black shadow-lg ring-4 ring-white`}>
+                    <div className={`absolute left-0 top-1 w-[47px] h-[47px] ${item.color} rounded-lg hidden sm:flex items-center justify-center text-white text-xl font-bold shadow-sm ring-4 ring-white`}>
                       {item.letter}
                     </div>
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 hover:shadow-md transition-all">
+                    <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5 sm:p-6 transition-all">
                       <div className="flex items-center gap-4 mb-4 sm:hidden">
-                        <div className={`w-11 h-11 ${item.color} rounded-xl flex items-center justify-center text-white text-lg font-black flex-shrink-0`}>
+                        <div className={`w-11 h-11 ${item.color} rounded-lg flex items-center justify-center text-white text-lg font-bold flex-shrink-0`}>
                           {item.letter}
                         </div>
                         <div>
-                          <div className="font-bold text-gray-900">{item.label}</div>
-                          <div className="text-gray-500 text-sm">{item.desc}</div>
+                          <div className="font-bold text-[#1e3a8a]">{item.label}</div>
+                          <div className="text-[#526780] text-sm">{item.desc}</div>
                         </div>
                       </div>
                       <div className="hidden sm:block mb-3">
-                        <div className="font-bold text-gray-900 text-lg">{item.label}</div>
-                        <div className="text-gray-500 text-sm">{item.desc}</div>
+                        <div className="font-bold text-[#1e3a8a] text-lg">{item.label}</div>
+                        <div className="text-[#526780] text-sm">{item.desc}</div>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-4 border-l-4" style={{ borderLeftColor: item.color.replace('bg-', '#').replace('-500', '') === '#blue' ? '#3B82F6' : item.color.includes('blue') ? '#3B82F6' : item.color.includes('purple') ? '#A855F7' : item.color.includes('emerald') ? '#10B981' : '#F97316' }}>
-                        <p className="text-gray-600 text-sm italic leading-relaxed">{item.example}</p>
+                      <div className="bg-slate-50 rounded-md p-4 border-l-4 border-[#2563eb]">
+                        <p className="text-[#526780] text-sm italic leading-relaxed">{item.example}</p>
                       </div>
                     </div>
                   </div>
@@ -800,27 +787,28 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
             </div>
 
             {/* Full STAR Example */}
-            <div className="bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 border border-indigo-100 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] p-6 sm:p-8 shadow-sm">
+              <div className="absolute inset-x-0 top-0 h-1 bg-[#2563eb]" />
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                  <Play className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-lg bg-white border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center shadow-sm">
+                  <Play className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg">Complete STAR Example</h3>
+                <h3 className="font-bold text-[#1e3a8a] text-lg">Complete STAR Example</h3>
               </div>
               <div className="relative">
-                <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-gray-200" />
-                <div className="space-y-6">
+                <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-[#bfdbfe]" />
+                <div className="space-y-5">
                   {[
-                    { label: 'S', color: 'bg-blue-500', heading: 'Situation', text: 'Our e-commerce site was losing 30% of users at checkout due to a slow payment flow.' },
-                    { label: 'T', color: 'bg-purple-500', heading: 'Task', text: 'I was tasked with identifying the bottleneck and proposing a fix within 2 weeks.' },
-                    { label: 'A', color: 'bg-emerald-500', heading: 'Action', text: 'I ran A/B tests, identified a 3-second API delay, and worked with backend to optimize it.' },
-                    { label: 'R', color: 'bg-orange-500', heading: 'Result', text: 'Checkout completion improved by 22%, adding $40K in monthly revenue.' },
+                    { label: 'S', color: 'bg-blue-600', heading: 'Situation', text: 'Our e-commerce site was losing 30% of users at checkout due to a slow payment flow.' },
+                    { label: 'T', color: 'bg-[#1e40af]', heading: 'Task', text: 'I was tasked with identifying the bottleneck and proposing a fix within 2 weeks.' },
+                    { label: 'A', color: 'bg-emerald-600', heading: 'Action', text: 'I ran A/B tests, identified a 3-second API delay, and worked with backend to optimize it.' },
+                    { label: 'R', color: 'bg-[#1e3a8a]', heading: 'Result', text: 'Checkout completion improved by 22%, adding $40K in monthly revenue.' },
                   ].map((s, i) => (
                     <div key={i} className="relative pl-12">
-                      <span className={`absolute left-0 top-0.5 ${s.color} text-white text-xs font-bold w-[39px] h-[39px] rounded-xl flex items-center justify-center ring-4 ring-white z-10`}>{s.label}</span>
-                      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-50">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{s.heading}</span>
-                        <p className="text-gray-700 text-sm mt-1 leading-relaxed">{s.text}</p>
+                      <span className={`absolute left-0 top-0.5 ${s.color} text-white text-xs font-bold w-[39px] h-[39px] rounded-lg flex items-center justify-center ring-4 ring-white z-10 shadow-sm`}>{s.label}</span>
+                      <div className="bg-white rounded-md p-4 shadow-sm border border-[#e2e8f0]">
+                        <span className="text-xs font-bold text-[#64748b] uppercase tracking-wider">{s.heading}</span>
+                        <p className="text-[#1e3a8a] text-sm mt-1 leading-relaxed">{s.text}</p>
                       </div>
                     </div>
                   ))}
@@ -835,25 +823,26 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
 
         {/* CTA — hidden on simulate tab */}
         {activeTab !== 'simulate' && (
-        <div className="mt-14 relative bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 rounded-3xl p-8 sm:p-10 text-center text-white overflow-hidden">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-indigo-400 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-400 rounded-full blur-3xl" />
+          <div className="mt-12 relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] p-8 sm:p-10 text-center text-[#1e3a8a] shadow-sm">
+            <div className="absolute inset-x-0 top-0 h-1 bg-[#2563eb]" />
+            <div className="relative max-w-lg mx-auto">
+              <div className="w-12 h-12 rounded-full bg-white border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <Brain className="w-6 h-6" />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] mb-2">Ready to practice?</h3>
+              <p className="text-[#526780] text-sm sm:text-base mb-6 leading-relaxed">
+                Use our AI Mock Interview to practice with real questions and get instant feedback.
+              </p>
+              <button
+                onClick={() => setActiveTab('simulate')}
+                className="inline-flex items-center gap-2 bg-[#2563eb] text-white font-semibold px-7 py-3 rounded-md hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20"
+              >
+                Start Mock Interview <span className="text-lg">→</span>
+              </button>
+            </div>
           </div>
-          <div className="relative">
-            <Brain className="w-10 h-10 text-indigo-300 mx-auto mb-4" />
-            <h3 className="text-2xl sm:text-3xl font-bold mb-3">Ready to practice?</h3>
-            <p className="text-indigo-200/70 mb-7 max-w-md mx-auto">Use our AI Mock Interview to practice with real questions and get instant feedback.</p>
-            <button
-              onClick={() => setActiveTab('simulate')}
-              className="inline-flex items-center gap-2 bg-white text-indigo-700 font-bold px-7 py-3 rounded-xl hover:bg-indigo-50 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:-translate-y-0.5"
-            >
-              Start Mock Interview <span className="text-lg">→</span>
-            </button>
-          </div>
-        </div>
         )}
-      </div>
+      </main>
 
       <Footer onNavigate={onNavigate} />
     </div>
