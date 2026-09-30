@@ -19,7 +19,7 @@ const steps = [
       'Save jobs & track applications',
       'AI-personalized job recommendations',
     ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
+    gradient: 'from-white via-white to-white',
     glow: 'bg-blue-400',
     chipBg: 'bg-blue-600',
   },
@@ -34,7 +34,7 @@ const steps = [
       'Filter by location, salary & job type',
       'Smart match score on every job',
     ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
+    gradient: 'from-white via-white to-white',
     glow: 'bg-violet-400',
     chipBg: 'bg-violet-600',
   },
@@ -49,7 +49,7 @@ const steps = [
       'Instant ATS score & improvement tips',
       'Tailor resumes per application',
     ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
+    gradient: 'from-white via-white to-white',
     glow: 'bg-cyan-400',
     chipBg: 'bg-cyan-600',
   },
@@ -64,7 +64,7 @@ const steps = [
       'Real-time status tracking',
       'Notifications at every stage',
     ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
+    gradient: 'from-white via-white to-white',
     glow: 'bg-orange-400',
     chipBg: 'bg-orange-500',
   },
@@ -141,7 +141,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section id="how-it-works" className="relative bg-slate-50 overflow-x-clip border-y border-slate-200/70">
+    <section id="how-it-works" className="relative bg-white overflow-x-clip border-y border-slate-100">
 
       {/* 1. Section header in standard document flow — fades out cleanly once steps pin */}
       <div
@@ -178,7 +178,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
           {steps.map((t, i) => (
             <div
               key={t.id}
-              className={`absolute inset-0 bg-gradient-to-br ${t.gradient} transition-opacity duration-700 pointer-events-none`}
+              className="absolute inset-0 bg-white transition-opacity duration-700 pointer-events-none"
               style={{ opacity: i === active ? 1 : 0 }}
             >
             </div>

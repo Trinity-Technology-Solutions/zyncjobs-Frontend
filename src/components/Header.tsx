@@ -27,7 +27,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const { unreadCount: alertUnread } = useJobAlertStore(user?.type === 'candidate' ? user?.email : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
@@ -50,14 +49,35 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       return '';
     }
   });
-  const [isScrolled, setIsScrolled] = useState(true); // Default to light header
+  const [isScrolled] = useState(true); // Default to light header
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const lastScrollY = useRef(0);
+  const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const currentPath = location.pathname;
+
+  // Keep --header-h CSS custom property accurately synced with the actual header height
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.getBoundingClientRect().height;
+        if (height > 0) {
+          document.documentElement.style.setProperty('--header-h', `${Math.round(height)}px`);
+          document.documentElement.style.setProperty('--header-offset', '0px');
+        }
+      }
+    };
+    updateHeaderHeight();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateHeaderHeight) : null;
+    if (ro && headerRef.current) ro.observe(headerRef.current);
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
 
   const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
 
@@ -194,44 +214,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('keydown', handleKeyDown);
     
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY <= 20) {
-        setIsHeaderVisible(true);
-      } else if (currentScrollY > lastScrollY.current + 2) {
-        setIsHeaderVisible(false);
-      } else if (currentScrollY < lastScrollY.current - 2) {
-        setIsHeaderVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
-
-      // Use standard scroll detection for the header glass effect
-      // We keep it 'light' (isScrolled = true) by default for the new design
-      const scrolled = currentScrollY > 20;
-      
-      let isOverDark = false;
-      const headerCenterY = 40;
-      const darkSections = document.querySelectorAll('[data-theme="dark"]');
-      darkSections.forEach(section => {
-        const rect = section.getBoundingClientRect();
-        if (rect.top <= headerCenterY && rect.bottom >= headerCenterY) {
-          isOverDark = true;
-        }
-      });
-
-      // If we are over a dark section, switch to dark header (isScrolled = false)
-      // Otherwise, stay light (isScrolled = true)
-      setIsScrolled(!isOverDark);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Initial check
-    handleScroll();
-    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -787,27 +772,17 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     <>
       <GlassFilter />
       <header
-        className="zync-site-header fixed top-0 left-0 right-0 z-50 bg-transparent px-2 pt-2 sm:px-4 sm:pt-3 transition-transform duration-300 ease-in-out"
-        style={{ transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)' }}
-      >
-      <div
-        className="mx-auto w-full max-w-[1440px] rounded-2xl border transition-all duration-300"
-        style={isScrolled ? {
+        ref={headerRef}
+        className="zync-site-header w-full relative z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-colors"
+        style={{
           backdropFilter: 'blur(18px) saturate(150%)',
           WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-          background: 'rgba(255, 255, 255, 0.88)',
-          borderColor: 'transparent',
-          boxShadow: 'none',
-        } : {
-          backdropFilter: 'blur(18px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-          background: 'rgba(20, 20, 25, 0.82)',
-          borderColor: 'transparent',
-          boxShadow: 'none',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderBottom: '1px solid rgba(226, 232, 240, 0.85)',
         }}
       >
-      <div className="w-full px-4 sm:px-6 lg:px-7">
-        <div className="flex min-h-[64px] items-center justify-between gap-3 py-2.5 sm:min-h-[68px] sm:gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="flex min-h-[70px] sm:min-h-[76px] lg:min-h-[82px] xl:min-h-[84px] items-center justify-between gap-3 py-3 sm:py-3.5 lg:py-4 sm:gap-4">
           <div className="flex-shrink-0">
             <button 
               onClick={() => onNavigate && onNavigate('home')}
@@ -1141,7 +1116,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             </button>
           </div>
         </div>
-      </div>
       </div>
     </header>
 
