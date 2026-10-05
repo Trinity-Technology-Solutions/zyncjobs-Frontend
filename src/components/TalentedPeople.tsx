@@ -36,7 +36,7 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
+    <section ref={sectionRef} className="pt-10 sm:pt-12 lg:pt-14 pb-0 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-8 lg:gap-10 items-center">
         
         {/* LEFT CONTENT */}

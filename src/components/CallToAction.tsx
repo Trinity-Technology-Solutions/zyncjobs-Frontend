@@ -31,22 +31,29 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
       }
     };
   }, []);
+
   return (
     <section 
       ref={sectionRef}
-      className="py-10 sm:py-12 lg:py-14 bg-slate-900 text-white text-center relative overflow-hidden"
+      className="pt-8 sm:pt-10 lg:pt-12 pb-12 sm:pb-16 lg:pb-20 bg-white text-gray-900 text-center relative overflow-hidden"
     >
+      {/* Background Decoratives - Subtle Atmospheric Glows matching Hero */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        <div className="absolute left-[15%] top-[20%] w-[350px] h-[350px] bg-blue-50/50 rounded-full blur-[100px]" />
+        <div className="absolute right-[15%] bottom-[10%] w-[300px] h-[300px] bg-orange-50/40 rounded-full blur-[90px]" />
+      </div>
+
       <div className={`max-w-3xl mx-auto px-4 sm:px-6 relative z-10 transition-all duration-1000 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
       }`}>
         
         {/* Heading */}
-        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-4 tracking-tight">
-          Find Your Next Opportunity Faster
+        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-4 tracking-tight text-gray-900">
+          Find Your Next Opportunity <span className="text-orange-500">Faster</span>
         </h2>
 
         {/* Subtext */}
-        <p className="text-gray-300 text-sm sm:text-base md:text-lg lg:text-xl mb-4 sm:mb-5 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-gray-600 text-sm sm:text-base md:text-lg lg:text-xl mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
           Join thousands of professionals using AI-powered job matching to land better roles.
         </p>
 
@@ -58,7 +65,7 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
           {/* Primary Button */}
           <button 
             onClick={() => onNavigate && onNavigate('role-selection')}
-            className="bg-white text-gray-900 px-6 sm:px-8 py-3.5 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-gray-100 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform w-full sm:w-auto"
+            className="bg-blue-600 text-white px-7 sm:px-9 py-3.5 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 transform w-full sm:w-auto"
           >
             Get Started
           </button>
@@ -66,7 +73,7 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
           {/* Secondary Button */}
           <button 
             onClick={() => onNavigate && onNavigate('job-listings')}
-            className="border-2 border-gray-400 text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-white hover:text-gray-900 transition-all duration-300 hover:border-white w-full sm:w-auto"
+            className="border-2 border-slate-200 text-slate-700 bg-white px-7 sm:px-9 py-3.5 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all duration-300 w-full sm:w-auto shadow-xs"
           >
             Browse Jobs
           </button>
@@ -74,23 +81,23 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
         </div>
 
         {/* Trust Line */}
-        <p className="text-xs sm:text-sm text-gray-400 mt-5 sm:mt-6 flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
-          <span className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <p className="text-xs sm:text-sm text-gray-500 mt-6 sm:mt-8 flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
+          <span className="flex items-center gap-1.5 font-medium text-gray-600">
+            <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             No signup required
           </span>
-          <span className="text-gray-500 hidden sm:inline">•</span>
-          <span className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <span className="text-gray-300 hidden sm:inline">•</span>
+          <span className="flex items-center gap-1.5 font-medium text-gray-600">
+            <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             100% free
           </span>
-          <span className="text-gray-500 hidden sm:inline">•</span>
-          <span className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <span className="text-gray-300 hidden sm:inline">•</span>
+          <span className="flex items-center gap-1.5 font-medium text-gray-600">
+            <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             Trusted by job seekers

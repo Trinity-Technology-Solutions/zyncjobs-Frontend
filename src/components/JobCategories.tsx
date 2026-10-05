@@ -78,7 +78,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-10 sm:py-12 lg:py-14 bg-slate-50 border-y border-slate-200/70">
+    <section className="py-10 sm:py-12 lg:py-14 bg-white border-y border-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">

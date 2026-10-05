@@ -133,6 +133,7 @@ const ChatWidget = () => {
       {/* Floating Button */}
       {!isOpen && (
         <button
+          id="zync-chat-button"
           type="button"
           onClick={() => { setIsOpen(true); setIsMinimized(false); }}
           className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white pl-3 pr-4 py-2.5 sm:py-3 rounded-full shadow-2xl transition-all duration-200 hover:scale-105"
@@ -145,6 +146,7 @@ const ChatWidget = () => {
       {/* Chat Window */}
       {isOpen && (
         <div
+          id="zync-chat-window"
           className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-200 max-w-[calc(100vw-32px)]"
           style={{ width: 'min(380px, calc(100vw - 32px))', height: isMinimized ? '64px' : 'min(560px, calc(100vh - 48px))', background: '#fff' }}
         >

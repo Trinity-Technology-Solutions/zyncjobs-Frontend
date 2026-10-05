@@ -19,11 +19,11 @@ function RobotCanvas() {
 
     // ── Scene Setup ───────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0xf7f6f3, 10, 30); // Matches background
+    scene.fog = new THREE.Fog(0xffffff, 10, 35); // Matches white background
 
     const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / mount.clientHeight, 0.1, 100);
-    camera.position.set(0, 1.8, 10.0);
-    camera.lookAt(0, 0.9, 0);
+    camera.position.set(0, 1.45, 9.8);
+    camera.lookAt(0, 1.40, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
@@ -76,9 +76,7 @@ function RobotCanvas() {
     const robotGroup = new THREE.Group();
     const getRobotX = () => {
       const w = window.innerWidth;
-      if (w >= 1536) return -0.85;
-      if (w >= 1280) return -0.75;
-      if (w >= 1024) return -0.70;
+      if (w >= 1024) return -0.68;
       if (w >= 768) return -0.60;
       return 0;
     };
@@ -99,17 +97,14 @@ function RobotCanvas() {
       const w = window.innerWidth;
       const isMobile = w < 768;
       const isTablet = w >= 768 && w < 1024;
-      const isLargeScreen = w >= 1536;
 
-      let targetHeight = 4.85;
+      let targetHeight = 4.75;
       if (isMobile) {
-        targetHeight = 4.2;
+        targetHeight = 4.0;
       } else if (isTablet) {
-        targetHeight = 4.6;
-      } else if (isLargeScreen) {
-        targetHeight = 5.25;
+        targetHeight = 4.3;
       } else {
-        targetHeight = 4.85;
+        targetHeight = 4.75;
       }
 
       const scale = targetHeight / rawModelSizeY;
@@ -117,9 +112,10 @@ function RobotCanvas() {
       
       // Deterministic positioning based on invariant rest-pose bounding box
       // Prevents shifts caused by animation bones or head tracking during resize/refresh
+      // Aligns the bottom of the robot's feet precisely with the floor plane (robotGroup.position.y = -1.10)
       loadedModel.position.x = -baseCenter.x * scale;
       loadedModel.position.z = -baseCenter.z * scale;
-      loadedModel.position.y = -baseMinY * scale - 1.10;
+      loadedModel.position.y = -baseMinY * scale;
       robotGroup.position.x = getRobotX();
     };
 
@@ -278,7 +274,7 @@ function RobotCanvas() {
     <div
       ref={mountRef}
       className="w-full h-full cursor-pointer flex items-center justify-center"
-      style={{ minHeight: '340px' }}
+      style={{ minHeight: '280px' }}
     />
   );
 }
@@ -296,21 +292,16 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div
-      className="relative w-full overflow-hidden bg-slate-50"
-      style={{ 
-        minHeight: 'clamp(480px, calc(100svh - var(--header-h, 64px)), 760px)',
-      }}
-    >
+    <div className="relative w-full overflow-hidden bg-white py-4 sm:py-5 lg:py-6 xl:py-7">
       {/* Background Decoratives - Professional Corporate Aesthetic */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {/* Subtle Atmospheric Glows for Depth */}
-        <div className="absolute left-[-10%] top-[10%] w-[50%] h-[70%] bg-[#f0f4f8]/60 rounded-full blur-[100px]" />
-        <div className="absolute right-[-5%] bottom-[-10%] w-[40%] h-[60%] bg-[#eef2f6]/60 rounded-full blur-[100px]" />
+        <div className="absolute left-[-10%] top-[10%] w-[50%] h-[70%] bg-blue-50/40 rounded-full blur-[100px]" />
+        <div className="absolute right-[-5%] bottom-[-10%] w-[40%] h-[60%] bg-slate-50/50 rounded-full blur-[100px]" />
 
         {/* Subtle Dotted Grid in the center-right transition area */}
         <div
-          className="absolute left-[45%] lg:left-[50%] top-[30%] w-[250px] h-[350px] opacity-[0.35]"
+          className="absolute left-[45%] lg:left-[50%] top-[30%] w-[250px] h-[350px] opacity-[0.25]"
           style={{
             backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)',
             backgroundSize: '22px 22px',
@@ -320,7 +311,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         />
 
         {/* Left Side: Intricate Parametric Wave Mesh */}
-        <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.08] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
+        <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.06] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
           {Array.from({ length: 45 }).map((_, i) => (
             <path
               key={`wave-${i}`}
@@ -332,12 +323,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </svg>
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+      <div className="relative z-10 w-full max-w-7xl xl:max-w-[1360px] 2xl:max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8
                       grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-8 xl:gap-12 items-center">
 
         {/* ════ LEFT — Content ════ */}
         <motion.div
-          className="w-full max-w-2xl space-y-3.5 sm:space-y-4 lg:space-y-5 py-6 sm:py-8 lg:py-10 xl:py-12"
+          className="w-full max-w-2xl xl:max-w-3xl space-y-3 sm:space-y-3.5 lg:space-y-4 py-2 sm:py-3 lg:py-4 xl:py-5"
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -346,12 +337,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
             Let AI Find Your Next Move
           </div>
           
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-bold text-gray-900 leading-[1.1] tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-[3.25rem] 2xl:text-[3.65rem] font-bold text-gray-900 leading-[1.12] tracking-tight">
             <span className="inline-block whitespace-nowrap">Your <span className="text-orange-500">Dream</span> Job Is</span><br />
             <span className="inline-block whitespace-nowrap">Waiting For You</span>
           </h1>
           
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl xl:max-w-2xl">
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 
@@ -392,9 +383,9 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </motion.div>
 
         {/* ════ RIGHT — Three.js 3D Robot & Speech Bubble ════ */}
-        <div className="relative w-full flex flex-col items-center justify-center min-h-[380px] sm:min-h-[440px] md:min-h-[480px] lg:min-h-[540px] xl:min-h-[600px] 2xl:min-h-[680px] pb-4 lg:pb-0">
+        <div className="relative w-full flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] md:min-h-[380px] lg:min-h-[410px] xl:min-h-[440px] pb-2 lg:pb-0">
           {/* Speech Bubble: Positioned on Right at Head Level on Desktop/Tablet, Centered Above on Mobile */}
-          <div className="z-10 pointer-events-none mb-3 md:mb-0 md:absolute md:top-[18%] lg:top-[18%] xl:top-[18%] 2xl:top-[19%] md:left-[calc(50%+65px)] lg:left-[calc(50%+60px)] xl:left-[calc(50%+90px)] 2xl:left-[calc(50%+100px)]">
+          <div className="z-10 pointer-events-none mb-2 md:mb-0 md:absolute md:top-[14%] lg:top-[14%] xl:top-[14%] 2xl:top-[14%] md:left-[calc(50%+65px)] lg:left-[calc(50%+70px)] xl:left-[calc(50%+75px)] 2xl:left-[calc(50%+80px)]">
             <div
               className="relative bg-white rounded-2xl sm:rounded-3xl px-3.5 sm:px-4 lg:px-4 xl:px-5 py-2 sm:py-2.5 lg:py-2.5 xl:py-3 shadow-xl border border-gray-100 flex items-center pointer-events-auto whitespace-nowrap"
               style={{ 
@@ -419,7 +410,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           </div>
 
           {/* 3D Canvas */}
-          <div className="w-full h-[360px] sm:h-[420px] md:h-[460px] lg:h-[520px] xl:h-[580px] 2xl:h-[660px] flex items-center justify-center">
+          <div className="w-full h-[320px] sm:h-[360px] md:h-[415px] lg:h-[430px] xl:h-[460px] flex items-center justify-center">
             <RobotCanvas />
           </div>
         </div>
