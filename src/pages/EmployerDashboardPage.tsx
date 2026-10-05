@@ -2753,11 +2753,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       }}
                     >
                       <div className="flex items-start space-x-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 ${
                           NotificationService.getNotificationColor(notification.type)
-                        }`}>
-                          {NotificationService.getNotificationIcon(notification.type)}
-                        </div>
+                        }`}
+                          dangerouslySetInnerHTML={{ __html: NotificationService.getNotificationIcon(notification.type) }} />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-gray-900 mb-1">{notification.title}</h4>
                           <p className="text-sm text-gray-600 mb-2 line-clamp-2">{notification.message}</p>
