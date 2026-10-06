@@ -344,8 +344,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         .cand-fade-2 { animation: cand-fade-up .6s cubic-bezier(.22,1,.36,1) .15s both; }
         .cand-fade-3 { animation: cand-fade-up .6s cubic-bezier(.22,1,.36,1) .25s both; }
         .cand-fade-4 { animation: cand-fade-up .7s cubic-bezier(.22,1,.36,1) .35s both; }
-        @keyframes cand-gradient-x { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-        .cand-gradient { background-size: 200% auto; animation: cand-gradient-x 6s ease infinite; }
       `}</style>
 
       {/* Hero Header */}
@@ -353,12 +351,12 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
           <div className="text-center max-w-3xl mx-auto">
             <span className="cand-fade-1 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/80 backdrop-blur-md border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-widest shadow-sm mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
               AI-Powered Candidate Sourcing
             </span>
             <h1 className="cand-fade-2 text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
               Discover Top Talent,{' '}
-              <span className="cand-gradient text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
+              <span className="text-blue-600">
                 decoded by AI
               </span>
             </h1>
@@ -560,7 +558,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                   <div className="p-5 flex items-start gap-3">
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+                      <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
                         {candidate.profilePhoto ? (
                           <img src={candidate.profilePhoto} alt={getCandidateName(candidate)} className="w-full h-full object-cover"
                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />

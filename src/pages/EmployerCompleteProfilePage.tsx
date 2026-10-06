@@ -674,8 +674,8 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
 
   const domainStatusUI = () => {
     if (verifying) return (
-      <div className="flex items-center gap-2 text-orange-500 text-sm mt-2">
-        <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center gap-2 text-blue-600 text-sm mt-2">
+        <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         <span className="font-medium">Verifying domain...</span>
       </div>
     );
@@ -700,7 +700,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     return null;
   };
 
-  const inputCls = "w-full px-4 py-3 rounded-xl text-base text-gray-800 placeholder-gray-400 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 focus:bg-white hover:border-gray-300 transition-all duration-200";
+  const inputCls = "w-full px-4 py-3 rounded-xl text-base text-gray-800 placeholder-gray-400 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white hover:border-gray-300 transition-all duration-200";
   const selectCls = `${inputCls} appearance-none cursor-pointer`;
   const labelCls = "block text-sm font-semibold text-gray-700 mb-1.5";
 
@@ -708,52 +708,31 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     <div className="min-h-screen bg-white relative overflow-hidden">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Corner decorative circles — like login page */}
-      <div className="fixed top-16 right-0 w-80 h-80 rounded-full bg-orange-100 opacity-60 -translate-y-1/4 translate-x-1/4 pointer-events-none" />
-      <div className="fixed top-16 right-0 w-52 h-52 rounded-full bg-orange-50 opacity-80 -translate-y-1/3 translate-x-1/3 pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-96 h-96 rounded-full bg-blue-100 opacity-50 translate-y-1/4 -translate-x-1/4 pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-60 h-60 rounded-full bg-blue-50 opacity-70 translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
 
         {/* Back button */}
         <button
           onClick={() => onNavigate('dashboard')}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm font-medium mb-4 sm:mb-6 transition-colors duration-200 group"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-4 sm:mb-6 transition-colors group"
         >
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center group-hover:bg-orange-50 group-hover:border-orange-300 transition-all duration-200">
-            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-2xs flex items-center justify-center group-hover:bg-gray-50 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
           </div>
           <span className="hidden sm:inline">Back to Dashboard</span>
           <span className="sm:hidden">Back</span>
         </button>
 
         {/* Card */}
-        <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-
-          {/* Orange top accent bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-orange-400 to-yellow-400" />
-
-          {/* Subtle card inner tint */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at top center, rgba(249,115,22,0.04) 0%, transparent 50%)' }} />
-
-          {/* Decorative circle inside card top-right */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-orange-100 opacity-40 pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-blue-100 opacity-30 pointer-events-none" />
-
-          <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+        <div className="relative bg-white rounded-xl shadow-2xs border border-gray-200 overflow-hidden">
+          <div className="p-5 sm:p-7 lg:p-8">
 
             {/* Header */}
             <div className="text-center mb-6 sm:mb-8">
-              <div className="relative inline-block mb-4 sm:mb-5">
-                <div className="absolute inset-0 rounded-2xl blur-xl opacity-40 bg-orange-400" />
-                <div className="relative p-3 sm:p-4 rounded-2xl shadow-lg bg-gradient-to-br from-orange-500 to-orange-600">
-                  <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                </div>
+              <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center text-blue-600 mx-auto mb-3.5">
+                <Building2 className="w-6 h-6" />
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Edit Your{' '}
-                <span className="text-orange-500">Company Profile</span>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1.5">
+                Edit Your <span className="text-blue-600">Company Profile</span>
               </h1>
               <p className="text-gray-500 text-sm sm:text-base px-2">
                 {currentStep === 1 && "Basic company information"}
@@ -762,21 +741,21 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
               </p>
               
               {/* Step Indicator */}
-              <div className="flex items-center justify-center gap-2 sm:gap-4 mt-4 sm:mt-6 overflow-x-auto pb-2">
+              <div className="flex items-center justify-center gap-2 sm:gap-4 mt-5 overflow-x-auto pb-1">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="flex items-center flex-shrink-0">
-                    <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${
                       step === currentStep 
-                        ? 'bg-orange-500 text-white shadow-lg' 
+                        ? 'bg-blue-600 text-white shadow-2xs' 
                         : step < currentStep 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-gray-200 text-gray-500'
+                        ? 'bg-emerald-600 text-white' 
+                        : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {step < currentStep ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : step}
+                      {step < currentStep ? <Check className="w-3.5 h-3.5" /> : step}
                     </div>
                     {step < 3 && (
-                      <div className={`w-8 sm:w-12 h-0.5 mx-1 sm:mx-2 transition-colors duration-200 ${
-                        step < currentStep ? 'bg-green-500' : 'bg-gray-200'
+                      <div className={`w-8 sm:w-12 h-0.5 mx-1 sm:mx-2 transition-colors ${
+                        step < currentStep ? 'bg-emerald-600' : 'bg-gray-200'
                       }`} />
                     )}
                   </div>
@@ -784,16 +763,10 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
               </div>
               
               {/* Step Labels */}
-              <div className="flex justify-center gap-4 sm:gap-8 mt-2 sm:mt-3 text-xs text-gray-500 overflow-x-auto">
-                <span className={`whitespace-nowrap ${currentStep === 1 ? 'text-orange-600 font-medium' : ''}`}>Basic Info</span>
-                <span className={`whitespace-nowrap ${currentStep === 2 ? 'text-orange-600 font-medium' : ''}`}>Contact & Verification</span>
-                <span className={`whitespace-nowrap ${currentStep === 3 ? 'text-orange-600 font-medium' : ''}`}>Benefits & Extras</span>
-              </div>
-              
-              <div className="flex items-center justify-center gap-2 mt-3 sm:mt-4">
-                <div className="h-px w-10 sm:w-14 bg-gradient-to-r from-transparent to-orange-300" />
-                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-orange-400" />
-                <div className="h-px w-10 sm:w-14 bg-gradient-to-l from-transparent to-orange-300" />
+              <div className="flex justify-center gap-4 sm:gap-8 mt-2.5 text-xs text-gray-500 overflow-x-auto">
+                <span className={`whitespace-nowrap ${currentStep === 1 ? 'text-blue-600 font-semibold' : ''}`}>Basic Info</span>
+                <span className={`whitespace-nowrap ${currentStep === 2 ? 'text-blue-600 font-semibold' : ''}`}>Contact & Verification</span>
+                <span className={`whitespace-nowrap ${currentStep === 3 ? 'text-blue-600 font-semibold' : ''}`}>Benefits & Extras</span>
               </div>
             </div>
 
@@ -820,18 +793,18 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
 
             <div className="space-y-4 sm:space-y-5">
               {/* Company Logo Display */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 sm:p-4 border border-blue-200">
+              <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
                 <label className={labelCls}>Company Logo</label>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-blue-300 flex items-center justify-center bg-white overflow-hidden flex-shrink-0">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border border-gray-300 flex items-center justify-center bg-white overflow-hidden flex-shrink-0">
                     {fetchingLogo ? (
-                      <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                     ) : companyLogo ? (
                       <img src={companyLogo} alt="Company logo" className="w-full h-full object-contain" />
                     ) : (
                       <div className="text-center">
-                        <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 mx-auto mb-1" />
-                        <span className="text-xs text-blue-500">Logo</span>
+                        <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-1" />
+                        <span className="text-xs text-gray-500">Logo</span>
                       </div>
                     )}
                   </div>
@@ -859,7 +832,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
-                    className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${completionPercentage}%` }}
                   />
                 </div>
@@ -868,9 +841,9 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
               {/* Step 1: Basic Company Information */}
               {currentStep === 1 && (
                 <div className="space-y-4 sm:space-y-5">
-                  <div className="bg-orange-50 rounded-xl p-3 sm:p-4 border border-orange-200 mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-orange-800 mb-2">Step 1: Basic Company Information</h3>
-                    <p className="text-sm text-orange-600">All fields marked with * are mandatory</p>
+                  <div className="bg-blue-50/60 rounded-xl p-3.5 sm:p-4 border border-blue-100 mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1">Step 1: Basic Company Information</h3>
+                    <p className="text-sm text-blue-700">All fields marked with * are mandatory</p>
                   </div>
 
                   {/* Company Name */}
@@ -1274,7 +1247,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                       {/* Office Perks */}
                       <div>
                         <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                           Office Perks
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -1289,7 +1262,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                             'Childcare Support',
                             'Pet-Friendly Office'
                           ].map(benefit => (
-                            <label key={benefit} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-orange-50 cursor-pointer transition-colors">
+                            <label key={benefit} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
                                 checked={formData.benefits.includes(benefit)}
@@ -1300,7 +1273,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                                     setFormData(p => ({ ...p, benefits: p.benefits.filter(b => b !== benefit) }));
                                   }
                                 }}
-                                className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
+                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                               />
                               <span className="text-sm text-gray-700">{benefit}</span>
                             </label>
@@ -1458,11 +1431,10 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
               {currentStep < 3 ? (
                 <button
                   onClick={handleNextStep}
-                  className="group relative flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg hover:shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200 overflow-hidden order-1 sm:order-2 w-full sm:w-auto justify-center"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors order-1 sm:order-2 w-full sm:w-auto justify-center"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  <span className="relative z-10">Next Step</span>
-                  <svg className="w-4 h-4 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span>Next Step</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -1470,13 +1442,12 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                 <button
                   onClick={handleSubmit}
                   disabled={loading || domainStatus === 'blocked'}
-                  className="group relative flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg hover:shadow-orange-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200 overflow-hidden order-1 sm:order-2 w-full sm:w-auto justify-center"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-1 sm:order-2 w-full sm:w-auto justify-center"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  <span className="relative z-10">{loading ? 'Saving...' : 'Save Profile'}</span>
+                  <span>{loading ? 'Saving...' : 'Save Profile'}</span>
                   {loading
-                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin relative z-10" />
-                    : <Check className="w-4 h-4 relative z-10" />
+                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <Check className="w-4 h-4" />
                   }
                 </button>
               )}

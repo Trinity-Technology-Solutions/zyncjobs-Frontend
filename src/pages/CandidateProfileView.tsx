@@ -383,7 +383,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         {/* ── Hero card ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Banner */}
-          <div className="h-32 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500" />
+          <div className="h-32 bg-blue-600" />
 
           {/* Avatar + name row */}
           <div className="px-4 sm:px-8 pb-6">
@@ -392,11 +392,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
               <div className="relative inline-block">
                 {candidate.profilePhoto ? (
                   <img src={candidate.profilePhoto} alt={candidate.name}
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-white shadow-md"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 ) : (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white border-4 border-white shadow-lg">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-blue-600 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white border-4 border-white shadow-md">
                     {initials}
                   </div>
                 )}

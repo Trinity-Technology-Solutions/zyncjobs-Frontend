@@ -318,80 +318,64 @@ return (
 
 
       {/* Hero Banner */}
-      <div className="relative bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden">
-        {/* Animated glow orbs */}
-        <div className="absolute -top-24 -left-24 w-72 h-72 bg-blue-500/25 rounded-full blur-3xl zync-float" />
-        <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl zync-float-delayed" />
-        <div className="absolute top-0 right-1/3 w-48 h-48 bg-cyan-400/10 rounded-full blur-2xl zync-float-slow" />
-        {/* Subtle grid overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '42px 42px' }}
-        />
-
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-9">
+      <div className="bg-white border-b border-gray-200 text-gray-900">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => onNavigate?.('dashboard')}
                 aria-label="Go back"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/15 hover:bg-white/25 text-white shadow-sm hover:shadow-md hover:scale-105 transition-all backdrop-blur-sm flex-shrink-0"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 shadow-2xs transition-colors flex-shrink-0"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="19" y1="12" x2="5" y2="12" />
                   <polyline points="12 19 5 12 12 5" />
                 </svg>
               </button>
-              <div className="relative">
-                <div className="absolute inset-0 bg-violet-500/50 rounded-xl sm:rounded-2xl blur-md zync-glow" />
-                <div className="relative w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-400 via-blue-500 to-violet-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
-                  <Sparkles className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
-                </div>
+              <div className="w-10 sm:w-11 h-10 sm:h-11 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0">
+                <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold tracking-[-0.02em] leading-[1.15] flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
                   AI Recruiter Assistant
-                  <span className="hidden sm:inline-flex text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-blue-500/30 to-violet-500/30 border border-white/20 text-blue-200 rounded-full px-2 py-0.5">Beta</span>
+                  <span className="hidden sm:inline-flex text-[10px] font-semibold uppercase tracking-wider bg-blue-50 border border-blue-200 text-blue-700 rounded-full px-2 py-0.5">Beta</span>
                 </h1>
-                <p className="text-blue-300/90 text-sm sm:text-base leading-relaxed mt-0.5 max-w-2xl">Agentic AI talent sourcing · screening · ranked shortlists</p>
+                <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Agentic AI talent sourcing · screening · ranked shortlists</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2.5 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
-                <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-400' : 'bg-red-400'} shadow-[0_0_8px_rgba(52,211,153,0.8)]`} />
-                <span className="text-xs text-white/80 font-medium truncate">
-                  {aiOnline === null ? 'Connecting to AI engine…' : aiOnline ? 'AI Engine Online' : 'AI Engine Offline'}
+              <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 flex-1 sm:flex-none">
+                <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                <span className="text-xs text-gray-700 font-medium truncate">
+                  {aiOnline === null ? 'Connecting…' : aiOnline ? 'AI Online' : 'AI Offline'}
                 </span>
               </div>
               {jobContext.length > 0 && (
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2.5 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-white/80 font-medium truncate">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
+                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex-1 sm:flex-none">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                  <span className="text-xs text-blue-700 font-medium truncate">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
                 </div>
               )}
               <button
                 onClick={resetChat}
-                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-3 sm:px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-all hover:scale-[1.02] active:scale-95 flex-shrink-0"
+                className="flex items-center justify-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-700 transition-colors shadow-2xs flex-shrink-0"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">New Chat</span>
+                <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
+                <span>New Chat</span>
               </button>
             </div>
           </div>
         </div>
-        {/* Gradient divider */}
-        <div className="relative h-px bg-gradient-to-r from-transparent via-blue-500/70 to-transparent" />
       </div>
 
       <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 flex gap-4 sm:gap-6" style={{ minHeight: 0 }}>
 
         {/* Left Sidebar — Quick Actions */}
         <div className="w-56 sm:w-64 flex-shrink-0 hidden lg:block">
-          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-blue-900/5 overflow-hidden sticky top-6">
-            <div className="relative px-4 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-violet-600 text-white overflow-hidden">
-              <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/10 rounded-full" />
-              <p className="text-xs font-semibold uppercase tracking-wider relative">Quick Actions</p>
-              <p className="text-[11px] text-blue-100/90 mt-0.5 relative">One-click hiring workflows</p>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden sticky top-6">
+            <div className="px-4 py-3 bg-gray-50/80 border-b border-gray-200">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-700">Quick Actions</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">One-click hiring workflows</p>
             </div>
             <div className="p-2 space-y-1">
               {QUICK_ACTIONS.map((action, i) => {
@@ -400,32 +384,31 @@ return (
                   <button
                     key={i}
                     onClick={() => sendMessage(action.prompt)}
-                    className="w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 rounded-lg sm:rounded-xl hover:bg-blue-50/70 hover:translate-x-0.5 transition-all text-left group"
+                    className="w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left group"
                   >
-                    <div className={`w-7 sm:w-8 h-7 sm:h-8 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
-                      <Icon className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">{action.label}</p>
-                      <p className="text-xs text-gray-400 truncate hidden sm:block">{action.desc}</p>
+                      <p className="text-[11px] text-gray-400 truncate hidden sm:block">{action.desc}</p>
                     </div>
-                    <ChevronRight className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 flex-shrink-0 transition-all" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
                   </button>
                 );
               })}
             </div>
-            <div className="px-3 py-3 border-t border-gray-100 bg-gray-50/80">
+            <div className="px-3 py-2.5 border-t border-gray-100 bg-gray-50/50">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-500' : 'bg-red-400'}`} />
-                <p className="text-[11px] font-medium text-gray-600">AI Engine {aiOnline === null ? '…' : aiOnline ? 'Online' : 'Offline'}</p>
+                <p className="text-[11px] font-medium text-gray-600">Live AI Service</p>
               </div>
-              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">Sourcing, ranking & shortlisting run on the live AI service.</p>
             </div>
           </div>
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0" style={{ height: 'calc(100vh - 280px)' }}>
+        <div className="flex-1 flex flex-col min-w-0" style={{ height: 'calc(100vh - 240px)' }}>
 
           {/* Mobile Quick Actions */}
           {messages.length <= 1 && (
@@ -436,11 +419,10 @@ return (
                   <button
                     key={i}
                     onClick={() => sendMessage(action.prompt)}
-                    style={{ animationDelay: `${i * 60}ms` }}
-                    className="zync-pop-in flex flex-col sm:flex-row items-center sm:items-start gap-2 px-2 sm:px-3 py-2.5 bg-white border border-gray-200 rounded-lg sm:rounded-xl text-center sm:text-left hover:border-blue-300 hover:bg-blue-50 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                    className="flex flex-col sm:flex-row items-center sm:items-start gap-2 px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-center sm:text-left hover:border-gray-300 hover:bg-gray-50 transition-colors"
                   >
-                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                      <Icon className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-white" />
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-3 h-3" />
                     </div>
                     <span className="text-xs font-medium text-gray-700 truncate">{action.label}</span>
                   </button>
@@ -450,43 +432,42 @@ return (
           )}
 
           {/* Chat Messages */}
-          <div className="relative flex-1 bg-white rounded-2xl border border-gray-200/80 shadow-xl shadow-blue-900/5 overflow-hidden mb-3 flex flex-col min-h-0">
-            <div className="h-1 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-600 zync-gradient-anim flex-shrink-0" />
-            <div ref={chatRef} className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5">
+          <div className="relative flex-1 bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden mb-3 flex flex-col min-h-0">
+            <div ref={chatRef} className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-4">
             {messages.map((msg, i) => (
-              <div key={i} style={{ animationDelay: `${Math.min(i * 80, 400)}ms` }} className={`zync-msg-in flex gap-2 sm:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div key={i} className={`flex gap-2 sm:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 {/* Avatar */}
-                <div className={`w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center shadow-md ${
+                <div className={`w-7 sm:w-8 h-7 sm:h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
                   msg.role === 'assistant'
-                    ? 'bg-gradient-to-br from-blue-500 to-violet-600 ring-2 ring-violet-200/60'
-                    : 'bg-gradient-to-br from-gray-600 to-gray-700 ring-2 ring-gray-200/60'
+                    ? 'bg-blue-50 border border-blue-100 text-blue-600'
+                    : 'bg-gray-100 border border-gray-200 text-gray-600'
                 }`}>
                   {msg.role === 'assistant'
-                    ? <Sparkles className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
-                    : <User className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
+                    ? <Sparkles className="w-3.5 h-3.5" />
+                    : <User className="w-3.5 h-3.5" />
                   }
                 </div>
 
                 {/* Bubble */}
                 <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                  <div className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
                     msg.role === 'assistant'
-                      ? 'bg-gradient-to-br from-gray-50 to-white text-gray-800 rounded-tl-sm border border-gray-100'
-                      : 'bg-gradient-to-br from-blue-600 to-violet-600 text-white rounded-tr-sm shadow-md'
+                      ? 'bg-gray-50 text-gray-800 border border-gray-200'
+                      : 'bg-blue-600 text-white shadow-2xs'
                   }`}>
                     {i === messages.length - 1 && msg.role === 'assistant' && isTyping ? streamingText : msg.content}
                     {i === messages.length - 1 && msg.role === 'assistant' && isTyping && (
-                      <span className="inline-block w-1 h-4 bg-blue-400 animate-pulse ml-0.5 align-middle" />
+                      <span className="inline-block w-1 h-4 bg-blue-500 animate-pulse ml-0.5 align-middle" />
                     )}
                   </div>
 
                   {msg.role === 'assistant' && msg.candidates && msg.candidates.length > 0 && (
                     <div className="w-full max-w-[85%] sm:max-w-[75%] grid gap-2 sm:grid-cols-2 mt-1">
                       {msg.candidates.map((c, ci) => (
-                        <div key={`${c.name}-${ci}`} style={{ animationDelay: `${ci * 70}ms` }} className="zync-pop-in bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:border-blue-300 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                        <div key={`${c.name}-${ci}`} className="bg-white border border-gray-200 rounded-lg p-3 shadow-2xs hover:border-gray-300 transition-colors">
                           <div className="flex items-start gap-2.5">
-                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm ring-2 ring-violet-100">
-                              <span className="text-xs font-bold text-white">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold">
                                 {(c.name.split(' ').map(p => p[0]).join('') || '?').slice(0, 2).toUpperCase()}
                               </span>
                             </div>
@@ -503,19 +484,19 @@ return (
                           {c.skills.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {c.skills.slice(0, 4).map(s => (
-                                <span key={s} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-medium">{s}</span>
+                                <span key={s} className="px-1.5 py-0.5 bg-gray-50 text-gray-700 border border-gray-200 rounded text-[10px] font-medium">{s}</span>
                               ))}
                               {c.skills.length > 4 && <span className="text-[10px] text-gray-400 self-center">+{c.skills.length - 4}</span>}
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-2">
                             {c.matchScore != null && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-semibold">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-semibold">
                                 <CheckCircle2 className="w-3 h-3" /> Match {c.matchScore}%
                               </span>
                             )}
                             {c.atsScore != null && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-md text-[10px] font-semibold">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-semibold">
                                 <Sparkles className="w-3 h-3" /> ATS {c.atsScore}
                               </span>
                             )}
@@ -523,7 +504,7 @@ return (
                           {c.missingSkills.length > 0 && (
                             <p className="text-[10px] text-amber-600 mt-1.5">Missing: {c.missingSkills.slice(0, 3).join(', ')}</p>
                           )}
-                          <div className="flex gap-1.5 mt-2">
+                          <div className="flex gap-1.5 mt-2.5">
                             <button
                               onClick={() => shortlistCandidate(c)}
                               disabled={shortlistedIds.includes(c.id || '')}
@@ -537,7 +518,7 @@ return (
                             </button>
                             <button
                               onClick={() => onNavigate?.('candidate-search')}
-                              className="flex-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg py-1.5 transition-colors"
+                              className="flex-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 rounded-lg py-1.5 transition-colors"
                             >
                               View Profile
                             </button>
@@ -553,15 +534,15 @@ return (
             ))}
 
             {loading && !isTyping && (
-              <div className="zync-msg-in flex gap-2 sm:gap-3">
-                <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-violet-200/60">
-                  <Sparkles className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
+              <div className="flex gap-2 sm:gap-3">
+                <div className="w-7 sm:w-8 h-7 sm:h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-3.5 h-3.5" />
                 </div>
-                <div className="bg-white border border-gray-100 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl rounded-tl-sm shadow-sm">
-                  <div className="flex gap-1.5 items-center h-4 sm:h-5">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full zync-typing-dot" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-violet-500 rounded-full zync-typing-dot" style={{ animationDelay: '180ms' }} />
-                    <span className="w-2 h-2 bg-blue-400 rounded-full zync-typing-dot" style={{ animationDelay: '360ms' }} />
+                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl">
+                  <div className="flex gap-1.5 items-center h-4">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>
@@ -570,7 +551,7 @@ return (
           </div>
 
           {/* Input Box */}
-          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-blue-900/5 p-2 sm:p-3 flex-shrink-0 focus-within:ring-2 focus-within:ring-blue-500/25 focus-within:border-blue-300/60 transition-all">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-2.5 sm:p-3 flex-shrink-0 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
             <div className="flex gap-2 sm:gap-3 items-end">
               <textarea
                 ref={textareaRef}
@@ -585,14 +566,14 @@ return (
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || loading}
-                className="w-9 sm:w-10 h-9 sm:h-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg sm:rounded-xl flex items-center justify-center hover:opacity-90 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex-shrink-0 shadow-md shadow-blue-600/25"
+                className="w-9 sm:w-10 h-9 sm:h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-2xs"
               >
-                <Send className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
+                <Send className="w-4 h-4 text-white" />
               </button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1">
               <p className="text-xs text-gray-400">Press Enter to send · Shift+Enter for new line</p>
-              <p className="text-[10px] text-gray-300 hidden sm:block">AI can make mistakes — verify important details</p>
+              <p className="text-[10px] text-gray-400 hidden sm:block">AI can make mistakes — verify important details</p>
             </div>
           </div>
         </div>

@@ -2919,7 +2919,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     return (
       <div className="bg-white">
         {/* Header bar */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-6 py-4 mb-6">
+        <div className="bg-blue-600 rounded-xl px-6 py-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -3189,7 +3189,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         <div className="relative h-36 rounded-lg overflow-hidden bg-gray-900">
           <img src={bannerUrl} alt="Job banner" className="w-full h-full object-cover opacity-80"
             onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'; }} />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 to-purple-900/30" />
+          <div className="absolute inset-0 bg-slate-900/30" />
         </div>
       </div>
 

@@ -152,6 +152,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
           visibility: progress > 0.12 ? 'hidden' : 'visible',
         }}
       >
+        <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-blue-600 mb-2">Simple Process</p>
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-2 sm:mb-3 tracking-tight leading-tight">
           Your Dream Job is Just <span className="text-orange-500">4 Steps</span> Away
         </h2>
@@ -259,17 +260,16 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                   </span>
 
                   <div className="relative flex items-start gap-2.5 sm:gap-3 lg:gap-4">
-                    <span className={`w-9 h-9 sm:w-11 sm:h-11 lg:w-13 lg:h-13 rounded-xl sm:rounded-2xl ${step.chipBg} flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-white shadow-md sm:shadow-lg shadow-black/10 ring-2 sm:ring-4 ring-white/70 flex-shrink-0`}>
+                    <span className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-blue-600 flex items-center justify-center text-sm sm:text-base font-bold text-white shadow-xs flex-shrink-0">
                       {step.id}
                     </span>
                     <div className="pt-0.5 min-w-0 flex-1">
-                      <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-0.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
                         Step {step.id}
                       </p>
-                      <h3 className="text-lg sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 leading-tight sm:leading-tight">
+                      <h3 className="text-lg sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 leading-tight">
                         {step.title}
                       </h3>
-                      <span className={`mt-1 sm:mt-1.5 block h-0.5 sm:h-1 w-8 sm:w-12 rounded-full bg-gradient-to-r ${step.chipBg} to-white/40`} />
                     </div>
                   </div>
 
@@ -281,12 +281,10 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                     {step.bullets.map((b, idx) => (
                       <li
                         key={b}
-                        className={`items-center gap-2 sm:gap-2.5 rounded-lg sm:rounded-xl bg-white/80 backdrop-blur-xs border border-gray-100 shadow-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 ${
-                          idx === 2 ? 'hidden sm:flex' : 'flex'
-                        }`}
+                        className={`items-center gap-2.5 rounded-lg bg-gray-50/70 border border-gray-200/80 px-3 py-2 ${idx === 2 ? 'hidden sm:flex' : 'flex'}`}
                       >
-                        <span className={`w-4 h-4 sm:w-4.5 sm:h-4.5 min-w-[16px] min-h-[16px] sm:min-w-[18px] sm:min-h-[18px] rounded-full ${step.chipBg} flex items-center justify-center flex-shrink-0`}>
-                          <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+                        <span className="w-4.5 h-4.5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                          <Check className="w-3 h-3 text-blue-600" />
                         </span>
                         <span className="text-xs sm:text-sm lg:text-[15px] font-medium text-gray-800 leading-normal truncate">{b}</span>
                       </li>
@@ -312,7 +310,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                         onClick={() => goToStep(active - 1)}
                         disabled={active === 0}
                         aria-label="Previous step"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-300 bg-white/80 backdrop-blur-md flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 cursor-pointer"
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-gray-300 bg-white flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-2xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 cursor-pointer"
                       >
                         <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
@@ -321,7 +319,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                         onClick={() => goToStep(active + 1)}
                         disabled={active === steps.length - 1}
                         aria-label="Next step"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-300 bg-white/80 backdrop-blur-md flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 cursor-pointer"
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-gray-300 bg-white flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-2xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 cursor-pointer"
                       >
                         <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
@@ -335,9 +333,9 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
                   style={isDesktop ? { transform: `translateY(${parallax}px)`, transition: 'transform 0.1s ease-out' } : undefined}
                 >
                   <div className="transform scale-[0.88] sm:scale-95 md:scale-90 lg:scale-95 xl:scale-100 origin-top">
-                    <div className="absolute -top-10 -left-6 w-44 h-44 bg-white/50 rounded-full blur-3xl" />
+                    
 
-                    <div className="rounded-2xl sm:rounded-3xl bg-white ring-1 ring-black/5 shadow-xl sm:shadow-2xl shadow-gray-300/60 overflow-hidden">
+                    <div className="rounded-xl bg-white border border-gray-200 shadow-md overflow-hidden">
                       <div className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border-b border-gray-100">
                         <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-400" />
                         <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-400" />

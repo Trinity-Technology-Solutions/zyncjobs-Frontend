@@ -333,9 +333,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="text-indigo-600 font-semibold text-sm sm:text-base lg:text-lg tracking-wide">
-            Let AI Find Your Next Move
-          </div>
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-blue-600 mb-2">Let AI Find Your Next Move</p>
           
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-[3.25rem] 2xl:text-[3.65rem] font-bold text-gray-900 leading-[1.12] tracking-tight">
             <span className="inline-block whitespace-nowrap">Your <span className="text-orange-500">Dream</span> Job Is</span><br />
@@ -346,9 +344,9 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 
-          <form onSubmit={handleSearch} className="w-full bg-white p-2.5 sm:p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
-            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
-              <Search className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
+          <form onSubmit={handleSearch} className="w-full bg-white p-2.5 sm:p-3 rounded-xl shadow-xs border border-gray-200 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+            <div className="flex-1 flex items-center bg-gray-50/80 rounded-lg px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+              <Search className="text-slate-400 w-5 h-5 mr-3 shrink-0" />
               <input 
                 type="text" 
                 placeholder="Job Title, Keyword" 
@@ -358,8 +356,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               />
             </div>
             
-            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
-              <MapPin className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
+            <div className="flex-1 flex items-center bg-gray-50/80 rounded-lg px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+              <MapPin className="text-slate-400 w-5 h-5 mr-3 shrink-0" />
               <input 
                 type="text" 
                 placeholder="City Or Country" 
@@ -369,16 +367,26 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               />
             </div>
 
-            <button type="submit" className="bg-blue-600 text-white font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap text-sm sm:text-base w-full sm:w-auto shadow-md">
+            <button type="submit" className="bg-blue-600 text-white font-medium px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap text-sm sm:text-base w-full sm:w-auto shadow-2xs cursor-pointer">
               Find Job
             </button>
           </form>
 
-          <div className="pt-2 sm:pt-4 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 sm:gap-y-2 text-xs sm:text-sm md:text-base font-medium">
-            <span className="text-gray-900 font-bold">Popular Searches:</span>
-            <span className="text-indigo-600 cursor-pointer hover:underline">Chemical</span>
-            <span className="text-indigo-600 cursor-pointer hover:underline">Data analyst</span>
-            <span className="text-indigo-600 cursor-pointer hover:underline">Power bi developer</span>
+          <div className="pt-2 sm:pt-4 flex flex-wrap items-center gap-2 text-xs sm:text-sm font-medium">
+            <span className="text-gray-500 font-semibold mr-1">Popular Searches:</span>
+            {['Chemical', 'Data analyst', 'Power bi developer'].map((term) => (
+              <button
+                key={term}
+                type="button"
+                onClick={() => {
+                  setSearchTerm(term);
+                  onNavigate && onNavigate('job-listings', { searchTerm: term });
+                }}
+                className="px-2.5 py-1 rounded-md bg-gray-100/80 hover:bg-gray-100 text-gray-700 hover:text-blue-600 transition-colors cursor-pointer text-xs font-medium"
+              >
+                {term}
+              </button>
+            ))}
           </div>
         </motion.div>
 
@@ -387,7 +395,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           {/* Speech Bubble: Positioned on Right at Head Level on Desktop/Tablet, Centered Above on Mobile */}
           <div className="z-10 pointer-events-none mb-2 md:mb-0 md:absolute md:top-[14%] lg:top-[14%] xl:top-[14%] 2xl:top-[14%] md:left-[calc(50%+65px)] lg:left-[calc(50%+70px)] xl:left-[calc(50%+75px)] 2xl:left-[calc(50%+80px)]">
             <div
-              className="relative bg-white rounded-2xl sm:rounded-3xl px-3.5 sm:px-4 lg:px-4 xl:px-5 py-2 sm:py-2.5 lg:py-2.5 xl:py-3 shadow-xl border border-gray-100 flex items-center pointer-events-auto whitespace-nowrap"
+              className="relative bg-white rounded-xl px-4 py-2 sm:py-2.5 shadow-md border border-gray-200 flex items-center pointer-events-auto whitespace-nowrap"
               style={{ 
                 boxShadow: '0 16px 36px rgba(0,0,0,0.08)'
               }}

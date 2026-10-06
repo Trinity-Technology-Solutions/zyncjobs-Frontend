@@ -219,7 +219,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
     const sz = size === 'lg' ? 'w-12 h-12 text-lg' : size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
     return photo
       ? <img src={photo} alt={name} className={`${sz} rounded-full object-cover flex-shrink-0`} />
-      : <div className={`${sz} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold flex-shrink-0`}>{name.charAt(0).toUpperCase()}</div>;
+      : <div className={`${sz} rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0`}>{name.charAt(0).toUpperCase()}</div>;
   };
 
   const rankLabel = (i: number) => {

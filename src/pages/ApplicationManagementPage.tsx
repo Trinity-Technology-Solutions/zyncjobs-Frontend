@@ -535,9 +535,9 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                 <button
                   onClick={runAIShortlist}
                   disabled={aiRunning}
-                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Zap className="w-4 h-4 text-yellow-300" />
+                  <Zap className="w-4 h-4" />
                   {aiRunning ? 'Generating AI Preview...' : 'AI Auto-Shortlist'}
                 </button>
               </>

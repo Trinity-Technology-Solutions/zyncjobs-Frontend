@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Briefcase, ArrowRight } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
 import CompanyLogo from './CompanyLogo';
@@ -189,30 +190,39 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   return (
     <section className="bg-white py-10 sm:py-12 lg:py-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 sm:mb-8 space-y-2.5 sm:space-y-3 text-center max-w-3xl mx-auto px-2">
-          {/* Heading */}
+        <div className="mb-8 sm:mb-10 text-center max-w-3xl mx-auto px-2">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-blue-600 mb-2">Featured Openings</p>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
             Recent Job <span className="text-orange-500">Openings</span>
           </h2>
-
-          {/* Subtitle */}
-          <p className="text-sm sm:text-base md:text-lg text-gray-600">
+          <p className="mt-2 text-sm sm:text-base md:text-lg text-gray-600">
             Discover the latest opportunities from verified employers, updated in real-time.
           </p>
         </div>
         
         {jobs.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">No jobs posted yet. Be the first to post a job!</p>
+          <div className="text-center py-10 sm:py-12 max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-xs">
+            <div className="w-12 h-12 mx-auto mb-3.5 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+              <Briefcase className="w-6 h-6" strokeWidth={1.8} />
+            </div>
+            <h3 className="font-bold text-gray-900 text-base sm:text-lg mb-1">No Open Roles Right Now</h3>
+            <p className="text-gray-500 text-xs sm:text-sm mb-5 leading-relaxed">Check back shortly or explore all available job categories.</p>
+            <button
+              onClick={() => onNavigate && onNavigate('job-listings')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs hover:shadow transition-all cursor-pointer"
+            >
+              <span>Explore All Jobs</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
               {jobs.map((job) => (
-                <div key={getId(job)} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full">
+                <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-xs transition-all duration-150 flex flex-col justify-between h-full">
                   <div>
                     <div className="flex items-center mb-4 min-w-0">
-                      <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-3 sm:mr-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-3 sm:mr-4 p-1">
                         <CompanyLogo
                           companyName={job.company || ''}
                           storedLogo={job.companyLogo || companyLogos[(job.company || '').toLowerCase()] || ''}
@@ -246,7 +256,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                             companyName: job.company,
                             jobData: job
                           })}
-                          className="bg-blue-600 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                          className="bg-blue-600 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors shadow-2xs cursor-pointer"
                         >
                           View Details
                         </button>
@@ -271,7 +281,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     
                     <div className="flex justify-between items-center text-xs sm:text-sm text-gray-500 pt-1">
                       <span>{getTimeAgo(job.createdAt)}</span>
-                      <span className="bg-blue-50 text-blue-700 font-medium px-2.5 py-1 rounded text-xs">{job.jobType}</span>
+                      <span className="bg-gray-100 text-gray-700 font-medium px-2.5 py-0.5 rounded text-xs">{job.jobType}</span>
                     </div>
                   </div>
                 </div>

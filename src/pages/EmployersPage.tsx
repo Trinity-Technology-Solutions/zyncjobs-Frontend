@@ -27,31 +27,29 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       <GlobalMotionStyles />
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* ── 1. Hero — light "live" background ── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white">
-        <LiveHeroBackground />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-14 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-18 xl:pt-16 xl:pb-20">
+      {/* ── 1. Hero ── */}
+      <section className="relative overflow-hidden bg-white border-b border-gray-100">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-12 sm:pt-12 sm:pb-14 lg:pt-14 lg:pb-16 xl:pt-16 xl:pb-18">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 xl:gap-12 items-start">
             <div className="lg:col-span-7 flex flex-col items-start">
               <div className="hero-fade-1 inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold tracking-wide uppercase px-3.5 py-1.5 rounded-full mb-4">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse-soft" />
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                 AI-Powered Hiring Platform
               </div>
               <h1 className="hero-fade-2 text-4xl sm:text-6xl xl:text-[4.2rem] font-extrabold text-gray-900 leading-[1.05] tracking-[-0.02em] mb-4 sm:mb-6">
                 Hire the right talent,<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-blue-500 bg-[length:200%_auto] animate-gradient-shift">decoded by AI</span>
+                <span className="text-blue-600">decoded by AI</span>
               </h1>
-              <p className="hero-fade-3 text-sm sm:text-base text-gray-500 leading-relaxed mb-5 max-w-xl">
+              <p className="hero-fade-3 text-sm sm:text-base text-gray-600 leading-relaxed mb-5 max-w-xl">
                 Post jobs, search verified candidate profiles, and let AI shortlist the best matches — across every field and industry.
               </p>
               <div className="hero-fade-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <WorkButton size="md" text="Explore Our Products" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })} />
                 <button
                   onClick={scrollToCallback}
-                  className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-white hover:bg-orange-50/40 border border-gray-200/90 hover:border-orange-200/80 text-gray-700 hover:text-gray-900 font-semibold text-sm tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-gray-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
+                  className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 hover:text-gray-900 font-semibold text-sm tracking-tight transition-colors shadow-2xs group"
                 >
-                  <Phone className="w-4 h-4 text-gray-500 group-hover:text-orange-600 transition-colors" />
+                  <Phone className="w-4 h-4 text-gray-500 group-hover:text-blue-600 transition-colors" />
                   <span>Sales Enquiry</span>
                 </button>
               </div>
@@ -61,7 +59,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                   { icon: Bot, text: 'AI-matched shortlists' },
                   { icon: Target, text: 'All fields & industries' },
                 ].map((b) => (
-                  <span key={b.text} className="inline-flex items-center gap-1.5 text-xs sm:text-[13px] text-gray-500">
+                  <span key={b.text} className="inline-flex items-center gap-1.5 text-xs sm:text-[13px] text-gray-600">
                     <b.icon className="w-3.5 h-3.5 text-blue-600" /> {b.text}
                   </span>
                 ))}
@@ -77,9 +75,6 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
 
         {/* Signature element — a live ticker of jobs being posted right now */}
         <JobTicker />
-
-        {/* Soft seam into the next section */}
-        <div className="h-6 bg-gradient-to-b from-blue-50/40 to-transparent" />
       </section>
 
       {/* ── Trusted by marquee ── */}
@@ -184,13 +179,13 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               },
             ].map((f, i) => (
               <Reveal key={f.title} delay={i * 60}>
-                <div className="group relative grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14 items-center bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:border-blue-200 p-6 lg:p-10 transition-all duration-500 hover:-translate-y-1.5">
+                <div className="group relative grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center bg-white rounded-2xl border border-gray-200 shadow-2xs hover:border-blue-300 hover:shadow-xs p-6 lg:p-8 transition-all">
                   <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
-                    <div className={`w-14 h-14 bg-gradient-to-br ${f.grad} rounded-2xl flex items-center justify-center mb-6 shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3`}>
-                      <f.icon className="w-7 h-7 text-white" />
+                    <div className={`w-12 h-12 ${f.tile} ${f.text} border border-gray-200/80 rounded-xl flex items-center justify-center mb-5`}>
+                      <f.icon className="w-6 h-6" />
                     </div>
                     <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-3 tracking-tight">{f.title}</h3>
-                    <p className="text-gray-500 text-lg leading-relaxed mb-6">{f.desc}</p>
+                    <p className="text-gray-600 text-base lg:text-lg leading-relaxed mb-6">{f.desc}</p>
                     <ul className="space-y-3 mb-8">
                       {f.bullets.map((b) => (
                         <li key={b} className="flex items-start gap-3 text-gray-700">
@@ -201,25 +196,24 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                     </ul>
                     <button
                       onClick={() => go(f.target)}
-                      className={`inline-flex items-center gap-2 bg-gradient-to-r ${f.grad} hover:opacity-90 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 shadow-lg`}
+                      className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors shadow-2xs"
                     >
                       {f.cta} <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </button>
                   </div>
 
                   <div className={`relative ${i % 2 === 1 ? 'lg:order-1' : ''}`}>
-                    <div className={`absolute -inset-3 bg-gradient-to-br ${f.grad} opacity-10 blur-2xl rounded-3xl transition-opacity duration-500 group-hover:opacity-25`} />
-                    <div className="relative bg-white rounded-2xl border border-gray-200 shadow-xl shadow-blue-100/60 overflow-hidden transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-1.5 group-hover:rotate-0 lg:group-hover:-rotate-1">
-                      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <div className="relative bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden transition-all">
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200">
                         <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                        <span className="ml-3 flex-1 truncate text-[11px] text-gray-400 bg-white border border-gray-100 rounded-md px-2.5 py-1 font-medium">
+                        <span className="ml-3 flex-1 truncate text-[11px] text-gray-500 bg-white border border-gray-200 rounded-md px-2.5 py-1 font-medium">
                           {f.url}
                         </span>
                       </div>
                       <div className="aspect-[16/10] overflow-hidden">
-                        <div className="h-full transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+                        <div className="h-full">
                           <SitePreview variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights'} />
                         </div>
                       </div>
@@ -310,20 +304,20 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               },
             ].map((t, i) => (
               <Reveal key={t.name} delay={i * 100}>
-                <div className="group relative bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:-translate-y-1.5 transition-all duration-300 p-8 h-full flex flex-col">
-                  <div className="flex gap-1 mb-5">
+                <div className="group relative bg-white rounded-xl border border-gray-200 shadow-2xs hover:border-gray-300 hover:shadow-xs transition-all p-6 sm:p-7 h-full flex flex-col">
+                  <div className="flex gap-1 mb-4">
                     {[...Array(5)].map((_, s) => (
                       <Award key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />
                     ))}
                   </div>
-                  <p className="text-gray-600 leading-relaxed text-[15px] flex-1">"{t.quote}"</p>
-                  <div className="flex items-center gap-3 mt-7 pt-5 border-t border-gray-100">
-                    <span className={`w-11 h-11 bg-gradient-to-br ${t.grad} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                  <p className="text-gray-600 leading-relaxed text-sm sm:text-[15px] flex-1">"{t.quote}"</p>
+                  <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-100">
+                    <span className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xs sm:text-sm flex-shrink-0">
                       {t.initials}
                     </span>
                     <div>
                       <p className="font-bold text-gray-900 text-sm">{t.name}</p>
-                      <p className="text-xs text-gray-400">{t.role} · {t.company}</p>
+                      <p className="text-xs text-gray-500">{t.role} · {t.company}</p>
                     </div>
                   </div>
                 </div>
@@ -340,25 +334,22 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       <FAQSection go={go} />
 
       {/* ── Final CTA band ── */}
-      <section className="bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-70" style={{ backgroundImage: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.2) 0%, transparent 50%)' }}></div>
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-float-slow" />
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-cyan-300/10 rounded-full blur-3xl animate-float-slow-alt" />
+      <section className="bg-blue-600 relative overflow-hidden py-14 sm:py-18">
         <Reveal>
-          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20 text-center">
-            <h2 className="text-3xl lg:text-4xl font-extrabold text-white mb-4">
+          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+            <h2 className="text-3xl lg:text-4xl font-extrabold mb-3 tracking-tight">
               Start hiring smarter today
             </h2>
-            <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
+            <p className="text-blue-100 text-base sm:text-lg mb-8 max-w-2xl mx-auto leading-relaxed">
               Join thousands of companies using ZyncJobs to find and hire the right talent — faster.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3.5 justify-center items-stretch sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center">
               <WorkButton text="Create Free Account" onClick={() => go('employer-register')} />
               <button
                 onClick={scrollToCallback}
-                className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-full border border-white/30 hover:border-white/50 bg-white/10 hover:bg-white/20 text-white font-semibold text-[15px] tracking-tight transition-all duration-200 shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
+                className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full border border-white/30 hover:border-white/60 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm tracking-tight transition-colors shadow-2xs group"
               >
-                <Phone className="w-4.5 h-4.5 text-blue-200 group-hover:text-white transition-colors" />
+                <Phone className="w-4 h-4 text-blue-100 group-hover:text-white transition-colors" />
                 <span>Talk to Sales</span>
               </button>
             </div>
@@ -392,27 +383,6 @@ function GlobalMotionStyles() {
       @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       .animate-pulse-soft { animation: pulse-soft 2.2s ease-in-out infinite; }
 
-      @keyframes float-slow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, -25px); } }
-      .animate-float-slow { animation: float-slow 12s ease-in-out infinite; }
-      @keyframes float-slow-alt { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-25px, 20px); } }
-      .animate-float-slow-alt { animation: float-slow-alt 14s ease-in-out infinite; }
-
-      @keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-      .animate-float { animation: float-y 3.5s ease-in-out infinite; }
-
-      @keyframes orb-drift-1 { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(40px, -30px) scale(1.08); } 66% { transform: translate(-20px, 30px) scale(0.96); } }
-      @keyframes orb-drift-2 { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(-35px, 25px) scale(1.05); } 66% { transform: translate(25px, -20px) scale(0.98); } }
-      @keyframes orb-drift-3 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(15px, 20px) scale(1.1); } }
-      .orb-1 { animation: orb-drift-1 16s ease-in-out infinite; }
-      .orb-2 { animation: orb-drift-2 20s ease-in-out infinite; }
-      .orb-3 { animation: orb-drift-3 13s ease-in-out infinite; }
-
-      @keyframes grid-pan { 0% { background-position: 0 0, 0 0; } 100% { background-position: 44px 44px, 44px 44px; } }
-      .grid-pan { animation: grid-pan 6s linear infinite; }
-
-      @keyframes particle-rise { 0% { transform: translateY(0) translateX(0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.4; } 100% { transform: translateY(-380px) translateX(var(--drift, 20px)); opacity: 0; } }
-      .particle { position: absolute; animation: particle-rise linear infinite; }
-
       @keyframes hero-fade-up { 0% { opacity: 0; transform: translateY(16px); } 100% { opacity: 1; transform: translateY(0); } }
       .hero-fade-1, .hero-fade-2, .hero-fade-3, .hero-fade-4, .hero-fade-5 { animation: hero-fade-up 0.7s cubic-bezier(.16,.84,.44,1) both; }
       .hero-fade-1 { animation-delay: 0.02s; }
@@ -421,23 +391,16 @@ function GlobalMotionStyles() {
       .hero-fade-4 { animation-delay: 0.30s; }
       .hero-fade-5 { animation-delay: 0.40s; }
 
-      .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s cubic-bezier(.16,.84,.44,1), transform 0.7s cubic-bezier(.16,.84,.44,1); }
+      .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease-out, transform 0.5s ease-out; }
       .reveal-visible { opacity: 1; transform: translateY(0); }
 
       @keyframes count-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-      @keyframes suite-panel-in { 0% { opacity: 0; transform: translateY(16px) scale(0.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-      .suite-panel-in { animation: suite-panel-in 0.45s cubic-bezier(.16,.84,.44,1) both; }
-
-      @keyframes suite-progress { from { width: 0%; } to { width: 100%; } }
-      .suite-progress { width: 0%; animation: suite-progress 4s linear forwards; }
-
-      @keyframes suite-chip-in { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
-      .suite-chip-in { animation: suite-chip-in 0.4s 0.2s cubic-bezier(.16,.84,.44,1) both; }
+      @keyframes suite-panel-in { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
+      .suite-panel-in { animation: suite-panel-in 0.35s ease-out both; }
 
       @media (prefers-reduced-motion: reduce) {
-        .marquee-track, .ticker-track, .animate-gradient-shift, .animate-pulse-soft, .animate-float-slow, .animate-float-slow-alt, .animate-float,
-        .orb-1, .orb-2, .orb-3, .grid-pan, .particle, .suite-panel-in, .suite-progress, .suite-chip-in,
+        .marquee-track, .ticker-track, .suite-panel-in,
         .hero-fade-1, .hero-fade-2, .hero-fade-3, .hero-fade-4, .hero-fade-5 { animation: none !important; }
         .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
       }
@@ -473,55 +436,6 @@ function Reveal({ children, delay = 0, className = '' }: { children: React.React
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}
-    </div>
-  );
-}
-
-/** Animated "live wallpaper" hero background — drifting gradient mesh, panning grid, rising particles. */
-function LiveHeroBackground() {
-  const particles = [
-    { icon: Briefcase, left: '8%', size: 18, dur: 14, delay: 0, drift: 30 },
-    { icon: Users, left: '22%', size: 16, dur: 18, delay: 3, drift: -20 },
-    { icon: CheckCircle2, left: '48%', size: 14, dur: 12, delay: 6, drift: 15 },
-    { icon: Target, left: '68%', size: 18, dur: 20, delay: 2, drift: -35 },
-    { icon: Bot, left: '85%', size: 16, dur: 15, delay: 8, drift: 20 },
-  ];
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Drifting gradient orbs — the "live wallpaper" */}
-      <div className="orb-1 absolute -top-24 left-[10%] w-[420px] h-[420px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.14) 0%, transparent 70%)' }} />
-      <div className="orb-2 absolute top-1/3 right-[5%] w-[380px] h-[380px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)' }} />
-      <div className="orb-3 absolute bottom-0 left-[35%] w-[300px] h-[300px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.12) 0%, transparent 70%)' }} />
-
-      {/* Slowly panning grid */}
-      <div
-        className="grid-pan absolute inset-0 opacity-100"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(37,99,235,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.06) 1px, transparent 1px)',
-          backgroundSize: '44px 44px, 44px 44px',
-        }}
-      />
-
-      {/* Rising particle icons */}
-      {particles.map((p, i) => (
-        <p.icon
-          key={i}
-          className="particle text-blue-400/25"
-          style={{
-            left: p.left,
-            bottom: '-40px',
-            width: p.size,
-            height: p.size,
-            animationDuration: `${p.dur}s`,
-            animationDelay: `${p.delay}s`,
-            ['--drift' as any]: `${p.drift}px`,
-          }}
-        />
-      ))}
-
-      {/* Bottom fade so content below the hero stays crisp */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-blue-50/50 to-transparent" />
     </div>
   );
 }
@@ -660,8 +574,8 @@ function HeroCallbackCard() {
 
   if (submitted) {
     return (
-      <div className="w-full max-w-[420px] ml-auto bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-100/70 p-6 sm:p-7 text-center">
-        <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3.5 animate-pulse-soft">
+      <div className="w-full max-w-[420px] ml-auto bg-white rounded-xl border border-gray-200 shadow-xs p-5 sm:p-6 text-center">
+        <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
           <CheckCircle2 className="w-6 h-6 text-emerald-600" />
         </div>
         <h3 className="text-base font-bold text-gray-900 mb-1">Request received!</h3>
@@ -671,8 +585,7 @@ function HeroCallbackCard() {
   }
 
   return (
-    <div className="relative w-full max-w-[420px] ml-auto bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-100/70 p-5 sm:p-6">
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-violet-600 rounded-t-2xl" />
+    <div className="relative w-full max-w-[420px] ml-auto bg-white rounded-xl border border-gray-200 shadow-xs p-5 sm:p-6">
       <p className="text-[11px] font-bold uppercase tracking-widest text-blue-600 mb-1">Request callback</p>
       <h3 className="text-base sm:text-[17px] font-bold text-gray-900 mb-3.5">Get a free demo of our hiring suite</h3>
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -758,16 +671,16 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
 
         {/* Category tabs */}
         <Reveal>
-          <div className="flex flex-wrap justify-center gap-2.5 mb-10">
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
             {PRODUCT_CATEGORIES.map((c) => {
               const isActive = c.id === active;
               return (
                 <button
                   key={c.id}
                   onClick={() => setActive(c.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border ${isActive
-                    ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white border-transparent shadow-lg shadow-blue-200'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${isActive
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:text-blue-600'
                     }`}
                 >
                   <c.icon className="w-4 h-4" />
@@ -782,10 +695,9 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
         <div key={active} className="suite-panel-in grid grid-cols-1 sm:grid-cols-2 gap-6">
           {PRODUCTS[active].map((p, i) => (
             <Reveal key={p.name} delay={i * 80}>
-              <div className="group relative bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:border-blue-200 hover:-translate-y-1.5 transition-all duration-300 p-7 h-full flex flex-col overflow-hidden">
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${p.grad}`} />
+              <div className="group relative bg-white rounded-xl border border-gray-200 shadow-2xs hover:border-blue-300 hover:shadow-xs transition-all p-6 sm:p-7 h-full flex flex-col overflow-hidden">
                 <div className="flex items-center gap-4 mb-5">
-                  <span className={`w-12 h-12 bg-gradient-to-br ${p.grad} rounded-2xl flex items-center justify-center text-white font-extrabold text-sm shadow-md transition-transform duration-300 group-hover:scale-110`}>
+                  <span className="w-11 h-11 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center text-blue-700 font-extrabold text-sm flex-shrink-0">
                     {p.initials}
                   </span>
                   <div>
@@ -803,15 +715,15 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
                 </ul>
                 <div className="flex items-center gap-3 mb-6">
                   {p.stats.map((s) => (
-                    <div key={s.l} className="flex-1 bg-gray-50 rounded-xl py-2.5 px-3 text-center">
+                    <div key={s.l} className="flex-1 bg-gray-50 rounded-lg py-2 px-3 text-center border border-gray-100">
                       <p className="text-sm font-extrabold text-gray-900">{s.v}</p>
-                      <p className="text-[10px] text-gray-400 font-medium">{s.l}</p>
+                      <p className="text-[10px] text-gray-500 font-medium">{s.l}</p>
                     </div>
                   ))}
                 </div>
                 <button
                   onClick={() => go(p.target)}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 shadow-md shadow-blue-100"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-semibold text-sm transition-colors shadow-2xs"
                 >
                   Explore {p.name.split(' ')[0]} <ArrowRight className="w-4 h-4" />
                 </button>
@@ -828,16 +740,16 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
 
 function SectionHeader({ overline, title, sub }: { overline: string; title: string; sub?: string }) {
   return (
-    <div className="text-center mb-12 lg:mb-14">
-      <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-600 mb-3">{overline}</p>
-      <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-4">{title}</h2>
-      {sub && <p className="text-gray-500 max-w-2xl mx-auto text-lg">{sub}</p>}
+    <div className="text-center mb-10 lg:mb-12">
+      <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-600 mb-2.5">{overline}</p>
+      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-3">{title}</h2>
+      {sub && <p className="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg">{sub}</p>}
     </div>
   );
 }
 
 /* ── Segment card — enterprises / SMBs / consultancies ── */
-function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, featured }: {
+function SegmentCard({ icon: Icon, grad: _grad, title, tagline, points, cta, onClick, featured }: {
   icon: React.ComponentType<{ className?: string }>;
   grad: string;
   title: string;
@@ -848,35 +760,31 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
   featured?: boolean;
 }) {
   return (
-    <div className={`group relative bg-white rounded-2xl overflow-hidden border flex flex-col h-full transition-all duration-300 ${featured
-      ? 'border-orange-200 shadow-xl shadow-orange-100 lg:-translate-y-3 hover:-translate-y-4'
-      : 'border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 hover:-translate-y-1.5'
+    <div className={`group relative bg-white rounded-xl overflow-hidden border flex flex-col h-full transition-all ${featured
+      ? 'border-blue-400 shadow-sm'
+      : 'border-gray-200 shadow-2xs hover:border-gray-300 hover:shadow-xs'
       }`}>
-      <div className={`h-1 bg-gradient-to-r ${grad}`} />
       {featured && (
-        <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1 rounded-full shadow-md shadow-orange-200">
-          <Award className="w-3 h-3" /> Most chosen
+        <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+          <Award className="w-3 h-3 text-blue-600" /> Most chosen
         </span>
       )}
-      <div className="p-8 flex flex-col flex-1">
-        <div className={`w-14 h-14 bg-gradient-to-br ${grad} rounded-xl flex items-center justify-center mb-5 shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
-          <Icon className="w-7 h-7 text-white" />
+      <div className="p-6 sm:p-7 flex flex-col flex-1">
+        <div className="w-12 h-12 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl flex items-center justify-center mb-5">
+          <Icon className="w-6 h-6" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-1">{title}</h3>
         <p className="text-sm text-gray-500 mb-6">{tagline}</p>
         <ul className="space-y-3 mb-8 flex-1">
           {points.map((p) => (
             <li key={p} className="flex items-start gap-2.5 text-sm text-gray-600">
-              <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${featured ? 'text-orange-500' : 'text-blue-600'}`} /> {p}
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 text-blue-600" /> {p}
             </li>
           ))}
         </ul>
         <button
           onClick={onClick}
-          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${featured
-            ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200'
-            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100'
-            }`}
+          className="w-full font-semibold py-2.5 rounded-lg transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-2xs"
         >
           {cta}
         </button>
@@ -958,31 +866,30 @@ function CallbackForm() {
     <section id="request-callback" className="py-16 lg:py-24 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <div className="grid grid-cols-1 md:grid-cols-2 shadow-2xl shadow-blue-100/70 rounded-2xl overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden p-8 lg:p-12 text-white">
-              <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 55%)' }}></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 shadow-sm rounded-xl overflow-hidden border border-gray-200">
+            <div className="bg-blue-600 relative overflow-hidden p-8 lg:p-12 text-white">
               <div className="relative">
-                <p className="text-xs font-bold tracking-[0.2em] uppercase text-cyan-300 mb-3">Talk to an expert</p>
+                <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-200 mb-3">Talk to an expert</p>
                 <h2 className="text-2xl lg:text-3xl font-extrabold mb-4">
                   Not sure which offering is right for you?
                 </h2>
-                <p className="text-blue-100 text-lg mb-6">
+                <p className="text-blue-100 text-base sm:text-lg mb-6 leading-relaxed">
                   Leave your contact details and we'll get back to you shortly.
                 </p>
-                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3.5 py-1.5 text-xs font-semibold text-emerald-300 mb-8">
+                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white mb-8">
                   <Clock className="w-3.5 h-3.5" /> Average response time — under 2 hours
                 </div>
-                <ul className="space-y-5">
+                <ul className="space-y-4">
                   {[
                     { icon: User, text: 'A hiring expert will understand your requirements' },
                     { icon: Target, text: 'Get a tailored recommendation for your team size' },
                     { icon: ShieldCheck, text: 'No obligation — just honest guidance' },
                   ].map((li) => (
                     <li key={li.text} className="flex items-start gap-3.5">
-                      <span className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <li.icon className="w-4.5 h-4.5 text-cyan-300" />
+                      <span className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <li.icon className="w-4 h-4 text-white" />
                       </span>
-                      <span className="text-blue-50 pt-1.5">{li.text}</span>
+                      <span className="text-blue-50 pt-1 text-sm sm:text-base">{li.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -991,14 +898,14 @@ function CallbackForm() {
             <div className="bg-white p-8 lg:p-12">
               {submitted ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-10">
-                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-5 animate-pulse-soft">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                  <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                    <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Request received!</h3>
-                  <p className="text-gray-500 max-w-xs">Our team will get back to you shortly at {form.email}.</p>
+                  <p className="text-gray-500 max-w-xs text-sm">Our team will get back to you shortly at {form.email}.</p>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <FormField label="Full name" required>
                     <div className="relative">
                       <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1090,8 +997,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
   ];
 
   return (
-    <section className="relative py-20 lg:py-28 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 overflow-hidden">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-blue-400/10 via-indigo-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+    <section className="relative py-16 lg:py-24 bg-white border-t border-gray-100 overflow-hidden">
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
           <SectionHeader
@@ -1100,53 +1006,53 @@ function FAQSection({ go }: { go: (page: string) => void }) {
           />
         </Reveal>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {faqs.map((f, i) => (
             <Reveal key={f.q} delay={i * 40}>
               <div
-                className={`group rounded-2xl border transition-all duration-300 overflow-hidden ${open === i
-                  ? 'bg-white border-blue-200/90 shadow-xl shadow-blue-900/5 ring-1 ring-blue-500/10'
-                  : 'bg-white/90 backdrop-blur-sm border-gray-200/80 hover:border-blue-200/80 hover:bg-white hover:shadow-md hover:shadow-gray-200/50'
+                className={`group rounded-xl border transition-all overflow-hidden ${open === i
+                  ? 'bg-white border-blue-300 shadow-xs'
+                  : 'bg-white border-gray-200 hover:border-gray-300 shadow-2xs'
                   }`}
               >
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="w-full flex items-center gap-3.5 sm:gap-5 px-5 sm:px-7 py-5 sm:py-6 text-left transition-colors cursor-pointer select-none"
+                  className="w-full flex items-center gap-3.5 sm:gap-4 px-5 sm:px-6 py-4 sm:py-5 text-left transition-colors cursor-pointer select-none"
                   aria-expanded={open === i}
                 >
                   <span
-                    className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold tracking-tight transition-all duration-300 ${open === i
-                      ? 'bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/25 scale-105'
-                      : 'bg-gray-100/80 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                    className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold tracking-tight transition-colors ${open === i
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600'
                       }`}
                   >
                     {String(i + 1).padStart(2, '0')}
                   </span>
 
                   <span
-                    className={`flex-1 text-base sm:text-[17px] leading-snug font-semibold tracking-tight transition-colors duration-200 ${open === i ? 'text-gray-900 font-bold' : 'text-gray-800 group-hover:text-blue-600'
+                    className={`flex-1 text-base sm:text-[17px] leading-snug font-semibold tracking-tight transition-colors ${open === i ? 'text-gray-900 font-bold' : 'text-gray-800 group-hover:text-blue-600'
                       }`}
                   >
                     {f.q}
                   </span>
 
                   <span
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${open === i
-                      ? 'bg-blue-600 text-white rotate-180 shadow-sm shadow-blue-500/30'
-                      : 'bg-gray-100/80 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform ${open === i
+                      ? 'text-blue-600 rotate-180'
+                      : 'text-gray-400 group-hover:text-blue-600'
                       }`}
                   >
-                    <ChevronDown className="w-4.5 h-4.5 stroke-[2.2]" />
+                    <ChevronDown className="w-4 h-4 stroke-[2.2]" />
                   </span>
                 </button>
 
                 <div
-                  className="grid transition-[grid-template-rows] duration-300 ease-out"
+                  className="grid transition-[grid-template-rows] duration-200 ease-out"
                   style={{ gridTemplateRows: open === i ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="border-t border-gray-100/80 mx-5 sm:mx-7" />
-                    <div className="px-5 sm:px-7 pt-4 pb-6 sm:pb-7 text-gray-600 leading-relaxed text-sm sm:text-[15px] sm:pl-[4.25rem]">
+                    <div className="border-t border-gray-100 mx-5 sm:px-0" />
+                    <div className="px-5 sm:px-6 pt-3 pb-5 text-gray-600 leading-relaxed text-sm sm:text-[15px]">
                       {f.a}
                     </div>
                   </div>
@@ -1157,13 +1063,12 @@ function FAQSection({ go }: { go: (page: string) => void }) {
         </div>
 
         <Reveal>
-          <div className="mt-14 sm:mt-16 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-blue-50/80 border border-blue-100/80 rounded-3xl p-8 sm:p-10 text-center relative overflow-hidden shadow-xs">
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-44 h-44 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
+          <div className="mt-12 sm:mt-14 bg-blue-50 border border-blue-100 rounded-2xl p-6 sm:p-8 text-center relative overflow-hidden shadow-2xs">
             <div className="relative z-10 flex flex-col items-center">
-              <div className="w-12 h-12 bg-white rounded-2xl border border-blue-100 shadow-sm flex items-center justify-center mb-4 text-blue-600">
-                <HelpCircle className="w-6 h-6" />
+              <div className="w-11 h-11 bg-white rounded-xl border border-blue-200 shadow-2xs flex items-center justify-center mb-3 text-blue-600">
+                <HelpCircle className="w-5 h-5" />
               </div>
-              <p className="text-gray-600 font-medium text-base sm:text-lg mb-6 max-w-lg">
+              <p className="text-gray-700 font-medium text-base mb-5 max-w-lg">
                 Still have questions? Our hiring experts are here to help.
               </p>
               <div className="flex justify-center">

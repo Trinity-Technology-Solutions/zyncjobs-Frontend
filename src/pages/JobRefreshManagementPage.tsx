@@ -219,53 +219,53 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
         </div> */}
 
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {/* Card 1 — Total refreshes done across all jobs */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                <RefreshCw className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                <RefreshCw className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-blue-600 bg-blue-200 px-2 py-1 rounded-full">Used</span>
+              <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Used</span>
             </div>
-            <p className="text-2xl font-bold text-blue-900 mb-1">{refreshStats.totalRefreshes}</p>
-            <p className="text-sm text-blue-700">Refreshes Used</p>
+            <p className="text-2xl font-bold text-gray-900 mb-0.5">{refreshStats.totalRefreshes}</p>
+            <p className="text-xs text-gray-500 font-medium">Refreshes Used</p>
           </div>
 
           {/* Card 2 — Remaining quota: (totalJobs × 3) - totalRefreshes */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center text-emerald-600">
+                <TrendingUp className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-green-600 bg-green-200 px-2 py-1 rounded-full">Remaining</span>
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Remaining</span>
             </div>
-            <p className="text-2xl font-bold text-green-900 mb-1">{refreshStats.refreshesRemaining}</p>
-            <p className="text-sm text-green-700">Refreshes Remaining</p>
+            <p className="text-2xl font-bold text-gray-900 mb-0.5">{refreshStats.refreshesRemaining}</p>
+            <p className="text-xs text-gray-500 font-medium">Refreshes Remaining</p>
           </div>
 
           {/* Card 3 — Jobs eligible to refresh right now */}
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-                <CheckSquare className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                <CheckSquare className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-purple-600 bg-purple-200 px-2 py-1 rounded-full">Ready</span>
+              <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Ready</span>
             </div>
-            <p className="text-2xl font-bold text-purple-900 mb-1">{refreshStats.availableRefreshes}</p>
-            <p className="text-sm text-purple-700">Jobs Ready to Refresh</p>
+            <p className="text-2xl font-bold text-gray-900 mb-0.5">{refreshStats.availableRefreshes}</p>
+            <p className="text-xs text-gray-500 font-medium">Jobs Ready to Refresh</p>
           </div>
 
           {/* Card 4 — Total active jobs from backend */}
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center text-amber-600">
+                <BarChart3 className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-orange-600 bg-orange-200 px-2 py-1 rounded-full">Total</span>
+              <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">Total</span>
             </div>
-            <p className="text-2xl font-bold text-orange-900 mb-1">{refreshStats.totalJobs}</p>
-            <p className="text-sm text-orange-700">Active Jobs</p>
+            <p className="text-2xl font-bold text-gray-900 mb-0.5">{refreshStats.totalJobs}</p>
+            <p className="text-xs text-gray-500 font-medium">Active Jobs</p>
           </div>
         </div>
 
@@ -325,11 +325,8 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                     const jobId = job.id || job._id!;
                     const salary = formatSalary(job.salary);
                     return (
-                      <div key={jobId} className="group relative bg-white rounded-2xl border border-gray-200 hover:border-green-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
-                        {/* Success Header */}
-                        <div className="h-2 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500"></div>
-                        
-                        <div className="p-6">
+                      <div key={jobId} className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 shadow-2xs hover:shadow-xs transition-all overflow-hidden">
+                        <div className="p-5 sm:p-6">
                           {/* Header Section */}
                           <div className="flex items-start gap-4 mb-4">
                             {/* Checkbox */}
@@ -338,17 +335,17 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                                 type="checkbox"
                                 checked={selectedJobs.includes(jobId)}
                                 onChange={() => handleJobSelect(jobId)}
-                                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </div>
                             
                             {/* Company Logo */}
                             <div className="flex-shrink-0">
-                              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200 flex items-center justify-center shadow-sm">
+                              <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center p-1.5">
                                 <img
                                   src={getCompanyLogo(job.company)}
                                   alt={`${job.company || 'Company'} logo`}
-                                  className="w-10 h-10 object-contain"
+                                  className="w-9 h-9 object-contain"
                                   onError={(e) => {
                                     const img = e.target as HTMLImageElement;
                                     const initials = (job.company || 'C').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
@@ -464,20 +461,17 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                     const salary = formatSalary(job.salary);
                     
                     return (
-                      <div key={jobId} className="group relative bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden opacity-75">
-                        {/* Warning Header */}
-                        <div className="h-2 bg-gradient-to-r from-orange-400 via-red-500 to-pink-500"></div>
-                        
-                        <div className="p-6">
+                      <div key={jobId} className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden opacity-80">
+                        <div className="p-5 sm:p-6">
                           {/* Header Section */}
                           <div className="flex items-start gap-4 mb-4">
                             {/* Company Logo */}
                             <div className="flex-shrink-0">
-                              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 flex items-center justify-center shadow-sm">
+                              <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center p-1.5">
                                 <img
                                   src={getCompanyLogo(job.company)}
                                   alt={`${job.company || 'Company'} logo`}
-                                  className="w-10 h-10 object-contain opacity-60"
+                                  className="w-9 h-9 object-contain opacity-60"
                                   onError={(e) => {
                                     const img = e.target as HTMLImageElement;
                                     const initials = (job.company || 'C').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);

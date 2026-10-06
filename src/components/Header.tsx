@@ -3,9 +3,9 @@ import { useLocation } from 'react-router-dom';
 import { 
   X, Search, User, Building, ChevronDown, Settings, 
   FileText, Sparkles, Bell, LogOut, ChevronRight, Briefcase, PlusCircle, LayoutDashboard,
-  PanelRight, PanelRightClose 
+  PanelRight, PanelRightClose,
+  Video, Compass, CheckSquare
 } from 'lucide-react';
-import { GlassFilter } from './ui/liquid-glass';
 import JobAlertBadge from './JobAlertBadge';
 import { useJobAlertStore } from '../hooks/useJobAlertStore';
 import { io } from 'socket.io-client';
@@ -383,6 +383,41 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const navTextClass = isScrolled 
     ? 'text-gray-900 hover:text-blue-600' 
     : 'text-white/90 hover:text-white';
+
+  const isPathActive = (target: string): boolean => {
+    if (target === 'job-listings' || target === '/job-listings') {
+      return currentPath === '/job-listings' || currentPath.startsWith('/job-detail') || currentPath.startsWith('/jobs');
+    }
+    if (target === 'companies' || target === '/companies') {
+      return currentPath === '/companies' || currentPath.startsWith('/company');
+    }
+    if (target === 'career-resources') {
+      return ['/resume-studio', '/interview-tips', '/career-coach', '/skill-assessment'].some(p => currentPath.startsWith(p));
+    }
+    if (target === 'my-jobs' || target === '/my-jobs') {
+      return currentPath === '/my-jobs';
+    }
+    if (target === 'candidate-search' || target === '/candidate-search') {
+      return currentPath === '/candidate-search';
+    }
+    if (target === 'job-posting-selection' || target === '/job-posting-selection') {
+      return currentPath.startsWith('/job-posting') || currentPath === '/job-parsing';
+    }
+    if (target.startsWith('/')) {
+      return currentPath === target;
+    }
+    return currentPath === `/${target}`;
+  };
+
+  const getNavLinkClass = (target: string): string => {
+    const active = isPathActive(target);
+    return `h-10 px-3.5 xl:px-4 rounded-lg text-[15px] xl:text-[15.5px] font-medium tracking-[-0.01em] transition-colors cursor-pointer inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 select-none ${
+      active
+        ? 'text-blue-600 font-semibold bg-blue-50/70'
+        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+    }`;
+  };
+
 
   const getInitials = (name: string): string => {
     if (!name) return 'U';
@@ -770,354 +805,389 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   return (
     <>
-      <GlassFilter />
       <header
         ref={headerRef}
-        className="zync-site-header w-full relative z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-colors"
-        style={{
-          backdropFilter: 'blur(18px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          borderBottom: '1px solid rgba(226, 232, 240, 0.85)',
-        }}
+        className="zync-site-header w-full relative z-40 bg-white border-b border-gray-200/90 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] transition-colors"
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-          <div className="flex min-h-[70px] sm:min-h-[76px] lg:min-h-[82px] xl:min-h-[84px] items-center justify-between gap-3 py-3 sm:py-3.5 lg:py-4 sm:gap-4">
-          <div className="flex-shrink-0">
-            <button 
-              onClick={() => onNavigate && onNavigate('home')}
-              className="flex items-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-              aria-label="Go to ZyncJobs home"
-            >
-              <img 
-                src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
-                alt={siteSettings?.siteTitle || 'ZyncJobs'} 
-                className="h-11 sm:h-12 lg:h-[52px] w-auto object-contain"
-              />
-            </button>
-          </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex min-w-0 items-center gap-4 xl:gap-6 flex-1 justify-start ml-2 xl:ml-6 text-[15px] 2xl:text-base" aria-label="Main navigation">
-            {isEmployerContext ? (
-              <>
-                <button
-                  onClick={() => onNavigate && onNavigate('candidate-search')}
-                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                >
-                  Candidate Search
-                </button>
-                <button
-                  onClick={() => onNavigate && onNavigate('my-jobs')}
-                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                >
-                  Posted Jobs
-                </button>
-                <button
-                  onClick={() => onNavigate && onNavigate('job-posting-selection')}
-                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                >
-                  Post a Job
-                </button>
-              </>
-            ) : (
-              <>
-            {navItems.length > 0 ? (
-              navItems
-                .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
-                .map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate && onNavigate(item.url)}
-                  className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-1 rounded`}
-                >
-                  {item.label}
-                </button>
-              ))
-            ) : (
-              <>
-                <button onClick={handleFindJobsClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
-                  {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
-                </button>
-                <button onClick={handleCompaniesClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
-                  Companies
-                </button>
-              </>
-            )}
-
-            {user?.type === 'employer' ? (
-              <button
-                onClick={() => onNavigate && onNavigate('my-jobs')}
-                className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
-              >
-                Posted Jobs
-              </button>
-            ) : (
-              <div className="relative" ref={careerDropdownRef}>
-                <button 
-                  onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
-                  className={`flex items-center space-x-1 ${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
-                  aria-expanded={isCareerDropdownOpen}
-                  aria-haspopup="true"
-                >
-                  <span>Career Resources</span>
-                  <ChevronDown className={`w-5 h-5 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isCareerDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" role="menu">
-                    <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
-                      role="menuitem"
-                    >
-                      <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Resume Studio
-                    </button>
-                    <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
-                      role="menuitem"
-                    >
-                      <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      Interview Preparation
-                    </button>
-                    <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
-                      role="menuitem"
-                    >
-                      <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                      </svg>
-                      Career Guidance
-                    </button>
-                    <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('skill-assessment'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
-                      role="menuitem"
-                    >
-                      <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Skill Check
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            <button 
-              onClick={() => {
-                if (user) {
-                  if (user.type === 'employer') {
-                    onNavigate && onNavigate('job-posting-selection');
-                  } else {
-                    onNavigate && onNavigate('my-jobs');
-                  }
-                } else {
-                  onNavigate && onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
-                }
-              }}
-              className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
-            >
-              {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
-            </button>
-              </>
-            )}
-
-          </nav>
-
-          {/* Right side items */}
-          <div className="hidden lg:flex items-center gap-2 xl:gap-3 ml-auto text-[15px] 2xl:text-base">
-
-            {/* For Employers Button - only when not logged in and outside employer context */}
-            {!isEmployerContext && !user ? (
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="flex min-h-[70px] sm:min-h-[74px] lg:min-h-[78px] xl:min-h-[80px] py-2 sm:py-2.5 items-center justify-between gap-4">
+            
+            {/* Left Zone: Brand Logo (Enlarged) */}
+            <div className="flex items-center flex-shrink-0">
               <button 
-                onClick={handleEmployerPageClick}
-                className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded whitespace-nowrap"
-                title="Go to employer page"
+                onClick={() => onNavigate && onNavigate('home')}
+                className="flex items-center cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded-md"
+                aria-label="Go to ZyncJobs home"
               >
-                For Employers
+                <img 
+                  src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
+                  alt={siteSettings?.siteTitle || 'ZyncJobs'} 
+                  className="h-10 sm:h-11 lg:h-12 xl:h-[50px] w-auto object-contain"
+                />
               </button>
-            ) : null}
+            </div>
 
-            {/* Login/Register Dropdown */}
-            {user ? (
-              <div className="relative" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`group flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    isDropdownOpen 
-                      ? isScrolled
-                        ? 'bg-blue-50/90 text-blue-700 shadow-sm border border-blue-200/80 ring-2 ring-blue-500/20' 
-                        : 'bg-white/20 text-white border border-white/30 ring-2 ring-white/30'
-                      : isScrolled
-                        ? 'hover:bg-gray-100/80 border border-transparent hover:border-gray-200/70 text-gray-700'
-                        : 'hover:bg-white/10 border border-transparent text-white'
-                  }`}
-                  aria-expanded={isDropdownOpen}
-                  aria-haspopup="true"
-                  aria-label="User profile menu"
-                >
-                  <div className="relative flex-shrink-0">
-                    {profilePhoto ? (
-                      <img 
-                        src={profilePhoto} 
-                        alt={displayName} 
-                        className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm tracking-wide">
-                        {getInitials(displayName)}
-                      </div>
-                    )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-400/20" />
-                  </div>
-
-                  <span className={`text-base font-semibold max-w-[140px] truncate leading-none ${isScrolled ? 'text-gray-800' : 'text-white'}`}>
-                    {firstName}
-                  </span>
-
-                  {isDropdownOpen ? (
-                    <PanelRightClose className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ${
-                      isScrolled ? 'text-blue-600' : 'text-white'
-                    }`} />
+            {/* Middle Zone: Desktop Navigation Links (Increased font size & generous breathing room) */}
+            <nav className="hidden lg:flex min-w-0 items-center gap-1 xl:gap-2 flex-1 justify-start ml-8 xl:ml-12 2xl:ml-14" aria-label="Main navigation">
+              {isEmployerContext ? (
+                <>
+                  <button
+                    onClick={() => onNavigate && onNavigate('candidate-search')}
+                    className={getNavLinkClass('candidate-search')}
+                  >
+                    Candidate Search
+                  </button>
+                  <button
+                    onClick={() => onNavigate && onNavigate('my-jobs')}
+                    className={getNavLinkClass('my-jobs')}
+                  >
+                    Posted Jobs
+                  </button>
+                  <button
+                    onClick={() => onNavigate && onNavigate('job-posting-selection')}
+                    className={getNavLinkClass('job-posting-selection')}
+                  >
+                    Post a Job
+                  </button>
+                </>
+              ) : (
+                <>
+                  {navItems.length > 0 ? (
+                    navItems
+                      .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
+                      .map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => onNavigate && onNavigate(item.url)}
+                          className={getNavLinkClass(item.url)}
+                        >
+                          {item.label}
+                        </button>
+                      ))
                   ) : (
-                    <PanelRight className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ${
-                      isScrolled ? 'text-gray-400 group-hover:text-blue-600' : 'text-white/70 group-hover:text-white'
-                    }`} />
-                  )}
-                </button>
-              </div>
-            ) : isEmployerContext ? (
-              <>
-                {currentPath !== '/employer-login' && (
-                  <button 
-                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
-                    className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                  >
-                    Employer Login
-                  </button>
-                )}
-                <button 
-                  onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
-                >
-                  {currentPath === '/employer-login' ? 'Register' : 'Create Account'}
-                </button>
-              </>
-            ) : isJobSeekerAuthPage ? (
-              <>
-                {currentPath !== '/candidate-register' && currentPath !== '/role-selection' && (
-                  <button 
-                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-register'); }}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
-                  >
-                    Register
-                  </button>
-                )}
-                {(currentPath === '/candidate-register' || currentPath === '/role-selection') && (
-                  <button 
-                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('login'); }}
-                    className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                  >
-                    Login
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="relative" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`flex items-center space-x-1 ${navTextClass} transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
-                  aria-expanded={isDropdownOpen}
-                  aria-haspopup="true"
-                >
-                  <span>Login/Register</span>
-                  <ChevronDown className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" role="menu">
-                    {showJobSeekerLinks && (
-                      <>
-                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
-                        <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                          Login
-                        </button>
-                        <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                          Register
-                        </button>
-                      </>
-                    )}
-                    
-                    {showJobSeekerLinks && adminUnlocked && <hr className="my-1" />}
-                    
-                    {adminUnlocked && (
-                      <button
-                        onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate && onNavigate('admin/login'); }}
-                        className="block w-full text-left px-4 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors rounded-b-lg flex items-center gap-2"
+                    <>
+                      <button 
+                        onClick={handleFindJobsClick} 
+                        className={getNavLinkClass('job-listings')}
                       >
-                        <Settings className="w-4 h-4" />
-                        Admin Portal
+                        {user?.type === 'employer' ? 'Candidate Search' : 'Find Jobs'}
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                      <button 
+                        onClick={handleCompaniesClick} 
+                        className={getNavLinkClass('companies')}
+                      >
+                        Companies
+                      </button>
+                    </>
+                  )}
 
-          {/* Mobile menu and profile buttons */}
-          <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
-            {user && (
-              <div className="relative" ref={mobileDropdownRef}>
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`relative p-0.5 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    isDropdownOpen ? 'ring-2 ring-blue-600' : 'hover:ring-2 hover:ring-gray-300'
-                  }`}
-                  aria-label="User profile menu"
-                  aria-expanded={isDropdownOpen}
+                  {user?.type === 'employer' ? (
+                    <button
+                      onClick={() => onNavigate && onNavigate('my-jobs')}
+                      className={getNavLinkClass('my-jobs')}
+                    >
+                      Posted Jobs
+                    </button>
+                  ) : (
+                    <div className="relative" ref={careerDropdownRef}>
+                      <button 
+                        onClick={() => {
+                          const next = !isCareerDropdownOpen;
+                          setIsCareerDropdownOpen(next);
+                          if (next) setIsDropdownOpen(false);
+                        }}
+                        className={`h-10 px-3.5 xl:px-4 rounded-lg text-[15px] xl:text-[15.5px] font-medium tracking-[-0.01em] transition-colors cursor-pointer inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                          isCareerDropdownOpen || isPathActive('career-resources')
+                            ? 'text-blue-600 font-semibold bg-blue-50/70'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        }`}
+                        aria-expanded={isCareerDropdownOpen}
+                        aria-haspopup="true"
+                      >
+                        <span>Career Resources</span>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${isCareerDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+                      </button>
+
+                      {isCareerDropdownOpen && (
+                        <div className="absolute left-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200/90 py-1.5 z-50 animate-in fade-in-50 duration-100" role="menu">
+                          <button 
+                            onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors group cursor-pointer"
+                            role="menuitem"
+                          >
+                            <FileText className="w-4.5 h-4.5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[14.5px] font-medium text-gray-900 group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
+                                <span>Resume Studio</span>
+                                <span className="px-1.5 py-0.2 text-[10px] font-semibold text-blue-600 bg-blue-50 rounded">AI</span>
+                              </div>
+                              <div className="text-xs text-gray-500 font-normal truncate">ATS analyzer & builder</div>
+                            </div>
+                          </button>
+
+                          <button 
+                            onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors group cursor-pointer"
+                            role="menuitem"
+                          >
+                            <Video className="w-4.5 h-4.5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[14.5px] font-medium text-gray-900 group-hover:text-blue-600 transition-colors">Interview Preparation</div>
+                              <div className="text-xs text-gray-500 font-normal truncate">Practice questions & tips</div>
+                            </div>
+                          </button>
+
+                          <button 
+                            onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors group cursor-pointer"
+                            role="menuitem"
+                          >
+                            <Compass className="w-4.5 h-4.5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[14.5px] font-medium text-gray-900 group-hover:text-blue-600 transition-colors">Career Guidance</div>
+                              <div className="text-xs text-gray-500 font-normal truncate">Role advice & pathways</div>
+                            </div>
+                          </button>
+
+                          <button 
+                            onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('skill-assessment'); }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors group cursor-pointer"
+                            role="menuitem"
+                          >
+                            <CheckSquare className="w-4.5 h-4.5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[14.5px] font-medium text-gray-900 group-hover:text-blue-600 transition-colors">Skill Assessment</div>
+                              <div className="text-xs text-gray-500 font-normal truncate">Evaluate & test skills</div>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button 
+                    onClick={() => {
+                      if (user) {
+                        if (user.type === 'employer') {
+                          onNavigate && onNavigate('job-posting-selection');
+                        } else {
+                          onNavigate && onNavigate('my-jobs');
+                        }
+                      } else {
+                        onNavigate && onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
+                      }
+                    }}
+                    className={getNavLinkClass(user?.type === 'employer' ? 'job-posting-selection' : 'my-jobs')}
+                  >
+                    {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
+                  </button>
+                </>
+              )}
+            </nav>
+
+            {/* Right Zone: Utility Actions & User Menu (Increased proportion) */}
+            <div className="hidden lg:flex items-center gap-3 xl:gap-3.5 ml-auto flex-shrink-0">
+              
+              {/* For Employers Button */}
+              {!isEmployerContext && !user ? (
+                <button 
+                  onClick={handleEmployerPageClick}
+                  className="h-10 px-4 inline-flex items-center justify-center text-[14.5px] xl:text-[15px] font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100/70 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                  title="Hiring talent? Go to employer portal"
                 >
-                  <div className="relative flex-shrink-0">
-                    {profilePhoto ? (
-                    <img 
-                      src={profilePhoto} 
-                      alt={displayName} 
-                      className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm tracking-wide">
-                        {getInitials(displayName)}
-                      </div>
-                    )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-400/20" />
-                  </div>
+                  For Employers
                 </button>
-              </div>
-            )}
+              ) : null}
 
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="relative p-2.5 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={isMenuOpen}
-              aria-controls="mobile-menu"
-              type="button"
-            >
-              <div className="w-7 h-7 flex flex-col justify-center items-center">
-                <span className={`block h-0.5 w-7 bg-current transform transition-all duration-300 ease-out ${isMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-                <span className={`block h-0.5 w-7 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? 'opacity-0 scale-0' : ''}`} />
-                <span className={`block h-0.5 w-7 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
-              </div>
-            </button>
+              {/* Login / Register Dropdown or Profile Trigger */}
+              {user ? (
+                <div className="relative" ref={dropdownRef}>
+                  <button 
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className={`h-10 group flex items-center gap-2.5 pl-1.5 pr-3.5 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                      isDropdownOpen 
+                        ? 'border-blue-400 bg-blue-50/50 text-blue-700' 
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                    }`}
+                    aria-expanded={isDropdownOpen}
+                    aria-haspopup="true"
+                    aria-label="User profile menu"
+                  >
+                    <div className="relative flex-shrink-0">
+                      {profilePhoto ? (
+                        <img 
+                          src={profilePhoto} 
+                          alt={displayName} 
+                          className="w-8 h-8 rounded-full object-cover ring-1 ring-gray-200"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-sm">
+                          {getInitials(displayName)}
+                        </div>
+                      )}
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
+                    </div>
+
+                    <span className="text-[14.5px] font-medium max-w-[130px] truncate leading-none text-gray-800">
+                      {firstName}
+                    </span>
+
+                    {isDropdownOpen ? (
+                      <PanelRightClose className="w-4.5 h-4.5 text-blue-600 transition-colors flex-shrink-0" />
+                    ) : (
+                      <PanelRight className="w-4.5 h-4.5 text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0" />
+                    )}
+                  </button>
+                </div>
+              ) : isEmployerContext ? (
+                <div className="flex items-center gap-2.5">
+                  {currentPath !== '/employer-login' && (
+                    <button 
+                      onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
+                      className="h-10 px-4 inline-flex items-center justify-center text-[14.5px] font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                    >
+                      Employer Login
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
+                    className="h-10 px-5 inline-flex items-center justify-center text-[14.5px] font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+                  >
+                    {currentPath === '/employer-login' ? 'Register' : 'Create Account'}
+                  </button>
+                </div>
+              ) : isJobSeekerAuthPage ? (
+                <div className="flex items-center gap-2.5">
+                  {currentPath !== '/candidate-register' && currentPath !== '/role-selection' && (
+                    <button 
+                      onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-register'); }}
+                      className="h-10 px-5 inline-flex items-center justify-center text-[14.5px] font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+                    >
+                      Register
+                    </button>
+                  )}
+                  {(currentPath === '/candidate-register' || currentPath === '/role-selection') && (
+                    <button 
+                      onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('login'); }}
+                      className="h-10 px-4 inline-flex items-center justify-center text-[14.5px] font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                    >
+                      Login
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="relative" ref={dropdownRef}>
+                  <button 
+                    onClick={() => {
+                      const next = !isDropdownOpen;
+                      setIsDropdownOpen(next);
+                      if (next) setIsCareerDropdownOpen(false);
+                    }}
+                    className={`h-10 inline-flex items-center gap-2 px-3.5 xl:px-4 text-[14.5px] xl:text-[15px] font-medium rounded-lg transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 border shadow-2xs ${
+                      isDropdownOpen
+                        ? 'bg-blue-50/50 text-blue-600 border-blue-400'
+                        : 'bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 border-gray-300'
+                    }`}
+                    aria-expanded={isDropdownOpen}
+                    aria-haspopup="true"
+                  >
+                    <User className="w-4.5 h-4.5 text-gray-400" />
+                    <span>Login / Register</span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${isDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200/90 py-1.5 z-50 animate-in fade-in-50 duration-100" role="menu">
+                      {showJobSeekerLinks && (
+                        <>
+                          <div className="px-4 py-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Job Seeker</div>
+                          
+                          <button 
+                            onClick={handleLoginClick} 
+                            className="w-full flex items-center justify-between px-4 py-2 text-[14.5px] text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors cursor-pointer"
+                            role="menuitem"
+                          >
+                            <span>Login</span>
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          </button>
+
+                          <button 
+                            onClick={handleRegisterClick} 
+                            className="w-full flex items-center justify-between px-4 py-2 text-[14.5px] text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 font-medium transition-colors cursor-pointer"
+                            role="menuitem"
+                          >
+                            <span>Register</span>
+                            <ChevronRight className="w-4 h-4 text-blue-500" />
+                          </button>
+                        </>
+                      )}
+                      
+                      {showJobSeekerLinks && adminUnlocked && <hr className="my-1 border-gray-100" />}
+                      
+                      {adminUnlocked && (
+                        <button
+                          onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate && onNavigate('admin/login'); }}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition-colors cursor-pointer"
+                        >
+                          <Settings className="w-4 h-4 text-purple-600" />
+                          <span>Admin Portal</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Mobile & Tablet Toggle (Proportionally sized) */}
+            <div className="lg:hidden flex items-center gap-2.5 flex-shrink-0">
+              {user && (
+                <div className="relative" ref={mobileDropdownRef}>
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className={`relative p-0.5 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                      isDropdownOpen ? 'ring-2 ring-blue-600' : 'hover:ring-1 hover:ring-gray-300'
+                    }`}
+                    aria-label="User profile menu"
+                    aria-expanded={isDropdownOpen}
+                  >
+                    <div className="relative flex-shrink-0">
+                      {profilePhoto ? (
+                        <img 
+                          src={profilePhoto} 
+                          alt={displayName} 
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-xs">
+                          {getInitials(displayName)}
+                        </div>
+                      )}
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="w-10 h-10 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isMenuOpen}
+                aria-controls="mobile-menu"
+                type="button"
+              >
+                <div className="w-5 h-5 flex flex-col justify-center items-center">
+                  <span className={`block h-0.5 w-5 bg-current transform transition-all duration-200 ease-out ${isMenuOpen ? 'rotate-45 translate-y-1' : ''}`} />
+                  <span className={`block h-0.5 w-5 bg-current transform transition-all duration-200 ease-out mt-1 ${isMenuOpen ? 'opacity-0 scale-0' : ''}`} />
+                  <span className={`block h-0.5 w-5 bg-current transform transition-all duration-200 ease-out mt-1 ${isMenuOpen ? '-rotate-45 -translate-y-1' : ''}`} />
+                </div>
+              </button>
+            </div>
+
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
     {renderProfileDrawer()}
     <MobileHamburgerMenu 

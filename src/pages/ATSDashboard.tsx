@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { apiFetch } from "../api/apiFetch";
 
 // -- Theme: matches ZyncJobs employer dashboard (blue-900 sidebar) -------------
@@ -355,10 +355,10 @@ function ColumnFilterPopup({ label, allValues, allRecruiterData, selected, onApp
         <button
           onClick={() => onApply(checked)}
           style={{
-            background: `linear-gradient(135deg, ${BRAND_DARK} 0%, #2563eb 100%)`,
+            background: BRAND,
             color: "#fff", border: "none", borderRadius: 6,
             padding: "7px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-            boxShadow: "0 2px 6px rgba(30,64,175,0.25)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
           }}>Apply</button>
         <button
           onClick={() => { setChecked([]); onApply([]); }}
@@ -1347,10 +1347,10 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
           </div>
           {/* Export CSV */}
           <button onClick={exportJobsCSV} style={{
-            background: `linear-gradient(135deg, ${BRAND_DARK} 0%, #2563eb 100%)`, color: "#fff", border: "none", borderRadius: 8,
+            background: BRAND, color: "#fff", border: "none", borderRadius: 8,
             padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
             display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap",
-            boxShadow: "0 2px 8px rgba(30,58,138,0.25)"
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             Export CSV
@@ -1579,13 +1579,9 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
 
       {/* -- Header -- */}
       <div style={{
-        background: `linear-gradient(135deg, #0f1e4d 0%, ${BRAND_DARK} 35%, #1d4ed8 75%, #2563eb 100%)`,
-        padding: "28px 40px 22px", color: "#fff", position: "relative", overflow: "hidden",
+        background: BRAND_DARK,
+        padding: "24px 32px 20px", color: "#fff", position: "relative",
       }}>
-        {/* Decorative glows */}
-        <div style={{ position: "absolute", top: -90, right: -50, width: 340, height: 340, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0) 65%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -120, left: "32%", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.3) 0%, rgba(99,102,241,0) 65%)", pointerEvents: "none" }} />
-
         <div style={{ position: "relative", display: "flex", alignItems: "center", marginBottom: 24, gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
             {onNavigate && (
@@ -1593,8 +1589,8 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
                 onClick={() => onNavigate("dashboard")}
                 title="Back to dashboard"
                 style={{
-                  width: 42, height: 42, borderRadius: "50%",
-                  background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.3)",
+                  width: 40, height: 40, borderRadius: 8,
+                  background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   cursor: "pointer", flexShrink: 0, transition: "all 0.2s",
                 }}
@@ -1605,13 +1601,12 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
               </button>
             )}
             <div style={{
-              width: 48, height: 48, borderRadius: 14,
-              background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              boxShadow: "0 4px 14px rgba(2,6,23,0.25)",
+              width: 44, height: 44, borderRadius: 10,
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.2)",
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="20" x2="18" y2="10" />
                 <line x1="12" y1="20" x2="12" y2="4" />
                 <line x1="6" y1="20" x2="6" y2="14" />
@@ -1619,7 +1614,7 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
             </div>
             <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", textAlign: "center", maxWidth: "38%", minWidth: 260 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.6px", lineHeight: 1.2, whiteSpace: "nowrap" }}>Recruiter Analytics</div>
+                <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px", lineHeight: 1.2, whiteSpace: "nowrap" }}>Recruiter Analytics</div>
                 <span style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 99, padding: "2px 10px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>ATS</span>
               </div>
               <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.75)", marginTop: 4 }}>ZyncJobs ATS — Team Management Dashboard</div>
@@ -1627,7 +1622,7 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={() => fetchAts()} disabled={atsLoading} className="atsGlassBtn" style={{
-              background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 10,
+              background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 8,
               padding: "8px 16px", fontSize: 12.5, fontWeight: 600, cursor: atsLoading ? "wait" : "pointer", color: "#fff",
               display: "flex", alignItems: "center", gap: 7, transition: "all 0.2s",
             }}>
@@ -1635,11 +1630,11 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
               {atsLoading ? "Refreshing…" : "Refresh"}
               <style>{`@keyframes atsSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             </button>
-            <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 10, padding: "8px 16px", fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 8, padding: "8px 16px", fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
               {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
             </div>
-            <div style={{ background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)", borderRadius: 10, padding: "8px 16px", fontSize: 12.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 7, boxShadow: "0 4px 12px rgba(220,38,38,0.35)" }}>
+            <div style={{ background: BRAND_RED, borderRadius: 8, padding: "8px 16px", fontSize: 12.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 7 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" /><polyline points="16 3 18 5 22 1" /></svg>
               Admin View
             </div>
@@ -1769,7 +1764,7 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
 
             {/* SLA Alert banner */}
             {slaBreaches.length > 0 ? (
-              <div style={{ background: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)", border: "1px solid #fecdd3", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={BRAND_RED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
@@ -1936,7 +1931,7 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
                 <div style={{ fontSize: 13, color: "#64748b" }}>Manage recruiter roles and permissions</div>
               </div>
               <button onClick={() => { if (onNavigate) onNavigate("team"); else notify("Open the Team page from your dashboard to add members"); }} style={{
-                background: `linear-gradient(135deg, ${BRAND_DARK} 0%, #2563eb 100%)`, color: "#fff", border: "none", borderRadius: 8,
+                background: BRAND, color: "#fff", border: "none", borderRadius: 8,
                 padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}>
                 + Add Member
@@ -2014,7 +2009,7 @@ export default function ATSDashboard({ onNavigate }: ATSDashboardProps) {
                 <div style={{ fontSize: 13, color: "#64748b" }}>Every action, by every user, with IP address and timestamp</div>
               </div>
               <button onClick={exportAuditCSV} disabled={filteredAudit.length === 0} style={{
-                background: `linear-gradient(135deg, ${BRAND_DARK} 0%, #2563eb 100%)`, color: "#fff", border: "none", borderRadius: 8,
+                background: BRAND, color: "#fff", border: "none", borderRadius: 8,
                 padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: filteredAudit.length === 0 ? "not-allowed" : "pointer", opacity: filteredAudit.length === 0 ? 0.5 : 1,
                 display: "flex", alignItems: "center", gap: 7,
               }}>

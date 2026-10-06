@@ -1,6 +1,18 @@
 import React from 'react';
+import { 
+  FileEdit, 
+  Sparkles, 
+  UploadCloud, 
+  Check, 
+  ArrowRight, 
+  BookOpen, 
+  DollarSign, 
+  MapPin, 
+  ListChecks, 
+  FileText, 
+  Zap 
+} from 'lucide-react';
 import BackButton from '../components/BackButton';
-import GetStartedButton from '../components/animata/button/get-started-button';
 
 interface JobPostingSelectionPageProps {
   onNavigate: (page: string, options?: any) => void;
@@ -49,288 +61,318 @@ const parseFeatures = [
   'Supports PDF, Word & plain text',
 ];
 
-
 const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNavigate }) => {
   return (
-    <div className="min-h-screen relative overflow-hidden bg-white">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
 
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(28px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes floatY {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-6px); }
-        }
-        .anim-fade-1 { animation: fadeSlideUp 0.55s ease both; }
-        .anim-fade-2 { animation: fadeSlideUp 0.55s 0.12s ease both; }
-        .anim-fade-3 { animation: fadeSlideUp 0.55s 0.24s ease both; }
-        .anim-fade-4 { animation: fadeSlideUp 0.55s 0.36s ease both; }
-        .anim-fade-5 { animation: fadeSlideUp 0.55s 0.48s ease both; }
-        .card-float:hover { animation: floatY 2.5s ease-in-out infinite; }
-        .card-manual {
-          background: linear-gradient(145deg, #3b4fd8 0%, #4f63f5 60%, #6272f7 100%);
-          border: none;
-          transition: box-shadow 0.3s, transform 0.3s;
-        }
-        .card-manual:hover {
-          box-shadow: 0 12px 40px rgba(59,79,216,0.45);
-          transform: translateY(-4px);
-        }
-        .card-ai {
-          background: linear-gradient(145deg, #e05a1a 0%, #f97316 60%, #fb923c 100%);
-          border: none;
-          transition: box-shadow 0.3s, transform 0.3s;
-        }
-        .card-ai:hover {
-          box-shadow: 0 12px 40px rgba(249,115,22,0.45);
-          transform: translateY(-4px);
-        }
-        .step-dot-manual {
-          background: rgba(255,255,255,0.25);
-          border: 1px solid rgba(255,255,255,0.5);
-          color: #fff;
-        }
-        .step-dot-ai {
-          background: rgba(255,255,255,0.25);
-          border: 1px solid rgba(255,255,255,0.5);
-          color: #fff;
-        }
-        .check-manual { color: #fff; }
-        .check-ai     { color: #fff; }
-        .badge-ai {
-          background: rgba(255,255,255,0.25);
-          border: 1px solid rgba(255,255,255,0.5);
-          color: #fff;
-        }
-        .stat-card {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          transition: background 0.3s;
-        }
-        .stat-card:hover { background: #f1f5f9; }
-        .tip-card {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          transition: background 0.3s, border-color 0.3s;
-        }
-        .tip-card:hover {
-          background: #eff6ff;
-          border-color: #bfdbfe;
-        }
-      `}</style>
-
-      <div className="relative max-w-5xl mx-auto px-6 py-10">
-
-        {/* Back */}
-        <div className="flex items-center mb-8 anim-fade-1">
+        {/* Top Back Action */}
+        <div className="flex items-center mb-6 sm:mb-8">
           <BackButton fallback="/dashboard" text="Back" className="text-slate-600 hover:text-slate-900" />
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-10 anim-fade-2">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 text-slate-900 leading-[1.15] tracking-[-0.02em]">
-            Create New Job
+        {/* Section Header */}
+        <div className="text-center mb-8 sm:mb-12 max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-blue-600 mb-2">
+            Job Publishing
+          </p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
+            Create New <span className="text-orange-500">Job</span>
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">Choose how you'd like to post your job</p>
+          <p className="mt-2 text-sm sm:text-base text-gray-600 leading-relaxed">
+            Choose how you'd like to post your job — manual entry, instant AI parsing, or bulk CSV upload.
+          </p>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto items-stretch anim-fade-3">
+        {/* Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto items-stretch mb-12 sm:mb-14">
 
-          {/* Manual Creation — purple theme */}
-          <div onClick={() => onNavigate('job-posting', { mode: 'manual' })}
-            className="card-manual card-float rounded-2xl p-7 cursor-pointer backdrop-blur-sm flex flex-col">
-
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 flex items-center justify-center rounded-xl flex-shrink-0 shadow-lg"
-                style={{ background: 'rgba(255,255,255,0.2)', boxShadow: '0 0 16px rgba(255,255,255,0.15)' }}>
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">Manual Creation</h3>
-                <p className="text-blue-100 text-sm mt-0.5">Step-by-step guided form</p>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 mb-5">
-              {manualSteps.map((text, i) => (
-                <div key={i} className="flex items-center gap-3 min-h-[24px]">
-                  <span className="step-dot-manual w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                  <span className="text-sm text-slate-200">{text}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
-              {manualFeatures.map(f => (
-                <div key={f} className="flex items-center gap-2 text-xs text-blue-50">
-                  <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-auto flex items-center justify-between pt-2">
-              <span className="text-xs text-blue-100/80 uppercase tracking-wider font-medium">Full Control</span>
-              <GetStartedButton text="Get Started" />
-            </div>
-          </div>
-
-          {/* Parse Job Details — orange theme */}
-          <div onClick={() => onNavigate('job-parsing')}
-            className="card-ai card-float rounded-2xl p-6 cursor-pointer flex flex-col">
-
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 flex items-center justify-center rounded-xl flex-shrink-0 shadow-lg"
-                style={{ background: 'rgba(255,255,255,0.2)', boxShadow: '0 0 16px rgba(255,255,255,0.15)' }}>
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold text-white">Parse Job Details</h3>
-                  <span className="badge-ai text-xs px-2 py-0.5 rounded-full font-semibold">AI</span>
-                </div>
-                <p className="text-orange-100 text-sm mt-0.5">Auto-extract with AI</p>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 mb-5">
-              {parseSteps.map((text, i) => (
-                <div key={i} className="flex items-center gap-3 min-h-[24px]">
-                  <span className="step-dot-ai w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                  <span className="text-sm text-slate-200">{text}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
-              {parseFeatures.map(f => (
-                <div key={f} className="flex items-center gap-2 text-xs text-orange-50">
-                  <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-auto flex items-center justify-between pt-2">
-              <span className="text-xs text-orange-100/80 uppercase tracking-wider font-medium">Fastest Way</span>
-              <GetStartedButton text="Get Started" />
-            </div>
-          </div>
-
-          {/* Bulk Import — green theme */}
-          <div onClick={() => onNavigate('bulk-job-import')}
-            className="card-float rounded-2xl p-6 cursor-pointer flex flex-col"
-            style={{ background: 'linear-gradient(145deg, #16a34a 0%, #22c55e 60%, #4ade80 100%)', border: 'none', transition: 'box-shadow 0.3s, transform 0.3s' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(22,163,74,0.45)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ''; (e.currentTarget as HTMLElement).style.transform = ''; }}
+          {/* Option 1: Manual Creation */}
+          <div 
+            onClick={() => onNavigate('job-posting', { mode: 'manual' })}
+            className="group relative bg-white rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-xs p-6 sm:p-7 flex flex-col justify-between cursor-pointer transition-all duration-200 shadow-2xs select-none"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onNavigate('job-posting', { mode: 'manual' });
+              }
+            }}
           >
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 flex items-center justify-center rounded-xl flex-shrink-0 shadow-lg"
-                style={{ background: 'rgba(255,255,255,0.2)', boxShadow: '0 0 16px rgba(255,255,255,0.15)' }}>
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
+            <div>
+              {/* Header */}
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className="w-11 h-11 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200 flex-shrink-0">
+                  <FileEdit className="w-5 h-5" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors leading-snug">
+                    Manual Creation
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                    Step-by-step guided form
+                  </p>
+                </div>
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold text-white">Bulk Import</h3>
-                  <span style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.5)', color: '#fff' }} className="text-xs px-2 py-0.5 rounded-full font-semibold">NEW</span>
-                </div>
-                <p className="text-green-100 text-sm mt-0.5">Import 100s of jobs at once</p>
+
+              {/* Step Sequence */}
+              <div className="space-y-2.5 my-5">
+                {manualSteps.map((text, i) => (
+                  <div key={i} className="flex items-start gap-2.5 min-h-[22px]">
+                    <span className="w-5 h-5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs sm:text-sm text-gray-700 leading-snug font-normal">
+                      {text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Feature Highlights */}
+              <div className="border-t border-gray-100 pt-3.5 my-4 space-y-1.5">
+                {manualFeatures.map((f) => (
+                  <div key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                    <Check className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" strokeWidth={2.2} />
+                    <span className="font-medium">{f}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="space-y-2.5 mb-5">
-              {bulkSteps.map((text, i) => (
-                <div key={i} className="flex items-center gap-3 min-h-[24px]">
-                  <span style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.5)', color: '#fff' }} className="w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                  <span className="text-sm text-slate-200">{text}</span>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
-              {bulkFeatures.map(f => (
-                <div key={f} className="flex items-center gap-2 text-xs text-green-50">
-                  <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-auto flex items-center justify-between pt-2">
-              <span className="text-xs text-green-100/80 uppercase tracking-wider font-medium">Recruiters & Agencies</span>
-              <GetStartedButton text="Get Started" />
+
+            {/* Bottom Action Footer */}
+            <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
+                Full Control
+              </span>
+              <button 
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
           </div>
+
+          {/* Option 2: Parse Job Details */}
+          <div 
+            onClick={() => onNavigate('job-parsing')}
+            className="group relative bg-white rounded-xl border border-gray-200 hover:border-orange-400 hover:shadow-xs p-6 sm:p-7 flex flex-col justify-between cursor-pointer transition-all duration-200 shadow-2xs select-none"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onNavigate('job-parsing');
+              }
+            }}
+          >
+            <div>
+              {/* Header */}
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className="w-11 h-11 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors duration-200 flex-shrink-0">
+                  <Sparkles className="w-5 h-5" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors leading-snug">
+                      Parse Job Details
+                    </h3>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200">
+                      AI
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                    Auto-extract with AI
+                  </p>
+                </div>
+              </div>
+
+              {/* Step Sequence */}
+              <div className="space-y-2.5 my-5">
+                {parseSteps.map((text, i) => (
+                  <div key={i} className="flex items-start gap-2.5 min-h-[22px]">
+                    <span className="w-5 h-5 rounded-full bg-orange-50 border border-orange-200/80 text-orange-700 text-xs font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs sm:text-sm text-gray-700 leading-snug font-normal">
+                      {text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Feature Highlights */}
+              <div className="border-t border-gray-100 pt-3.5 my-4 space-y-1.5">
+                {parseFeatures.map((f) => (
+                  <div key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                    <Check className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" strokeWidth={2.2} />
+                    <span className="font-medium">{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bottom Action Footer */}
+            <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
+                Fastest Way
+              </span>
+              <button 
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          {/* Option 3: Bulk Import */}
+          <div 
+            onClick={() => onNavigate('bulk-job-import')}
+            className="group relative bg-white rounded-xl border border-gray-200 hover:border-emerald-400 hover:shadow-xs p-6 sm:p-7 flex flex-col justify-between cursor-pointer transition-all duration-200 shadow-2xs select-none"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onNavigate('bulk-job-import');
+              }
+            }}
+          >
+            <div>
+              {/* Header */}
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className="w-11 h-11 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-200 flex-shrink-0">
+                  <UploadCloud className="w-5 h-5" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors leading-snug">
+                      Bulk Import
+                    </h3>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      NEW
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                    Import 100s of jobs at once
+                  </p>
+                </div>
+              </div>
+
+              {/* Step Sequence */}
+              <div className="space-y-2.5 my-5">
+                {bulkSteps.map((text, i) => (
+                  <div key={i} className="flex items-start gap-2.5 min-h-[22px]">
+                    <span className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-xs font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs sm:text-sm text-gray-700 leading-snug font-normal">
+                      {text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Feature Highlights */}
+              <div className="border-t border-gray-100 pt-3.5 my-4 space-y-1.5">
+                {bulkFeatures.map((f) => (
+                  <div key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" strokeWidth={2.2} />
+                    <span className="font-medium">{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bottom Action Footer */}
+            <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">
+                Recruiters & Agencies
+              </span>
+              <button 
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          </div>
+
         </div>
 
-        {/* Best Practices */}
-        <div className="max-w-4xl mx-auto mt-8 anim-fade-4">
+        {/* Best Practices Section */}
+        <div className="max-w-5xl mx-auto mt-10">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Job Posting Best Practices</h2>
+            <BookOpen className="w-4 h-4 text-gray-500" />
+            <h2 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider">
+              Job Posting Best Practices
+            </h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
             {[
               { 
-                icon: <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>, 
+                icon: <FileText className="w-4 h-4 text-blue-600" />, 
                 title: 'Clear Job Title', 
                 desc: 'Standard titles get 3x more views.' 
               },
               { 
-                icon: <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, 
+                icon: <DollarSign className="w-4 h-4 text-emerald-600" />, 
                 title: 'Include Salary Range', 
                 desc: '30% more applications with salary info.' 
               },
               { 
-                icon: <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>, 
+                icon: <MapPin className="w-4 h-4 text-red-600" />, 
                 title: 'Specify Location', 
                 desc: 'Remote jobs get 200% more reach.' 
               },
               { 
-                icon: <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>, 
+                icon: <ListChecks className="w-4 h-4 text-purple-600" />, 
                 title: 'List Key Skills', 
                 desc: 'Limit to 5–8 must-have skills.' 
               },
               { 
-                icon: <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>, 
+                icon: <FileEdit className="w-4 h-4 text-indigo-600" />, 
                 title: 'Optimal Description', 
                 desc: '300–600 words performs best.' 
               },
               { 
-                icon: <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, 
+                icon: <Zap className="w-4 h-4 text-amber-600" />, 
                 title: 'Post Quickly', 
                 desc: 'Jobs posted fast fill 2x faster.' 
               },
             ].map(({ icon, title, desc }) => (
-              <div key={title} className="tip-card rounded-xl p-4">
-                <div className="mb-2">{icon}</div>
-                <h4 className="font-semibold text-slate-800 text-sm mb-1">{title}</h4>
-                <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+              <div 
+                key={title} 
+                className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-2xs hover:border-gray-300 hover:shadow-xs transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center mb-2.5">
+                  {icon}
+                </div>
+                <h4 className="font-semibold text-gray-900 text-sm mb-1">{title}</h4>
+                <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Stats Bar */}
-        <div className="max-w-4xl mx-auto mt-6 stat-card rounded-2xl p-5 anim-fade-5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div className="max-w-5xl mx-auto mt-6 bg-white border border-gray-200 rounded-xl p-5 sm:p-6 shadow-2xs">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center divide-y md:divide-y-0 md:divide-x divide-gray-100">
             {[
-              { value: '23 days', label: 'Avg. time to hire', color: '#3b4fd8' },
+              { value: '23 days', label: 'Avg. time to hire', color: '#2563eb' },
               { value: '+30%', label: 'More apps with salary', color: '#16a34a' },
               { value: '+200%', label: 'Reach with remote', color: '#0891b2' },
-              { value: '80%', label: 'Time saved with parsing', color: '#e05a1a' },
-            ].map(({ value, label, color }) => (
-              <div key={label}>
-                <div className="text-2xl font-extrabold" style={{ color }}>{value}</div>
-                <div className="text-xs text-slate-500 mt-1">{label}</div>
+              { value: '80%', label: 'Time saved with parsing', color: '#ea580c' },
+            ].map(({ value, label, color }, idx) => (
+              <div key={label} className={idx > 1 ? 'pt-3 md:pt-0' : ''}>
+                <div className="text-2xl font-bold tracking-tight" style={{ color }}>{value}</div>
+                <div className="text-xs text-gray-500 mt-1 font-medium">{label}</div>
               </div>
             ))}
           </div>
