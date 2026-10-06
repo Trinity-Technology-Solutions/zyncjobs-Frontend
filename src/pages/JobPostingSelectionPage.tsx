@@ -88,14 +88,15 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto items-stretch mb-12 sm:mb-14">
 
           {/* Option 1: Manual Creation */}
-          <div 
-            onClick={() => onNavigate('job-posting', { mode: 'manual' })}
+          <div
+            onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting', { mode: 'manual' }); }}
             className="group relative bg-white rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-xs p-6 sm:p-7 flex flex-col justify-between cursor-pointer transition-all duration-200 shadow-2xs select-none"
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                localStorage.removeItem('editJobData');
                 onNavigate('job-posting', { mode: 'manual' });
               }
             }}
@@ -158,13 +159,14 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
           {/* Option 2: Parse Job Details */}
           <div 
-            onClick={() => onNavigate('job-parsing')}
+            onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-parsing'); }}
             className="group relative bg-white rounded-xl border border-gray-200 hover:border-orange-400 hover:shadow-xs p-6 sm:p-7 flex flex-col justify-between cursor-pointer transition-all duration-200 shadow-2xs select-none"
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                localStorage.removeItem('editJobData');
                 onNavigate('job-parsing');
               }
             }}

@@ -160,9 +160,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const [currentStep, setCurrentStep] = useState(1);
   const { jobTitles: jobTitleOptions } = useJobTitles();
 
-  // Check for edit mode data from sessionStorage
+  // Check for edit mode data — set by Job Management edit button.
+  // Parsed as JSON safely to avoid crashes on malformed data.
   const editJobRaw = localStorage.getItem('editJobData');
-  const editJob = editJobRaw ? JSON.parse(editJobRaw) : null;
+  const editJob = editJobRaw ? (() => { try { return JSON.parse(editJobRaw); } catch { return null; } })() : null;
   const isEditMode = !!editJob;
   const editJobId = editJob?._id || editJob?.id;
 
@@ -1919,8 +1920,8 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     <div className="px-6 py-8">
       <div className="flex justify-between items-center mb-8">
         <BackButton 
-          onClick={() => mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}
-          text={mode === 'parse' ? 'Back to Parser' : 'Back to Selection'}
+          onClick={() => isEditMode ? onNavigate('job-management') : mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}
+          text={isEditMode ? 'Back to Jobs' : mode === 'parse' ? 'Back to Parser' : 'Back to Selection'}
         />
         <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">×</button>
       </div>

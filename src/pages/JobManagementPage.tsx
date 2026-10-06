@@ -293,8 +293,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
 
   const filteredJobs = jobs.filter(job => {
     const jobTitle = job.jobTitle || job.title || '';
-    const matchesSearch = jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.location?.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term ||
+                         jobTitle.toLowerCase().includes(term) ||
+                         (job.jobCode || job.positionId || '').toLowerCase().includes(term) ||
+                         job.location?.toLowerCase().includes(term);
     const matchesFilter = filter === 'all' || 
                          (filter === 'active' && (job.status === 'active' || job.status === 'approved' || !job.status)) ||
                          (filter === 'closed' && job.status === 'closed');
@@ -375,7 +378,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   type="text"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Search by Title/Ref Code/Job ID"
+                  placeholder="Search by Title/Ref Code/Location"
                   className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
               </div>
@@ -607,10 +610,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         <div className="text-xs text-gray-500 mb-1">
                           {[job.country, (() => { const lang = job.language || job.languages; return Array.isArray(lang) ? lang.join(', ') : lang; })(), job.experienceRange || job.experience].filter(Boolean).join(' • ')}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
+                        <div className="text-xs text-gray-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span>{job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}</span>
+                          {(job.jobCode || job.positionId) && (
+                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">Ref: {job.jobCode || job.positionId}</span>
+                          )}
                           {job.postedByName && job.postedByEmail && job.postedByEmail !== job.employerEmail && (
-                            <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-medium">
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-medium">
                               Posted by: {job.postedByName} ({job.postedByEmail})
                             </span>
                           )}
