@@ -30,7 +30,7 @@ interface Interview {
 }
 
 interface CandidateInterviewsPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: { jobId: string }) => void;
   user: any;
   onLogout: () => void;
 }
@@ -214,7 +214,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   ];
 
   if (loading) return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+    <div className="career-workspace CandidateInterviewsPage min-h-screen bg-[#F8FAFC] flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3" />
         <p className="text-gray-500 text-sm">Loading interviews...</p>
@@ -223,29 +223,23 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
+    <div className="career-workspace CandidateInterviewsPage min-h-screen bg-[#F8FAFC] flex flex-col">
       <Header onNavigate={onNavigate} user={user ? { name: user.name, type: user.type } : null} onLogout={onLogout} />
 
       <div className="flex-1">
-        {/* Page Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <BackButton fallback="/dashboard" text="Back" className="text-sm text-gray-500 hover:text-gray-700 transition-colors" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">My Interviews</h1>
-                <p className="text-xs text-gray-400 mt-0.5">{interviews.length} total · {upcomingCount} upcoming</p>
-              </div>
-            </div>
+        <div className="interviews-page-heading">
+          <div className="portal-page-container py-6">
+            <BackButton fallback="/dashboard" text="Back to Dashboard" className="mb-5" />
+            <div className="interviews-heading-copy"><p className="interviews-eyebrow">YOUR HIRING JOURNEY</p><h1>My Interviews</h1><p>Manage invitations, review interview details, and stay prepared for your next conversation.</p></div>
           </div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        <div className="portal-page-container py-6 space-y-5">
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="interviews-overview">
             {statCards.map(s => (
-              <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-md duration-200`}>
+              <div key={s.label} className={`interview-overview-card ${s.bg} border ${s.border}`} >
                 <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
               </div>
@@ -253,7 +247,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
           </div>
 
           {/* Search + Filter Bar */}
-          <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col sm:flex-row gap-3">
+          <div className="interviews-search-panel">
             <div className="flex-1">
               <AutocompleteCombobox
                 value={search}
@@ -263,16 +257,17 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 placeholder="Search by job title, company, round..."
               />
             </div>
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+            <div className="interview-status-tabs flex gap-1 bg-gray-100 p-1 rounded-lg">
               {(['all', 'upcoming', 'accepted', 'rejected', 'completed', 'cancelled'] as const).map(tab => (
                 <button
                   key={tab}
+                  aria-pressed={filter === tab}
                   onClick={() => setFilter(tab)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                     filter === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {tab}
+                  {tab === 'rejected' ? 'Declined' : tab}
                 </button>
               ))}
             </div>
@@ -280,7 +275,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
           {/* Interview Cards */}
           {filtered.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+            <div className="career-panel bg-white border border-gray-200 rounded-xl p-12 text-center">
               <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 font-medium">No {filter !== 'all' ? filter : ''} interviews found</p>
               <p className="text-gray-400 text-sm mt-1">
@@ -288,7 +283,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="interviews-list">
               {filtered.map(interview => {
                 const sc = statusConfig[interview.status] || statusConfig.scheduled;
                 const tc = typeConfig[interview.interviewType] || typeConfig.video;
@@ -303,7 +298,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 return (
                   <div
                     key={interview._id}
-                    className={`bg-white border rounded-xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+                    className={`interview-detail-card bg-white border rounded-xl overflow-hidden ${
                       isHot ? 'border-orange-300 shadow-orange-100' : 'border-gray-200'
                     }`}
                   >
@@ -312,11 +307,13 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                       <div className="h-1 bg-gradient-to-r from-orange-400 to-red-500" />
                     )}
 
-                    <div className="p-5">
+                    <div className="interview-card-layout">
+                      <div className="interview-schedule"><Calendar size={22} aria-hidden="true" /><span>INTERVIEW SCHEDULE</span><strong>{formatInterviewDate(interview)}</strong><p>{formatInterviewTime(interview)}</p><span className="interview-schedule-format">{tc.label} interview</span></div>
+                      <div className="interview-card-main">
                       {/* Row 1: Logo + Title + Status */}
                       <div className="flex items-start gap-4">
                         {/* Company Logo */}
-                        <div className="w-12 h-12 rounded-xl border border-gray-200 bg-white flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
+                        <div className="career-panel w-12 h-12 rounded-xl border border-gray-200 bg-white flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
                           <img
                             src={logoSrc}
                             alt={companyName}
@@ -360,17 +357,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             </div>
                           </div>
 
-                          {/* Date + Time row */}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                            <span className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {formatInterviewDate(interview)}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-gray-400" />
-                              {formatInterviewTime(interview)}
-                            </span>
-                          </div>
+                          
                         </div>
                       </div>
 
@@ -407,15 +394,15 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                       )}
 
                       {/* Divider */}
-                      <div className="border-t border-gray-100 mt-4 pt-3 flex items-center justify-between gap-3">
+                      <div className="interview-card-footer border-t border-gray-100 mt-4 pt-3">
                         <span className="text-xs text-gray-400">
                           Scheduled on {interview.createdAt ? new Date(interview.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </span>
 
                         {/* CTA Buttons */}
-                        <div className="flex items-center gap-2">
+                        <div className="interview-card-actions">
                           <button
-                            onClick={() => onNavigate(`job-detail/${interview.jobId?._id}`)}
+                            onClick={() => { const jobId = typeof interview.jobId === 'string' ? interview.jobId : interview.jobId?._id; if (jobId) onNavigate('job-detail', { jobId }); }}
                             className="border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                           >
                             View Job
@@ -460,6 +447,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             </a>
                           )}
                         </div>
+                      </div>
                       </div>
                     </div>
                   </div>

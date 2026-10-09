@@ -35,7 +35,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
-  const [appliedJobs, setAppliedJobs] = useState<any[]>([]);
   const [employerApplications, setEmployerApplications] = useState<any[]>([]);
   const [allJobs, setAllJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +42,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [postedJobsPage, setPostedJobsPage] = useState(1);
   const [applicationsPage, setApplicationsPage] = useState(1);
+  useEffect(() => {
+    setPostedJobsPage(page => Math.min(page, Math.max(1, Math.ceil(postedJobs.length / 10))));
+  }, [postedJobs.length]);
+  useEffect(() => { setSelectedJobs([]); }, [postedJobsPage]);
   const JOBS_PER_PAGE = 10;
   const APPS_PER_PAGE = 10;
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -64,7 +67,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
   const getMyPostedJobs = (jobs: any[]) => {
     const myEmail = (getCurrentUserEmail() || '').toLowerCase();
-    if (!myEmail) return jobs;
+    if (!myEmail) return [];
     return jobs.filter((job: any) => {
       const jobEmails = [job.employerEmail, job.postedBy, job.postedByEmail]
         .filter(Boolean)
@@ -97,11 +100,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
+  const visibleSavedJobs = savedJobs.filter(job => [job.title, job.jobTitle, job.company, job.companyName, job.location].some(value => String(value || '').toLowerCase().includes(searchQuery.trim().toLowerCase())));
 
   useEffect(() => {
     if (user?.type === 'candidate') {
+      useSavedJobsStore.getState().fetchSavedJobs();
       loadSavedJobs();
-      fetchAppliedJobs();
     } else if (user?.type === 'employer') {
       fetchPostedJobs();
       fetchAllJobs();
@@ -129,17 +133,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         return null;
       });
       const jobs = (await Promise.all(jobPromises)).filter(Boolean);
-      if (jobs.length > 0) {
-        setSavedJobs(jobs);
-        fetchCompanyLogos(jobs);
-      }
+      setSavedJobs(jobs);
+      if (jobs.length > 0) fetchCompanyLogos(jobs);
     } catch (error) {
       console.error('Error fetching job details:', error);
     }
   };
 
   // Re-sync saved job details when the set of saved IDs changes
-  const savedJobIdsSize = savedJobIds.size;
   useEffect(() => {
     if (user?.type === 'candidate') {
       const ids = Array.from(savedJobIds);
@@ -150,25 +151,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedJobIdsSize]);
-
-  useEffect(() => {
-    if (activeTab === 'Applied' && user?.type === 'candidate') {
-      fetchAppliedJobs();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (activeTab === 'Applied' && user?.type === 'candidate') {
-      interval = setInterval(() => {
-        fetchAppliedJobs();
-      }, 30000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeTab, user]);
+  }, [savedJobIds]);
 
   const fetchPostedJobs = async (page = 1, append = false) => {
     try {
@@ -211,27 +194,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
-    }
-  };
-
-  const fetchAppliedJobs = async () => {
-    const userEmail = user?.email;
-    
-    if (!userEmail) {
-      console.warn('fetchAppliedJobs: no user email');
-      return;
-    }
-    
-    try {
-      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`);
-      if (response.ok) {
-        const applications = await response.json();
-        setAppliedJobs(applications);
-      } else {
-        console.error('fetchAppliedJobs failed:', response.status, response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching applied jobs:', error);
     }
   };
 
@@ -480,11 +442,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       isOpen: true,
       title: 'Remove Saved Job',
       message: 'Are you sure you want to remove this job from your saved list?',
-      onConfirm: () => {
+      onConfirm: async () => {
         setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        unsaveJobGlobal(jobId);
-        // Keep local savedJobs list in sync for the UI display
-        setSavedJobs(prev => prev.filter((job: any) => (job._id || job.id) !== jobId));
+        await unsaveJobGlobal(jobId);
+        if (useSavedJobsStore.getState().savedJobIds.has(jobId)) showNotification('Could not remove this job. Please try again.', 'error');
       }
     });
   };
@@ -521,11 +482,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     // Saved jobs use the same card layout as the job search page
     if (actionType === 'saved') {
       return (
-        <div key={jobKey} className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+        <div key={jobKey} className="portal-job-card saved-job-card">
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-start mb-3">
                 <div className="flex-1">
+                  <h3><button type="button" onClick={() => onNavigate('job-detail', { jobId: getId(job), jobData: job })} className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1">
+                    {job.jobTitle || job.title}
+                  </button></h3>
                   <div className="flex items-center gap-3 mb-2">
                     <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                       <img
@@ -548,10 +512,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     </div>
                     <span className="text-blue-600 font-semibold text-base">{job.company || job.companyName}</span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1">
-                    {job.jobTitle || job.title}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <div className="portal-job-meta flex flex-wrap items-center gap-3 mb-3">
                     {job.location && (
                       <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
                         <MapPin className="w-4 h-4 text-gray-600" />
@@ -574,7 +535,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     </div>
                   </div>
                   {(job.jobDescription || job.description) && (
-                    <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                    <div className="portal-job-summary">
                       <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">
                         {(() => { const desc = job.jobDescription || job.description || ''; const plain = formatJobDescription(desc); return plain.length > 180 ? `${plain.substring(0, 180)}...` : plain; })()}
                       </p>
@@ -610,13 +571,13 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
 
     return (
-    <div key={jobKey} className="group relative bg-white rounded-2xl border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
+    <div key={jobKey} className="portal-job-card portal-job-card-framed employer-job-card group relative bg-white rounded-2xl border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
       {/* Gradient Header */}
       <div className="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
       
       {/* Checkbox for selection */}
       {showCheckbox && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="posted-job-checkbox absolute top-4 left-4 z-10">
           <input
             type="checkbox"
             checked={selectedJobs.includes(jobId)}
@@ -632,7 +593,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         </div>
       )}
       
-      <div className="p-6 pt-8">
+      <div className={`posted-job-body p-6 pt-8 ${showCheckbox ? 'has-selection' : ''}`}>
         {/* Header Section */}
         <div className="flex items-start gap-4 mb-4">
           {/* Company Logo */}
@@ -698,7 +659,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
         {/* Description */}
         {(job.jobDescription || job.description) && (
-          <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 p-4 rounded-xl mb-4">
+          <div className="posted-job-description bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 p-4 rounded-xl mb-4">
             <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
               {(() => {
                 const desc = job.jobDescription || job.description || '';
@@ -711,7 +672,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         
         {/* Action Buttons */}
         {showActions && (
-          <div className="flex gap-2 pt-2">
+          <div className="posted-job-action-row flex gap-2 pt-2">
             {actionType === 'posted' && (
               <>
                 <button 
@@ -725,6 +686,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 >
                   <span>View Details</span>
                 </button>
+                <button type="button" className="posted-job-applications" onClick={() => {
+                  const selectedId = getId(job);
+                  if (!selectedId) return;
+                  sessionStorage.setItem('selectedJobId', selectedId);
+                  sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
+                  sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
+                  onNavigate('application-management');
+                }}>View applications ({applicationCountsMap[jobId] || 0})</button>
                 <button 
                   onClick={() => deleteJob(getId(job))}
                   disabled={(applicationCountsMap[jobId] || 0) > 0}
@@ -751,7 +720,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   return (
-    <div className="min-h-screen" style={{background: 'linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 50%, #fff0f6 100%)'}}>
+    <div className={`${(user?.type === 'employer' || user?.userType === 'employer' || !!user?.employerOwnerId) ? 'posted-jobs-page employer-content-page' : 'saved-jobs-page'} min-h-screen`} style={{background: (user?.type === 'employer' || user?.userType === 'employer' || !!user?.employerOwnerId) ? '#f5f7fb' : '#f2f5fa'}}>
       {notification.show && (
         <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium ${
           notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
@@ -759,58 +728,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
           {notification.message}
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="my-jobs-content bg-white rounded-xl sm:rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <BackButton fallback="/dashboard" text="Back to Dashboard" className="mb-4 sm:mb-6" />
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
             <div className="flex flex-wrap gap-1">
               {user?.type === 'employer' ? (
-                <>
-                  <button
-                    onClick={() => setActiveTab('Posted Jobs')}
-                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
-                      activeTab === 'Posted Jobs'
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Posted Jobs
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('Applications')}
-                    className={`px-3 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
-                      activeTab === 'Applications'
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    My Applications ({employerApplications.length})
-                  </button>
-                </>
+                <div className="posted-jobs-heading"><h1>Posted Jobs</h1><p>Jobs you have posted. Open a role to review its candidates, or manage all postings in Job Management.</p><div className="posted-jobs-heading-actions"><button type="button" onClick={() => onNavigate('job-management')}>Job Management</button><button type="button" onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}>Post a job</button></div></div>
               ) : (
-                <>
-                  <button
-                    onClick={() => setActiveTab('Saved')}
-                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
-                      activeTab === 'Saved'
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Saved
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('Applied')}
-                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
-                      activeTab === 'Applied'
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Applied
-                  </button>
-                </>
+                <div className="saved-jobs-heading"><p className="saved-jobs-eyebrow">YOUR CAREER SHORTLIST</p><h1>Saved Jobs</h1><p>Keep opportunities you like in one place. Review the details and apply when you are ready.</p></div>
               )}
             </div>
             
@@ -958,7 +885,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         </div>
                       </div>
                       
-                      <div className="space-y-4">
+                      <div className="posted-jobs-list">
                         {postedJobs.slice((postedJobsPage - 1) * JOBS_PER_PAGE, postedJobsPage * JOBS_PER_PAGE).map((job) => {
                           const jobId = getId(job);
                           const k = jobId || `posted-${Math.random()}`;
@@ -970,13 +897,13 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         })}
                       </div>
                       {postedJobs.length > JOBS_PER_PAGE && (
-                        <div className="flex items-center justify-center gap-2 pt-6">
+                        <nav aria-label="Posted job pages" className="flex flex-wrap items-center justify-center gap-2 pt-6">
                           <button onClick={() => setPostedJobsPage(p => Math.max(1, p - 1))} disabled={postedJobsPage === 1} className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-40 hover:bg-gray-50">&#8592; Prev</button>
                           {Array.from({ length: Math.ceil(postedJobs.length / JOBS_PER_PAGE) }, (_, i) => i + 1).map(page => (
                             <button key={page} onClick={() => setPostedJobsPage(page)} className={`w-9 h-9 rounded-lg text-sm font-medium ${postedJobsPage === page ? 'bg-blue-600 text-white' : 'border hover:bg-gray-50'}`}>{page}</button>
                           ))}
                           <button onClick={() => setPostedJobsPage(p => Math.min(Math.ceil(postedJobs.length / JOBS_PER_PAGE), p + 1))} disabled={postedJobsPage === Math.ceil(postedJobs.length / JOBS_PER_PAGE)} className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-40 hover:bg-gray-50">Next &#8594;</button>
-                        </div>
+                        </nav>
                       )}
                     </>
                     ) : (
@@ -1100,6 +1027,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 </div>
               )}
 
+              {user?.type === 'candidate' && (
+                <div className="saved-jobs-toolbar"><div className="saved-jobs-search"><Search size={18} aria-hidden="true" /><input aria-label="Search saved jobs" placeholder="Search saved jobs by title, company, or location" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></div><button type="button" onClick={() => onNavigate('my-applications')}>My Applications <ChevronRight size={16} aria-hidden="true" /></button></div>
+              )}
               {user?.type === 'candidate' && activeTab === 'Saved' && (
                 <>
                   {savedJobs.length > 0 ? (
@@ -1110,7 +1040,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         </p>
                       </div>
                       <div className="space-y-4">
-                        {savedJobs.map((job) => {
+                        {visibleSavedJobs.length === 0 && <div className="saved-job-card text-center"><h2 className="font-semibold text-gray-900">No matching saved jobs</h2><p className="text-sm text-gray-500 mt-2">Try a different title, company, or location.</p><button type="button" className="text-blue-600 mt-4" onClick={() => setSearchQuery('')}>Clear search</button></div>}
+                        {visibleSavedJobs.map((job) => {
                           const k = getId(job) || `saved-${Math.random()}`;
                           return <React.Fragment key={k}>{renderJobCard(job, true, 'saved', false)}</React.Fragment>;
                         })}
@@ -1118,14 +1049,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     </>
                   ) : (
                     <>
-                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-700">
-                          No saved jobs found. Jobs you save will appear here.
-                        </p>
-                      </div>
                       <EmptyState
-                        title="Jobs saved by you"
-                        description="No saved jobs! Tap on save icon against a job to save it"
+                        title="Your shortlist starts here"
+                        description="Save jobs while browsing to build your shortlist and return to them here."
                         buttonText="Search jobs"
                         onButtonClick={() => onNavigate('job-listings')}
                         icon="jobs"
@@ -1135,132 +1061,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 </>
               )}
 
-              {user?.type === 'candidate' && activeTab === 'Applied' && (
-                appliedJobs.length > 0 ? (
-                  <div className="space-y-4">
-                    {appliedJobs.map((application) => (
-                      <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
-                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
-                          <div className="flex-1">
-                            <div className="mb-4">
-                              {/* Company logo + name row */}
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                                  <img
-                                    src={companyLogos[(application.jobId?.company || application.jobId?.companyName || '').toLowerCase()] || getSafeCompanyLogo(application.jobId || {})}
-                                    alt={`${application.jobId?.company || 'Company'} logo`}
-                                    className="w-8 h-8 object-contain"
-                                    onError={(e) => {
-                                      const img = e.target as HTMLImageElement;
-                                      const name = application.jobId?.company || application.jobId?.companyName || '';
-                                      if (name.toLowerCase().includes('nambikkai')) {
-                                        img.src = '/images/company-logos/nambikkai-logo.png';
-                                      } else if (name.toLowerCase().includes('trinity')) {
-                                        img.src = '/images/trinity-logo.webp';
-                                      } else {
-                                        const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
-                                        img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
-                                      }
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-blue-600 font-semibold text-base">{application.jobId?.company || application.jobId?.companyName}</span>
-                              </div>
-
-                              {/* Job title + status */}
-                              <div className="flex items-start justify-between mb-2">
-                                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
-                                  {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || application.jobId?.company || 'Application'}
-                                </h3>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium ml-3 flex-shrink-0 ${
-                                  application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
-                                  application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                                  application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                                  application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
-                                  application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  application.status === 'hired' ? 'bg-green-100 text-green-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
-                                <Clock className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm font-medium text-gray-700">
-                                  Applied on: {formatDate(application.createdAt || application.appliedAt)}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex flex-wrap items-center gap-3 mb-3">
-                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
-                                <MapPin className="w-4 h-4 text-gray-600" />
-                                <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
-                              </div>
-                              {formatSalary(application.jobId?.salary, application.jobId?.currency || application.jobId?.salary?.currency) && (
-                                <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                                  <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary, application.jobId?.currency || application.jobId?.salary?.currency)}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
-                                <Briefcase className="w-4 h-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-700">{application.jobId?.type || 'Full-time'}</span>
-                              </div>
-                            </div>
-
-                            {application.jobId?.jobDescription && (
-                              <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
-                                <p className="text-sm text-gray-700 leading-relaxed">
-                                  <span className="font-semibold text-blue-900">Job Description: </span>
-                                  {(() => { const plain = formatJobDescription(application.jobId.jobDescription); return plain.length > 200 ? `${plain.substring(0, 200)}...` : plain; })()}
-                                </p>
-                              </div>
-                            )}
-
-                            {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                              <div className="mb-4 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
-                                <h4 className="font-semibold text-blue-900 mb-2 text-sm">Your Cover Letter:</h4>
-                                <p className="text-gray-700 text-sm leading-relaxed">
-                                  {application.coverLetter.length > 150 
-                                    ? `${application.coverLetter.substring(0, 150)}...` 
-                                    : application.coverLetter}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
-                            <button 
-                              onClick={() => {
-                                const jobId = application.jobId
-                                  ? (typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id))
-                                  : (application.jobObjectId || application.jobRef);
-                                if (jobId) {
-                                  onNavigate('job-detail', { jobId });
-                                } else {
-                                  showNotification('Job details are no longer available.', 'error');
-                                }
-                              }}
-                              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
-                            >
-                              View Job
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    title="No applications yet"
-                    description="Start applying to jobs to see your applications here"
-                    buttonText="Search jobs"
-                    onButtonClick={() => onNavigate('job-listings')}
-                    icon="applications"
-                  />
-                )
-              )}
             </>
           )}
         </div>
@@ -1271,7 +1071,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
         message={confirmDialog.message}
-        confirmLabel="Delete"
+        confirmLabel={user?.type === 'candidate' ? 'Remove' : 'Delete'}
         cancelLabel="Cancel"
         variant="danger"
         onConfirm={confirmDialog.onConfirm}

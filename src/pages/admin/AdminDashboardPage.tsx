@@ -29,7 +29,8 @@ import AllUsersSection from './sections/AllUsersSection';
 import ReminderEmailSection from './sections/ReminderEmailSection';
 import RecruiterSearchSection from './sections/RecruiterSearchSection';
 import SubmissionsSection from './sections/SubmissionsSection';
-import SubmissionTrackerSection from './sections/SubmissionTrackerSection';
+import SubmissionTrackerSection, { type TrackerNavigationFilters } from './sections/SubmissionTrackerSection';
+import TrackerAnalyticsSection from './sections/TrackerAnalyticsSection';
 // import AIMonitoringSection from './sections/AIMonitoringSection';
 
 interface Props {
@@ -78,10 +79,11 @@ const navItems: NavItem[] = [
   { id: 'notifications', label: 'Notifications',   icon: Bell,            section: 'communication' },
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
   { id: 'reminder-email', label: 'Reminder Email', icon: Send,            section: 'communication' },
+  { id: 'tracker-analytics', label: 'Tracker Analytics', icon: BarChart2, section: 'talent' },
+  { id: 'submission-tracker', label: 'Submission Tracker', icon: FileText, section: 'talent' },
   { id: 'talent',        label: 'Talent Pool',     icon: Users,           section: 'talent' },
   { id: 'recruiter-search', label: 'Recruiter Search', icon: UserSearch,  section: 'talent' },
   { id: 'submissions',   label: 'Submissions',     icon: FileSpreadsheet, section: 'talent' },
-  { id: 'submission-tracker', label: 'Submission Tracker', icon: FileText, section: 'talent' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
   { id: 'ai-monitor',    label: 'AI Monitoring',   icon: Cpu,             section: 'system' },
   { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
@@ -151,14 +153,17 @@ async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?
 
 export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props) {
   const [activeNav, setActiveNav] = useState(() => {
-    return localStorage.getItem('adminActiveNav') || 'overview';
+    const saved = localStorage.getItem('adminActiveNav') || 'overview';
+    return saved;
   });
+  const [trackerNavigationFilters, setTrackerNavigationFilters] = useState<TrackerNavigationFilters | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open on desktop
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [growth, setGrowth] = useState<GrowthPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [talentPoolUpdatedAt, setTalentPoolUpdatedAt] = useState<number | null>(null);
   const [quickStats, setQuickStats] = useState<QuickStat>({ topJobRole: '—', topCompany: '—', mostActiveUser: '—' });
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showBell, setShowBell] = useState(false);
@@ -172,14 +177,17 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 
   // Check user permissions
   const userRole: string = user.role || (isSuperAdmin(user.email || '') ? 'super_admin' : 'admin');
+  const userPermissions: string[] = (user as any).permissions || [];
   const actions = getAvailableActions(userRole as any);
   const canManageAdmins = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.MANAGE_ADMINS);
   const canAccessSystemSettings = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.SYSTEM_SETTINGS);
   const isManager = userRole === 'manager';
-  const isRecruiterOnly = userRole === 'recruiter';
+  // isRecruiterOnly: either role is recruiter OR employer with recruiter_portal_access permission
+  const isRecruiterOnly = userRole === 'recruiter' || 
+    (userRole === 'employer' && userPermissions.includes('recruiter_portal_access'));
 
   useEffect(() => {
-    if (isRecruiterOnly && !['overview', 'talent', 'recruiter-search', 'submissions', 'submission-tracker'].includes(activeNav)) {
+    if (isRecruiterOnly && !['submission-tracker', 'talent', 'recruiter-search', 'submissions', 'tracker-analytics'].includes(activeNav)) {
       setActiveNav('talent');
       localStorage.setItem('adminActiveNav', 'talent');
     }
@@ -305,13 +313,28 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    const onTalentRefresh = (event: Event) => {
+      const timestamp = (event as CustomEvent<number>).detail;
+      if (Number.isFinite(timestamp) && timestamp > 0) setTalentPoolUpdatedAt(timestamp);
+    };
+    window.addEventListener('zync:talent-pool-updated', onTalentRefresh);
+    return () => window.removeEventListener('zync:talent-pool-updated', onTalentRefresh);
+  }, []);
+
+  const displayedUpdatedAt = activeNav === 'talent' ? talentPoolUpdatedAt : lastUpdated;
   const formatLastUpdated = () => {
-    if (!lastUpdated) return '';
-    void ticker; // triggers re-render every second
-    const diff = Math.floor((Date.now() - lastUpdated) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    return `${Math.floor(diff / 3600)}h ago`;
+    if (!displayedUpdatedAt) return '';
+    void ticker;
+    const seconds = Math.max(0, Math.floor((Date.now() - displayedUpdatedAt) / 1000));
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds} seconds ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
   };
 
   const statCards = stats ? [
@@ -357,10 +380,11 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'email':         return <EmailControlSection onUnauthorized={handleUnauthorized} />;
       case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids: string[], type: 'candidates' | 'employers' | 'both') => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
       case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
-      case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
+      case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} recruiterName={user.name || ''} onOpenTracker={() => { setTrackerNavigationFilters(null); setActiveNav('submission-tracker'); localStorage.setItem('adminActiveNav', 'submission-tracker'); }} />;
       case 'recruiter-search': return <RecruiterSearchSection onUnauthorized={handleUnauthorized} onNavigateToTalentPool={() => { setActiveNav('talent'); localStorage.setItem('adminActiveNav', 'talent'); }} />;
       case 'submissions':  return <SubmissionsSection onUnauthorized={handleUnauthorized} />;
-      case 'submission-tracker': return <SubmissionTrackerSection onUnauthorized={handleUnauthorized} recruiterName={user.name || ''} />;
+      case 'submission-tracker': return <SubmissionTrackerSection onUnauthorized={handleUnauthorized} recruiterName={user.name || ''} initialFilters={trackerNavigationFilters} onClearNavigationFilters={() => setTrackerNavigationFilters(null)} />;
+      case 'tracker-analytics': return (isRecruiterOnly || userRole === 'admin' || userRole === 'super_admin') ? <TrackerAnalyticsSection onUnauthorized={handleUnauthorized} userRole={userRole} onOpenTracker={filters => { setTrackerNavigationFilters(filters); setActiveNav('submission-tracker'); localStorage.setItem('adminActiveNav', 'submission-tracker'); }} /> : <AccessDeniedSection />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
       case 'ai-monitor':    return <div className="p-6 text-center text-gray-500">AI Monitoring — component removed</div>;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
@@ -370,11 +394,11 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
   };
 
   return (
-    <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
+    <div className="admin-dashboard flex h-screen bg-gray-950 text-white overflow-hidden">
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-80 shadow-2xl">
+          <div className="admin-shell-dialog bg-gray-900 border border-gray-700 rounded-xl p-6 w-80 shadow-2xl">
             <h3 className="text-base font-semibold text-white mb-2">Confirm Logout</h3>
             <p className="text-sm text-gray-400 mb-5">Are you sure you want to logout?</p>
             <div className="flex gap-3 justify-end">
@@ -399,29 +423,32 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
         />
       )}
 
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} lg:relative fixed lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} z-50 lg:z-auto transition-all duration-300 bg-gray-900 border-r border-orange-500/20 flex flex-col shrink-0 h-full`}>
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-orange-500/20">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center shrink-0">
-            <LayoutDashboard className="w-4 h-4" />
+      <aside aria-label="Administration sidebar" data-expanded={sidebarOpen} className={`admin-dashboard-sidebar ${
+        sidebarOpen ? 'w-56' : 'w-14'
+      } lg:relative fixed lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      } z-50 lg:z-auto transition-all duration-200 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0 h-full`}>
+        <div className="admin-sidebar-brand flex items-center gap-2 px-3 py-4 border-b border-gray-800">
+          <div className="w-7 h-7 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center shrink-0">
+            <LayoutDashboard className="w-3.5 h-3.5" />
           </div>
           {sidebarOpen && (
             <>
-              <div className="min-w-0 flex-1 flex items-center">
-                <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-8 max-w-full object-contain object-left" />
+              <div className="min-w-0 flex-1">
+                <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-7 max-w-full object-contain object-left" />
               </div>
-              <span className={`shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+              <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
                 userRole === 'super_admin' ? 'bg-purple-600 text-white' :
                 userRole === 'admin' ? 'bg-blue-600 text-white' :
-                userRole === 'recruiter' ? 'bg-emerald-600 text-white' :
                 'bg-emerald-600 text-white'
               }`}>
-                {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : userRole === 'recruiter' ? 'Recruiter' : 'Manager'}
+                {userRole === 'super_admin' ? 'Super' : userRole === 'admin' ? 'Admin' : userRole === 'recruiter' ? 'Rec' : 'Mgr'}
               </span>
             </>
           )}
         </div>
 
-        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto admin-sidebar-scroll">
+        <nav className="flex-1 py-2 space-y-0.5 px-2 overflow-y-auto admin-sidebar-scroll">
           {(() => {
             let lastSection = '';
             return navItems
@@ -430,7 +457,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                   return id === 'overview' || id === 'reports';
                 }
                 if (isRecruiterOnly) {
-                  return ['overview', 'talent', 'recruiter-search', 'submissions', 'submission-tracker'].includes(id);
+                  return ['submission-tracker', 'talent', 'recruiter-search', 'submissions', 'tracker-analytics'].includes(id);
                 }
                 if (id === 'admins') return canManageAdmins;
                 if (id === 'settings') return canAccessSystemSettings;
@@ -438,7 +465,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                 return true;
               })
               .map(({ id, label, icon: Icon, section }) => {
-                const showDivider = sidebarOpen && section !== 'main' && section !== lastSection;
+                const showDivider = sidebarOpen && section !== 'main' && section !== lastSection && !isRecruiterOnly;
                 lastSection = section;
                 const badge = id === 'candidates' ? badgeCounts.candidates
                   : id === 'employers' ? badgeCounts.employers
@@ -448,28 +475,31 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                 return (
                   <React.Fragment key={id}>
                     {showDivider && (
-                      <p className="px-3 pt-4 pb-1 text-xs font-semibold text-blue-400/70 uppercase tracking-wider">
+                      <p className="px-2 pt-3 pb-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                         {sectionLabels[section]}
                       </p>
                     )}
                     <button
                       onClick={() => {
+                        setTrackerNavigationFilters(null);
                         setActiveNav(id);
                         localStorage.setItem('adminActiveNav', id);
                         if (window.innerWidth < 1024) setSidebarOpen(false);
                       }}
+                      aria-label={label}
+                      aria-current={activeNav === id ? 'page' : undefined}
                       title={!sidebarOpen ? label : undefined}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all duration-150
                         ${activeNav === id
-                          ? 'bg-gradient-to-r from-blue-600 to-orange-500 text-white shadow-lg shadow-blue-900/40'
+                          ? 'bg-gradient-to-r from-blue-600 to-orange-500 text-white shadow-md'
                           : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                     >
-                      <Icon className="w-4 h-4 shrink-0" />
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
                       {sidebarOpen && (
-                        <span className="flex-1 text-left">{label}</span>
+                        <span className="flex-1 text-left truncate">{label}</span>
                       )}
                       {sidebarOpen && badge > 0 && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center
                           ${id === 'notifications' ? 'bg-red-500 text-white' : 'bg-blue-500/80 text-white'}`}>
                           {badge > 99 ? '99+' : badge}
                         </span>
@@ -481,38 +511,53 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
           })()}
         </nav>
 
-        <div className="border-t border-orange-500/20 p-2">
+        <div className="border-t border-gray-800 p-2">
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors group"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors group"
           >
-            <LogOut className="w-4 h-4 shrink-0 group-hover:text-red-400" />
+            <LogOut className="w-3.5 h-3.5 shrink-0 group-hover:text-red-400" />
             {sidebarOpen && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-gray-900 border-b border-orange-500/20 px-4 lg:px-6 py-4 flex items-center justify-between shrink-0">
+      <div className="admin-workspace flex-1 flex flex-col overflow-hidden">
+        <header className="admin-dashboard-header bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white lg:hidden">
+            <button aria-label={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white lg:hidden">
               <Menu className="w-5 h-5" />
             </button>
-            <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white hidden lg:block">
+            <button aria-label={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white hidden lg:block">
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <h1 className="text-base lg:text-lg font-semibold capitalize truncate">
-              {activeNav === 'talent' ? 'Talent Pool' :
-                activeNav === 'all-users' ? 'All Users' :
-                activeNav === 'reminder-email' ? 'Reminder Email' :
-                activeNav === 'submission-tracker' ? 'Submission Tracker' :
-                activeNav}
+            <h1 className="text-sm font-semibold capitalize truncate">
+              {activeNav === 'overview' ? 'Overview' :
+               activeNav === 'admins' ? 'Admin Management' :
+               activeNav === 'candidates' ? 'Candidates' :
+               activeNav === 'employers' ? 'Employers' :
+               activeNav === 'all-users' ? 'All Users' :
+               activeNav === 'verifications' ? 'Verifications' :
+               activeNav === 'jobs' ? 'Jobs' :
+               activeNav === 'reports' ? 'Reports' :
+               activeNav === 'all-applications' ? 'All Applications' :
+               activeNav === 'notifications' ? 'Notifications' :
+               activeNav === 'email' ? 'Email Control' :
+               activeNav === 'reminder-email' ? 'Reminder Email' :
+               activeNav === 'tracker-analytics' ? 'Tracker Analytics' :
+               activeNav === 'submission-tracker' ? 'Submission Tracker' :
+               activeNav === 'talent' ? 'Talent Pool' :
+               activeNav === 'recruiter-search' ? 'Recruiter Search' :
+               activeNav === 'submissions' ? 'Submissions' :
+               activeNav === 'logs' ? 'Activity Logs' :
+               activeNav === 'settings' ? 'Settings' :
+               activeNav === 'gdpr' ? 'GDPR Dashboard' : activeNav}
             </h1>
             <BackendStatusIndicator className="hidden sm:flex" showDetails={false} />
-            {lastUpdated && <span className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</span>}
+            {displayedUpdatedAt && <time dateTime={new Date(displayedUpdatedAt).toISOString()} title={`${activeNav === 'talent' ? 'Last detected Talent Pool update' : 'Last successful data refresh'}: ${new Date(displayedUpdatedAt).toLocaleString()}`} className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</time>}
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
-            <button onClick={loadOverview} disabled={loading}
+            <button onClick={() => { if (activeNav === "talent") window.dispatchEvent(new Event("zync:talent-pool-refresh")); else void loadOverview(); }} disabled={activeNav !== "talent" && loading}
               className="text-gray-400 hover:text-white disabled:opacity-40 transition-colors" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -572,7 +617,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6">
+        <main className="admin-section-content flex-1 overflow-y-auto p-4 lg:p-5 space-y-4 min-w-0">
           {error && (
             <div className="flex items-center gap-2 bg-red-900/30 border border-red-700/50 text-red-300 rounded-xl px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />{error}
@@ -631,31 +676,31 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
   };
 
   return (
-    <div className="space-y-4 lg:space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {(loading || !stats)
           ? Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800 animate-pulse">
-                <div className="h-4 bg-gray-700 rounded w-24 mb-3" />
-                <div className="h-8 bg-gray-700 rounded w-20 mb-3" />
-                <div className="grid grid-cols-2 gap-1">
-                  {Array.from({ length: 4 }).map((_, j) => <div key={j} className="h-3 bg-gray-700 rounded" />)}
+              <div key={i} className="bg-gray-900 rounded-xl p-4 border border-gray-800 animate-pulse h-32">
+                <div className="h-3 bg-gray-700 rounded w-20 mb-3" />
+                <div className="h-7 bg-gray-700 rounded w-16 mb-3" />
+                <div className="grid grid-cols-2 gap-1.5">
+                  {Array.from({ length: 4 }).map((_, j) => <div key={j} className="h-2.5 bg-gray-700 rounded" />)}
                 </div>
               </div>
             ))
           : cards.map(({ label, value, icon: Icon, color, breakdown }) => (
-              <div key={label} className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-gray-400">{label}</span>
-                  <div className={`${color} w-8 h-8 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center`}>
+              <div key={label} className="bg-gray-900 rounded-xl p-4 border border-gray-800 flex flex-col">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-400 font-medium">{label}</span>
+                  <div className={`${color} w-8 h-8 rounded-lg flex items-center justify-center shrink-0`}>
                     <Icon className="w-4 h-4 text-white" />
                   </div>
                 </div>
-                <p className="text-xl lg:text-2xl font-bold mb-3">{value}</p>
-                <div className="grid grid-cols-2 gap-1">
+                <p className="text-2xl font-bold text-white mb-3">{value}</p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-auto">
                   {breakdown.map(({ label: bl, val }) => (
                     <div key={bl} className="flex justify-between text-xs">
-                      <span className="text-gray-500 truncate">{bl}</span>
+                      <span className="text-gray-500">{bl}</span>
                       <span className="text-gray-300 font-medium">{val.toLocaleString()}</span>
                     </div>
                   ))}
@@ -666,9 +711,9 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-300 mb-1">Jobs & Applications Trend</h2>
-          <p className="text-xs text-gray-500 mb-4">Blue = Jobs &nbsp;|&nbsp; Orange = Applications</p>
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <h2 className="text-xs font-semibold text-gray-300 mb-0.5">Jobs & Applications Trend</h2>
+          <p className="text-[11px] text-gray-500 mb-3">Blue = Jobs · Orange = Applications</p>
           {loading ? <div className="h-40 lg:h-52 bg-gray-800 rounded-lg animate-pulse" /> : (
             <ResponsiveContainer width="100%" height={window.innerWidth < 1024 ? 180 : 220}>
               <AreaChart data={growth}>
@@ -694,9 +739,9 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
           )}
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800 space-y-4">
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-300 mb-4">User Growth</h2>
+            <h2 className="text-xs font-semibold text-gray-300 mb-3">User Growth</h2>
             {loading ? <div className="h-32 lg:h-36 bg-gray-800 rounded-lg animate-pulse" /> : (
               <ResponsiveContainer width="100%" height={window.innerWidth < 1024 ? 120 : 150}>
                 <BarChart data={growth} barGap={4}>

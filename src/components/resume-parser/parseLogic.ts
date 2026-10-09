@@ -19,7 +19,7 @@ export interface ParsedResume {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-import { tokenStorage } from '../../utils/tokenStorage';
+import { apiFetch } from '../../api/apiFetch';
 import { getCached, setCached, cacheKey } from '../../services/aiCache';
 
 const RESUME_CACHE_TTL = 30 * 60 * 1000;
@@ -545,29 +545,33 @@ export async function parseResumeFromText(
 
   try {
     const textHash = await hashText(text);
-    const cKey = cacheKey('resume-parse-v16', textHash);
+    const cKey = cacheKey('resume-parse-v17', textHash);
     const cached = getCached<ParsedResume>(cKey);
     if (cached) { onStatus?.('ai'); return cached; }
 
-    const token = tokenStorage.getAccess();
-    const truncatedText = text.length > 15000 ? text.slice(0, 15000) : text;
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch(`${API_BASE_URL}/resume/parse-profile`, {
+    const timeout = setTimeout(() => controller.abort(), 110000);
+    let res: Response;
+    try {
+    res = await apiFetch(`${API_BASE_URL}/resume/parse-profile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
-        resumeText: truncatedText,
-        instructions: 'Extract resume data as strict JSON. Keys: name (full name, no letter-spacing), email, phone (full digits), location, summary, skills[], workExperiences[{jobTitle,company,date,descriptions[]}], educations[{degree,school,date,gpa}], projects[{name,descriptions[]}]. IMPORTANT: Each description must be a complete bullet-point sentence. NEVER split sentences across array entries. NEVER put single words or fragments as separate descriptions. Combine multi-line bullet points into one string. Project name must be 3+ words.',
+        resumeText: text,
+        instructions: 'Extract resume data as strict JSON. Keys: name (full name, no letter-spacing), email, phone (full digits), location, summary, skills[], workExperiences[{jobTitle,company,date,descriptions[]}], educations[{degree,school,date,gpa}], projects[{name,descriptions[]}]. IMPORTANT: Each description must be a complete bullet-point sentence. NEVER split sentences across array entries. NEVER put single words or fragments as separate descriptions. Combine multi-line bullet points into one string. Copy the actual project name, including valid single-word names. Preserve internship and certification details.',
       }),
       signal: controller.signal,
     });
-    clearTimeout(timeout);
+    } finally { clearTimeout(timeout); }
 
-    if (!res.ok) { onStatus?.('ai_error', `API ${res.status}`); return localResult; }
+    if (!res.ok) {
+      const failure = await res.json().catch(() => ({}));
+      onStatus?.('ai_error', `POST /resume/parse-profile returned HTTP ${res.status}. ${failure.error || 'AI service could not complete parsing.'}`);
+      return localResult;
+    }
 
     const json = await res.json();
     const raw = json.profileData || json.data?.profileData || json.data || json;
@@ -668,7 +672,7 @@ export async function parseResumeFromText(
       name: pr.name || pr.projectName || '',
       description: pr.description || '',
       descriptions: pr.descriptions || [],
-    })).filter((pr: any) => pr.name.trim().split(/\s+/).length >= 2 && pr.name.trim().length >= 5);
+    })).filter((pr: any) => typeof pr.name === 'string' && pr.name.trim().length >= 2 && !SECTION_HEADINGS.has(pr.name.trim().toLowerCase()) && text.toLowerCase().includes(pr.name.trim().toLowerCase()));
 
     // Validate AI education — must have school or degree with real keywords
     const aiEdu = (p.educations || []).map((e: any) => ({
@@ -713,8 +717,12 @@ export async function parseResumeFromText(
       tools: p.tools?.length ? p.tools : (localResult.tools || []),
     };
 
-    setCached(cKey, merged, RESUME_CACHE_TTL);
-    onStatus?.('ai');
+    if (Array.isArray(raw.parserWarnings) && raw.parserWarnings.length) {
+      onStatus?.('ai_empty', raw.parserWarnings.join(' '));
+    } else {
+      setCached(cKey, merged, RESUME_CACHE_TTL);
+      onStatus?.('ai');
+    }
     return merged;
   } catch (e: any) {
     const isTimeout = e?.name === 'AbortError';

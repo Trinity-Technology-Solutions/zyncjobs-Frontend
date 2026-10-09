@@ -11,6 +11,7 @@ import {
   LogIn, 
   UserPlus, 
   Briefcase,
+  Bookmark,
   ChevronRight,
   Sparkles,
   User,
@@ -182,6 +183,14 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       isLogout: false,
     },
     ...(user.type === 'candidate' ? [{
+      icon: Bookmark,
+      label: 'Saved Jobs',
+      subtitle: 'Review your bookmarked opportunities',
+      action: () => handleNavigation('my-jobs'),
+      hasArrow: true,
+      badge: 0,
+      isLogout: false,
+    }, {
       icon: Bell,
       label: 'Job Alerts',
       subtitle: 'Manage your job alerts',

@@ -1,3 +1,4 @@
+import EmployerFeatureGuide from './EmployerFeatureGuide';
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, BarChart3, Users, Brain, X, Eye } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
@@ -286,11 +287,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   };
 
   return (
+    <div className="feature-sidebar-layout"><div className="feature-sidebar-main">
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center mb-6">
         <Brain className="w-6 h-6 text-blue-600 mr-3" />
         <h2 className="text-xl font-semibold text-gray-900">AI Auto-Rejection Settings</h2>
       </div>
+
 
       {/* Enable Auto-Rejection */}
       <div className="mb-6">
@@ -576,6 +579,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         </div>
       )}
     </div>
+    </div><EmployerFeatureGuide feature="rejection" /></div>
   );
 };
 

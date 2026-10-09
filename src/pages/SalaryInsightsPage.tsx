@@ -61,34 +61,24 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
   };
 
   return (
-    <div className={compact ? '' : 'max-w-4xl mx-auto'}>
+    <div className={compact ? '' : 'career-workspace SalaryInsightsPage portal-page-container salary-insights-workspace'}>
       {!compact && (
-        <div className="mb-6">
+        <div className="career-page-heading mb-6">
           {onNavigate && (
             <BackButton fallback="/dashboard" className="mb-4" />
           )}
-          <div className="flex flex-col items-center text-center">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
-                <TrendingUp className="w-3 h-3" /> AI Powered
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
-                <BarChart2 className="w-3 h-3" /> Real-time Data
-              </span>
-            </div>
-            <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
-              <span className="text-gray-900">AI</span>
-              <span className="text-blue-600"> Salary Insights</span>
-            </h1>
+          <div className="career-tool-title flex flex-col items-start text-left">
+            <p className="career-tool-eyebrow">SALARY RESEARCH</p>
+            <h1>Explore salary insights</h1>
             <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
-              Explore real-time market salary data and get AI-powered compensation insights for any job role.
+              Compare salary ranges by role and experience to make informed career decisions.
             </p>
           </div>
         </div>
       )}
 
       {/* Search */}
-      <div className="flex gap-2 mb-6">
+      <div className="salary-search-panel flex gap-2 mb-6">
         <div className="flex-1">
           <AutocompleteCombobox
             value={search}
@@ -123,9 +113,9 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
       )}
 
       {!loading && data?.found && (
-        <div className="space-y-4">
+        <div className="salary-results-layout">
           {/* Main salary card */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
+          <div className="salary-market-summary rounded-2xl p-6 text-white">
             <p className="text-sm opacity-80 mb-1">{data.title} · {data.totalJobs} jobs analyzed</p>
             <div className="flex items-end gap-4">
               <div>
@@ -161,7 +151,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
 
           {/* By Experience Level */}
           {Object.keys(data.byLevel).length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="salary-data-panel bg-white border border-gray-200 rounded-xl p-5">
               <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-blue-600" /> Salary by Experience Level
               </h3>
@@ -189,7 +179,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
 
           {/* Top Paying Companies */}
           {data.topCompanies?.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="salary-data-panel bg-white border border-gray-200 rounded-xl p-5">
               <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <Award className="w-4 h-4 text-yellow-500" /> Top Paying Companies
               </h3>
@@ -211,7 +201,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
 
       {/* Market Overview - Top Roles */}
       {!searched && overview?.topRoles?.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="salary-data-panel bg-white border border-gray-200 rounded-xl p-5">
           <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
             <BarChart2 className="w-4 h-4 text-blue-600" /> Top Paying Roles in Market
           </h3>

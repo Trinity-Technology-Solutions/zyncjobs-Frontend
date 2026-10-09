@@ -284,42 +284,33 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="career-workspace CareerRoadmapPage min-h-screen bg-gray-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       {/* Hero */}
-      <div className="px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+      <div className="career-page-heading px-4 py-8">
+        <div className="portal-page-container">
           <BackButton fallback="/dashboard" className="mb-4" />
-          <div className="flex flex-col items-center text-center">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
-                <Zap className="w-3 h-3" /> AI Powered
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
-                <TrendingUp className="w-3 h-3" /> Career Growth
-              </span>
-            </div>
-            <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
-              <span className="text-gray-900">AI</span>
-              <span className="text-blue-600"> Career Roadmap</span>
-            </h1>
+          <div className="career-tool-title flex flex-col items-start text-left">
+            <p className="career-tool-eyebrow">CAREER PLANNING</p>
+            <h1>Build your career roadmap</h1>
             <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
-              AI-powered step-by-step path from where you are to where you want to be.
+              Define your career goal and get a personalized plan with skills, milestones, and next steps.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 w-full flex-1">
+      <div className="portal-page-container py-8 w-full flex-1">
 
+        <div className="roadmap-workspace">
         {/* Input Form */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8">
+        <div className="roadmap-setup career-panel bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
-            <Target className="w-5 h-5 text-blue-600" /> Set Your Career Goal
+            <span className="career-setup-number">01</span> Set Your Career Goal
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-4 mb-4">
+          <div className="roadmap-form-fields grid gap-4 mb-6">
             {/* Current Role */}
             <div>
               <AutocompleteCombobox
@@ -369,6 +360,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
           </button>
         </div>
 
+          <div className="roadmap-results">
           {loading ? (
             <AIFeatureLoader
               title="Generating your roadmap"
@@ -421,7 +413,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
 
             {/* Market Demand */}
             {(roadmap.marketDemand || (roadmap.marketTrends && roadmap.marketTrends.length > 0)) && (
-              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="career-panel bg-white border border-gray-200 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                     <BarChart2 className="w-4 h-4 text-white" />
@@ -471,7 +463,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
 
             {/* Salary Progression */}
             {roadmap.salaryProgression && roadmap.salaryProgression.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="career-panel bg-white border border-gray-200 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
                     <DollarSign className="w-4 h-4 text-white" />
@@ -491,7 +483,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
 
             {/* Certifications */}
             {roadmap.certifications && roadmap.certifications.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="career-panel bg-white border border-gray-200 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
                     <Award className="w-4 h-4 text-white" />
@@ -656,7 +648,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
 
                             {/* Market Demand per phase */}
                             {step.marketDemand && (
-                              <div className="mb-4 p-3 bg-white border rounded-lg">
+                              <div className="career-panel mb-4 p-3 bg-white border rounded-lg">
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Market Demand</p>
                                   <span className={`text-xs font-bold px-2 py-1 rounded-full ${
@@ -775,12 +767,14 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
 
         {/* Empty state */}
         {!roadmap && !loading && (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
+          <div className="career-panel bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
             <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p className="text-gray-500 font-medium text-lg">Your roadmap will appear here</p>
-            <p className="text-gray-400 text-sm mt-1">Fill in your current role, target role, and experience above</p>
+            <p className="text-gray-400 text-sm mt-1">Fill in your current role, target role, and experience to build your plan</p>
           </div>
         )}
+        </div>
+        </div>
       </div>
 
       <Footer onNavigate={onNavigate} />

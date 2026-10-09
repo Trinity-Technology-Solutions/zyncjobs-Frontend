@@ -1009,55 +1009,81 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
     ];
 
-    return (
-      <div className={`bg-white rounded-lg shadow-sm border border-[#e2e8f0] overflow-hidden flex flex-col ${isMobile ? 'h-full' : ''}`}>
-        {/* Header */}
-        <div className="px-4 sm:px-5 py-3 border-b border-[#e2e8f0] bg-white flex items-center justify-between">
-          <h3 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider flex items-center gap-2">
-          <Briefcase className="w-4 h-4 text-[#2563eb]" />
-            Employer Menu
-          </h3>
-          {isMobile && (
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-              aria-label="Close menu"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+  return (
+    <div className="portal-employer-dashboard bg-gray-50 flex" style={{height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
+      {/* Error Display */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
+          <div className="flex items-start">
+            <span className="mr-2 mt-0.5 text-sm">⚠️</span>
+            <div className="flex-1">
+              <div className="font-medium text-sm">Dashboard Loading Issue</div>
+              <div className="text-xs sm:text-sm mt-1">{error}</div>
+            </div>
+            <button onClick={() => setError(null)} className="ml-2 sm:ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">&times;</button>
+          </div>
         </div>
 
-        {/* Company Header */}
-        <div className="px-4 sm:px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0]">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-shrink-0">
-              <div className="w-11 h-11 rounded-lg bg-white flex items-center justify-center border border-[#e2e8f0] shadow-sm overflow-hidden p-1">
-                <img
-                  src={getDisplayLogo()}
-                  alt={companyName || employerName}
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    const name = companyName || employerName;
-                    if ((name.toLowerCase().includes('trinity') || 
-                         user?.email?.includes('trinity') || 
-                         user?.email?.includes('@trinitetech')) && 
-                        !img.src.includes('trinity-logo')) {
-                      img.src = img.src.includes('trinity-logo.webp') ? '/images/company-logos/trinity-logo.png' : '/images/trinity-logo.webp';
-                      return;
-                    }
-                    if (name.toLowerCase().includes('nambikkai') && !img.src.includes('nambikkai-logo.png')) {
-                      img.src = '/images/company-logos/nambikkai-logo.png';
-                      return;
-                    }
-                    const initials = name.split(' ').map((word: string) => word.charAt(0)).join('').toUpperCase().substring(0, 2);
-                    const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
-                      `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#1e3a8a"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text></svg>`
-                    )}`;
-                    if (img.src !== fallbackUrl) img.src = fallbackUrl;
-                  }}
-                />
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" style={{top: `${headerHeight}px`}} onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar — fixed height, independent scroll */}
+      <div role="navigation" aria-label="Employer workspace navigation" className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{top: `${headerHeight}px`, width: '280px', height: `calc(100dvh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth'}}>
+            {/* Profile header - Enhanced */}
+            <div className="employer-sidebar-profile px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md overflow-hidden">
+                    <img src={getDisplayLogo()} alt={companyName || employerName}
+                      className="w-10 sm:w-14 h-10 sm:h-14 object-contain"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        const displayName = companyName || employerName;
+                        if ((displayName.toLowerCase().includes('trinity') || 
+                             user?.email?.includes('trinity') || 
+                             user?.email?.includes('@trinitetech')) && 
+                            !img.src.includes('trinity-logo')) {
+                          if (!img.src.includes('trinity-logo.webp')) {
+                            img.src = '/images/trinity-logo.webp';
+                          } else {
+                            img.src = '/images/company-logos/trinity-logo.png';
+                          }
+                          return;
+                        }
+                        if (displayName.toLowerCase().includes('nambikkai') && !img.src.includes('nambikkai-logo.png')) {
+                          img.src = '/images/company-logos/nambikkai-logo.png';
+                          return;
+                        }
+                        const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
+                        const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
+                          `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#1e40af"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text></svg>`
+                        )}`;
+                        if (img.src !== fallbackUrl) img.src = fallbackUrl;
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-white text-sm sm:text-base leading-tight">{employerName}</p>
+                  <p className="text-xs sm:text-sm text-white leading-snug mt-0.5 font-medium" style={{wordBreak:'break-word', whiteSpace:'normal'}}>
+                    {companyName && companyName !== 'Company' ? companyName :
+                     user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
+                     user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
+                     'Company'}
+                  </p>
+                </div>
+                {/* Close button — mobile only */}
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="lg:hidden flex-shrink-0 text-white/70 hover:text-white p-1 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             </div>
             <div className="flex-1 min-w-0">
@@ -1104,44 +1130,70 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           </p>
         </div>
 
-        {/* Nav list */}
-        <nav className="p-2.5 space-y-1 flex-1 overflow-y-auto">
-          {navItems.filter(item => item.show).map(item => {
-            const isActive = activeMenu === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => {
-                  item.action();
-                  if (isMobile) setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 text-left font-medium text-sm group ${
-                  isActive
-                    ? 'bg-[#2563eb] text-white shadow-sm font-semibold'
-                    : 'text-slate-700 hover:bg-[#eff6ff] hover:text-[#1e3a8a]'
-                }`}
-              >
-                <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-white' : 'text-[#2563eb]'}`}>
-                  {item.icon}
-                </span>
-                <span className="leading-tight flex-1 truncate">{item.label}</span>
-                {item.badge ? (
-                  <span className={`flex-shrink-0 min-w-[20px] h-[20px] px-1.5 rounded-full font-bold flex items-center justify-center text-[10px] ${
-                    isActive ? 'bg-white text-[#2563eb]' : 'bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]'
-                  }`}>
-                    {item.badge}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
 
-          {/* Delete Account */}
-          <button
-            onClick={() => {
-              if (isMobile) setSidebarOpen(false);
-              if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Delete Account', requiredRole: 'Owner' }); return; }
-              openConfirm(
+            {/* Role badge for team members */}
+            {teamRole && (
+              <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-blue-500/60 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-blue-300 font-medium leading-none mb-0.5">Role</p>
+                  <p className="text-sm font-bold text-white leading-none">{teamRole === 'Owner' ? 'Admin' : teamRole}</p>
+                </div>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                  teamRole === 'Owner' ? 'bg-emerald-400/30 text-emerald-300 border border-emerald-400/40' :
+                  teamRole === 'Recruiter' ? 'bg-orange-400/30 text-orange-300 border border-orange-400/40' :
+                  'bg-gray-400/30 text-gray-300 border border-gray-400/40'
+                }`}>Active</span>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <nav className="py-4 flex flex-col px-3 space-y-1">
+              {([
+                { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
+                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
+                { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
+                { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
+                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
+                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
+                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+                { key: 'ats-dashboard',    label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => withRoleCheck('Recruiter Analytics', 'Recruiter', () => onNavigate('ats-dashboard')), external: true, show: true },
+                // { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true }, // TODO: enable after complete structure is built
+                { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
+                { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
+                { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
+                { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
+                { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
+                { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
+              ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean; show: boolean }[]).filter(item => item.show).map(item => {
+                const isActive = activeMenu === item.key;
+                return (
+                  <button key={item.key} aria-current={isActive ? 'page' : undefined} onClick={() => { item.action(); if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left font-medium ${
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40'
+                        : 'text-white hover:bg-blue-700/60 hover:text-white'
+                    }`}
+                  >
+                    <span className={`flex-shrink-0 text-lg ${isActive ? 'text-white' : 'text-blue-200'}`}>{item.icon}</span>
+                    <span className="leading-tight flex-1 truncate">{item.label}</span>
+                    {item.badge ? (
+                      <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[20px] h-[20px] px-1 rounded-full font-bold flex items-center justify-center ${
+                        item.badgeRed ? 'bg-red-500 text-white' : 'bg-emerald-400 text-slate-900'
+                      }`}>{item.badge}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+
+              {/* Delete Account */}
+              <button onClick={() => {
+                if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Delete Account', requiredRole: 'Owner' }); return; }
+                openConfirm(
                 'Delete Account',
                 'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
                 async () => {
@@ -1166,79 +1218,40 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     showToast('Network error. Please try again.', 'error');
                   }
                 }
-              );
-            }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors text-left text-xs font-medium mt-1"
-          >
-            <Trash2 className="w-4 h-4 flex-shrink-0" />
-            <span>Delete Account</span>
-          </button>
-        </nav>
+              )}}
+                
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
+                <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
+                <span >Delete Account</span>
+              </button>
+            </nav>
 
-        {/* Logout Button */}
-        <div className="p-2.5 border-t border-[#e2e8f0] bg-white mt-auto">
-          <button
-            onClick={() => {
-              if (isMobile) setSidebarOpen(false);
-              if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
-            }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:text-[#1e3a8a] hover:bg-slate-50 transition-colors font-semibold text-xs sm:text-sm"
-          >
-            <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  if (viewingCandidateId) {
-    return (
-      <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
-        <CandidateProfileView
-          candidateId={viewingCandidateId}
-          onNavigate={onNavigate}
-          onBack={() => setViewingCandidateId(null)}
-          onLogout={onLogout}
-        />
+            {/* Logout Button */}
+            <div className="px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
+              <button
+                onClick={() => {
+                  if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-blue-700/50 hover:text-white transition-all duration-200 font-medium"
+              >
+                <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
+                <span >Logout</span>
+              </button>
+            </div>
       </div>
     );
   }
 
-  return (
-      <div className="min-h-screen bg-[#f8fafc] font-['IBM_Plex_Sans'] text-slate-800">
-      {/* Error Display */}
-      {error && (
-        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm shadow-md">
-          <div className="flex items-start">
-            <span className="mr-2 mt-0.5 text-sm">⚠️</span>
-            <div className="flex-1">
-              <div className="font-medium text-sm">Dashboard Loading Issue</div>
-              <div className="text-xs sm:text-sm mt-1">{error}</div>
-            </div>
-            <button onClick={() => setError(null)} className="ml-2 sm:ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">&times;</button>
-          </div>
-        </div>
-      )}
-
-      {/* Top Dashboard Header Card */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3.5 sm:pt-4 pb-0">
-        <div className="bg-white border border-[#e2e8f0] rounded-lg shadow-sm px-3.5 sm:px-5 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0">
-            <div className="flex-shrink-0">
-              <BackButton
-                fallback="/"
-                text="Back to Home"
-                className="!w-9 !h-9 !border !border-slate-200 hover:!border-slate-300 !bg-slate-50 hover:!bg-slate-100 !text-slate-600 hover:!text-[#1e3a8a] !shadow-sm !rounded-lg transition-all flex items-center justify-center flex-shrink-0"
-              />
-            </div>
-            <div className="h-7 w-px bg-[#e2e8f0] hidden sm:block flex-shrink-0" />
-            
-            {/* Mobile Menu Toggle Button */}
+      {/* Main Content — offset by sidebar width on desktop, independent scroll */}
+      <div className="portal-dashboard-main flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
+{/* Top bar with Back Button */}
+        <div className="portal-dashboard-toolbar flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
+          <div className="flex items-center gap-2">
+            {/* Inline static menu toggle — mobile only */}
             <button
+              aria-label="Open workspace navigation" aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[#1e3a8a] shadow-sm transition-colors flex items-center justify-center flex-shrink-0"
-              aria-label="Open employer navigation"
+              className="lg:hidden flex-shrink-0 bg-blue-700 text-white p-2 rounded-lg"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -1340,29 +1353,32 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 View Only
               </span>
             )}
-
+            
             {/* Notification Bell */}
-            <button
-              onClick={async () => {
-                setShowNotifications(!showNotifications);
-                if (!showNotifications && user?.email) {
-                  try {
-                    const fresh = await NotificationService.fetchNotifications(user.email);
-                    setNotifications(filterNotifications(fresh));
-                  } catch (e) { console.error('Bell fetch error:', e); }
-                }
-              }}
-              className="relative w-9 h-9 bg-white border border-slate-200 hover:border-slate-300 rounded-lg shadow-sm text-slate-600 hover:text-[#1e3a8a] transition-colors flex items-center justify-center flex-shrink-0"
-              title="Notifications"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4 text-slate-600" />
-              {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#2563eb] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  {notifications.length > 9 ? '9+' : notifications.length}
-                </span>
-              )}
-            </button>
+            <div className="relative">
+              <button aria-label={`Notifications, ${notifications.length} alerts`} aria-expanded={showNotifications} aria-controls="employer-notification-panel"
+                onClick={async () => {
+                  setShowNotifications(!showNotifications);
+                  if (!showNotifications) {
+                    try {
+                      if (user?.email) {
+                        const fresh = await NotificationService.fetchNotifications(user.email);
+                        setNotifications(filterNotifications(fresh));
+                      }
+                    } catch (e) { console.error('Bell fetch error:', e); }
+                  }
+                }}
+                className="employer-notification-trigger relative p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
+                    {notifications.length > 9 ? '9+' : notifications.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1375,8 +1391,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             {renderNavigationCard(false)}
           </div>
 
-          {/* Main Content Area */}
-          <div className="lg:col-span-3 min-w-0">
+        {/* Dashboard Content */}
+        <div className="pt-0 pb-2 flex-1 min-w-0">
+          <div className="employer-section-content portal-dashboard-content px-3 sm:px-4 lg:px-6" data-section={activeMenu}>
           {activeMenu === 'dashboard' ? (
             <>
               {isViewer && (
@@ -1432,33 +1449,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   const StatIcon = stat.icon;
 
                   return (
-                    <div
-                      key={index}
-                      className="bg-white rounded-lg p-4 sm:p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] hover:shadow-sm transition-all flex flex-col justify-between"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-slate-500 text-[11px] sm:text-xs font-semibold uppercase tracking-wider truncate">
-                          {stat.label}
-                        </p>
-                        <div className="w-8 h-8 rounded-lg bg-[#eff6ff] border border-[#dbeafe] flex items-center justify-center flex-shrink-0">
-                          <StatIcon className="w-4 h-4 text-[#2563eb]" />
-                        </div>
-                      </div>
-                      <div className="flex items-end justify-between gap-2 mt-1">
-                        <div className="min-w-0">
-                          <h3 className="text-2xl sm:text-3xl font-bold text-[#1e3a8a] leading-none mb-1.5 truncate">
-                            {displayVal}
-                          </h3>
-                          <p className="text-[11px] sm:text-xs font-medium truncate flex items-center gap-1" style={{ color: isPositive ? (numericPct > 0 ? '#2563eb' : '#64748b') : '#64748b' }}>
-                            {isNumericPct ? (
-                              <>
-                                <span>{isPositive ? '▲' : '▼'}</span>
-                                <span>{Math.abs(numericPct)}%</span>
-                                <span className="text-slate-400 font-normal">this month</span>
-                              </>
-                            ) : (
-                              <span>{stat.percentage}</span>
-                            )}
+                    <div key={index} className={`employer-metric-card bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
+                      <p className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-2 sm:mb-3 truncate">{stat.label}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 leading-none mb-1 truncate">{displayVal}</h3>
+                          <p className="text-[10px] sm:text-xs font-medium truncate" style={{ color: isPositive ? ringColor : '#ef4444' }}>
+                            {isNumericPct ? `${isPositive ? "▲" : "▼"} ${Math.abs(numericPct)}%` : stat.percentage.replace(' this month', '')}
                           </p>
                         </div>
                         {/* Mini Circular Progress */}
@@ -1599,9 +1596,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div className="space-y-3 sm:space-y-4">
                           {visibleJobs.map((job, idx) => {
                             const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
-                            const { bar, label, labelCls } = status;
-                            return (
-                              <div key={job.id} className="border border-[#e2e8f0] rounded-lg p-3.5 sm:p-4 hover:border-[#bfdbfe] hover:shadow-sm transition-all bg-white">
+                            const { bar, label, labelCls } = status;                            return (
+                              <div key={job.id} className="portal-job-card employer-job-card employer-performance-card">
                                 <div className="flex items-start justify-between gap-3 mb-2">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
@@ -1842,9 +1838,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* Filters */}
-              <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-[#e2e8f0] mb-5 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex-1 focus-within:border-[#2563eb] focus-within:bg-white transition-colors">
-                  <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <div className="employer-application-filters bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-6 flex flex-col gap-2">
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
+                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <input
                     type="text"
                     placeholder="Search by candidate name or email..."
@@ -1918,7 +1914,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 ) : (
                 <div className="space-y-3.5">
                   {filtered.map((application) => (
-                    <div key={application._id || application.id} className="bg-white border border-[#e2e8f0] rounded-lg p-4 sm:p-5 shadow-sm hover:border-[#bfdbfe] transition-all duration-200">
+                    <div key={application._id || application.id} className="employer-application-card bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
                       {/* Mobile: stacked layout | Desktop: side-by-side */}
                       <div className="flex flex-col sm:flex-row gap-4">
                         {/* Candidate info */}
@@ -2081,8 +2077,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             }
             </>
           ) : activeMenu === 'interviews' ? (
-            <>
-              <div className="mb-5">
+            <section className="employer-interviews-section" aria-label="Interview management">
+              <div className="employer-interviews-heading mb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">Interviews</h1>
@@ -2120,19 +2116,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a]"></div>
                 </div>
               ) : interviews.length === 0 ? (
-                <div className="bg-white rounded-lg border border-[#e2e8f0] p-12 text-center shadow-sm">
-                  <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-3" />
-                  <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-1">No Interviews Scheduled</h3>
-                  <p className="text-xs sm:text-sm text-slate-500">Interview schedules will appear here when candidates book or accept interviews.</p>
+                <div className="employer-interviews-empty text-center py-16">
+                  <MessageSquare className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No Interviews Scheduled</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">Interview schedules will appear here when candidates book interviews.</p>
                 </div>
               ) : (
-                <div className="space-y-3.5">
+                <div className="employer-interview-list space-y-3 sm:space-y-4">
                   {interviews.map((interview) => (
-                    <div key={interview._id} className="bg-white border border-[#e2e8f0] rounded-lg p-4 sm:p-5 shadow-sm hover:border-[#bfdbfe] transition-all duration-200">
-                      <div className="flex flex-col lg:flex-row items-start gap-4">
+                    <article key={interview._id} className="employer-interview-card bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-sm transition-shadow duration-200">
+                      <div className="employer-interview-row flex flex-col lg:flex-row items-start gap-4">
                         <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
-                          <div className="w-10 h-10 sm:w-11 sm:h-11 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-[#1e3a8a] font-bold text-sm sm:text-base">
+                          <div className="employer-interview-avatar w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-600 font-semibold text-xs sm:text-sm">
                               {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
                           </div>
@@ -2140,17 +2136,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-2 gap-2">
                               <div className="min-w-0">
-                                <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-0.5 truncate">
+                                <h3 className="employer-interview-name text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1">
                                   {interview.candidateName || 'Candidate'}
                                 </h3>
-                                <p className="text-xs sm:text-sm text-slate-600 font-semibold flex items-center gap-1">
-                                  <Briefcase className="w-3.5 h-3.5 flex-shrink-0 text-slate-500" />
-                                  <span className="truncate">{interview.jobTitle || 'Interview'}</span>
+                                <p className="text-sm sm:text-base text-purple-700 font-semibold flex items-center gap-1">
+                                  <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span className="break-words">{interview.jobTitle || 'Interview'}</span>
                                 </p>
                               </div>
-                              <span className={`flex-shrink-0 self-start px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                interview.status === 'scheduled' ? 'bg-slate-50 text-[#1e3a8a] border border-slate-200' :
-                                interview.status === 'accepted' ? 'bg-slate-100 text-[#1e3a8a] border border-slate-200' :
+                              <span className={`employer-interview-status flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
+                                interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                interview.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                 interview.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
                                 interview.status === 'completed' ? 'bg-slate-50 text-slate-700 border border-slate-200' :
                                 interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -2160,20 +2156,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </span>
                             </div>
                             
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 text-xs text-slate-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
-                                <span className="truncate">{formatInterviewDate(interview)}</span>
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
-                                <span>{formatInterviewTime(interview)}</span>
-                              </span>
-                              <span className="truncate text-slate-400">· {interview.candidateEmail}</span>
+                            <div className="employer-interview-details">
+                              <div><span className="employer-interview-detail-label">Interview date</span><span><Calendar size={16} aria-hidden="true" />{formatInterviewDate(interview)}</span></div>
+                              <div><span className="employer-interview-detail-label">Time</span><span><Clock size={16} aria-hidden="true" />{formatInterviewTime(interview)}</span></div>
+                              <div><span className="employer-interview-detail-label">Candidate email</span><span className="employer-interview-email">{interview.candidateEmail || 'Not provided'}</span></div>
                             </div>
 
                             {interview.meetingLink && (
-                              <div className="mb-3 inline-flex flex-wrap items-center gap-2">
+                              <div className="employer-interview-meeting-actions mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
                                   href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/host`}
                                   target="_blank"
@@ -2205,8 +2195,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
+                        <div className="employer-interview-controls flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
                           {canManageApplications ? (<AutocompleteCombobox
+                            label="Interview status" name={`interview-status-${interview._id}`}
                             value={interview.status || 'scheduled'}
                             onChange={async (newStatus) => {
                               try {
@@ -2268,7 +2259,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 }
                               );
                               }}
-                              className="flex-shrink-0 lg:w-full min-h-[38px] inline-flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-semibold transition-colors text-xs"
+                              className="employer-interview-delete flex-shrink-0 lg:w-full min-h-[40px] inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-sm"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>Delete</span>
@@ -2276,7 +2267,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           )}
                         </div>
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -2313,7 +2304,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 />
               )}
 
-            </>
+            </section>
           ) : activeMenu === 'saved-candidates' ? (
             <>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
@@ -2379,8 +2370,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     })();
                     const photo = candidate.candidateProfilePicture || candidate.profilePhoto || '';
                     return (
-                    <div key={candidate._id || candidate.id} className="bg-white border border-[#e2e8f0] rounded-lg p-4 sm:p-5 shadow-sm hover:border-[#bfdbfe] transition-all duration-200">
-                      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                    <div key={candidate._id || candidate.id} className="employer-saved-candidate-card border-2 border-green-200 rounded-xl p-6 hover:shadow-lg hover:border-green-400 transition-all duration-300 bg-gradient-to-br from-white via-green-50 to-emerald-50">
+                      <div className="flex items-start justify-between gap-4">
                         {/* Avatar */}
                         <div className="flex-shrink-0">
                           {photo ? (
@@ -2539,11 +2530,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                 ) : (
                   notifications.map((notification) => (
-                    <div key={notification.id} className="bg-white border border-[#e2e8f0] rounded-lg p-4 sm:p-5 shadow-sm hover:border-[#bfdbfe] transition-all duration-200">
-                      <div className="flex items-start space-x-3.5">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-base flex-shrink-0">
-                          {NotificationService.getNotificationIcon(notification.type)}
-                        </div>
+                    <div key={notification.id} className="employer-alert-card bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0"
+                          dangerouslySetInnerHTML={{ __html: NotificationService.getNotificationIcon(notification.type) }} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-1">
                             <h3 className="text-sm font-bold text-[#1e3a8a]">{notification.title}</h3>
@@ -2665,13 +2655,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1 rounded-full text-xs font-semibold">
-                      🤖 Smart Filtering
+                    <span className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium border border-blue-200">
+                      Smart Filtering
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-[#e2e8f0]">
+              <div className="employer-rejection-workspace">
                 <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
               </div>
             </>
@@ -2701,10 +2691,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {showNotifications && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40" style={{ top: headerHeight }}
             onClick={() => setShowNotifications(false)}
           />
-          <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+          <div id="employer-notification-panel" role="region" aria-label="Notifications" className="employer-notification-drawer fixed right-0 w-full sm:w-96 bg-white shadow-xl z-50" style={{ top: headerHeight, height: `calc(100dvh - ${headerHeight}px)` }}>
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
               <div className="flex items-center gap-3">
@@ -2721,7 +2711,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </button>
                 )}
                 <button
-                  onClick={() => setShowNotifications(false)}
+                  aria-label="Close notifications" onClick={() => setShowNotifications(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2731,7 +2721,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
 
-            <div className="h-full overflow-y-auto pb-20">
+            <div className="employer-notification-list overflow-y-auto pb-20">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />

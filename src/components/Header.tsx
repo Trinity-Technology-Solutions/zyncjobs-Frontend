@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
-  X, Search, User, Building, ChevronDown, Settings, 
+  X, Search, User, UserCircle, Building, ChevronDown, Settings, 
   FileText, Sparkles, Bell, LogOut, ChevronRight, Briefcase, PlusCircle, LayoutDashboard,
-  PanelRight, PanelRightClose 
+  Menu 
 } from 'lucide-react';
-import { GlassFilter } from './ui/liquid-glass';
 import JobAlertBadge from './JobAlertBadge';
 import { useJobAlertStore } from '../hooks/useJobAlertStore';
 import { io } from 'socket.io-client';
@@ -16,7 +15,16 @@ import { isEmployerPagePath } from '../utils/rolePermissions';
 import { strapiAPI } from '../api/strapi';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
+import CandidateNotificationBell from './CandidateNotificationBell';
+import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 
+
+const resolveProfilePhoto = (value: string | undefined): string => {
+  if (!value) return '';
+  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith('/images/')) return value;
+  const base = config.API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+  return `${base}/${value.replace(/^\//, '')}`;
+};
 
 interface HeaderProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -44,12 +52,18 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [profilePhoto, setProfilePhoto] = useState<string>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('user') || '{}');
-      return stored.profilePhoto || (user as any)?.profilePhoto || '';
+      return resolveProfilePhoto(stored.profilePhoto || (user as any)?.profilePhoto);
     } catch {
       return '';
     }
   });
-  const [isScrolled] = useState(true); // Default to light header
+  const candidateNotifications = useApplicationNotifications(user?.type === 'candidate' ? userEmail : undefined);
+  const renderNotificationBell = () => {
+    if (user?.type === 'candidate') return <CandidateNotificationBell notifications={candidateNotifications.notifications} unreadCount={candidateNotifications.unreadCount} onMarkRead={candidateNotifications.markRead} onMarkAllRead={candidateNotifications.markAllRead} onClearAll={candidateNotifications.clearAll} onDismiss={candidateNotifications.dismissNotification} onNavigate={page => onNavigate?.(page)} />;
+    if (!user) return <button type="button" className="portal-notification-bell" aria-label="Sign in to view notifications" onClick={() => onNavigate?.(isEmployerContext ? 'employer-login' : 'login')}><Bell size={23} strokeWidth={1.5} aria-hidden="true" /></button>;
+    return null;
+  };
+  const [isScrolled, setIsScrolled] = useState(true); // Default to light header
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
@@ -90,6 +104,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   // Secret typed sequence to reveal admin login
   useEffect(() => {
     const secret = import.meta.env.VITE_ADMIN_SECRET || '';
+    if (!secret) return;
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.key || e.key.length > 1) return;
@@ -121,12 +136,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         const name = stored.fullName || stored.name || (user as any)?.fullName || user?.name || stored.email?.split('@')[0] || 'User';
         setDisplayName(name);
         const photo = stored.profilePhoto || (user as any)?.profilePhoto || '';
-        setProfilePhoto(photo);
+        setProfilePhoto(resolveProfilePhoto(photo));
         const email = stored.email || user?.email || (user as any)?.email || '';
         setUserEmail(email);
       } catch {
         setDisplayName((user as any)?.fullName || user?.name || 'User');
-        setProfilePhoto((user as any)?.profilePhoto || '');
+        setProfilePhoto(resolveProfilePhoto((user as any)?.profilePhoto));
         setUserEmail(user?.email || (user as any)?.email || '');
       }
     };
@@ -134,16 +149,32 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     updateUserData();
     
     const handleUserUpdate = (e: Event) => {
+      updateUserData();
       const detail = (e as CustomEvent).detail;
       if (detail?.name || detail?.fullName) setDisplayName(detail.fullName || detail.name);
-      if (detail?.profilePhoto !== undefined) setProfilePhoto(detail.profilePhoto || '');
+      if (detail?.profilePhoto !== undefined) setProfilePhoto(resolveProfilePhoto(detail.profilePhoto));
       if (detail?.email) setUserEmail(detail.email);
-      updateUserData();
     };
     
     window.addEventListener('zync:user-updated', handleUserUpdate);
     return () => window.removeEventListener('zync:user-updated', handleUserUpdate);
   }, [user]);
+
+  // Profiles can contain a saved photo even when the login payload does not.
+  useEffect(() => {
+    if (user?.type !== 'candidate' || !userEmail || profilePhoto) return;
+    let cancelled = false;
+    const loadPhoto = async () => {
+      try {
+        const response = await apiFetch(`${API_ENDPOINTS.PROFILE}/${encodeURIComponent(userEmail)}`);
+        if (!response.ok) return;
+        const profile = await response.json();
+        if (!cancelled && profile.profilePhoto) setProfilePhoto(resolveProfilePhoto(profile.profilePhoto));
+      } catch { /* Keep the initials fallback when a photo cannot be loaded. */ }
+    };
+    loadPhoto();
+    return () => { cancelled = true; };
+  }, [user?.type, userEmail, profilePhoto]);
 
   const handleLoginClick = () => {
     setIsDropdownOpen(false);
@@ -384,17 +415,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     ? 'text-gray-900 hover:text-blue-600' 
     : 'text-white/90 hover:text-white';
 
-  const getInitials = (name: string): string => {
-    if (!name) return 'U';
-    const clean = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
-    const parts = clean.split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return 'U';
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
-
-  const firstName = displayName.trim().split(/\s+/)[0] || 'User';
-
   const renderProfileDrawer = () => {
     if (!user) return null;
 
@@ -447,8 +467,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       className="w-16 h-16 rounded-full object-cover ring-4 ring-white shadow-md"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-bold text-xl ring-4 ring-white shadow-md tracking-wider">
-                      {getInitials(displayName)}
+                    <div className="portal-profile-fallback w-16 h-16 rounded-full flex items-center justify-center ring-4 ring-white">
+                      <UserCircle size={52} strokeWidth={1.5} aria-hidden="true" />
                     </div>
                   )}
                   <span className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white ring-2 ring-emerald-400/20" title="Online" />
@@ -770,19 +790,28 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   return (
     <>
-      <GlassFilter />
       <header
-        ref={headerRef}
-        className="zync-site-header w-full relative z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-colors"
-        style={{
+        className="zync-site-header fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out"
+        style={{ transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)' }}
+      >
+      <div
+        className="portal-header-surface w-full border-b transition-colors duration-200"
+        style={isScrolled ? {
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          background: 'rgba(255, 255, 255, 0.97)',
+          borderColor: '#e4eaf3',
+          boxShadow: '0 2px 12px rgba(23, 43, 77, 0.03)',
+        } : {
           backdropFilter: 'blur(18px) saturate(150%)',
           WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          borderBottom: '1px solid rgba(226, 232, 240, 0.85)',
+          background: 'rgba(23, 43, 77, 0.97)',
+          borderColor: 'rgba(255, 255, 255, 0.12)',
+          boxShadow: 'none',
         }}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-          <div className="flex min-h-[70px] sm:min-h-[76px] lg:min-h-[82px] xl:min-h-[84px] items-center justify-between gap-3 py-3 sm:py-3.5 lg:py-4 sm:gap-4">
+      <div className="portal-header-container w-full px-4 sm:px-6 lg:px-8">
+        <div className="portal-header-row flex items-center justify-between gap-3 sm:gap-4">
           <div className="flex-shrink-0">
             <button 
               onClick={() => onNavigate && onNavigate('home')}
@@ -792,13 +821,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <img 
                 src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
                 alt={siteSettings?.siteTitle || 'ZyncJobs'} 
-                className="h-11 sm:h-12 lg:h-[52px] w-auto object-contain"
+                className="portal-header-logo w-auto object-contain"
               />
             </button>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex min-w-0 items-center gap-4 xl:gap-6 flex-1 justify-start ml-2 xl:ml-6 text-[15px] 2xl:text-base" aria-label="Main navigation">
+          <nav className="portal-header-nav hidden lg:flex min-w-0 items-center flex-1 justify-start" aria-label="Main navigation">
             {isEmployerContext ? (
               <>
                 <button
@@ -828,6 +857,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 .map((item) => (
                 <button
                   key={item.id}
+                  aria-current={currentPath === (item.url.startsWith('/') ? item.url : `/${item.url}`) ? 'page' : undefined}
                   onClick={() => onNavigate && onNavigate(item.url)}
                   className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-1 rounded`}
                 >
@@ -836,10 +866,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               ))
             ) : (
               <>
-                <button onClick={handleFindJobsClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
+                <button aria-current={currentPath.startsWith('/job-listings') || currentPath.startsWith('/job-detail') ? 'page' : undefined} onClick={handleFindJobsClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
                   {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
                 </button>
-                <button onClick={handleCompaniesClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
+                <button aria-current={currentPath.startsWith('/compan') ? 'page' : undefined} onClick={handleCompaniesClick} className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}>
                   Companies
                 </button>
               </>
@@ -923,7 +953,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               }}
               className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
             >
-              {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
+              {user?.type === 'employer' ? 'Job Posting' : 'Saved Jobs'}
             </button>
               </>
             )}
@@ -931,7 +961,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </nav>
 
           {/* Right side items */}
-          <div className="hidden lg:flex items-center gap-2 xl:gap-3 ml-auto text-[15px] 2xl:text-base">
+          <div className="portal-header-actions hidden lg:flex items-center gap-2 ml-auto">
 
             {/* For Employers Button - only when not logged in and outside employer context */}
             {!isEmployerContext && !user ? (
@@ -944,52 +974,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               </button>
             ) : null}
 
+            <div className="portal-notifications">{renderNotificationBell()}</div>
             {/* Login/Register Dropdown */}
             {user ? (
               <div className="relative" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`group flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    isDropdownOpen 
-                      ? isScrolled
-                        ? 'bg-blue-50/90 text-blue-700 shadow-sm border border-blue-200/80 ring-2 ring-blue-500/20' 
-                        : 'bg-white/20 text-white border border-white/30 ring-2 ring-white/30'
-                      : isScrolled
-                        ? 'hover:bg-gray-100/80 border border-transparent hover:border-gray-200/70 text-gray-700'
-                        : 'hover:bg-white/10 border border-transparent text-white'
-                  }`}
-                  aria-expanded={isDropdownOpen}
-                  aria-haspopup="true"
-                  aria-label="User profile menu"
-                >
-                  <div className="relative flex-shrink-0">
-                    {profilePhoto ? (
-                      <img 
-                        src={profilePhoto} 
-                        alt={displayName} 
-                        className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm tracking-wide">
-                        {getInitials(displayName)}
-                      </div>
-                    )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-400/20" />
-                  </div>
-
-                  <span className={`text-base font-semibold max-w-[140px] truncate leading-none ${isScrolled ? 'text-gray-800' : 'text-white'}`}>
-                    {firstName}
-                  </span>
-
-                  {isDropdownOpen ? (
-                    <PanelRightClose className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ${
-                      isScrolled ? 'text-blue-600' : 'text-white'
-                    }`} />
-                  ) : (
-                    <PanelRight className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ${
-                      isScrolled ? 'text-gray-400 group-hover:text-blue-600' : 'text-white/70 group-hover:text-white'
-                    }`} />
-                  )}
+                <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="portal-profile-pill" aria-expanded={isDropdownOpen} aria-haspopup="true" aria-label={`Open profile menu for ${displayName}`}>
+                  <Menu size={20} strokeWidth={1.6} aria-hidden="true" />
+                  <span className="portal-profile-avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : <UserCircle size={26} strokeWidth={1.5} aria-hidden="true" />}</span>
+                  {user.type === 'candidate' && alertUnread > 0 && <span className="portal-profile-count">{alertUnread > 9 ? '9+' : alertUnread}</span>}
                 </button>
               </div>
             ) : isEmployerContext ? (
@@ -1032,7 +1024,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`flex items-center space-x-1 ${navTextClass} transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
+                  className={`portal-auth-button flex items-center space-x-1 ${navTextClass} transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
                   aria-expanded={isDropdownOpen}
                   aria-haspopup="true"
                 >
@@ -1072,30 +1064,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
           {/* Mobile menu and profile buttons */}
           <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
+            <div className="portal-notifications">{renderNotificationBell()}</div>
             {user && (
               <div className="relative" ref={mobileDropdownRef}>
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`relative p-0.5 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    isDropdownOpen ? 'ring-2 ring-blue-600' : 'hover:ring-2 hover:ring-gray-300'
-                  }`}
-                  aria-label="User profile menu"
-                  aria-expanded={isDropdownOpen}
-                >
-                  <div className="relative flex-shrink-0">
-                    {profilePhoto ? (
-                    <img 
-                      src={profilePhoto} 
-                      alt={displayName} 
-                      className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm tracking-wide">
-                        {getInitials(displayName)}
-                      </div>
-                    )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-400/20" />
-                  </div>
+                <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="portal-profile-pill" aria-expanded={isDropdownOpen} aria-haspopup="true" aria-label={`Open profile menu for ${displayName}`}>
+                  <Menu size={20} strokeWidth={1.6} aria-hidden="true" />
+                  <span className="portal-profile-avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : <UserCircle size={26} strokeWidth={1.5} aria-hidden="true" />}</span>
+                  {user.type === 'candidate' && alertUnread > 0 && <span className="portal-profile-count">{alertUnread > 9 ? '9+' : alertUnread}</span>}
                 </button>
               </div>
             )}

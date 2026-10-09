@@ -788,12 +788,12 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── DASHBOARD ──────────────────────────────────────────────────────────────
   if (step === 'dashboard') return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="career-workspace SkillAssessmentPage min-h-screen bg-[#f8fafc]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="portal-page-container max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── CLEAN PAGE HEADER & STATS ── */}
-        <div className="mb-8 pb-6 border-b border-[#e2e8f0]">
+        <div className="career-assessment-heading mb-8 pb-6 border-b border-[#e2e8f0]">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#eff6ff] text-[#2563eb] text-xs font-semibold border border-[#bfdbfe] mb-2">
@@ -809,7 +809,7 @@ Answer the student's question directly and specifically based on the assessment 
 
             {/* Quick Metrics Strip */}
             {myAssessments.length > 0 ? (
-              <div className="flex items-center gap-4 sm:gap-6 bg-white border border-[#e2e8f0] rounded-lg px-5 py-3 shadow-xs">
+              <div className="career-panel flex items-center gap-4 sm:gap-6 bg-white border border-[#e2e8f0] rounded-lg px-5 py-3 shadow-xs">
                 <div>
                   <span className="text-[11px] font-semibold text-[#526780] uppercase tracking-wider block">Completed</span>
                   <span className="text-lg font-bold text-[#1e3a8a]">{myAssessments.length}</span>
@@ -847,7 +847,7 @@ Answer the student's question directly and specifically based on the assessment 
         </div>
 
         {/* ── UNIFIED SEARCH & FILTER TOOLBAR ── */}
-        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-xs p-3.5 sm:p-4 mb-8">
+        <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-xs p-3.5 sm:p-4 mb-8">
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -858,7 +858,7 @@ Answer the student's question directly and specifically based on the assessment 
                 onChange={e => setSelectedSkill(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && selectedSkill && generateAssessment()}
                 placeholder="Search assessments by skill (e.g., React, Python, AWS)..."
-                className="w-full pl-10 pr-9 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-md text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white transition-all"
+                className="career-panel w-full pl-10 pr-9 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-md text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white transition-all"
               />
               {selectedSkill && (
                 <button
@@ -875,7 +875,7 @@ Answer the student's question directly and specifically based on the assessment 
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
                 aria-label="Filter by category"
-                className="px-3 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-md text-xs sm:text-sm text-slate-700 outline-none focus:border-[#2563eb] focus:bg-white font-medium"
+                className="career-panel px-3 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-md text-xs sm:text-sm text-slate-700 outline-none focus:border-[#2563eb] focus:bg-white font-medium"
               >
                 <option value="">All Categories</option>
                 {categories.map(cat => (
@@ -930,7 +930,7 @@ Answer the student's question directly and specifically based on the assessment 
                     return (
                       <div
                         key={s.name}
-                        className="bg-white rounded-lg border border-[#e2e8f0] p-4 hover:border-[#bfdbfe] hover:shadow-xs transition-all flex flex-col justify-between"
+                        className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-4 hover:border-[#bfdbfe] hover:shadow-xs transition-all flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-2.5">
@@ -967,14 +967,14 @@ Answer the student's question directly and specifically based on the assessment 
                   })}
                 </div>
               ) : (
-                <div className="bg-white rounded-lg border border-[#e2e8f0] p-10 text-center text-sm text-slate-500">
+                <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-10 text-center text-sm text-slate-500">
                   No assessments found matching the selected filters.
                 </div>
               )}
             </div>
 
             {/* Assessment Formats */}
-            <div className="bg-white rounded-lg border border-[#e2e8f0] p-6 shadow-xs">
+            <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-6 shadow-xs">
               <div className="mb-4">
                 <h2 className="text-base font-bold text-[#1e3a8a]">Assessment Formats</h2>
                 <p className="text-xs text-[#526780]">Select the formats to include in generated assessments</p>
@@ -1010,7 +1010,7 @@ Answer the student's question directly and specifically based on the assessment 
 
             {/* Assessment History */}
             {myAssessments.length > 0 && (
-              <div className="bg-white rounded-lg border border-[#e2e8f0] p-6 shadow-xs">
+              <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-6 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-base font-bold text-[#1e3a8a]">Assessment History</h2>
@@ -1058,7 +1058,7 @@ Answer the student's question directly and specifically based on the assessment 
           <div className="lg:col-span-4 space-y-6">
 
             {/* Skill Readiness Card */}
-            <div className="bg-white rounded-lg border border-[#e2e8f0] p-5 shadow-xs">
+            <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-5 shadow-xs">
               <h3 className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-3">Skill Readiness</h3>
               <div className="space-y-3">
                 {(myAssessments.length > 0
@@ -1086,7 +1086,7 @@ Answer the student's question directly and specifically based on the assessment 
             </div>
 
             {/* Target Role & Gap Card */}
-            <div className="bg-white rounded-lg border border-[#e2e8f0] p-5 shadow-xs">
+            <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-5 shadow-xs">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] rounded-md flex items-center justify-center text-[#2563eb]">
                   <Briefcase className="w-4 h-4" />
@@ -1144,14 +1144,14 @@ Answer the student's question directly and specifically based on the assessment 
                 <button
                   onClick={getAIRecommendations}
                   disabled={recommendationLoading}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-[#1e3a8a] border border-[#bfdbfe] rounded-md text-xs font-semibold transition-all shadow-xs disabled:opacity-60"
+                  className="career-panel w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-[#1e3a8a] border border-[#bfdbfe] rounded-md text-xs font-semibold transition-all shadow-xs disabled:opacity-60"
                 >
                   {recommendationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2563eb]" /> : <Lightbulb className="w-3.5 h-3.5 text-[#2563eb]" />}
                   {recommendationLoading ? 'Analyzing...' : 'Get Recommendation'}
                 </button>
                 <button
                   onClick={() => { setAiMentorOpen(true); setMentorChat([]); }}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-[#334e72] border border-[#e2e8f0] rounded-md text-xs font-semibold transition-all shadow-xs"
+                  className="career-panel w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-[#334e72] border border-[#e2e8f0] rounded-md text-xs font-semibold transition-all shadow-xs"
                 >
                   <Bot className="w-3.5 h-3.5 text-[#2563eb]" /> Ask AI Mentor
                 </button>
@@ -1159,7 +1159,7 @@ Answer the student's question directly and specifically based on the assessment 
             </div>
 
             {/* Quick Links Card */}
-            <div className="bg-white rounded-lg border border-[#e2e8f0] p-4 shadow-xs">
+            <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] p-4 shadow-xs">
               <div className="space-y-1">
                 <button
                   onClick={() => onNavigate('home')}
@@ -1189,7 +1189,7 @@ Answer the student's question directly and specifically based on the assessment 
       {/* ── FLOATING AI MENTOR MODAL (available on all steps) ── */}
       {aiMentorOpen && step === 'dashboard' && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-lg shadow-xl border border-[#e2e8f0] w-full max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: '80vh' }}>
+          <div className="career-panel bg-white rounded-lg shadow-xl border border-[#e2e8f0] w-full max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: '80vh' }}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2e8f0] bg-white">
               <div className="flex items-center gap-3">
@@ -1229,7 +1229,7 @@ Answer the student's question directly and specifically based on the assessment 
               {mentorLoading && (
                 <div className="flex gap-2">
                   <div className="w-7 h-7 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center text-xs font-bold flex-shrink-0">AI</div>
-                  <div className="bg-white border border-[#e2e8f0] px-4 py-2.5 rounded-xl shadow-xs">
+                  <div className="career-panel bg-white border border-[#e2e8f0] px-4 py-2.5 rounded-xl shadow-xs">
                     <div className="flex gap-1.5 items-center">
                       {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-[#2563eb] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
                     </div>
@@ -1260,12 +1260,12 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── ASSESSMENT DETAIL ──────────────────────────────────────────────────────
   if (step === 'detail' && assessment) return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
+    <div className="career-workspace SkillAssessmentPage min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-2xl w-full mx-auto px-4 py-8 sm:py-12 flex-1">
         <BackButton onClick={() => setStep('dashboard')} className="mb-6" />
 
-        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+        <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3.5 pb-6 border-b border-[#e2e8f0] mb-6">
             <div className="w-12 h-12 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg flex items-center justify-center text-[#2563eb] shadow-xs flex-shrink-0">
               <Brain className="w-6 h-6" />
@@ -1349,7 +1349,7 @@ Answer the student's question directly and specifically based on the assessment 
   // ── IN PROGRESS ────────────────────────────────────────────────────────────
   if (step === 'in-progress' && assessment) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex flex-col">
+      <div className="career-workspace SkillAssessmentPage min-h-screen bg-[#f8fafc] flex flex-col">
         {/* Top Bar */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-[#e2e8f0] shadow-xs">
           <div className="flex items-center gap-3">
@@ -1386,7 +1386,7 @@ Answer the student's question directly and specifically based on the assessment 
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
-          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8 space-y-6">
+          <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8 space-y-6">
             {/* Question Type Badge */}
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
@@ -1465,7 +1465,7 @@ Answer the student's question directly and specifically based on the assessment 
                 <div>
                   <p className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider mb-2">Your Fix & Explanation</p>
                   <textarea value={answers[currentQ] || ''} onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
-                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white min-h-[120px] resize-none"
+                    className="career-panel w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white min-h-[120px] resize-none"
                     placeholder="Explain the bug and provide your fixed solution..."
                   />
                 </div>
@@ -1481,7 +1481,7 @@ Answer the student's question directly and specifically based on the assessment 
                 </div>
                 <p className="text-sm font-semibold text-slate-800">{currentQuestion.question}</p>
                 <textarea value={answers[currentQ] || ''} onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
-                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white min-h-[150px] resize-none"
+                  className="career-panel w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] focus:bg-white min-h-[150px] resize-none"
                   placeholder="Explain your approach in detail..."
                 />
                 {currentQuestion.expectedPoints && (
@@ -1503,7 +1503,7 @@ Answer the student's question directly and specifically based on the assessment 
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-white border-t border-[#e2e8f0] shadow-xs">
           <div className="flex gap-2 items-center">
             <button onClick={() => setCurrentQ(Math.max(0, currentQ - 1))} disabled={currentQ === 0}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e2e8f0] hover:bg-slate-50 text-slate-700 rounded-md text-xs sm:text-sm font-medium disabled:opacity-40 transition-all shadow-xs">
+              className="career-panel flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e2e8f0] hover:bg-slate-50 text-slate-700 rounded-md text-xs sm:text-sm font-medium disabled:opacity-40 transition-all shadow-xs">
               <ChevronLeft className="w-4 h-4" /> Prev
             </button>
             <div className="hidden sm:flex gap-1.5 items-center">
@@ -1517,7 +1517,7 @@ Answer the student's question directly and specifically based on the assessment 
               ))}
             </div>
             <button onClick={() => setCurrentQ(Math.min(assessment.totalQuestions - 1, currentQ + 1))} disabled={currentQ === assessment.totalQuestions - 1}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e2e8f0] hover:bg-slate-50 text-slate-700 rounded-md text-xs sm:text-sm font-medium disabled:opacity-40 transition-all shadow-xs">
+              className="career-panel flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#e2e8f0] hover:bg-slate-50 text-slate-700 rounded-md text-xs sm:text-sm font-medium disabled:opacity-40 transition-all shadow-xs">
               Next <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -1533,7 +1533,7 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── RESULT ──────────────────────────────────────────────────────────────────
   if (step === 'result' && result) return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
+    <div className="career-workspace SkillAssessmentPage min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-4xl w-full mx-auto px-4 py-8 space-y-6 flex-1">
         {/* Hero Score */}
@@ -1555,7 +1555,7 @@ Answer the student's question directly and specifically based on the assessment 
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Skill Breakdown */}
-          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+          <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
             <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Skill Breakdown</h3>
             <div className="space-y-3">
               {Object.entries(result.skillBreakdown || {}).map(([skill, score]: [string, any]) => (
@@ -1574,7 +1574,7 @@ Answer the student's question directly and specifically based on the assessment 
           </div>
 
           {/* Question-by-Question */}
-          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+          <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
             <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Question Results</h3>
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {result.questions?.map((q: any, i: number) => (
@@ -1597,7 +1597,7 @@ Answer the student's question directly and specifically based on the assessment 
           </div>
 
           {/* Strong & Weak Areas */}
-          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+          <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
             <h3 className="font-bold text-[#1e3a8a] text-sm mb-3">Strong Areas</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(result.skillBreakdown || {}).filter(([_, s]) => (s as number) >= 80).map(([skill]) => (
@@ -1619,7 +1619,7 @@ Answer the student's question directly and specifically based on the assessment 
           </div>
 
           {/* Time & Stats */}
-          <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
+          <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6">
             <h3 className="font-bold text-[#1e3a8a] text-sm mb-4">Assessment Stats</h3>
             <div className="space-y-3">
               {[
@@ -1665,7 +1665,7 @@ Answer the student's question directly and specifically based on the assessment 
             try { await aiGenerateSkillGap(skill, score, result?.skillBreakdown); } catch {}
             setStep('skill-gap');
           }}
-            className="flex-1 bg-white hover:bg-slate-50 border border-[#e2e8f0] hover:border-[#bfdbfe] text-[#1e3a8a] py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
+            className="career-panel flex-1 bg-white hover:bg-slate-50 border border-[#e2e8f0] hover:border-[#bfdbfe] text-[#1e3a8a] py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
             <TrendingUp className="w-4 h-4 text-[#2563eb]" /> View Skill Gap
           </button>
           <button onClick={async () => {
@@ -1677,7 +1677,7 @@ Answer the student's question directly and specifically based on the assessment 
             } catch {}
             setStep('learning-path');
           }}
-            className="flex-1 bg-white hover:bg-slate-50 border border-[#e2e8f0] hover:border-[#bfdbfe] text-[#1e3a8a] py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
+            className="career-panel flex-1 bg-white hover:bg-slate-50 border border-[#e2e8f0] hover:border-[#bfdbfe] text-[#1e3a8a] py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-xs">
             <BookOpen className="w-4 h-4 text-[#2563eb]" /> Learning Path
           </button>
           <button onClick={() => { setResult(null); setAssessment(null); setStep('dashboard'); }}
@@ -1687,7 +1687,7 @@ Answer the student's question directly and specifically based on the assessment 
         </div>
 
         {/* AI Mentor */}
-        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden">
+        <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden">
           <button onClick={() => setAiMentorOpen(!aiMentorOpen)}
             className="w-full flex items-center justify-between p-5 hover:bg-[#f8fafc] transition-colors">
             <div className="flex items-center gap-3">
@@ -1717,7 +1717,7 @@ Answer the student's question directly and specifically based on the assessment 
                 {mentorLoading && (
                   <div className="flex gap-2">
                     <div className="w-7 h-7 rounded-md bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] flex items-center justify-center text-xs font-bold flex-shrink-0">AI</div>
-                    <div className="bg-white border border-[#e2e8f0] px-4 py-2.5 rounded-xl shadow-xs">
+                    <div className="career-panel bg-white border border-[#e2e8f0] px-4 py-2.5 rounded-xl shadow-xs">
                       <div className="flex gap-1.5 items-center">
                         {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-[#2563eb] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
                       </div>
@@ -1729,7 +1729,7 @@ Answer the student's question directly and specifically based on the assessment 
                 <input type="text" value={mentorInput} onChange={e => setMentorInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && askMentor()}
                   placeholder="Ask why an answer was wrong or get explanations..."
-                  className="flex-1 px-3.5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] bg-white"
+                  className="career-panel flex-1 px-3.5 py-2.5 border border-[#e2e8f0] rounded-lg text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#2563eb] bg-white"
                 />
                 <button onClick={askMentor} disabled={mentorLoading} className="w-10 h-10 bg-[#2563eb] hover:bg-blue-700 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 text-white shadow-xs flex-shrink-0">
                   {mentorLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
@@ -1764,14 +1764,14 @@ Answer the student's question directly and specifically based on the assessment 
     };
 
     return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
+    <div className="career-workspace SkillAssessmentPage min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-3xl w-full mx-auto px-4 py-8 sm:py-12 flex-1">
         <button onClick={() => result ? setStep('result') : setStep('dashboard')} className="flex items-center gap-1.5 text-sm font-semibold text-[#2563eb] hover:text-[#1e3a8a] mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" /> {result ? 'Back to Results' : 'Back to Dashboard'}
         </button>
 
-        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+        <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3.5 mb-8">
             <div className="w-12 h-12 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#2563eb] flex items-center justify-center shadow-xs flex-shrink-0">
               <TrendingUp className="w-6 h-6" />
@@ -1916,14 +1916,14 @@ Answer the student's question directly and specifically based on the assessment 
 
   // ── LEARNING PATH ──────────────────────────────────────────────────────────
   if (step === 'learning-path') return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
+    <div className="career-workspace SkillAssessmentPage min-h-screen bg-[#f8fafc] flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-3xl w-full mx-auto px-4 py-8 sm:py-12 flex-1">
         <button onClick={() => setStep('skill-gap')} className="flex items-center gap-1.5 text-sm font-semibold text-[#2563eb] hover:text-[#1e3a8a] mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Skill Gap
         </button>
 
-        <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
+        <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-3.5 mb-8">
             <div className="w-12 h-12 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#2563eb] flex items-center justify-center shadow-xs flex-shrink-0">
               <BookOpen className="w-6 h-6" />
@@ -1943,7 +1943,7 @@ Answer the student's question directly and specifically based on the assessment 
                   return (
                     <div key={i} className="relative pl-0 sm:pl-16">
                       <div className="absolute left-0 top-1 w-11 h-11 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] rounded-lg hidden sm:flex items-center justify-center text-xs font-bold shadow-xs ring-4 ring-white">{weekLabel}</div>
-                      <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5 hover:border-[#bfdbfe] hover:shadow-xs transition-all">
+                      <div className="career-panel bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5 hover:border-[#bfdbfe] hover:shadow-xs transition-all">
                         <div className="flex items-center gap-3 mb-2 sm:hidden">
                           <div className="w-9 h-9 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] rounded-lg flex items-center justify-center text-xs font-bold">{weekLabel}</div>
                           <div className="font-bold text-[#1e3a8a]">{w.title}</div>

@@ -507,12 +507,13 @@ export const ProjectDisplay: React.FC<{ proj: any }> = ({ proj }) => {
         )}
         {safeText(proj.description) && (
           <p
-            className="text-xs text-slate-600 mt-1.5 break-words leading-relaxed"
+            className="text-xs text-slate-600 mt-1.5 break-words whitespace-pre-line leading-relaxed"
             style={{ overflowWrap: "anywhere" }}
           >
             {proj.description}
           </p>
         )}
+        {Array.isArray(proj.technologies) && proj.technologies.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2">{proj.technologies.filter((value: any) => typeof value === 'string').map((value: string) => <span key={value} className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-0.5">{value}</span>)}</div>}
         {safeText(proj.projectUrl) && (
           <a
             href={proj.projectUrl}
@@ -641,6 +642,8 @@ export const CertificationDisplay: React.FC<{ cert: any }> = ({ cert }) => {
         <p className="font-semibold text-slate-900 text-sm">
           {cert.certificationName}
         </p>
+        {safeText(cert.provider) && <p className="text-xs text-slate-600 mt-1">{cert.provider}</p>}
+        {safeText(cert.description) && <p className="text-sm text-slate-600 mt-2 whitespace-pre-line leading-relaxed">{cert.description}</p>}
         {validity && <p className="text-xs text-[#64748b] mt-0.5">{validity}</p>}
         {safeText(cert.completionId) && (
           <p className="text-xs text-[#64748b] mt-0.5">

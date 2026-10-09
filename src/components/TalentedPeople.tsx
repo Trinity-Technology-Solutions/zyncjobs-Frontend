@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TalentedPeopleProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -7,6 +7,9 @@ interface TalentedPeopleProps {
 
 const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [rolePage, setRolePage] = useState(0);
+  const roles = ['Sales Executive', 'Customer Support', 'Accountant', 'HR Executive', 'Operations Coordinator', 'Software Developer', 'Registered Nurse', 'Mechanical Engineer', 'Teacher', 'Graphic Designer', 'Marketing Executive', 'Logistics Coordinator'];
+  const totalRolePages = Math.ceil(roles.length / 6);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   // Intersection Observer for scroll animation
@@ -36,83 +39,38 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="pt-10 sm:pt-12 lg:pt-14 pb-0 bg-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-8 lg:gap-10 items-center">
-        
-        {/* LEFT CONTENT */}
-        <div 
-          className={`space-y-4 sm:space-y-5 lg:space-y-6 transition-all duration-1000 ${
-            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12 sm:-translate-x-20'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-blue-600 font-bold text-xs sm:text-sm tracking-widest uppercase">
-              Smarter way to get hired
-            </span>
-            <div className="h-px w-8 sm:w-16 bg-blue-600"></div>
-          </div>
-          
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
-            Discover Your Next <span className="text-orange-500">Career Opportunity</span>
-          </h2>
-
-          <p className="text-gray-600 text-sm sm:text-base lg:text-lg max-w-md leading-relaxed">
-            Smart job matching powered by AI to connect you with the perfect role faster.
-          </p>
-
-          {/* Stats - Quality focused */}
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-6 max-w-lg">
-            <div className="text-left">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Expert</h3>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">AI Matching</p>
-            </div>
-
-            <div className="text-left">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Verified</h3>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Opportunities</p>
-            </div>
-
-            <div className="text-left">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Instant</h3>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Results</p>
-            </div>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <button 
-              onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('role-selection'); }}
-              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
-            >
-              <span>Get Started</span>
-              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <button 
-              onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('job-listings'); }}
-              className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center text-sm sm:text-base w-full sm:w-auto"
-            >
-              Browse Jobs
-            </button>
-          </div>
+    <section ref={sectionRef} className="home-career-feature py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
+      <div className={`career-role-discovery max-w-7xl mx-auto ${isVisible ? 'is-visible' : ''}`}>
+        <div className="career-role-introduction">
+          <div className="career-role-art"><svg className="career-person-illustration" viewBox="0 0 260 220" fill="none" aria-hidden="true" focusable="false">
+  <circle cx="118" cy="106" r="88" fill="#F0EEF5" />
+  <g stroke="#243044" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M72 206 80 145 106 133 130 141 146 206" fill="#FFF" />
+    <path d="M84 148 70 168 62 200M122 145 148 159 175 126 188 133 159 181 127 170" fill="#FFF" />
+    <path d="M99 128 100 141 110 149 119 139 116 126" fill="#FFF" />
+    <path d="M93 96Q92 76 108 74Q132 73 129 96L125 116Q114 135 101 121Z" fill="#FFF" />
+    <path d="M92 92Q83 75 96 67Q103 61 111 66Q124 56 133 72Q144 78 130 91L123 82 113 87 103 78 99 93Z" fill="#243044" />
+    <path d="M101 101H111M115 101H126M111 101H115M113 104 112 113 117 113M108 119Q115 123 120 117" />
+    <circle cx="105" cy="103" r="6" /><circle cx="121" cy="103" r="6" />
+    <path d="M92 157 95 204M115 153 119 205M83 207H136M176 127 180 116Q184 111 186 117L185 124 190 119Q195 119 192 126L188 133" fill="#FFF" />
+  </g>
+  <g className="career-floating-document"><rect x="171" y="63" width="49" height="61" rx="6" fill="#FFF" stroke="#EF9D77" strokeWidth="1.5" /><rect x="181" y="76" width="22" height="5" rx="2" fill="#EF9D77" /><path d="M181 91H210M181 99H210M181 107H201" stroke="#ACB9CE" strokeWidth="2" strokeLinecap="round" /></g>
+  <g className="career-floating-document-secondary"><rect x="39" y="103" width="32" height="41" rx="5" fill="#FFF" stroke="#A8BFDF" strokeWidth="1.5" /><path d="M48 115H62M48 124H60M48 132H56" stroke="#7595C5" strokeWidth="2" strokeLinecap="round" /></g>
+  <path d="m219 158 3 7 8 1-6 5 1 8-6-4-7 3 2-8-5-5 8-1Z" fill="#F6CDB8" />
+</svg></div>
+          <p className="career-role-eyebrow">Smarter way to get hired</p>
+          <h2>Discover Your Next <span>Career Opportunity</span></h2>
+          <p>Smart job matching powered by AI to connect you with the perfect role faster.</p>
+          <div className="career-role-intro-actions"><button type="button" onClick={() => onNavigate?.('role-selection')}>Get Started <ArrowRight size={16} aria-hidden="true" /></button><button type="button" onClick={() => onNavigate?.('job-listings')}>Browse Jobs</button></div>
         </div>
-
-        {/* RIGHT IMAGE */}
-        <div 
-          className={`relative transition-all duration-1000 delay-300 ${
-            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12 sm:translate-x-20'
-          }`}
-        >
-          <img
-            src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-            alt="Team collaboration and success"
-            className="w-full h-56 sm:h-80 md:h-[400px] lg:h-[480px] object-cover rounded-2xl shadow-xl"
-          />
+        <div className="career-role-panel" aria-label="Discover jobs by role">
+          <div className="career-role-grid">{roles.slice(rolePage * 6, rolePage * 6 + 6).map(role => <button key={role} type="button" onClick={() => onNavigate?.('job-listings', {searchTerm: role})}><strong>{role}</strong><span>Explore jobs <ChevronRight size={14} aria-hidden="true" /></span></button>)}</div>
+          <div className="career-role-pagination"><button type="button" aria-label="Previous roles" disabled={rolePage === 0} onClick={() => setRolePage(page => page - 1)}><ChevronLeft size={18} aria-hidden="true" /></button><div>{Array.from({length: totalRolePages}, (_, index) => <button key={index} type="button" aria-label={`Show role group ${index + 1}`} aria-pressed={rolePage === index} onClick={() => setRolePage(index)} />)}</div><button type="button" aria-label="Next roles" disabled={rolePage === totalRolePages - 1} onClick={() => setRolePage(page => page + 1)}><ChevronRight size={18} aria-hidden="true" /></button></div>
         </div>
-
       </div>
 
       {/* Company Logos Section / Lightweight Divider Bar */}
-      <div className="w-full bg-slate-50 border-y border-slate-200/70 mt-10 sm:mt-12 py-6 sm:py-8">
+      <div className="home-feature-companies w-full mt-10 sm:mt-12 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <p className="text-center text-gray-500 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-5 sm:mb-6">
             Trusted by top companies

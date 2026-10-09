@@ -77,7 +77,7 @@ const EnhancedMatchCard: React.FC<{
     rec.confidenceLevel === 'medium' ? 'text-yellow-600' : 'text-red-600';
 
   return (
-    <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all bg-white">
+    <div className="portal-job-card border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all bg-white">
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 min-w-0">
           <h5 className="font-semibold text-gray-900 text-sm leading-tight">{job.jobTitle || job.title}</h5>

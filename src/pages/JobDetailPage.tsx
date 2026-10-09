@@ -6,7 +6,6 @@ import { API_ENDPOINTS } from '../config/constants';
 import { formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
-import { getCategoryBanner } from '../utils/categoryBannerImages';
 
 const fmtNum = (n: number): string => {
   if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
@@ -39,7 +38,7 @@ const formatSalaryDisplay = (job: any): string => {
 };
 
 const formatExperience = (exp: string | undefined): string => {
-  if (!exp) return '2-4 years';
+  if (!exp) return 'Not specified';
   // Already has 'years' or 'year' in it
   if (/year/i.test(exp)) return exp;
   // Map DB enum values to readable ranges
@@ -570,7 +569,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+    <div className="job-detail-page min-h-screen">
       <Notification
         type={notification.type}
         message={notification.message}
@@ -578,17 +577,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         onClose={() => setNotification(n => ({ ...n, isVisible: false }))}
       />
       {/* Job Header */}
-      <div className="bg-white/90 backdrop-blur-md shadow-lg border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="job-detail-header">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <BackButton 
             fallback={user?.type === 'employer' || user?.userType === 'employer' ? '/my-jobs' : '/job-listings'}
             text={`Back to ${user?.type === 'employer' || user?.userType === 'employer' ? 'My Jobs' : 'Jobs'}`}
             className="mb-4"
           />
 
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+          <div className="job-detail-heading flex flex-col">
             <div className="flex flex-col sm:flex-row items-start gap-4">
-              <div className="w-16 h-16 sm:w-28 sm:h-28 rounded-xl bg-blue-100 flex items-center justify-center p-2 sm:p-3 flex-shrink-0">
+              <div className="job-detail-logo w-16 h-16 rounded-xl bg-white flex items-center justify-center p-2 sm:p-3 flex-shrink-0">
                 <img
                   src={getCompanyLogo(job)}
                   alt={job.company}
@@ -638,7 +637,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               </div>
             </div>
             
-            <div className="mt-4 lg:mt-0 flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="job-detail-actions mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
               {/* nationality restriction banner */}
               {(job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement) && (
                 <div className="w-full lg:w-auto flex items-center gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2">
@@ -666,29 +665,19 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       </div>
 
       {/* Main grid: banner+description on left, logo+sidebar on right */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="job-detail-grid grid grid-cols-1">
 
           {/* Left col: Banner image + Job Description as ONE card */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              {/* Banner */}
-              <div className="relative h-64 bg-gray-900">
-                <img
-                  src={job.jobHeaderImage || getCategoryBanner(job.jobCategory || job.category || '') || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'}
-                  alt={`${job.jobTitle || job.title} at ${job.company}`}
-                  className="w-full h-full object-cover opacity-80"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.onerror = null;
-                    img.src = getCategoryBanner(job.jobCategory || job.category || '') || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
-                  }}
-                />
-                
-              </div>
-              {/* Job Description directly below banner inside same card */}
-              <div className="p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Job description</h2>
+          <div className="job-detail-main min-w-0">
+            <div className="job-description-card bg-white overflow-hidden">
+              {job.jobHeaderImage && (
+                <div className="job-detail-banner">
+                  <img src={job.jobHeaderImage} alt={`${job.company} workplace`} className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="job-detail-description p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">About the role</h2>
                 
                 {(() => {
                   const rawDesc = job.jobDescription || job.description || '';
@@ -912,7 +901,18 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
           </div>
 
           {/* Right col: Company Logo Card + Sidebar */}
-          <div className="space-y-6">
+          <div className="job-detail-sidebar space-y-5">
+            <section className="job-overview-card">
+              <h2>Job overview</h2>
+              <dl>
+                <div><dt>Location</dt><dd>{job.location || 'Not specified'}</dd></div>
+                <div><dt>Experience</dt><dd>{formatExperience(job.experienceRange)}</dd></div>
+                <div><dt>Salary</dt><dd>{formatSalaryDisplay(job)}</dd></div>
+                {(job.type || job.jobType) && <div><dt>Employment</dt><dd>{Array.isArray(job.type || job.jobType) ? (job.type || job.jobType).join(', ') : job.type || job.jobType}</dd></div>}
+              </dl>
+              {user?.type !== 'employer' && user?.userType !== 'employer' && <div className="job-overview-apply">{renderApplyButtons()}</div>}
+              <p className="job-overview-date">Posted {formatDetailedTime(job.createdAt || job.posted)}</p>
+            </section>
             {/* Company Logo Card */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'200px'}}>
               <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'4px'}}>
@@ -986,10 +986,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               );
             })()}
 
+
+
+
+          </div>
+        </div>
             {/* Similar Jobs */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="job-related-section">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Jobs</h3>
-              <div className="space-y-3">
+              <div className="job-related-grid">
                 {similarJobs.length > 0 ? (
                   similarJobs.map((sj) => (
                     <div
@@ -1042,106 +1047,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 )}
               </div>
             </div>
-
-            {/* Apply Button - Hide for employers */}
-            {user?.type !== 'employer' && user?.userType !== 'employer' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex flex-col space-y-3">
-                  {hasApplied ? (
-                    applicationStatus === 'withdrawn' ? (
-                      <button 
-                        onClick={handleReapply}
-                        className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
-                      >
-                        <CheckCircle className="w-5 h-5" />
-                        <span>Reapply</span>
-                      </button>
-                    ) : (
-                      <div className="flex items-center justify-center space-x-2 bg-green-100 text-green-800 py-3 rounded-lg font-semibold">
-                        <CheckCircle className="w-5 h-5" />
-                        <span>Applied</span>
-                      </div>
-                    )
-                  ) : (
-                    <>
-                      {user && (user.name || user.fullName) && (
-                        <QuickApplyButton
-                          jobId={job.id || job._id || String(jobId || '')}
-                          jobTitle={job.jobTitle || job.title}
-                          company={job.company}
-                          user={user}
-                          onSuccess={async () => {
-                            setHasApplied(true);
-                            setApplicationStatus('applied');
-                            setTimeout(() => {
-                              const jid = job.id || job._id || String(jobId || '');
-                              if (user?.email && jid) checkApplicationStatus(jid, user.email);
-                            }, 1000);
-                          }}
-                          className="w-full justify-center"
-                        />
-                      )}
-                      <button 
-                        onClick={async () => {
-                          const jid2 = job.id || job._id || String(jobId || '');
-                          if (user && user.name) {
-                            // Validate resume before navigating
-                            try {
-                              const resumeValidation = await validateUserResume(user.email);
-                              if (!resumeValidation.hasResume) {
-                                handleResumeValidationAlert(resumeValidation, true);
-                                return;
-                              }
-                            } catch (error) {
-                              console.error('Resume validation error:', error);
-                              window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
-                              onNavigate('dashboard');
-                              return;
-                            }
-                            
-                            sessionStorage.setItem('selectedJob', JSON.stringify({
-                              _id: jid2, id: jid2,
-                              jobTitle: job.jobTitle || job.title,
-                              company: job.company,
-                              location: job.location,
-                              description: job.description,
-                              salary: job.salary,
-                              type: job.type,
-                              jobData: job
-                            }));
-                            onNavigate('job-application');
-                          } else {
-                            // Store in BOTH sessionStorage and localStorage for LoginPage compatibility
-                            const pendingData = JSON.stringify({
-                              jobId: jid2,
-                              jobTitle: job.jobTitle || job.title,
-                              company: job.company,
-                              jobData: job
-                            });
-                            sessionStorage.setItem('pendingJobApplication', pendingData);
-                            localStorage.setItem('pendingJobApplication', pendingData);
-                            onNavigate('login');
-                          }
-                        }}
-                        className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-                      >
-                        {user && user.name ? 'Apply with Cover Letter' : 'Login to Apply'}
-                      </button>
-                    </>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 text-center mt-2">
-                  Posted {formatDetailedTime(job.createdAt || job.posted)}
-                  {getPostingFreshness(job.createdAt) === 'new' && (
-                    <span className="ml-2 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
-                      NEW
-                    </span>
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Job Share Modal */}

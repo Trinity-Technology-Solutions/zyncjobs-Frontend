@@ -93,7 +93,7 @@ const HelpCenterPage: React.FC<HelpCenterPageProps> = ({ onNavigate, user, onLog
         <div className="absolute top-20 right-20 w-32 h-32 bg-orange-200/30 rounded-full blur-2xl animate-pulse delay-1000"></div>
         <div className="absolute bottom-10 left-1/3 w-20 h-20 bg-orange-100/40 rounded-full blur-lg animate-pulse delay-500"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="portal-page-container relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-200 shadow-lg bg-white flex items-center justify-center">
               <img src="/favicon_io/android-chrome-192x192.png" alt="ZyncJobs" className="w-12 h-12 object-contain" />

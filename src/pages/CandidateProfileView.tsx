@@ -372,7 +372,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     <div className="min-h-screen bg-[#f0f2f7]">
       <Header onNavigate={onNavigate} user={currentUser} onLogout={onLogout} />
       {/* Sticky back bar */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-white border-b portal-page-sticky sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-3">
           <BackButton onClick={handleBack} />
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Search, MapPin, ArrowRight } from 'lucide-react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -12,11 +12,15 @@ interface NewHeroProps {
 // ─── Three.js Robot Canvas ─────────────────────────────────────────────────────
 function RobotCanvas() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
+    let disposed = false;
+    let stopRender: (() => void) | undefined;
+    const startRenderer = () => {
     // ── Scene Setup ───────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xffffff, 10, 35); // Matches white background
@@ -25,7 +29,9 @@ function RobotCanvas() {
     camera.position.set(0, 1.45, 9.8);
     camera.lookAt(0, 1.40, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
+    catch { return; }
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
@@ -98,15 +104,21 @@ function RobotCanvas() {
       const isMobile = w < 768;
       const isTablet = w >= 768 && w < 1024;
 
-      let targetHeight = 4.75;
+      let targetHeight = 5.6;
       if (isMobile) {
         targetHeight = 4.0;
       } else if (isTablet) {
-        targetHeight = 4.3;
+        targetHeight = 4.6;
+      } else if (isLargeScreen) {
+        targetHeight = 6.0;
       } else {
-        targetHeight = 4.75;
+        targetHeight = 5.6;
       }
 
+      camera.lookAt(0, isMobile || isTablet ? 0.9 : targetHeight / 2 - 2.20, 0);
+      // Leave room for the antenna as the original head follows the pointer.
+      camera.zoom = isMobile ? 1 : 0.92;
+      camera.updateProjectionMatrix();
       const scale = targetHeight / rawModelSizeY;
       loadedModel.scale.set(scale, scale, scale);
       
@@ -122,6 +134,7 @@ function RobotCanvas() {
     // Load the Cute Robot GLB
     const loader = new GLTFLoader();
     loader.load('/cute_robot.glb', (gltf) => {
+      if (disposed) return;
       const model = gltf.scene as THREE.Group;
       
       // Auto-detect the head node FIRST before altering transforms
@@ -179,6 +192,7 @@ function RobotCanvas() {
       }
 
       robotGroup.add(model);
+      setReady(size.y > 0);
 
       // Setup baked animations if they exist
       if (gltf.animations && gltf.animations.length > 0) {
@@ -186,8 +200,10 @@ function RobotCanvas() {
         const action = mixer.clipAction(gltf.animations[0]);
         action.play();
       }
-    }, undefined, (error) => {
-      console.error("Error loading cute_robot.glb:", error);
+    }, undefined, () => {
+      if (!disposed) setReady(false);
+      stopRender?.();
+      stopRender = undefined;
     });
 
     // ── PHYSICS REFS ──────────────────────────────────────────────────────────
@@ -268,14 +284,20 @@ function RobotCanvas() {
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
+    };
+    const controller = new AbortController();
+    // Vite returns HTML for missing public assets; keep the vector fallback in that case.
+    fetch('/cute_robot.glb', { method: 'HEAD', signal: controller.signal }).then(response => {
+      if (!disposed && response.ok && !response.headers.get('content-type')?.includes('text/html')) stopRender = startRenderer();
+    }).catch(() => { /* The branded fallback remains visible. */ });
+    return () => { disposed = true; controller.abort(); stopRender?.(); };
   }, []);
 
   return (
-    <div
-      ref={mountRef}
-      className="w-full h-full cursor-pointer flex items-center justify-center"
-      style={{ minHeight: '280px' }}
-    />
+    <div className={`hero-bot-renderer ${ready ? 'has-model' : ''}`} aria-hidden="true">
+      <div ref={mountRef} className="hero-bot-webgl" />
+      {!ready && <span className="hero-original-bot-loading" />}
+    </div>
   );
 }
 
@@ -287,12 +309,16 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const term = searchTerm.trim(); const loc = location.trim();
-    if (!term && !loc) return;
     onNavigate?.('job-listings', { searchTerm: term, location: loc });
   };
 
   return (
-    <div className="relative w-full overflow-hidden bg-white py-4 sm:py-5 lg:py-6 xl:py-7">
+    <div
+      className="home-existing-hero relative w-full overflow-hidden bg-slate-50"
+      style={{ 
+        paddingTop: 'var(--header-h, 86px)',
+      }}
+    >
       {/* Background Decoratives - Professional Corporate Aesthetic */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {/* Subtle Atmospheric Glows for Depth */}
@@ -328,91 +354,75 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
         {/* ════ LEFT — Content ════ */}
         <motion.div
-          className="w-full max-w-2xl xl:max-w-3xl space-y-3 sm:space-y-3.5 lg:space-y-4 py-2 sm:py-3 lg:py-4 xl:py-5"
+          className="hero-main-copy w-full max-w-2xl space-y-3.5 sm:space-y-4 lg:space-y-5 py-6 sm:py-8 lg:py-10 xl:py-12"
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="text-indigo-600 font-semibold text-sm sm:text-base lg:text-lg tracking-wide">
+          <div className="text-blue-600 font-semibold text-xs sm:text-sm tracking-wide uppercase">
             Let AI Find Your Next Move
           </div>
           
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-[3.25rem] 2xl:text-[3.65rem] font-bold text-gray-900 leading-[1.12] tracking-tight">
-            <span className="inline-block whitespace-nowrap">Your <span className="text-orange-500">Dream</span> Job Is</span><br />
-            <span className="inline-block whitespace-nowrap">Waiting For You</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-bold text-gray-900 leading-[1.1] tracking-tight">
+            <span>Your <span className="text-blue-600">Dream</span> Job Is</span><br />
+            <span>Waiting For You</span>
           </h1>
           
           <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl xl:max-w-2xl">
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 
-          <form onSubmit={handleSearch} className="w-full bg-white p-2.5 sm:p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
-            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
-              <Search className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
+          <form role="search" aria-label="Search jobs" onSubmit={handleSearch} className="home-existing-search">
+            <div className="hero-search-field">
+              <Search size={19} aria-hidden="true" />
+              <div className="hero-search-input-wrap">
+              <label className="sr-only" htmlFor="hero-job-keywords">Keywords</label>
               <input 
+                id="hero-job-keywords"
                 type="text" 
-                placeholder="Job Title, Keyword" 
+                aria-label="Job title, skills, or company"
+                placeholder="Job title, skills, or company"
                 className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium text-sm sm:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              </div>
             </div>
             
-            <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
-              <MapPin className="text-indigo-500 w-5 h-5 mr-3 shrink-0" />
+            <div className="hero-search-field">
+              <MapPin size={19} aria-hidden="true" />
+              <div className="hero-search-input-wrap">
+              <label className="sr-only" htmlFor="hero-job-location">Location</label>
               <input 
+                id="hero-job-location"
                 type="text" 
-                placeholder="City Or Country" 
+                aria-label="City or country"
+                placeholder="City or country"
                 className="bg-transparent w-full min-w-0 outline-none text-gray-800 placeholder-gray-400 font-medium text-sm sm:text-base"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
+              </div>
             </div>
 
-            <button type="submit" className="bg-blue-600 text-white font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap text-sm sm:text-base w-full sm:w-auto shadow-md">
-              Find Job
+            <button type="submit" className="hero-search-submit">
+              Find jobs <ArrowRight size={17} aria-hidden="true" />
             </button>
           </form>
 
-          <div className="pt-2 sm:pt-4 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 sm:gap-y-2 text-xs sm:text-sm md:text-base font-medium">
-            <span className="text-gray-900 font-bold">Popular Searches:</span>
-            <span className="text-indigo-600 cursor-pointer hover:underline">Chemical</span>
-            <span className="text-indigo-600 cursor-pointer hover:underline">Data analyst</span>
-            <span className="text-indigo-600 cursor-pointer hover:underline">Power bi developer</span>
+          <div className="hero-popular-searches">
+            <span>Popular Searches:</span>
+            <div className="hero-search-chips">
+            {['Chemical', 'Data analyst', 'Power BI developer'].map(term => (
+              <button key={term} type="button" onClick={() => onNavigate?.('job-listings', { searchTerm: term })}>{term}<ArrowRight size={12} aria-hidden="true" /></button>
+            ))}
+            </div>
           </div>
         </motion.div>
 
-        {/* ════ RIGHT — Three.js 3D Robot & Speech Bubble ════ */}
-        <div className="relative w-full flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] md:min-h-[380px] lg:min-h-[410px] xl:min-h-[440px] pb-2 lg:pb-0">
-          {/* Speech Bubble: Positioned on Right at Head Level on Desktop/Tablet, Centered Above on Mobile */}
-          <div className="z-10 pointer-events-none mb-2 md:mb-0 md:absolute md:top-[14%] lg:top-[14%] xl:top-[14%] 2xl:top-[14%] md:left-[calc(50%+65px)] lg:left-[calc(50%+70px)] xl:left-[calc(50%+75px)] 2xl:left-[calc(50%+80px)]">
-            <div
-              className="relative bg-white rounded-2xl sm:rounded-3xl px-3.5 sm:px-4 lg:px-4 xl:px-5 py-2 sm:py-2.5 lg:py-2.5 xl:py-3 shadow-xl border border-gray-100 flex items-center pointer-events-auto whitespace-nowrap"
-              style={{ 
-                boxShadow: '0 16px 36px rgba(0,0,0,0.08)'
-              }}
-            >
-              <div className="font-bold text-gray-800 text-xs sm:text-sm md:text-base">
-                Hi, I am <span className="text-orange-500 font-extrabold">ZYNC BOT!</span>
-              </div>
-
-              {/* Desktop/Tablet pointer: left-pointing toward robot head */}
-              <div 
-                className="hidden md:block absolute top-1/2 -translate-y-1/2 -left-2 w-0 h-0 border-y-[6px] border-y-transparent border-r-[8px] border-r-white"
-                style={{ filter: 'drop-shadow(-2px 0 1px rgba(0,0,0,0.04))' }}
-              />
-              {/* Mobile pointer: downward-pointing toward robot head */}
-              <div 
-                className="block md:hidden absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"
-                style={{ filter: 'drop-shadow(0 2px 1px rgba(0,0,0,0.04))' }}
-              />
-            </div>
-          </div>
-
-          {/* 3D Canvas */}
-          <div className="w-full h-[320px] sm:h-[360px] md:h-[415px] lg:h-[430px] xl:h-[460px] flex items-center justify-center">
-            <RobotCanvas />
-          </div>
+        <div className="home-existing-robot hero-original-robot">
+          <span className="hero-original-greeting">Hi, I am <strong>ZYNC BOT!</strong></span>
+          <div className="hero-original-canvas"><RobotCanvas /></div>
         </div>
       </div>
     </div>

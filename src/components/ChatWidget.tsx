@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Minimize2, Plus, Search, FileText, Compass, Mic, Briefcase, Info } from 'lucide-react';
+import { X, Send, Minimize2, Maximize2, Plus, Search, FileText, Compass, Mic, Briefcase, Info } from 'lucide-react';
 
 interface Message {
   text: string;
@@ -20,7 +20,9 @@ const ChatWidget = () => {
   const [isLoading, setIsLoading] = useState(false);
   const sessionId = useRef(`chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const titleId = React.useId();
 
   const newChat = () => {
     setMessages([{ text: "Hi there! I'm ZyncBot, your career assistant. Ask me anything about jobs, resumes, or interview tips!", sender: 'bot' }]);
@@ -29,14 +31,25 @@ const ChatWidget = () => {
   };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, isLoading]);
 
   useEffect(() => {
     if (isOpen && !isMinimized) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      const timer = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, isMinimized]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setIsOpen(false); window.requestAnimationFrame(() => launcherRef.current?.focus()); }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen]);
+  const renderText = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).map((part,index) => part.startsWith('**') && part.endsWith('**') ? <strong key={index}>{part.slice(2,-2)}</strong> : part);
 
   const getToken = async (): Promise<string> => {
     const res = await fetch(`${AI_BASE}/auth/token`, {
@@ -136,34 +149,35 @@ const ChatWidget = () => {
           id="zync-chat-button"
           type="button"
           onClick={() => { setIsOpen(true); setIsMinimized(false); }}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white pl-3 pr-4 py-2.5 sm:py-3 rounded-full shadow-2xl transition-all duration-200 hover:scale-105"
+          ref={launcherRef} aria-label="Open ZyncBot career assistant" aria-haspopup="dialog"
+          className="zync-chat-launcher fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white pl-3 pr-4 py-2.5 sm:py-3 rounded-full shadow-2xl transition-all duration-200 hover:scale-105"
         >
           <img src={BOT_AVATAR} alt="ZyncBot" className="w-6 h-6 rounded-full bg-white p-0.5" />
-          <span className="text-sm font-semibold">Chat with ZyncBot</span>
+          <span className="zync-chat-launcher-copy"><strong>Chat with ZyncBot</strong><small>Your AI career assistant</small></span>
         </button>
       )}
 
       {/* Chat Window */}
       {isOpen && (
         <div
-          id="zync-chat-window"
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-200 max-w-[calc(100vw-32px)]"
-          style={{ width: 'min(380px, calc(100vw - 32px))', height: isMinimized ? '64px' : 'min(560px, calc(100vh - 48px))', background: '#fff' }}
+          role="dialog" aria-modal="false" aria-labelledby={titleId}
+          className={`zync-chat-window ${isMinimized ? 'is-minimized' : ''} fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-200 max-w-[calc(100vw-24px)]`}
+          style={{ width: 'min(460px, calc(100vw - 24px))', height: isMinimized ? '80px' : 'min(680px, calc(100dvh - var(--header-h, 86px) - 32px))', background: '#fff' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)' }}>
+          <div className="zync-chat-header flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ background: 'linear-gradient(120deg, #172b4d, #264b7c)' }}>
             <div className="relative">
               <img src={BOT_AVATAR} alt="ZyncBot" className="w-9 h-9 rounded-full bg-white p-1" />
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm leading-tight">ZyncBot</p>
-              <p className="text-blue-200 text-xs">ZyncJobs Career Assistant · Online</p>
+              <h2 id={titleId} className="text-white font-semibold text-sm leading-tight">ZyncBot</h2>
+              <p className="text-blue-200 text-xs">Jobs, resumes &amp; career guidance</p>
             </div>
             <button
               type="button"
               onClick={newChat}
-              title="New Chat"
+              title="New Chat" aria-label="Start a new chat" disabled={isLoading}
               className="text-blue-200 hover:text-white transition-colors p-1"
             >
               <Plus className="w-4 h-4" />
@@ -171,15 +185,15 @@ const ChatWidget = () => {
             <button
               type="button"
               onClick={() => setIsMinimized(m => !m)}
-              title={isMinimized ? 'Expand' : 'Minimize'}
+              title={isMinimized ? 'Expand' : 'Minimize'} aria-label={isMinimized ? 'Expand chat' : 'Minimize chat'}
               className="text-blue-200 hover:text-white transition-colors p-1"
             >
-              <Minimize2 className="w-4 h-4" />
+              {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
             </button>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              title="Close"
+              title="Close" aria-label="Close chat"
               className="text-blue-200 hover:text-white transition-colors p-1"
             >
               <X className="w-4 h-4" />
@@ -189,20 +203,20 @@ const ChatWidget = () => {
           {!isMinimized && (
             <>
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ background: '#f8fafc' }}>
+              <div role="log" aria-live="polite" aria-relevant="additions text" className="zync-chat-messages flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3" style={{ background: '#f8fafc' }}>
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {msg.sender === 'bot' && (
                       <img src={BOT_AVATAR} alt="bot" className="w-6 h-6 rounded-full bg-white border border-gray-200 p-0.5 flex-shrink-0 mb-0.5" />
                     )}
                     <div
-                      className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                      className={`zync-chat-bubble max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                         msg.sender === 'user'
                           ? 'bg-blue-600 text-white rounded-br-sm'
                           : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm shadow-sm'
                       }`}
                     >
-                      {msg.text || (isLoading && i === messages.length - 1 ? (
+                      {msg.text ? renderText(msg.text) : (isLoading && i === messages.length - 1 ? (
                         <span className="flex gap-1 items-center py-0.5">
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -217,7 +231,7 @@ const ChatWidget = () => {
 
               {/* Quick Replies */}
               {messages.length <= 1 && (
-                <div className="px-4 pb-2 flex flex-wrap gap-2" style={{ background: '#f8fafc' }}>
+                <div className="zync-chat-prompts px-4 pb-2 flex flex-wrap gap-2" style={{ background: '#f8fafc' }}>
                   {quickReplies.map(q => (
                     <button
                       key={q.label}
@@ -232,19 +246,21 @@ const ChatWidget = () => {
               )}
 
               {/* Input */}
-              <div className="px-3 py-3 border-t border-gray-100 flex gap-2 bg-white flex-shrink-0">
-                <input
+              <div className="zync-chat-composer px-3 py-3 border-t border-gray-100 flex gap-2 bg-white flex-shrink-0">
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={2}
+                  aria-label="Message ZyncBot"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                  placeholder="Ask me anything..."
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMessage(); } }}
+                  placeholder="Ask about jobs, resumes, or interviews..."
                   className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
                   type="button"
                   onClick={sendMessage}
+                  aria-label="Send message"
                   disabled={isLoading || !inputValue.trim()}
                   className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
                 >
@@ -253,7 +269,7 @@ const ChatWidget = () => {
               </div>
 
               {/* Footer */}
-              <div className="text-center py-1.5 bg-white border-t border-gray-50">
+              <div className="zync-chat-footer text-center py-1.5 bg-white border-t border-gray-50">
                 <p className="text-xs text-gray-400">Powered by <span className="text-blue-500 font-medium">ZyncJobs AI</span></p>
               </div>
             </>

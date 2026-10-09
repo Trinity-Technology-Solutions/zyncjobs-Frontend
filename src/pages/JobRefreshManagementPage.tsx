@@ -42,6 +42,8 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [refreshStats, setRefreshStats] = useState({
     totalJobs: 0,
     totalRefreshes: 0,
@@ -177,31 +179,56 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
   const refreshableJobs = activeJobs.filter(canRefreshJob);
   const nonRefreshableJobs = activeJobs.filter(job => !canRefreshJob(job));
 
-  const isAllRefreshableSelected = refreshableJobs.length > 0 && refreshableJobs.every(job => selectedJobs.includes(job.id || job._id!));
+  const orderedJobs = [...refreshableJobs, ...nonRefreshableJobs];
+  const totalPages = Math.max(1, Math.ceil(orderedJobs.length / pageSize));
+  const activePage = Math.min(currentPage, totalPages);
+  const pageJobs = orderedJobs.slice((activePage - 1) * pageSize, activePage * pageSize);
+  const pageRefreshableJobs = pageJobs.filter(canRefreshJob);
+  const pageUnavailableJobs = pageJobs.filter(job => !canRefreshJob(job));
+  const changePage = (page: number) => {
+    setCurrentPage(page);
+    setSelectedJobs([]);
+    document.getElementById('refresh-jobs-list')?.scrollIntoView({block:'start', behavior:'smooth'});
+  };
+  const isAllRefreshableSelected = pageRefreshableJobs.length > 0 && pageRefreshableJobs.every(job => selectedJobs.includes(job.id || job._id!));
 
   const handleSelectAll = () => {
     if (isAllRefreshableSelected) {
       setSelectedJobs([]);
     } else {
-      setSelectedJobs(refreshableJobs.map(job => job.id || job._id!));
+      setSelectedJobs(pageRefreshableJobs.map(job => job.id || job._id!));
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="job-refresh-page min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="flex items-center gap-4 mb-4 sm:mb-6">
+      <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="job-refresh-heading flex items-center gap-4 mb-4 sm:mb-6">
           <BackButton 
             fallback="/my-jobs"
             className=""
           />
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Job Refresh Center</h1>
-            <p className="text-gray-600 text-sm sm:text-base">Boost your job visibility and attract top talent</p>
+            <p className="text-gray-600 text-sm sm:text-base">Manage refresh eligibility and keep active job postings up to date.</p>
           </div>
         </div>
+
+        <section className="job-refresh-guide" aria-label="How job refresh works">
+          <svg viewBox="0 0 180 150" role="img" aria-label="Zync assistant refreshing a job card">
+            <circle cx="90" cy="75" r="67" fill="#e6edff" />
+            <rect x="80" y="27" width="82" height="97" rx="12" fill="white" stroke="#b8cbed" strokeWidth="2" />
+            <rect x="94" y="43" width="49" height="6" rx="3" fill="#c4d2eb" /><rect x="94" y="57" width="35" height="5" rx="2" fill="#e0e7f3" />
+            <path d="M112 79a15 15 0 1 1-9 13m9-13v12h-12" fill="none" stroke="#245be0" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="24" y="53" width="64" height="51" rx="17" fill="#245be0" /><rect x="33" y="62" width="46" height="32" rx="10" fill="#183452" />
+            <circle cx="46" cy="75" r="4" fill="white" /><circle cx="66" cy="75" r="4" fill="white" /><path d="M48 86h15" stroke="#a9dfff" strokeWidth="3" strokeLinecap="round" />
+            <path d="M56 53V43" stroke="#245be0" strokeWidth="4" /><circle cx="56" cy="40" r="5" fill="#7cb3ff" />
+            <rect x="37" y="108" width="38" height="23" rx="9" fill="#a8c3ff" /><path d="M25 113l-9 11m65-11 10 9" stroke="#245be0" strokeWidth="7" strokeLinecap="round" />
+          </svg>
+          <div><h2>Give an active job a fresh update</h2><p>Choose an eligible job and use Refresh, or select several jobs to refresh them together. Check each job's refresh status before you continue.</p><span>Current free-plan limits: 3 refreshes per job, with 7 days between refreshes.</span></div>
+        </section>
 
         {/* Free Plan & Upgrade - TODO: enable after complete structure is built */}
         {/* <div className="mb-8">
@@ -219,7 +246,7 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
         </div> */}
 
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="job-refresh-summary grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {/* Card 1 — Total refreshes done across all jobs */}
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
             <div className="flex items-center justify-between mb-4">
@@ -281,10 +308,10 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                     onChange={handleSelectAll}
                     className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Select All Refreshable Jobs</span>
+                  <span className="text-sm font-medium text-gray-700">Select eligible jobs on this page</span>
                 </label>
                 <span className="text-sm text-gray-500">
-                  {selectedJobs.filter(id => refreshableJobs.some(j => (j.id || j._id!) === id)).length} of {refreshableJobs.length} selected
+                  {selectedJobs.filter(id => pageRefreshableJobs.some(j => (j.id || j._id!) === id)).length} of {pageRefreshableJobs.length} selected
                 </span>
               </div>
               
@@ -307,6 +334,7 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
           </div>
         )}
 
+        <div id="refresh-jobs-list" />
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -314,18 +342,18 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
         ) : (
           <>
             {/* Refreshable Jobs */}
-            {refreshableJobs.length > 0 && (
+            {pageRefreshableJobs.length > 0 && (
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <CheckSquare className="w-5 h-5 text-green-600" />
                   Available for Refresh ({refreshableJobs.length})
                 </h2>
                 <div className="space-y-4">
-                  {refreshableJobs.map((job) => {
+                  {pageRefreshableJobs.map((job) => {
                     const jobId = job.id || job._id!;
                     const salary = formatSalary(job.salary);
                     return (
-                      <div key={jobId} className="group relative bg-white rounded-2xl border border-gray-200 hover:border-green-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
+                      <div key={jobId} className="portal-job-card portal-job-card-framed employer-job-card group relative bg-white rounded-2xl border border-gray-200 hover:border-green-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
                         {/* Success Header */}
                         <div className="h-2 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500"></div>
                         
@@ -450,21 +478,21 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
             )}
 
             {/* Non-Refreshable Jobs */}
-            {nonRefreshableJobs.length > 0 && (
+            {pageUnavailableJobs.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-orange-600" />
                   In Cooldown or Limit Reached ({nonRefreshableJobs.length})
                 </h2>
                 <div className="space-y-4">
-                  {nonRefreshableJobs.map((job) => {
+                  {pageUnavailableJobs.map((job) => {
                     const jobId = job.id || job._id!;
                     const refreshCount = job.refreshCount || 0;
                     const isLimitReached = refreshCount >= 3;
                     const salary = formatSalary(job.salary);
                     
                     return (
-                      <div key={jobId} className="group relative bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden opacity-75">
+                      <div key={jobId} className="portal-job-card portal-job-card-framed employer-job-card employer-job-card-inactive group relative bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden opacity-75">
                         {/* Warning Header */}
                         <div className="h-2 bg-gradient-to-r from-orange-400 via-red-500 to-pink-500"></div>
                         
@@ -576,6 +604,10 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
               </div>
             )}
 
+            {orderedJobs.length > 0 && <nav className="job-management-pagination" aria-label="Refresh job pages">
+              <span>Showing {(activePage - 1) * pageSize + 1}-{Math.min(activePage * pageSize, orderedJobs.length)} of {orderedJobs.length} jobs</span>
+              <div><button disabled={activePage === 1} onClick={() => changePage(activePage - 1)}>Previous</button><span aria-live="polite">Page {activePage} of {totalPages}</span><button disabled={activePage === totalPages} onClick={() => changePage(activePage + 1)}>Next</button></div>
+            </nav>}
             {jobs.length === 0 && (
               <div className="text-center py-20">
                 <div className="max-w-md mx-auto">

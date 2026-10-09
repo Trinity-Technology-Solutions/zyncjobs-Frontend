@@ -92,7 +92,7 @@ const CompanyJobsPage = ({
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="portal-page-container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BackButton 
           fallback="/companies"
           text="Back to Companies"
@@ -173,7 +173,7 @@ const CompanyJobsPage = ({
                     <div
                       key={job._id}
                       onClick={() => handleJobClick(job)}
-                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-blue-300"
+                      className="portal-job-card border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-blue-300"
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div>

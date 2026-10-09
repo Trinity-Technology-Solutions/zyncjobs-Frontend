@@ -4,7 +4,7 @@ import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../util
 import CompanyLogo from './CompanyLogo';
 import { formatSalary } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
-import WorkButton from './animata/button/work-button';
+import { ArrowRight, Briefcase } from 'lucide-react';
 import { getId } from '../utils/getId';
 
 interface LatestJobsProps {
@@ -121,8 +121,8 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
           const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
           return bTime - aTime;
         });
-        setJobs(sortedJobs);
-        fetchCompanyLogos(sortedJobs);
+        setJobs(sortedJobs.slice(0, 6));
+        fetchCompanyLogos(sortedJobs.slice(0, 6));
       } else {
         console.error('Failed to fetch jobs');
         setJobs([]);
@@ -180,36 +180,38 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
     return (
       <div className="bg-white py-10 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">Loading latest jobs...</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" role="status" aria-label="Loading latest jobs">
+            {Array.from({ length: 3 }, (_, index) => <div key={index} className="h-56 rounded-xl border border-slate-200 bg-slate-50 animate-pulse" />)}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <section className="bg-white py-10 sm:py-12 lg:py-14">
+    <section className="home-latest-jobs bg-white py-10 sm:py-12 lg:py-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 sm:mb-8 space-y-2.5 sm:space-y-3 text-center max-w-3xl mx-auto px-2">
-          {/* Heading */}
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
-            Recent Job <span className="text-orange-500">Openings</span>
-          </h2>
-
-          {/* Subtitle */}
-          <p className="text-sm sm:text-base md:text-lg text-gray-600">
-            Discover the latest opportunities from verified employers, updated in real-time.
-          </p>
+        <div className="home-section-heading">
+          <div>
+            <span className="home-kicker">YOUR NEXT OPPORTUNITY</span>
+            <h2>Fresh opportunities. New possibilities.</h2>
+            <p>Explore the latest roles posted on ZyncJobs.</p>
+          </div>
+          <button className="home-text-link" onClick={() => onNavigate?.('job-listings')}>View all jobs <ArrowRight size={17} /></button>
         </div>
         
         {jobs.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">No jobs posted yet. Be the first to post a job!</p>
+          <div className="text-center py-12 rounded-xl border border-slate-200 bg-white">
+            <Briefcase size={30} className="mx-auto mb-3 text-blue-500" />
+            <h3 className="font-semibold text-slate-800 mb-2">Your next opportunity is on its way</h3>
+            <p className="text-sm text-slate-500 mb-5">New roles will appear here as employers post them. Explore jobs or build your profile to get started.</p>
+            <button className="home-text-link" onClick={() => onNavigate?.('job-listings')}>Explore jobs <ArrowRight size={16} /></button>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
               {jobs.map((job) => (
-                <div key={getId(job)} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full">
+                <div key={getId(job)} className="portal-job-card bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full">
                   <div>
                     <div className="flex items-center mb-4 min-w-0">
                       <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-3 sm:mr-4">
@@ -222,8 +224,8 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h5 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{job.company}</h5>
-                        <p className="text-gray-600 text-xs sm:text-sm truncate font-medium">{job.jobTitle}</p>
+                        <p className="text-slate-500 text-xs truncate">{job.company}</p>
+                        <h3 className="font-semibold text-slate-900 text-base truncate" title={job.jobTitle}>{job.jobTitle}</h3>
                         <div className="text-gray-500 text-xs mt-0.5 truncate">{job.location}</div>
                       </div>
                     </div>
@@ -279,10 +281,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
             </div>
             
             <div className="text-center">
-              <WorkButton
-                text="Load More"
-                onClick={() => onNavigate && onNavigate('job-listings')}
-              />
+              <button className="home-text-link" onClick={() => onNavigate?.('job-listings')}>Explore more opportunities <ArrowRight size={17} /></button>
             </div>
           </>
         )}

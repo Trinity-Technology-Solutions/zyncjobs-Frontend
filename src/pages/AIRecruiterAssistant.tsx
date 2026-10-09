@@ -1,3 +1,4 @@
+import EmployerFeatureGuide from '../components/EmployerFeatureGuide';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
@@ -313,7 +314,7 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
 return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="employer-content-page min-h-screen bg-slate-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
 
@@ -329,7 +330,7 @@ return (
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '42px 42px' }}
         />
 
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-9">
+        <div className="portal-page-container relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-9">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
@@ -383,7 +384,7 @@ return (
         <div className="relative h-px bg-gradient-to-r from-transparent via-blue-500/70 to-transparent" />
       </div>
 
-      <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 flex gap-4 sm:gap-6" style={{ minHeight: 0 }}>
+      <div className="recruiter-feature-workspace portal-page-container flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 flex gap-4 sm:gap-6" style={{ minHeight: 0 }}>
 
         {/* Left Sidebar — Quick Actions */}
         <div className="w-56 sm:w-64 flex-shrink-0 hidden lg:block">
@@ -424,6 +425,7 @@ return (
           </div>
         </div>
 
+        <EmployerFeatureGuide feature="recruiter" />
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0" style={{ height: 'calc(100vh - 280px)' }}>
 
@@ -448,6 +450,7 @@ return (
               })}
             </div>
           )}
+
 
           {/* Chat Messages */}
           <div className="relative flex-1 bg-white rounded-2xl border border-gray-200/80 shadow-xl shadow-blue-900/5 overflow-hidden mb-3 flex flex-col min-h-0">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   TrendingUp,
+  Bookmark,
   Star,
   Edit,
   FileText,
@@ -11,12 +12,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { API_ENDPOINTS } from "../config/constants";
+import { decodeHtmlEntities } from "../utils/textUtils";
 import { apiFetch } from "../api/apiFetch";
 import Notification from "../components/Notification";
 import BackButton from "../components/BackButton";
 import ProfilePhotoEditor from "../components/ProfilePhotoEditor";
-import CandidateNotificationBell from "../components/CandidateNotificationBell";
-import { useApplicationNotifications } from "../hooks/useApplicationNotifications";
 import { tokenStorage } from "../utils/tokenStorage";
 import { S3Service } from "../services/s3Service";
 import { updateUserInStorage } from "../utils/userStorage";
@@ -84,47 +84,58 @@ const splitEducations = (eduArr: any[]) => {
   return result;
 };
 
-// Map parsed certifications / internships / languages / awards into profile shapes
+// Preserve complete structured resume sections and merge partial parses with existing profile details.
 const mapParsedSections = (p: any, old: any) => {
-  const extractYear = (d: any) => String(d || "").match(/\d{4}/)?.[0] || "";
-  const extractMonth = (d: any) =>
-    String(d || "").match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i)?.[0] || "";
-  const certifications =
-    Array.isArray(p?.certifications) && p.certifications.length > 0
-      ? p.certifications.map((c: any) => ({
-          certificationName: c.name || c.certificationName || "",
-          provider: c.provider || "",
-          startYear: extractYear(c.date || c.year || ""),
-          noExpiry: true,
-        }))
-      : (old?.certifications || []);
-  const internships =
-    Array.isArray(p?.internships) && p.internships.length > 0
-      ? p.internships.map((w: any) => {
-          const dateParts = String(w.date || "").split(/\s*[-â€“]\s*/);
-          return {
-            companyName: w.company || w.companyName || "",
-            designation: w.jobTitle || w.title || w.designation || "",
-            description: Array.isArray(w.descriptions)
-              ? w.descriptions.join(" ")
-              : w.description || "",
-            startMonth: extractMonth(dateParts[0]),
-            startYear: extractYear(dateParts[0]),
-            endMonth: extractMonth(dateParts[1]),
-            endYear: extractYear(dateParts[1]),
-            currentlyWorking: /present|current/i.test(w.date || "") || !!w.current,
-          };
-        })
-      : (old?.internships || []);
-  const languages =
-    Array.isArray(p?.languages) && p.languages.length > 0
-      ? p.languages
-      : (old?.languages || []);
-  const awards =
-    Array.isArray(p?.awards) && p.awards.length > 0
-      ? p.awards.join("\n")
-      : (old?.awards || "");
-  return { certifications, internships, languages, awards };
+  const text = (value: any) => typeof value === 'string' ? value.trim() : '';
+  const description = (entry: any) => {
+    const values = [Array.isArray(entry.descriptions) && entry.descriptions.length ? entry.descriptions : entry.description, entry.details, entry.responsibilities];
+    return [...new Set(values.flatMap(value => Array.isArray(value) ? value.map(text) : [text(value)]).filter(Boolean))].join("\n");
+  };
+  const year = (value: any) => text(value).match(/\d{4}/)?.[0] || '';
+  const month = (value: any) => {
+    const valueText = text(value);
+    const named = valueText.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i)?.[0];
+    const number = valueText.match(/^\d{4}[-/](\d{2})/)?.[1];
+    return named || (number ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(number) - 1] || '' : '');
+  };
+  const merge = (incoming: any[], previous: any, identity: (item: any) => string) => {
+    const saved = Array.isArray(previous) ? previous : [];
+    const result = saved.map(item => ({ ...item }));
+    for (const item of incoming) {
+      const key = identity(item).trim().toLowerCase();
+      if (!key) continue;
+      const index = result.findIndex(existing => identity(existing).trim().toLowerCase() === key);
+      const useful = Object.fromEntries(Object.entries(item).filter(([, value]) => value !== '' && value !== undefined && value !== null && (!Array.isArray(value) || value.length)));
+      if (index >= 0) {
+        if (p?.parserWarnings?.length && typeof result[index].description === 'string' && typeof useful.description === 'string' && result[index].description.length > useful.description.length) delete useful.description;
+        result[index] = { ...result[index], ...useful };
+      } else result.push(useful);
+    }
+    return result;
+  };
+  const projects = (Array.isArray(p?.projects) ? p.projects : []).map((value: any) => {
+    const entry = typeof value === 'string' ? { name: value } : value || {};
+    return { projectName: text(entry.name || entry.projectName || entry.title), description: description(entry), projectUrl: text(entry.projectUrl || entry.url || entry.link), technologies: Array.isArray(entry.technologies) ? entry.technologies : [], startYear: year(entry.startDate), endYear: year(entry.endDate) };
+  });
+  const certifications = (Array.isArray(p?.certifications) ? p.certifications : []).map((value: any) => {
+    const entry = typeof value === 'string' ? { name: value } : value || {};
+    const issued = entry.issuedDate || entry.issueDate || entry.date || entry.year || entry.startDate || '';
+    const expiry = entry.expiryDate || entry.expirationDate || entry.endDate || '';
+    return { certificationName: text(entry.name || entry.certificationName || entry.title), provider: text(entry.provider || entry.issuer || entry.organization), description: description(entry), startMonth: month(issued), startYear: year(issued), endMonth: month(expiry), endYear: year(expiry), completionId: text(entry.credentialId || entry.completionId || entry.certificateId), certificationUrl: text(entry.certificationUrl || entry.credentialUrl || entry.url), ...(typeof entry.noExpiry === 'boolean' ? { noExpiry: entry.noExpiry } : {}) };
+  });
+  const internships = (Array.isArray(p?.internships) ? p.internships : []).map((entry: any) => {
+    const range = text(entry.date).match(/^(.*?\d{4})\s*[-\u2013]\s*(.+)$/);
+    const start = entry.startDate || entry.start_date || range?.[1] || entry.date || '';
+    const end = entry.endDate || entry.end_date || range?.[2] || '';
+    return { companyName: text(entry.company || entry.companyName || entry.organization), designation: text(entry.jobTitle || entry.title || entry.designation || entry.role), description: description(entry), startMonth: month(start), startYear: year(start), endMonth: month(end), endYear: year(end), currentlyWorking: /present|current/i.test(text(end)) || entry.current === true };
+  }).filter((entry: any) => entry.companyName || entry.designation);
+  return {
+    projects: merge(projects, old?.projects, item => item.projectName || ''),
+    certifications: merge(certifications, old?.certifications, item => item.certificationName || ''),
+    internships: merge(internships, old?.internships, item => `${item.companyName || ''}|${item.designation || ''}`),
+    languages: Array.isArray(p?.languages) && p.languages.length ? p.languages : old?.languages || [],
+    awards: Array.isArray(p?.awards) && p.awards.length ? p.awards.map((value: any) => typeof value === 'string' ? value : value.name || value.description || '').filter(Boolean).join("\n") : old?.awards || '',
+  };
 };
 
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
@@ -214,18 +225,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       console.error("Error sending message:", error);
     }
   };
-
-  const candidateEmail = user?.email || (() => {
-    try { return JSON.parse(localStorage.getItem("user") || "{}").email; } catch { return undefined; }
-  })();
-  const {
-    notifications: appNotifications,
-    unreadCount,
-    markRead,
-    markAllRead,
-    clearAll,
-    dismissNotification: dismissAppNotif,
-  } = useApplicationNotifications(candidateEmail);
 
   const fetchActivityInsights = async (userId: string) => {
     setLoadingActivity(true);
@@ -826,7 +825,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             type: "job",
             company: job.company || "Company",
             title: `New job: ${job.jobTitle || job.title}`,
-            message: `${job.company} is hiring for ${job.jobTitle || job.title} in ${job.location}`,
+            message: `${decodeHtmlEntities(job.company)} is hiring for ${job.jobTitle || job.title} in ${decodeHtmlEntities(job.location)}`,
             actionText: "View Job",
             time:
               new Date(job.createdAt).toLocaleDateString() ===
@@ -920,8 +919,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
             if (line.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4}/i)) {
               if (current) workExperiences.push(current);
               current = { jobTitle: '', company: '', date: line, descriptions: [] };
-            } else if (current && line.startsWith('â€¢') || line.startsWith('-') || line.startsWith('*')) {
-              current.descriptions.push(line.replace(/^[â€¢\-\*]\s*/, ''));
+            } else if (current && line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+              current.descriptions.push(line.replace(/^[•\-\*]\s*/, ''));
             } else if (current && !current.company && line.length > 3 && line.length < 60) {
               current.company = line;
             } else if (current && !current.jobTitle && line.length > 3 && line.length < 80) {
@@ -1004,6 +1003,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
           educations: fallback.educations,
           projects: fallback.projects || [],
           certifications: fallback.certifications || [],
+          internships: fallback.internships || [],
           country: fallback.country || '',
         };
       } else {
@@ -1024,7 +1024,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       jobTitle: p.title || old.jobTitle || '',
       employment: Array.isArray(p.workExperiences) && p.workExperiences.length > 0
         ? p.workExperiences.map((w: any) => {
-            const dateParts = String(w.date || '').split(/\s*[-â€“]\s*/);
+            const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
             return {
               companyName: w.company || w.companyName || '',
               designation: w.jobTitle || w.title || '',
@@ -1226,7 +1226,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       />
       <div className="min-h-screen bg-[#f8fafc] font-['IBM_Plex_Sans']">
         {/* Profile Action Bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <BackButton
@@ -1277,40 +1277,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               )}
             </div>
 
-            {!readOnly && (
-              <div className="flex items-center">
-                <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-lg shadow-sm transition-colors flex items-center justify-center">
-                  <CandidateNotificationBell
-                    notifications={appNotifications}
-                    unreadCount={unreadCount}
-                    onMarkRead={markRead}
-                    onMarkAllRead={markAllRead}
-                    onClearAll={clearAll}
-                    onDismiss={dismissAppNotif}
-                    onNavigate={onNavigate}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {!readOnly && (
-          <div className="fixed top-20 right-4 z-50 hidden">
-            <CandidateNotificationBell
-              notifications={appNotifications}
-              unreadCount={unreadCount}
-              onMarkRead={markRead}
-              onMarkAllRead={markAllRead}
-              onClearAll={clearAll}
-              onDismiss={dismissAppNotif}
-              onNavigate={onNavigate}
-            />
-          </div>
-        )}
-
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-6 sm:pb-8">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-6 sm:pb-8">
           {activeTab === "Profile" && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
               {!readOnly && (
@@ -1444,6 +1415,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             action: () => onNavigate("job-matches"),
                           },
                           {
+                            key: "saved-jobs",
+                            label: "Saved Jobs",
+                            icon: <Bookmark className="w-5 h-5 flex-shrink-0" />,
+                            action: () => onNavigate("my-jobs"),
+                            badge: savedJobIdsSet.size || null,
+                          },
+                          {
                             key: "my-applications",
                             label: "My Applications",
                             icon: (
@@ -1546,14 +1524,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         );
                       })}
 
-                      {/* LinkedIn Import â€” full-width row matching other items */}
+                      {/* LinkedIn Import — full-width row matching other items */}
                       {!user?.linkedInImported && (
                         <div className="border-t border-[#e2e8f0] mt-2 pt-2">
                           <LinkedInConnect
                             mode="modal"
                             className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] text-[#1e3a8a] bg-slate-50 font-medium text-xs sm:text-sm hover:bg-[#eff6ff] hover:border-[#bfdbfe] transition-colors"
                             onImport={async (profile: LinkedInProfile) => {
-                              // Resolve email â€” user may be null if page just loaded after OAuth redirect
+                              // Resolve email — user may be null if page just loaded after OAuth redirect
                               const resolvedEmail =
                                 user?.email ||
                                 (() => {
@@ -1898,13 +1876,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           return (
                             <div
                               key={jobId || index}
-                              className="border border-[#e2e8f0] rounded-lg p-3.5 hover:border-[#bfdbfe] hover:shadow-sm bg-white transition-all"
+                              className="portal-job-card dashboard-recommendation-card border border-[#e2e8f0] rounded-lg p-3.5 hover:border-[#bfdbfe] hover:shadow-sm bg-white transition-all"
                             >
-                              <div className="flex justify-between items-start mb-2">
+                              <div className="dashboard-recommendation-heading">
                                 <h4 className="font-semibold text-slate-900 text-sm">
                                   {job.jobTitle || job.title}
                                 </h4>
-                                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                                <div className="dashboard-recommendation-status flex items-center gap-2">
                                   {matchPct > 0 && (
                                     <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-2 py-0.5 rounded-md">
                                       {matchPct}% Match
@@ -1940,15 +1918,15 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 </div>
                               </div>
                               <p className="text-xs text-gray-600 mb-2">
-                                {job.company}
-                                {job.location ? ` Â· ${job.location}` : ""}
+                                {decodeHtmlEntities(job.company)}
+                                {job.location ? ` · ${decodeHtmlEntities(job.location)}` : ""}
                               </p>
                               {job.salary &&
                                 (() => {
                                   const salaryText =
                                     typeof job.salary === "object"
                                       ? job.salary.min || job.salary.max
-                                        ? `â‚¹${job.salary.min || ""} - â‚¹${job.salary.max || ""}`
+                                        ? `₹${job.salary.min || ""} - ₹${job.salary.max || ""}`
                                         : null
                                       : job.salary;
                                   return salaryText ? (
@@ -2032,7 +2010,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           onClick={() => onNavigate("job-matches")}
                           className="text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] transition-colors"
                         >
-                          View More â†’
+                          View More {"\u2192"}
                         </button>
                       </div>
                     )}
@@ -2126,7 +2104,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     ? typeof app.jobId.salary === "object"
                                       ? app.jobId.salary.min ||
                                         app.jobId.salary.max
-                                        ? `â‚¹${app.jobId.salary.min || ""}-â‚¹${app.jobId.salary.max || ""}`
+                                        ? `₹${app.jobId.salary.min || ""}-₹${app.jobId.salary.max || ""}`
                                         : "Competitive"
                                       : app.jobId.salary
                                     : "Competitive"}
@@ -3235,7 +3213,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       exam.year && `Year: ${exam.year}`,
                                     ]
                                       .filter(Boolean)
-                                      .join(" Â· ")}
+                                      .join(" · ")}
                                   </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -3999,7 +3977,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               </h2>
               <p className="text-slate-500 text-sm mb-5 leading-relaxed">
                 Upload your resume and we'll fill your profile with the parsed
-                details â€” phone, skills, experience, education and more. Fields
+                details — phone, skills, experience, education and more. Fields
                 not found in the resume will be cleared.
               </p>
 
@@ -4140,8 +4118,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           summary: '',
                           workExperiences: [],
                           educations: [],
-                          projects: [],
-                          certifications: [],
+                          projects: fallback.projects || [],
+                          certifications: fallback.certifications || [],
+                          internships: fallback.internships || [],
                         };
                       } else {
                         throw new Error("Could not extract any data from this resume. The file may be empty, scanned (image-only PDF), or in an unsupported format.");
@@ -4161,7 +4140,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       url: fileUrl,
                     };
 
-                    // 3. Resume is source of truth â€” replace each field with parsed value;
+                    // 3. Resume is source of truth — replace each field with parsed value;
                     //    if resume has no value for a field, that field becomes empty.
                     const educations = p.educations || [];
                     const eduArr = Array.isArray(educations)
@@ -4200,7 +4179,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         p.workExperiences.length > 0
                           ? p.workExperiences.map((w: any) => {
                               const dateParts = String(w.date || "").split(
-                                /\s*[-â€“]\s*/,
+                                /\s*[-–]\s*/,
                               );
                               let companyName = w.company || w.companyName || "";
                               let designation = w.jobTitle || w.title || w.designation || "";
@@ -4248,11 +4227,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             : user?.projects || [],
                         ...mapParsedSections(p, user),
                     };
-                    setUser(merged);
-                    localStorage.setItem("user", JSON.stringify(merged));
-                    window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: merged }));
-                    calculateProfileCompletion(merged);
-
                     // 4. Save to backend
                     const saveEmail =
                       user?.email ||
@@ -4266,12 +4240,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         }
                       })();
                     if (saveEmail) {
-                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const saved = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ email: saveEmail, ...merged }),
                       });
-                    }
+                      if (!saved.ok) {
+                        const failure = await saved.json().catch(() => ({}));
+                        throw new Error(failure.error || failure.message || 'Profile could not be saved. Please review the extracted information and retry.');
+                      }
+                    } else { throw new Error('Sign in again to save your parsed resume details.'); }
+
+                    setUser(merged);
+                    localStorage.setItem("user", JSON.stringify(merged));
+                    window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: merged }));
+                    calculateProfileCompletion(merged);
 
                     localStorage.setItem(
                       `resumePopupDismissed_${user?.email}`,
@@ -4279,9 +4262,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     );
                     setShowResumePopup(false);
                     setNotification({
-                      type: "success",
-                      message:
-                        "Resume parsed & profile updated successfully! ðŸŽ‰",
+                      type: p.parserWarnings?.length ? "info" : "success",
+                      message: p.parserWarnings?.length ? 'Profile saved with partial resume extraction. Review projects, internships and certifications.' : 'Resume parsed and profile updated successfully!',
                       isVisible: true,
                     });
                   } catch (err: any) {
@@ -6780,7 +6762,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   exam.year && `Year: ${exam.year}`,
                                 ]
                                   .filter(Boolean)
-                                  .join(" Â· ")}
+                                  .join(" · ")}
                               </p>
                             </div>
                             <button

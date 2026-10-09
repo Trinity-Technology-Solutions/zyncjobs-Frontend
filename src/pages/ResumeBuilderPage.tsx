@@ -1264,7 +1264,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         />
       )}
 
-    <div className="flex flex-col flex-1 min-h-0 bg-[#f4f6fb] relative"
+    <div className="resume-builder-workspace flex flex-col flex-1 min-h-0 bg-[#f4f6fb] relative"
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -1291,7 +1291,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </div>
       )}
       {/* Workspace toolbar */}
-      <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+      <div className="resume-builder-toolbar bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         {/* Mobile menu toggle */}
         <button onClick={() => setShowMobileSidebar(true)} className="md:hidden p-1 rounded hover:bg-gray-100 text-gray-500">
           <LayoutList className="w-4 h-4" />
@@ -1404,7 +1404,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
         {/* COL 1: Sidebar nav */}
         <aside
-          className={`${showMobileSidebar ? 'fixed left-0 top-0 bottom-0 z-40 w-[280px]' : 'hidden'} md:flex ${sidebarOpen ? 'md:w-[280px]' : 'md:w-12'} bg-white border-r border-gray-200 flex-col transition-all duration-200 flex-shrink-0`}
+          className={`resume-builder-navigation ${showMobileSidebar ? 'fixed left-0 top-0 bottom-0 z-40 w-[280px]' : 'hidden'} md:flex ${sidebarOpen ? 'md:w-[280px]' : 'md:w-12'} bg-white border-r border-gray-200 flex-col transition-all duration-200 flex-shrink-0`}
         >
           <button
             onClick={() => { setSidebarOpen(!sidebarOpen); setShowMobileSidebar(false); }}
@@ -1620,7 +1620,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </aside>
 
         {/* COL 2: Resume editor / Quick Apply */}
-        <main className="flex-1 overflow-y-auto bg-white flex justify-center" style={{ minWidth: 0 }}>
+        <main className="resume-builder-editor flex-1 overflow-y-auto bg-white flex justify-center" style={{ minWidth: 0 }}>
           <div className="w-full max-w-[950px] px-3 sm:px-6 md:px-10 py-4 sm:py-8 pb-20">
             {mode === 'quick-apply' ? (
               <div className="space-y-6">

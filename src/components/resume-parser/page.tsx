@@ -1,5 +1,7 @@
 ﻿"use client";
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import ResumePdfPreview from "./ResumePdfPreview";
+import { apiFetch } from "../../api/apiFetch";
 import { readPdf } from "../../lib/parse-resume-from-pdf/read-pdf";
 import { ResumeDropzone } from "../ResumeDropzone";
 import MistralJobRecommendations from "../MistralJobRecommendations";
@@ -359,19 +361,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
-        let text = '';
-        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-          const url = URL.createObjectURL(file);
-          const textItems = await readPdf(url);
-          if (textItems.length > 0) {
-            text = convertTextItemsToText(textItems);
-          } else {
-            text = await uploadToBackendOcr(file);
-          }
-        } else {
-          // DOCX, DOC, images — backend extraction
-          text = await uploadToBackendOcr(file);
-        }
+        const text = await extractUploadedResume(file);
         const parsed = await parseResumeFromText(text);
         candidates.push({
           id: `candidate-${Date.now()}-${i}`,
@@ -444,11 +434,31 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     };
   };
 
+  async function extractUploadedResume(file: File): Promise<string> {
+    let pdfError = '';
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      try {
+        const items = await readPdf(file, { throwOnError: true });
+        const text = convertTextItemsToText(items);
+        if (text.trim()) return text;
+      } catch (cause) {
+        if (cause instanceof Error && cause.name === 'PasswordException') throw new Error('This PDF is password-protected. Upload an unlocked copy.');
+        pdfError = cause instanceof Error ? cause.message : 'PDF extraction failed.';
+      }
+    }
+    try { return await uploadToBackendOcr(file); }
+    catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Text extraction failed.';
+      if (/failed to fetch|network\s*error|load failed/i.test(message)) throw new Error('Resume extraction API is unreachable. Check the API connection/CORS and retry. The PDF was not rejected as invalid.');
+      throw new Error(pdfError ? `PDF extraction failed and server fallback failed: ${message}` : message);
+    }
+  }
+
   async function uploadToBackendOcr(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('resume', file);
     const token = tokenStorage.getAccess();
-    const res = await fetch(`${API_BASE_URL}/resume/extract-text`, {
+    const res = await apiFetch(`${API_BASE_URL}/resume/extract-text`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
@@ -482,23 +492,7 @@ useEffect(() => {
       try {
         const file = uploadedFileRef.current;
         if (!file) throw new Error('No file selected');
-        const isImage = /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(file.name);
-        const isDocx = /\.(docx|doc)$/i.test(file.name);
-        let text = '';
-        let textItems: any[] = [];
-        if (isImage || isDocx) {
-          // Images and DOCX — send to backend for extraction
-          text = await uploadToBackendOcr(file);
-        } else {
-          // PDF — try client-side extraction first
-          textItems = await readPdf(fileUrl);
-          if (textItems.length > 0) {
-            text = convertTextItemsToText(textItems);
-          } else {
-            // Scanned PDF — fall back to backend OCR
-            text = await uploadToBackendOcr(file);
-          }
-        }
+        const text = await extractUploadedResume(file);
          setRawText(text);
         const parsed = await parseResumeFromText(text, (status, detail) => setAiStatus({ status, detail }));
         setResume(parsed);
@@ -508,7 +502,8 @@ useEffect(() => {
         }
       } catch (e: any) {
         const isTimeout = e?.name === 'AbortError';
-        setParseError(e?.message || (isTimeout ? 'AI timeout. Using local parser.' : 'Failed to parse resume. Please try a different file.'));
+        const networkFailure = /failed to fetch|networkerror|load failed/i.test(e?.message || '');
+        setParseError(networkFailure ? 'The resume extraction API could not be reached. Check your connection and retry. If it continues, the QA/production API connection must be checked; this does not mean the PDF is invalid.' : e?.message || (isTimeout ? 'AI timeout. Using local parser.' : 'Failed to parse resume. Please try a different file.'));
         setResume(emptyResume);
         setIsFileUploaded(false);
         setAiStatus(null);
@@ -521,15 +516,10 @@ useEffect(() => {
   }, [fileUrl]);
 
   return (
-    <div className="max-w-screen-2xl mx-auto p-6">
-      <div className="mb-8 flex flex-col items-center text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-3">
-          <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          <span className="text-xs font-semibold text-blue-600 tracking-wide">AI Powered</span>
-        </div>
-        <h1 style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900 mb-2">
-          AI Resume Analysis
-        </h1>
+    <div className="resume-parser-workspace">
+      <div className="resume-tool-page-heading mb-8 flex flex-col items-center text-center">
+        <p className="resume-tool-page-eyebrow">RESUME PARSER</p>
+        <h1>Turn your resume into a clear profile</h1>
         <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }}>
           {user?.type === 'employer'
             ? 'Upload candidate resumes to get instant insights, skill analysis, and job matching recommendations.'
@@ -538,9 +528,9 @@ useEffect(() => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="resume-parser-panels grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Upload Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="resume-tool-panel bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
             {user?.type === 'employer' ? 'Upload Candidate Resume' : 'Upload Resume'}
           </h2>
@@ -596,7 +586,7 @@ useEffect(() => {
                 <span className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">{currentFileName.split('.').pop()}</span>
               </div>
               {/\.pdf$/i.test(currentFileName) ? (
-                <iframe src={`${fileUrl}#navpanes=0&zoom=75`} className="w-full h-[800px]" title="Resume Preview" />
+                <ResumePdfPreview url={fileUrl} fileName={currentFileName} />
               ) : /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(currentFileName) ? (
                 <>
                   <img src={fileUrl} alt="Resume Preview" className="w-full h-auto max-h-[800px] object-contain" />
@@ -641,7 +631,7 @@ useEffect(() => {
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 ${
                 aiStatus.status === 'ai' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
               }`} title={aiStatus.detail || ''}>
-                {aiStatus.status === 'ai' ? <><SvgIcon name="sparkle" className="w-3 h-3" /> AI parsed</> : <><SvgIcon name="warning" className="w-3 h-3" /> Local{aiStatus.detail ? ` — ${aiStatus.detail}` : ''}</>}
+                {aiStatus.status === 'ai' ? <><SvgIcon name="sparkle" className="w-3 h-3" /> AI parsed</> : <><SvgIcon name="warning" className="w-3 h-3" /> Review needed</>}
               </span>
             )}
           </div>
@@ -649,6 +639,8 @@ useEffect(() => {
           {parsing && (
             <AIProgressLoader fileName={currentFileName} />
           )}
+
+          {aiStatus && aiStatus.status !== 'ai' && !parsing && !parseError && <div role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-medium">Resume text was read successfully. Detailed AI extraction could not fully complete; review the extracted fields.</p><details className="mt-2"><summary className="cursor-pointer">Parsing details</summary><p className="mt-2 break-words text-xs">{aiStatus.detail || 'Showing locally extracted resume information.'}</p></details></div>}
 
           {parseError && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">

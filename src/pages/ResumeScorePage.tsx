@@ -149,42 +149,11 @@ const analyze = async () => {
   return (
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg, #0f9d58, #16a34a, #059669)', padding: '36px 40px 36px', borderRadius: '0 0 16px 16px' }}>
-          <div className="max-w-4xl mx-auto">
-            <BackButton fallback="/resume-studio" className="mb-4" />
-            {/* Glass card */}
-            <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '20px 24px' }}>
-              <div className="flex items-center justify-between">
-                {/* Left: accent + text */}
-                <div className="flex items-center gap-3">
-                  <div style={{ width: '4px', height: '44px', background: '#22c55e', borderRadius: '4px', flexShrink: 0 }} />
-                  <div>
-                    <h1 style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-0.5px', color: '#ffffff', margin: 0, animation: 'fadeUp 0.6s ease' }}>
-                      Resume Score Analyzer
-                    </h1>
-                    <p style={{ fontSize: '15px', fontWeight: 400, color: '#d1fae5', marginTop: '6px', marginBottom: 0 }}>
-                      AI-powered ATS score + actionable feedback
-                    </p>
-                  </div>
-                </div>
-                {/* Right: icon */}
-                <BarChart3 size={32} color="#bbf7d0" style={{ opacity: 0.9, flexShrink: 0 }} />
-              </div>
-            </div>
-          </div>
-        </div>
-        <style>{`
-          @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+      <div className="resume-analyzer-page min-h-screen bg-gray-50">
+        <div className="resume-tool-page-heading portal-page-container"><BackButton fallback="/resume-studio" className="mb-5" /><div><p className="resume-tool-page-eyebrow">RESUME ANALYZER</p><h1>Understand your resume strengths</h1><p>Review your ATS score, identify missing keywords, and get practical improvements.</p></div></div>
+        <div className="portal-page-container resume-analyzer-workspace py-6">
           {/* Input Card */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="resume-analyzer-input resume-tool-panel bg-white rounded-xl border border-gray-200 p-5">
             {/* Mode Toggle */}
             <div className="flex gap-2 mb-4">
               {(['file', 'text'] as const).map(m => (
@@ -245,6 +214,8 @@ const analyze = async () => {
             {error && <p className="mt-3 text-sm text-red-600 text-center">{error}</p>}
           </div>
 
+          <div className="resume-analyzer-results">
+          {!result && !loading && <div className="resume-analysis-placeholder"><BarChart3 size={34} aria-hidden="true" /><h2>Your resume insights will appear here</h2><p>Upload a resume or paste its text, then select Analyze Resume to get your report.</p></div>}
           {/* Results */}
           {result && (
             <div className="space-y-4">
@@ -397,6 +368,7 @@ const analyze = async () => {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
       <Footer onNavigate={onNavigate} />

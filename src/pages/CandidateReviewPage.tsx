@@ -192,7 +192,7 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
   if (loading) return <div className="p-6">Loading candidates...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="portal-page-container max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Review Candidates</h1>
       </div>

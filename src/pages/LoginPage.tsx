@@ -135,8 +135,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Header onNavigate={onNavigate} />
 
-      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-        <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-10">
+      <main className="portal-page-container w-full flex-1 py-6 sm:py-10 lg:py-12">
+        <div className="mx-auto grid w-full gap-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-10">
           <aside className="relative overflow-hidden rounded-lg border border-[#dbeafe] bg-[#eff6ff] text-[#1e3a8a] lg:min-h-[650px]">
             <div className="absolute inset-x-0 top-0 h-2 bg-[#f97316]" />
             <div className="absolute -right-20 -top-16 h-56 w-56 rounded-full border-[28px] border-[#bfdbfe]" />

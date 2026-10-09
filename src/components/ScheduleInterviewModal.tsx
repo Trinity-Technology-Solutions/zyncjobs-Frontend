@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Video, X, Calendar, Clock, User, FileText, MapPin, ChevronDown } from 'lucide-react';
+import { apiFetch } from '../api/apiFetch';
 import { formatLocalDateTime, isMeetingLinkForPlatform } from '../utils/interviewScheduleUtils';
 
 interface ScheduleInterviewModalProps {
@@ -50,10 +51,11 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     setFormData(prev => ({ ...prev, round: nextRound }));
   }, [existingRounds]);
 
-  // Build scheduledDate whenever date/time changes
+  // Any schedule change invalidates a previously generated meeting's calendar time.
   useEffect(() => {
-    if (!dateValue || !timeValue) { setFormData(prev => ({ ...prev, scheduledDate: '' })); return; }
-    setFormData(prev => ({ ...prev, scheduledDate: `${dateValue}T${timeValue}` }));
+    const scheduledDate = dateValue && timeValue ? `${dateValue}T${timeValue}` : '';
+    setFormData(prev => prev.scheduledDate === scheduledDate ? prev : { ...prev, scheduledDate, meetingLink: '' });
+    setMeetGenerated(false); setMeetFallback(false);
   }, [dateValue, timeValue]);
 
   // Earliest selectable date = today
@@ -83,8 +85,9 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     (async () => {
       try {
         const employerId = getOAuthEmployerId();
-        const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${encodeURIComponent(employerId)}`);
+        const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${encodeURIComponent(employerId)}`);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to check Google connection');
         if (!cancelled) {
           setGoogleConnected(!!data.connected);
           setGoogleMode(data.mode === 'service-account' ? 'service-account' : 'oauth');
@@ -102,24 +105,25 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     // Poll until the OAuth popup redirects back and tokens are saved
     const interval = window.setInterval(async () => {
       try {
-        const res = await fetch(`${apiUrl}/meetings/google-meet/status?employerId=${encodeURIComponent(employerId)}`);
+        const res = await apiFetch(`${apiUrl}/meetings/google-meet/status?employerId=${encodeURIComponent(employerId)}`);
         const data = await res.json();
-        if (data.connected) { setGoogleConnected(true); window.clearInterval(interval); }
+        if (res.ok && data.connected) { setGoogleConnected(true); setError(''); window.clearInterval(interval); }
       } catch { /* retry */ }
     }, 2500);
     window.setTimeout(() => window.clearInterval(interval), 180000);
   };
 
   const generateMeetingLink = async (platform: 'zoom' | 'googlemeet') => {
-    if (!formData.scheduledDate) { setError('Please set a date & time first'); return; }
+    if (!formData.scheduledDate || !Number.isFinite(new Date(formData.scheduledDate).getTime()) || new Date(formData.scheduledDate).getTime() <= Date.now()) { setError('Select a future date and time first.'); return; }
+    setFormData(previous => ({ ...previous, type: platform === 'googlemeet' ? 'googlemeet' : 'video' }));
     setMeetLoading(true); setMeetPlatform(platform); setError(''); setMeetFallback(false);
     try {
       const { employerId, employerEmail } = getEmployerIdentity();
-      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform, topic: `Interview - ${application.candidateName} (${formData.round} Round)`,
-          start_time: formData.scheduledDate, duration: formData.duration,
+          start_time: new Date(formData.scheduledDate).toISOString(), duration: formData.duration,
           description: `${formData.round} round interview via ZyncJobs`,
           employerId: platform === 'googlemeet' ? getOAuthEmployerId() : employerId, employerEmail,
           candidateEmail: application.candidateEmail, candidateName: application.candidateName, require_admission: true
@@ -127,7 +131,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
       });
       const result = await res.json();
       const joinUrl = result.meeting?.join_url || result.meeting?.joinUrl || result.meeting?.meetLink || result.meeting?.hangoutLink;
-      if (result.success && joinUrl) {
+      if (res.ok && result.success && joinUrl) {
         if (isMeetingLinkForPlatform(platform, joinUrl)) {
           setFormData(prev => ({ ...prev, meetingLink: joinUrl }));
           setMeetGenerated(true); setMeetFallback(!!result.fallback);
@@ -149,17 +153,20 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
   const scheduleInterview = async () => {
     if (!formData.scheduledDate) { setError('Please select a date and time'); return; }
+    if (!Number.isFinite(new Date(formData.scheduledDate).getTime()) || new Date(formData.scheduledDate).getTime() <= Date.now()) { setError('Select a future interview date and time.'); return; }
+    if ((formData.type === 'video' || formData.type === 'googlemeet') && !isMeetingLinkForPlatform(formData.type === 'googlemeet' ? 'googlemeet' : 'zoom', formData.meetingLink)) { setError('Generate or paste a valid meeting link before scheduling.'); return; }
+    if (!application._id && !application.id) { setError('Application details are missing. Refresh applications and try again.'); return; }
     if (isDuplicateRound) { setError(`${formData.round} round is already scheduled`); return; }
     setLoading(true); setError('');
     try {
       const { employerId, employerEmail } = getEmployerIdentity();
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/interviews/schedule`, {
+      const response = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/interviews/schedule`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          applicationId: application._id, candidateEmail: application.candidateEmail,
+          applicationId: application._id || application.id, candidateEmail: application.candidateEmail,
           candidateName: application.candidateName, employerId, employerEmail,
-          jobId: application.jobId?._id || application.jobId, round: formData.round,
-          interviewer: formData.interviewer, scheduledDate: formData.scheduledDate,
+          jobId: application.jobId?._id || application.jobId?.id || (typeof application.jobId === 'string' ? application.jobId : undefined), round: formData.round,
+          interviewer: formData.interviewer, scheduledDate: new Date(formData.scheduledDate).toISOString(),
           duration: formData.duration, type: formData.type === 'googlemeet' ? 'video' : formData.type,
           meetingLink: formData.meetingLink, location: formData.location, notes: formData.notes
         })
@@ -195,8 +202,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 const isScheduled = existingRounds.includes(round);
                 const isSelected = formData.round === round;
                 return (
-                  <button key={round} type="button" disabled={isScheduled}
-                    onClick={() => setFormData(prev => ({ ...prev, round }))}
+                  <button key={round} type="button" disabled={isScheduled || meetLoading || loading}
+                    onClick={() => { setFormData(prev => ({ ...prev, round, meetingLink: '' })); setMeetGenerated(false); }}
                     className={`py-2.5 px-1 rounded-xl text-xs font-semibold border-2 transition-all ${
                       isScheduled ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed line-through'
                       : isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
@@ -225,10 +232,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
               <Calendar size={14} className="inline mr-1" />Date & Time
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <input type="date" min={todayStr} value={dateValue}
+              <input disabled={meetLoading || loading} type="date" min={todayStr} value={dateValue}
                 onChange={e => setDateValue(e.target.value)}
                 className={inputClass} />
-              <input type="time" value={timeValue}
+              <input disabled={meetLoading || loading} type="time" value={timeValue}
                 onChange={e => setTimeValue(e.target.value)}
                 className={inputClass} />
             </div>
@@ -237,7 +244,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             {formData.scheduledDate && (
               <div className="mt-2 flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                {formatLocalDateTime(formData.scheduledDate)}
+                {formatLocalDateTime(formData.scheduledDate)} ({Intl.DateTimeFormat().resolvedOptions().timeZone})
               </div>
             )}
           </div>
@@ -249,8 +256,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             </label>
             <div className="relative">
               <select
-                value={String(formData.duration)}
-                onChange={e => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value, 10) }))}
+                disabled={meetLoading || loading} value={String(formData.duration)}
+                onChange={e => { setFormData(prev => ({ ...prev, duration: parseInt(e.target.value, 10), meetingLink: '' })); setMeetGenerated(false); }}
                 className={selectClass}>
                 {DURATION_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -265,7 +272,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">Interview Type</label>
             <div className="relative">
               <select
-                value={formData.type}
+                disabled={meetLoading || loading} value={formData.type}
                 onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '', location: '' }))}
                 className={selectClass}>
                 {TYPE_OPTIONS.map(o => (
@@ -348,7 +355,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
             Cancel
           </button>
-          <button onClick={scheduleInterview} disabled={loading || isDuplicateRound}
+          <button onClick={scheduleInterview} disabled={loading || meetLoading || isDuplicateRound}
             className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
             {loading ? 'Scheduling...' : `Schedule ${formData.round} Round`}
           </button>

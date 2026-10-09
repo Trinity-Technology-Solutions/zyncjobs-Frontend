@@ -35,18 +35,13 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
   return (
     <section 
       ref={sectionRef}
-      className="pt-8 sm:pt-10 lg:pt-12 pb-12 sm:pb-16 lg:pb-20 bg-white text-gray-900 text-center relative overflow-hidden"
+      className="home-final-cta illustrated-candidate-cta py-10 sm:py-12 lg:py-14 relative overflow-hidden"
     >
-      {/* Background Decoratives - Subtle Atmospheric Glows matching Hero */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        <div className="absolute left-[15%] top-[20%] w-[350px] h-[350px] bg-blue-50/50 rounded-full blur-[100px]" />
-        <div className="absolute right-[15%] bottom-[10%] w-[300px] h-[300px] bg-orange-50/40 rounded-full blur-[90px]" />
-      </div>
-
-      <div className={`max-w-3xl mx-auto px-4 sm:px-6 relative z-10 transition-all duration-1000 ${
+      <div className={`candidate-opportunity-layout max-w-7xl mx-auto relative z-10 transition-all duration-1000 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
       }`}>
         
+        <div className="candidate-opportunity-copy">
         {/* Heading */}
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-4 tracking-tight text-gray-900">
           Find Your Next Opportunity <span className="text-orange-500">Faster</span>
@@ -104,6 +99,22 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
           </span>
         </p>
 
+        </div>
+        <svg className="candidate-opportunity-art" viewBox="0 0 320 250" fill="none" aria-hidden="true" focusable="false">
+          <circle cx="181" cy="124" r="98" fill="#E2EAF9" />
+          <g className="career-floating-document"><rect x="183" y="37" width="84" height="106" rx="10" fill="#FFF" stroke="#A8BFDF" strokeWidth="1.7" /><rect x="198" y="54" width="45" height="7" rx="3" fill="#94AFD7" /><path d="M198 77H250M198 91H250M198 105H234" stroke="#CCD8EA" strokeWidth="3" strokeLinecap="round" /><circle cx="252" cy="137" r="20" fill="#EEF8F2" stroke="#95C2A9" strokeWidth="1.5" /><path d="m243 138 6 6 12-14" stroke="#5C9977" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" /></g>
+          <g stroke="#26374F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M81 218 90 158 118 144 146 146 167 168 175 218Z" fill="#FFF" />
+            <path d="M118 129 119 147 132 157 144 145 141 130" fill="#FFF" />
+            <path d="M113 96Q113 76 133 76Q153 76 154 97L149 125Q135 144 121 128Z" fill="#FFF" />
+            <path d="M114 107Q100 82 119 71Q128 65 142 71Q159 75 157 98L148 90 130 91 119 98Z" fill="#26374F" />
+            <path d="M122 104H128M139 104H145M134 106 133 117 137 117M128 125Q135 130 144 123" />
+            <path d="M102 162 88 196 104 218M149 162 177 176 197 153 207 162 181 196 155 184" fill="#FFF" />
+            <path d="M197 153 201 143Q204 136 208 141L207 150 212 148Q218 150 214 156L207 162" fill="#FFF" />
+          </g>
+          <rect x="71" y="207" width="71" height="32" rx="7" fill="#C6D7F0" stroke="#7B9BC7" strokeWidth="1.5" /><path d="M93 207v-6a5 5 0 0 1 5-5h15a5 5 0 0 1 5 5v6" stroke="#7B9BC7" strokeWidth="2" /><path d="M57 240H258" stroke="#B9CAE3" strokeWidth="2" strokeLinecap="round" />
+          <g className="career-floating-document-secondary"><circle cx="66" cy="110" r="18" fill="#FFF" stroke="#B1C3E0" strokeWidth="1.5" /><path d="m60 109 4 5 9-10" stroke="#7899C7" strokeWidth="2" strokeLinecap="round" /></g>
+        </svg>
       </div>
     </section>
   );

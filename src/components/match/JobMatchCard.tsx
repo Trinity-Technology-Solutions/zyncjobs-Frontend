@@ -13,7 +13,7 @@ export const JobMatchCard: React.FC<JobMatchCardProps> = ({ job, matchScore, use
 
   return (
     <>
-      <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white">
+      <div className="portal-job-card border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white">
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <h3 className="text-xl font-bold text-gray-900 mb-2">{job.title}</h3>

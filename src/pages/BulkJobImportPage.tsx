@@ -1,6 +1,7 @@
+import EmployerFeatureGuide from '../components/EmployerFeatureGuide';
 import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, CheckCircle, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, Loader, Zap, Download, Users, Copy, Sparkles, MapPin, Clock, Briefcase } from 'lucide-react';
+import { Upload, X, CheckCircle, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight, Loader, Zap, Download, Users, Copy, Sparkles, MapPin, Clock, Briefcase } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -669,15 +670,15 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     const parts = splitPastedJDs(text);
     setStep('parsing');
     setParsingProgress(0);
-    // Step 1 � regex-parse all JDs locally
-    setParsingLabel(`Parsing ${parts.length} job description${parts.length > 1 ? 's' : ''}�`);
+    // Step 1 - regex-parse all JDs locally
+    setParsingLabel(`Parsing ${parts.length} job description${parts.length > 1 ? 's' : ''}...`);
     const parsed: ParsedJob[] = parts.map((p, i) => parseTextToJob(p, `JD ${i + 1}`));
     setParsingProgress(40);
-    // Step 2 � single batched AI call for all JDs
-    setParsingLabel(`Enhancing with AI (1 call for all ${parts.length} jobs)�`);
+    // Step 2 - single batched AI call for all JDs
+    setParsingLabel(`Enhancing with AI (1 call for all ${parts.length} jobs)...`);
     const aiResults = await aiEnhanceBatch(parsed.map(j => j.raw));
     setParsingProgress(85);
-    // Step 3 � merge AI field extraction results back
+    // Step 3 - merge AI field extraction results back
     aiResults.forEach((ai: Partial<ParsedJob>, i: number) => {
       if (!parsed[i]) return;
       const job = parsed[i];
@@ -694,11 +695,11 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
       job.errors = validateJob(job);
       job.status = job.errors.length > 0 ? 'error' : 'ready';
     });
-    // Step 4 � generate rich JD for each job (same as single job posting)
-    setParsingLabel(`Generating rich job descriptions�`);
+    // Step 4 - generate rich JD for each job (same as single job posting)
+    setParsingLabel(`Generating rich job descriptions...`);
     for (let i = 0; i < parsed.length; i++) {
       const job = parsed[i];
-      setParsingLabel(`Generating JD ${i + 1}/${parsed.length}: ${job.jobTitle}�`);
+      setParsingLabel(`Generating JD ${i + 1}/${parsed.length}: ${job.jobTitle}...`);
       try {
         const richJD = await generateJD(
           job.jobTitle,
@@ -748,7 +749,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
   // -- Check duplicates ----------------------------------------------
   const checkDuplicates = useCallback(async () => {
     setCheckingDupes(true);
-    showToast('Checking for duplicate jobs�', 'info');
+    showToast('Checking for duplicate jobs...', 'info');
     const existingTitles = await fetchExistingJobTitles();
     if (!existingTitles.length) {
       showToast('No existing jobs found to compare', 'info');
@@ -768,7 +769,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
   // -- Load candidate counts -----------------------------------------
   const loadCandidateCounts = useCallback(async () => {
     setJobs(prev => prev.map(j => ({ ...j, candidateCountLoading: true })));
-    showToast('Fetching matching candidate counts�', 'info');
+    showToast('Fetching matching candidate counts...', 'info');
     const updated = await Promise.all(
       jobs.map(async job => {
         const count = await fetchCandidateCount(job.skills, job.jobTitle);
@@ -784,12 +785,12 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     const toEnhance = jobs.filter(j => j.selected && j.status !== 'published');
     if (!toEnhance.length) { showToast('Select jobs to enhance', 'error'); return; }
     setEnhancing(true);
-    showToast(`Enhancing ${toEnhance.length} job description(s) with AI�`, 'info');
+    showToast(`Enhancing ${toEnhance.length} job description(s) with AI...`, 'info');
     const updatedJobs = [...jobs];
     for (let i = 0; i < updatedJobs.length; i++) {
       const job = updatedJobs[i];
       if (!job.selected || job.status === 'published') continue;
-      setEnhancingLabel(`Enhancing ${job.jobTitle} (${toEnhance.indexOf(job) + 1}/${toEnhance.length})�`);
+      setEnhancingLabel(`Enhancing ${job.jobTitle} (${toEnhance.indexOf(job) + 1}/${toEnhance.length})...`);
       const newDesc = await aiEnhanceDescription(job);
       updatedJobs[i] = { ...job, jobDescription: newDesc, aiEnhanced: true };
       setJobs([...updatedJobs]);
@@ -909,7 +910,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
         }));
         setPublishResults({ success: data.successCount ?? 0, failed: data.failCount ?? 0 });
       } else {
-        // Bulk endpoint failed � fallback to individual POSTs with 200ms delay
+        // Bulk endpoint failed - fallback to individual POSTs with 200ms delay
         let success = 0, failed = 0;
         for (const job of toPublish) {
           setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'publishing' } : j));
@@ -958,8 +959,8 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
   //  RENDER
   // -----------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Toast � rendered in a portal so it's never clipped by page/header layout */}
+    <div className="bulk-import-page min-h-screen bg-gray-50 flex flex-col">
+      {/* Toast - rendered in a portal so it's never clipped by page/header layout */}
       {toast && createPortal(
         <div className={`fixed top-4 right-4 z-[9999] px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-[calc(100vw-2rem)] sm:max-w-md break-words ${
           toast.type === 'success' ? 'bg-green-600 text-white' :
@@ -971,7 +972,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
         document.body
       )}
 
-      {/* Hidden file input � always mounted so "+ Add More" can open the
+      {/* Hidden file input - always mounted so "+ Add More" can open the
           picker directly from the preview without leaving the list */}
       <input
         ref={fileRef}
@@ -987,7 +988,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
 
       {/* Page sub-header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="bulk-import-heading flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BackButton fallback="/job-posting-selection" text="Back" />
             <div className="w-px h-5 bg-gray-200" />
@@ -1011,21 +1012,21 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                 }`}>
                   {i + 1}. {s.charAt(0).toUpperCase() + s.slice(1)}
                 </span>
-                {i < 2 && <span className="text-gray-300">�</span>}
+                {i < 2 && <ChevronRight className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />}
               </React.Fragment>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
+      <div className="bulk-import-workspace feature-sidebar-layout"><div className="feature-sidebar-main">
 
         {/* -- STEP: UPLOAD ------------------------------------------- */}
         {step === 'upload' && (
           <div className="space-y-6">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900">Import Multiple Jobs at Once</h2>
-              <p className="text-gray-500 mt-1 text-sm">Upload a CSV file � or paste multiple JDs below</p>
+            <div className="bulk-import-intro">
+              <h2 className="text-2xl font-bold text-gray-900">Import job drafts</h2>
+              <p className="text-gray-500 mt-1 text-sm">Upload a CSV file or paste multiple job descriptions below</p>
             </div>
 
             {/* Existing parsed jobs notice (visible when coming back via "Add More") */}
@@ -1035,7 +1036,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span>
                     <span className="font-semibold text-gray-900">{jobs.length} job{jobs.length !== 1 ? 's' : ''}</span> already parsed
-                    � new uploads will be merged with the existing list
+                    New uploads will be merged with the existing list
                   </span>
                 </div>
                 <button
@@ -1188,7 +1189,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                   title="AI-rewrite all selected job descriptions"
                 >
                   {enhancing ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {enhancing ? (enhancingLabel || 'Enhancing�') : 'AI Enhance'}
+                  {enhancing ? (enhancingLabel || 'Enhancing...') : 'AI Enhance'}
                 </button>
                 <div className="w-px h-6 bg-gray-200 mx-1" />
                 <button
@@ -1248,7 +1249,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                         {job.jobLocation && <span className="text-xs text-gray-500 flex items-center gap-1"><MapPin className="w-3 h-3" />{job.jobLocation}</span>}
                         {job.experienceRange && <span className="text-xs text-gray-500 flex items-center gap-1"><Clock className="w-3 h-3" />{job.experienceRange}</span>}
                         {job.jobType && <span className="text-xs text-gray-500 flex items-center gap-1"><Briefcase className="w-3 h-3" />{job.jobType}</span>}
-                        {job.candidateCountLoading && <span className="text-xs text-purple-500 flex items-center gap-1"><Loader className="w-3 h-3 animate-spin" /> Loading�</span>}
+                        {job.candidateCountLoading && <span className="text-xs text-purple-500 flex items-center gap-1"><Loader className="w-3 h-3 animate-spin" /> Loading...</span>}
                         {!job.candidateCountLoading && job.candidateCount !== undefined && (
                           <span className="text-xs text-purple-700 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full flex items-center gap-1">
                             <Users className="w-3 h-3" /> {job.candidateCount} matches
@@ -1374,7 +1375,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
         {step === 'publishing' && (
           <div className="flex flex-col items-center justify-center py-24 gap-5">
             <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-            <h2 className="text-xl font-bold text-gray-900">Publishing Jobs�</h2>
+            <h2 className="text-xl font-bold text-gray-900">Publishing Jobs...</h2>
             <p className="text-sm text-gray-500">Please wait while we post your jobs</p>
             <div className="w-full max-w-sm space-y-2 mt-4">
               {jobs.filter(j => j.selected).map(j => (
@@ -1400,7 +1401,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
               <h2 className="text-2xl font-bold text-gray-900">Bulk Import Complete!</h2>
               <p className="text-gray-500 mt-2">
                 <span className="font-semibold text-blue-700">{publishResults.success} jobs published</span>
-                {publishResults.failed > 0 && <span className="text-red-600 ml-2">� {publishResults.failed} failed</span>}
+                {publishResults.failed > 0 && <span className="text-red-600 ml-2 inline-flex items-center gap-1"><AlertCircle className="h-4 w-4" aria-hidden="true" />{publishResults.failed} failed</span>}
               </p>
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -1421,7 +1422,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                 <p className="text-sm font-medium text-red-700 mb-2">Failed to publish:</p>
                 {jobs.filter(j => j.status === 'error' && j.selected).map(j => (
                   <div key={j.id} className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-1">
-                    <X className="w-4 h-4 flex-shrink-0" /> {j.jobTitle} � {j.errors[0]}
+                    <X className="w-4 h-4 flex-shrink-0" /> {j.jobTitle}: {j.errors[0]}
                   </div>
                 ))}
               </div>
@@ -1430,6 +1431,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
         )}
       </div>
 
+      <EmployerFeatureGuide feature="bulk" /></div>
       {/* Site Footer */}
       <Footer onNavigate={onNavigate} user={user} />
 
@@ -1496,7 +1498,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                   value={editingJob.skills.join(', ')}
                   onChange={e => setEditingJob(prev => prev ? { ...prev, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : null)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="React, Node.js, Python�"
+                  placeholder="React, Node.js, Python..."
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1511,7 +1513,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Job Description</label>
-                <p className="text-xs text-gray-400 mb-1">{editingJob.jobDescription.length} chars � scroll to see full content</p>
+                <p className="text-xs text-gray-400 mb-1">{editingJob.jobDescription.length} chars - scroll to see full content</p>
                 <textarea
                   rows={14}
                   value={editingJob.jobDescription

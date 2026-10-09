@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Bell, X, CheckCheck, Trash2, Calendar, Clock, Video, Phone, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Bell, X, CheckCheck, Trash2 } from 'lucide-react';
 import { AppNotification } from '../hooks/useApplicationNotifications';
 
 interface CandidateNotificationBellProps {
@@ -12,14 +13,6 @@ interface CandidateNotificationBellProps {
   onNavigate: (page: string) => void;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  reviewed: 'bg-yellow-100 text-yellow-800',
-  shortlisted: 'bg-green-100 text-green-800',
-  hired: 'bg-purple-100 text-purple-800',
-  rejected: 'bg-red-100 text-red-800',
-  withdrawn: 'bg-gray-100 text-gray-800',
-};
-
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
@@ -28,19 +21,6 @@ function timeAgo(ts: number): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
-}
-
-function getInterviewModeIcon(mode: string) {
-  switch (mode?.toLowerCase()) {
-    case 'video':
-      return <Video className="w-3.5 h-3.5" />;
-    case 'phone':
-      return <Phone className="w-3.5 h-3.5" />;
-    case 'in-person':
-      return <MapPin className="w-3.5 h-3.5" />;
-    default:
-      return <Video className="w-3.5 h-3.5" />;
-  }
 }
 
 const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
@@ -52,14 +32,44 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
   onNavigate,
 }) => {
   const [open, setOpen] = useState(false);
-  const badgeCount = notifications.filter(n => !n.read).length;
+  const badgeCount = unreadCount;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const sortedNotifications = [...notifications].sort((first, second) => second.timestamp - first.timestamp);
+  const groupLabel = (timestamp: number) => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    return timestamp >= today.getTime() ? 'Today' : timestamp >= yesterday.getTime() ? 'Yesterday' : 'Earlier';
+  };
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    panelRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Tab') {
+        const buttons = panelRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+        if (!buttons?.length) return;
+        const first = buttons[0]; const last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleKey); triggerRef.current?.focus(); };
+  }, [open]);
 
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
+        type="button"
         onClick={() => setOpen(o => !o)}
         className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors"
-        aria-label="Notifications"
+        aria-label={badgeCount > 0 ? `Notifications, ${badgeCount} unread` : 'Notifications'}
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <Bell className="w-5 h-5" />
         {badgeCount > 0 && (
@@ -69,16 +79,16 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
         )}
       </button>
 
-      {open && (
+      {open && createPortal(
         <>
           {/* Backdrop */}
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[100]" onClick={() => setOpen(false)} />
 
           {/* Slide-in Panel */}
-          <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+          <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Notifications" className="portal-notification-panel fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-[101] transform transition-transform duration-300 ease-in-out">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900 text-base">Application Updates</h3>
+            <div className="notification-drawer-heading">
+              <h3 className="font-semibold text-gray-900 text-base">Notifications</h3>
               <div className="flex items-center space-x-3">
                 {badgeCount > 0 && (
                   <button
@@ -95,90 +105,30 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setOpen(false)} aria-label="Close notifications" className="text-gray-400 hover:text-gray-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* List */}
-            <div className="h-full overflow-y-auto pb-20">
-              {notifications.length === 0 ? (
-                <div className="py-16 text-center">
-                  <Bell className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">No notifications yet</p>
-                  <p className="text-xs text-gray-400 mt-1">We'll notify you when your application status changes</p>
-                </div>
-              ) : (
-                notifications.map(n => {
-                  const isInterview = n.type === 'interview';
-                  
-                  return (
-                    <div
-                      key={n.id}
-                      onClick={() => { onMarkRead(n.id); setOpen(false); onNavigate(isInterview ? 'interviews' : 'my-applications'); }}
-                      className={`px-5 py-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50' : ''}`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{n.jobTitle}</p>
-                          <p className="text-xs text-gray-500 truncate">{n.company}</p>
-                          
-                          {isInterview ? (
-                            // Interview notification display — cleaner layout
-                            <div className="mt-2 space-y-1.5">
-                              <p className="text-sm font-medium text-gray-900">
-                                {n.message || 'Interview scheduled'}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-600">
-                                {n.interviewDate && (
-                                  <span className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-lg">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    <span>{n.interviewDate}</span>
-                                  </span>
-                                )}
-                                {n.interviewTime && (
-                                  <span className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-lg">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    <span>{n.interviewTime}</span>
-                                  </span>
-                                )}
-                                {n.interviewMode && (
-                                  <span className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-lg">
-                                    {getInterviewModeIcon(n.interviewMode)}
-                                    <span className="capitalize">{n.interviewMode}</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            // Application status change display
-                            <>
-                              <div className="flex items-center space-x-2 mt-1">
-                                <span className="text-xs text-gray-400 line-through capitalize">{n.oldStatus}</span>
-                                <span className="text-xs text-gray-400">→</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium capitalize ${STATUS_COLORS[n.newStatus] || 'bg-gray-100 text-gray-700'}`}>
-                                  {n.newStatus}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-600 mt-1">{n.message}</p>
-                            </>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end ml-2 flex-shrink-0">
-                          <span className="text-xs text-gray-400">{timeAgo(n.timestamp)}</span>
-                          {!n.read && <span className="w-2 h-2 bg-blue-500 rounded-full mt-1" />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            {notifications.length > 0 && <div className="notification-drawer-tools"><span>{badgeCount} unread</span><span>Application and interview updates</span></div>}
+            <div className="notification-drawer-list">
+              {notifications.length === 0 ? <div className="notification-drawer-empty"><Bell size={32} aria-hidden="true" /><h4>You are all caught up</h4><p>Application updates and interview invitations will appear here.</p></div> : sortedNotifications.map((notification, index) => {
+                const group = groupLabel(notification.timestamp);
+                const isInterview = notification.type === 'interview';
+                return <React.Fragment key={notification.id}>
+                  {(index === 0 || groupLabel(sortedNotifications[index - 1].timestamp) !== group) && <h4 className="notification-time-group">{group}</h4>}
+                  <button type="button" className={`notification-list-item ${notification.read ? '' : 'is-unread'}`} onClick={() => { onMarkRead(notification.id); setOpen(false); onNavigate(isInterview ? 'interviews' : 'my-applications'); }}>
+                    <span className="notification-company-icon" aria-hidden="true">{notification.company?.trim().charAt(0).toUpperCase() || <Bell size={20} />}</span>
+                    <span className="notification-item-content"><span className="notification-item-message">{notification.message || (isInterview ? 'You have an interview invitation' : 'Your application has an update')}</span>{notification.jobTitle && <span className="notification-item-role">{notification.jobTitle}</span>}{isInterview && (notification.interviewDate || notification.interviewTime) && <span className="notification-item-schedule">{[notification.interviewDate, notification.interviewTime, notification.interviewMode].filter(Boolean).join(' ? ')}</span>}<span className="notification-item-meta"><span>{isInterview ? 'Interview' : 'Application update'}{notification.company ? ` | ${notification.company}` : ''}</span><time dateTime={Number.isFinite(notification.timestamp) ? new Date(notification.timestamp).toISOString() : undefined}>{timeAgo(notification.timestamp)}</time></span></span>
+                  </button>
+                </React.Fragment>;
+              })}
             </div>
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="absolute bottom-0 left-0 right-0 px-5 py-3 border-t border-gray-100 bg-white">
+              <div className="notification-drawer-footer">
                 <button
                   onClick={() => { setOpen(false); onNavigate('my-applications'); }}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium w-full text-center"
@@ -188,7 +138,7 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
               </div>
             )}
           </div>
-        </>
+        </>, document.body
       )}
     </div>
   );

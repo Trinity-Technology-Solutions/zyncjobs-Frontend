@@ -52,7 +52,6 @@ export const formatInterviewDate = (interview: InterviewLike): string => {
 
 export const formatInterviewTime = (interview: InterviewLike): string => {
   const explicit = interview.time || interview.interviewTime;
-  if (explicit && isExplicitTime(explicit)) return explicit.trim();
   const raw = interview.scheduledDate || interview.interviewDate || interview.date || '';
   if (raw && raw.includes('T')) {
     const d = new Date(raw);
@@ -60,7 +59,8 @@ export const formatInterviewTime = (interview: InterviewLike): string => {
       return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
     }
   }
-  return explicit || 'Time TBD';
+  if (explicit && isExplicitTime(explicit)) return explicit.trim();
+  return 'Time TBD';
 };
 
 // Always route through the backend join endpoint — this enforces the time-window

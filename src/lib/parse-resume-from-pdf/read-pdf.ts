@@ -1,13 +1,14 @@
 import type { TextItems } from './types';
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { pdfDocumentOptions } from './pdfjs-config';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-export async function readPdf(fileUrl: string): Promise<TextItems> {
-  if (!fileUrl) return [];
+export async function readPdf(source: string | File | ArrayBuffer, options: { throwOnError?: boolean } = {}): Promise<TextItems> {
+  if (!source) return [];
+  let task: pdfjsLib.PDFDocumentLoadingTask | undefined;
   try {
-    const pdf = await pdfjsLib.getDocument({ url: fileUrl, disableStream: true }).promise;
+    const input = typeof source === 'string' ? { url: source } : { data: new Uint8Array(source instanceof ArrayBuffer ? source : await source.arrayBuffer()) };
+    task = pdfjsLib.getDocument({ ...input, ...pdfDocumentOptions, disableStream: true });
+    const pdf = await task.promise;
     // Process all pages in parallel instead of sequentially
     const pageResults = await Promise.all(
       Array.from({ length: pdf.numPages }, (_, i) =>
@@ -29,6 +30,9 @@ export async function readPdf(fileUrl: string): Promise<TextItems> {
     );
   } catch (e) {
     console.error('PDF read error:', e);
+    if (options.throwOnError) throw e;
     return [];
+  } finally {
+    await task?.destroy().catch(() => {});
   }
 }

@@ -221,11 +221,11 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const topMatches = jobs.filter(j => (j.matchScore || 0) >= 70).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="career-workspace JobRecommendationsPage min-h-screen bg-gray-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div className="px-4 py-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="career-page-heading portal-page-container py-8">
+        <div>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex flex-col items-center text-center md:items-start md:text-left">
               <div className="flex items-center gap-2 mb-3">
@@ -236,7 +236,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg> Personalized
                 </span>
               </div>
-              <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
+              <h1  className="text-gray-900">
                 <span className="text-gray-900">AI</span>
                 <span className="text-blue-600"> Job Matches</span>
               </h1>
@@ -264,19 +264,19 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8 w-full flex-1">
+      <div className="portal-page-container max-w-6xl mx-auto px-4 py-8 w-full flex-1">
 
         {/* Search & Category Filter Bar */}
         {!loading && !error && jobs.length > 0 && (
           <>
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 flex flex-col gap-3">
+          <div className="career-panel bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 flex flex-col gap-3">
             <div className="relative flex-1">
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by title, company, skill..."
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px]"
+                className="career-panel w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 hover:border-gray-400 transition-all duration-150 min-h-[46px]"
               />
             </div>
             <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
@@ -324,7 +324,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
         {/* Error */}
         {!loading && error && (
-          <div className="bg-white border border-red-200 rounded-xl p-8 text-center shadow-sm">
+          <div className="career-panel bg-white border border-red-200 rounded-xl p-8 text-center shadow-sm">
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -340,7 +340,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
         {/* Profile incomplete gate */}
         {!loading && profileBlocked && (
-          <div className="bg-white border border-amber-200 rounded-xl p-12 text-center shadow-sm">
+          <div className="career-panel bg-white border border-amber-200 rounded-xl p-12 text-center shadow-sm">
             <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -360,7 +360,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
         {/* Empty */}
         {!loading && !error && !profileBlocked && jobs.length === 0 && (
-          <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
+          <div className="career-panel bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -381,7 +381,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
         {/* No results */}
         {!loading && !error && jobs.length > 0 && filtered.length === 0 && (
-          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
+          <div className="career-panel bg-white border border-gray-200 rounded-xl p-10 text-center">
             <p className="text-gray-600 font-medium mb-2">
               {search.trim() ? 'No jobs match your search' : `No jobs in the "${CATEGORIES.find(c => c.key === filterCategory)?.label}" category`}
             </p>
@@ -396,7 +396,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
               const salary = getJobSalary(job);
               const isStrong = (job.matchScore || 0) >= 70;
               return (
-                <div key={job.id || job.title} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                <div key={job.id || job.title} className="career-panel portal-job-card portal-job-card-framed bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                   {/* Top accent bar for strong matches */}
                   {isStrong && <div className="h-1 bg-gradient-to-r from-green-400 to-emerald-500" />}
 
@@ -406,7 +406,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3 mb-3">
                           {/* Company Logo */}
-                          <div className="w-11 h-11 rounded-lg border border-gray-200 bg-white flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          <div className="career-panel w-11 h-11 rounded-lg border border-gray-200 bg-white flex items-center justify-center flex-shrink-0 overflow-hidden">
                             <img
                               src={getLogoSrc(job)}
                               alt={`${job.company} logo`}

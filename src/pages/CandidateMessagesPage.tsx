@@ -276,16 +276,16 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   );
 
   return (
-    <div className="flex h-full w-full bg-gray-50 overflow-hidden">
+    <div className="candidate-messages-workspace flex h-full w-full bg-gray-50 overflow-hidden">
 
       {/* ── Left Panel: Conversation List ── */}
       <div className={`
-        flex flex-col bg-white border-r border-gray-200
+        messages-conversations flex flex-col bg-white border-r border-gray-200
         w-full md:w-80 lg:w-96 flex-shrink-0
         ${showChat ? 'hidden md:flex' : 'flex'}
       `}>
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+        <div className="messages-list-heading px-4 pt-4 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-3">
             {onNavigate && (
               <button
@@ -303,12 +303,14 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
               </span>
             )}
           </div>
+          <p className="messages-heading-description">Your conversations with hiring teams</p>
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search conversations..."
+              aria-label="Search conversations"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
@@ -329,7 +331,8 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
               <button
                 key={conv._id}
                 onClick={() => { setSelectedConversation(conv); setShowChat(true); }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50 transition text-left ${selectedConversation?._id === conv._id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
+                aria-pressed={selectedConversation?._id === conv._id}
+                className={`messages-conversation-row w-full flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50 transition text-left ${selectedConversation?._id === conv._id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
               >
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
@@ -374,10 +377,11 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
         {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0 shadow-sm">
+            <div className="messages-chat-header flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0">
               {/* Back button (mobile) */}
               <button
                 onClick={() => setShowChat(false)}
+                aria-label="Back to conversations"
                 className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -406,7 +410,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50 flex flex-col justify-end">
+            <div className="messages-history flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <MessageSquare className="w-12 h-12 text-gray-200 mb-3" />
@@ -436,7 +440,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                           </button>
                         )}
                         {/* Bubble */}
-                        <div className={`max-w-xs sm:max-w-sm lg:max-w-md px-3.5 py-2.5 rounded-2xl shadow-sm ${
+                        <div className={`message-bubble max-w-xs sm:max-w-sm lg:max-w-md px-3.5 py-2.5 rounded-2xl shadow-sm ${
                           isOwn
                             ? 'bg-blue-600 text-white rounded-br-sm'
                             : 'bg-white text-gray-900 border border-gray-100 rounded-bl-sm'
@@ -463,7 +467,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
             </div>
 
             {/* Input */}
-            <div className="border-t border-gray-200 bg-white px-4 py-3 flex-shrink-0">
+            <div className="messages-composer border-t border-gray-200 bg-white px-4 py-3 flex-shrink-0">
               {error && (
                 <div className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 mb-2 flex items-center justify-between">
                   <span>{error}</span>
@@ -487,11 +491,13 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                   onChange={e => setNewMessage(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !sendingMessage) { e.preventDefault(); handleSend(); } }}
                   placeholder="Type a message..."
+                  aria-label="Message"
                   disabled={sendingMessage}
                   className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 disabled:opacity-60"
                 />
                 <button
                   onClick={handleSend}
+                  aria-label="Send message"
                   disabled={!newMessage.trim() || sendingMessage}
                   className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex-shrink-0"
                 >

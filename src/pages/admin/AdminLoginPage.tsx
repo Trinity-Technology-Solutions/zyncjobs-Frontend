@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Shield, Eye, EyeOff, AlertCircle, ArrowRight, ArrowLeft, Users, Briefcase, FileText, Loader2 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
 import { updateUserInStorage } from '../../utils/userStorage';
@@ -27,13 +27,34 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
         body: JSON.stringify({ email, password, portal: 'admin' })
       });
       const data = await res.json();
+      if (import.meta.env.DEV || import.meta.env.VITE_DEBUG_AUTH === 'true') {
+        console.log('[AdminLogin] response:', JSON.stringify({ role: data.user?.role, userType: data.user?.userType, permissions: data.user?.permissions, extraRoles: data.user?.extraRoles, recruiterPortalAccess: data.user?.recruiterPortalAccess }));
+      }
       if (!res.ok) { setError(data.error || 'Login failed'); return; }
 
       let role = data.user?.role || data.user?.userType;
-      if (role !== 'admin' && role !== 'super_admin' && role !== 'manager' && role !== 'recruiter') {
-        setError('Access denied. Admin credentials required.');
+      const rawPerms = data.user?.permissions;
+      const permissions: string[] = Array.isArray(rawPerms)
+        ? rawPerms
+        : typeof rawPerms === 'object' && rawPerms !== null
+          ? Object.keys(rawPerms).filter(k => rawPerms[k] === true || rawPerms[k] === 1 || rawPerms[k] === 'true')
+          : [];
+      const extraRoles: string[] = data.user?.extraRoles || [];
+      // also check top-level recruiterPortalAccess flag some backends return
+      const hasRecruiterAccess =
+        permissions.includes('recruiter_portal_access') ||
+        extraRoles.includes('recruiter') ||
+        !!data.user?.recruiterPortalAccess ||
+        !!data.user?.recruiter_portal_access;
+
+      const allowedRoles = ['admin', 'super_admin', 'manager', 'recruiter'];
+      if (!allowedRoles.includes(role) && !hasRecruiterAccess) {
+        setError('Access denied. Admin or Recruiter credentials required.');
         return;
       }
+
+      // employer with recruiter_portal_access permission → treat as recruiter in dashboard
+      if (role === 'employer' && hasRecruiterAccess) role = 'recruiter';
 
       if (data.user?.email === 'antony@trinitetech.com') {
         role = 'super_admin';
@@ -45,7 +66,8 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
       tokenStorage.setAdmin(token);
       if (refreshToken) tokenStorage.setRefresh(refreshToken);
       updateUserInStorage({ ...data.user, userType: role });
-      onLogin({ name: data.user.name, type: role, email: data.user.email });
+      onLogin({ name: data.user.name, type: role, email: data.user.email, role, permissions });
+      // ^ pass the already-normalized `permissions` array (not raw data.user.permissions)
       onNavigate('admin/dashboard');
     } catch {
       setError('Connection error. Please try again.');
@@ -55,77 +77,48 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-orange-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-14 object-contain" />
+    <div className="admin-login-page">
+      <header className="admin-login-header">
+        <button type="button" onClick={() => onNavigate('home')} aria-label="Go to ZyncJobs home"><img src="/images/zyncjobs-logo.png" alt="ZyncJobs" /></button>
+        <span><Shield size={15} aria-hidden="true" /> Admin Portal</span>
+      </header>
+      <main className="admin-login-layout">
+        <aside className="admin-login-intro">
+          <span className="admin-login-eyebrow">ZYNCJOBS CONTROL CENTER</span>
+          <h1>Your team. <br />Your talent. <br /><span>One workspace.</span></h1>
+          <p>Manage your hiring operations with a clear view of candidates, submissions, and team performance.</p>
+          <div className="admin-login-capabilities">
+            {[
+              { icon: Users, title: 'Talent Pool', description: 'Keep candidate profiles and resumes organized.' },
+              { icon: Briefcase, title: 'Submission Tracker', description: 'Follow candidate submissions and their progress.' },
+              { icon: FileText, title: 'Recruiter Analytics', description: 'Stay informed with team performance insights.' },
+            ].map(({ icon: Icon, title, description }) => <div key={title}><span className="admin-login-feature-icon"><Icon size={19} aria-hidden="true" /></span><div><h2>{title}</h2><p>{description}</p></div></div>)}
           </div>
-          <h1 className="text-3xl font-bold text-white">Admin Portal</h1>
-          <p className="text-orange-300 mt-1">ZyncJobs Control Center</p>
-        </div>
-
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-orange-500/30">
-          {error && (
-            <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/40 text-red-200 rounded-lg px-4 py-3 mb-6 text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-            {/* Hidden dummy inputs to prevent browser autofill */}
-            <input type="text" style={{ display: 'none' }} />
-            <input type="password" style={{ display: 'none' }} />
-
-            <div>
-              <label className="block text-sm font-medium text-orange-200 mb-1.5">Admin Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoComplete="off"
-                placeholder="Enter your email"
-                className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-orange-200 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Enter your password"
-                  className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 pr-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-                <button type="button" onClick={() => setShowPw(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-white">
-                  {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
+          <div className="admin-login-access-note"><Shield size={17} aria-hidden="true" /><span>For authorized administrators and recruiting teams.</span></div>
+        </aside>
+        <section className="admin-login-form-panel" aria-labelledby="admin-signin-title">
+          <div className="admin-login-form-content">
+            <span className="admin-login-form-icon"><Shield size={23} aria-hidden="true" /></span>
+            <p className="admin-login-eyebrow">WELCOME BACK</p>
+            <h2 id="admin-signin-title">Sign in to your admin portal</h2>
+            <p className="admin-login-description">Use your work credentials to access the ZyncJobs control center.</p>
+            {error && <div id="admin-login-error" role="alert" className="admin-login-error"><AlertCircle size={18} aria-hidden="true" /><span>{error}</span></div>}
+            <form onSubmit={handleSubmit} aria-busy={loading}>
+              <label htmlFor="admin-login-email">Work email</label>
+              <input id="admin-login-email" type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="username" autoCapitalize="none" spellCheck={false} disabled={loading} placeholder="you@company.com" aria-describedby={error ? 'admin-login-error' : undefined} />
+              <label htmlFor="admin-login-password">Password</label>
+              <div className="admin-login-password">
+                <input id="admin-login-password" type={showPw ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} required autoComplete="current-password" disabled={loading} placeholder="Enter your password" aria-describedby={error ? 'admin-login-error' : undefined} />
+                <button type="button" onClick={() => setShowPw(previous => !previous)} aria-label={showPw ? 'Hide password' : 'Show password'} aria-pressed={showPw} disabled={loading}>{showPw ? <EyeOff size={19} /> : <Eye size={19} />}</button>
               </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-600 hover:to-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition-colors"
-            >
-              {loading ? 'Signing in...' : 'Sign In to Admin Panel'}
-            </button>
-          </form>
-
-          <p className="text-center text-orange-400/60 text-sm mt-6">
-            <button onClick={() => onNavigate('home')} className="hover:text-orange-300 transition-colors">
-              ← Back to ZyncJobs
-            </button>
-          </p>
-        </div>
-      </div>
+              <button className="admin-login-submit" type="submit" disabled={loading}>{loading ? <><Loader2 size={18} className="animate-spin" /> Signing in...</> : <>Sign in to Admin Panel <ArrowRight size={18} aria-hidden="true" /></>}</button>
+            </form>
+            <p className="admin-login-help">Need access? Contact your organization administrator.</p>
+            <button className="admin-login-back" type="button" onClick={() => onNavigate('home')}><ArrowLeft size={16} aria-hidden="true" /> Back to ZyncJobs</button>
+          </div>
+        </section>
+      </main>
+      <footer className="admin-login-footer"><span>ZyncJobs Administration</span><span>Talent management, made simpler.</span></footer>
     </div>
   );
 }
