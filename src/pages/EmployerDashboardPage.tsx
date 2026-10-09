@@ -1,5 +1,5 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2, X } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -43,9 +43,9 @@ const getApplicantMatchScore = (app: any, matchScores: Record<string, number | n
 
 const matchScoreClasses = (score: number | null) => {
   if (score === null) return 'bg-gray-100 text-gray-500 border-gray-200';
-  if (score >= 70) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  if (score >= 40) return 'bg-amber-50 text-amber-700 border-amber-200';
-  return 'bg-red-50 text-red-600 border-red-200';
+  if (score >= 70) return 'bg-slate-100 text-[#1e3a8a] border-slate-200';
+  if (score >= 40) return 'bg-slate-50 text-slate-700 border-slate-200';
+  return 'bg-slate-50 text-slate-600 border-slate-200';
 };
 
 interface EmployerDashboardPageProps {
@@ -213,12 +213,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   // Persist active menu to sessionStorage on every change
   useEffect(() => { sessionStorage.setItem('employer_active_menu', activeMenu); }, [activeMenu]);
 
-  // Deep-link from email: /dashboard#interviews opens Interviews tab
+  // Deep-link from email or navigation: /dashboard#interviews opens Interviews tab
   useEffect(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash && ['dashboard', 'applications', 'interviews', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'].includes(hash)) {
-      setActiveMenu(hash);
-    }
+    const handleHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && ['dashboard', 'applications', 'interviews', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'].includes(hash)) {
+        setActiveMenu(hash);
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
   useEffect(() => {
@@ -818,7 +823,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
     return `data:image/svg+xml,${encodeURIComponent(
       `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r="32" fill="#1e40af"/>
+        <circle cx="32" cy="32" r="32" fill="#1d4ed8"/>
         <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text>
       </svg>`
     )}`;
@@ -894,7 +899,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return () => clearTimeout(t);
   }, [jobPerformanceStats]);
 
-  const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+  const PIE_COLORS = ['#2563eb', '#60a5fa', '#93c5fd', '#1e3a8a', '#64748b', '#cbd5e1'];
   
   // ── Calculate dynamic percentage changes (last 30 days vs previous 30 days) ──
   const calculatePercentageChange = (currentData: any[]) => {
@@ -935,32 +940,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       label: 'Active Jobs', 
       value: dashboardStats?.activeJobs?.toString() || '0', 
       icon: Briefcase, 
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
       percentage: jobsPercentage
     },
     { 
       label: 'Applications', 
       value: dashboardStats?.applications?.toString() || '0', 
-      icon: FileText, 
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      icon: Users, 
       percentage: applicationsPercentage
     },
     { 
       label: 'Interviews', 
       value: dashboardStats?.interviews?.toString() || '0', 
-      icon: Users, 
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      icon: MessageSquare, 
       percentage: interviewsPercentage
     },
     { 
       label: 'Hired', 
       value: dashboardStats?.hired?.toString() || '0', 
       icon: UserPlus, 
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
       percentage: hiredPercentage
     }
   ];
@@ -973,7 +970,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       if (header) setHeaderHeight(header.getBoundingClientRect().height);
     };
     measure();
-    // Retry after a tick in case header isn't in DOM yet on first render
     const t = setTimeout(measure, 50);
     window.addEventListener('resize', measure);
     return () => { clearTimeout(t); window.removeEventListener('resize', measure); };
@@ -990,18 +986,28 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     setAccessDeniedModal({ show: true, feature, requiredRole });
   };
 
-  if (viewingCandidateId) {
-    return (
-      <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
-        <CandidateProfileView
-          candidateId={viewingCandidateId}
-          onNavigate={onNavigate}
-          onBack={() => setViewingCandidateId(null)}
-          onLogout={onLogout}
-        />
-      </div>
-    );
-  }
+  const renderNavigationCard = (isMobile = false) => {
+    const displayName = companyName && companyName !== 'Company' ? companyName :
+      user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
+      user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
+      'Company';
+
+    const navItems = [
+      { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
+      { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
+      { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
+      { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
+      { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
+      { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
+      { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+      { key: 'ats-dashboard',    label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => withRoleCheck('Recruiter Analytics', 'Recruiter', () => onNavigate('ats-dashboard')), external: true, show: true },
+      { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
+      { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
+      { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
+      { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
+      { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
+      { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
+    ];
 
   return (
     <div className="portal-employer-dashboard bg-gray-50 flex" style={{height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
@@ -1017,7 +1023,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <button onClick={() => setError(null)} className="ml-2 sm:ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">&times;</button>
           </div>
         </div>
-      )}
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -1081,7 +1086,49 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </button>
               </div>
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-[#1e3a8a] text-sm leading-tight truncate">{employerName}</p>
+              <p className="text-xs text-slate-500 font-medium truncate mt-0.5 leading-snug">
+                {displayName}
+              </p>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border mt-1 ${
+                teamRole === 'Owner' || !teamRole ? 'bg-slate-100 text-[#1e3a8a] border-slate-200' :
+                teamRole === 'Recruiter' ? 'bg-slate-50 text-[#1e3a8a] border-slate-200' :
+                'bg-slate-100 text-slate-600 border-slate-200'
+              }`}>
+                {teamRole === 'Owner' || !teamRole ? 'Admin / Owner' : teamRole}
+              </span>
+            </div>
+          </div>
+        </div>
 
+        {/* Profile Strength bar */}
+        <div className="px-4 sm:px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0]">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs text-slate-700 font-semibold tracking-wide">
+              Profile Strength
+            </span>
+            <span className="text-xs font-bold text-[#2563eb] bg-[#eff6ff] border border-[#bfdbfe] px-2 py-0.5 rounded-full">
+              {profileCompletion}%
+            </span>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div
+              className={`h-2 rounded-full transition-all duration-700 ${
+                profileCompletion >= 80 ? 'bg-[#2563eb]' :
+                profileCompletion >= 50 ? 'bg-[#2563eb]' : 'bg-slate-400'
+              }`}
+              style={{ width: `${profileCompletion}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1.5">
+            {profileCompletion < 50
+              ? 'Add company details to stand out'
+              : profileCompletion < 80
+                ? 'Almost there! Complete profile'
+                : 'Great company profile!'}
+          </p>
+        </div>
 
 
             {/* Role badge for team members */}
@@ -1149,11 +1196,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 openConfirm(
                 'Delete Account',
                 'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
-                  async () => {
-                    closeConfirm();
-                    try {
-                      const userId = user.id || user._id;
-                                        if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
+                async () => {
+                  closeConfirm();
+                  try {
+                    const userId = user.id || user._id;
+                    if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
                     const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
@@ -1192,6 +1239,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </button>
             </div>
       </div>
+    );
+  }
 
       {/* Main Content — offset by sidebar width on desktop, independent scroll */}
       <div className="portal-dashboard-main flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
@@ -1204,67 +1253,104 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden flex-shrink-0 bg-blue-700 text-white p-2 rounded-lg"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <BackButton
-              fallback="/"
-              text="Back to Home"
-              className="hidden lg:flex"
-            />
-            <h1 className="lg:hidden text-lg font-bold text-gray-900 truncate">Dashboard</h1>
+
+            {/* Page / Section Title & Subtitle */}
+            <div className="min-w-0 flex-1 pr-2">
+              <h1 className="text-base sm:text-[17px] lg:text-xl font-bold text-[#1e3a8a] tracking-tight leading-tight">
+                {activeMenu === 'dashboard' ? (
+                  <>
+                    <span className="sm:hidden">Dashboard</span>
+                    <span className="hidden sm:inline">Employer Dashboard</span>
+                  </>
+                ) :
+                 activeMenu === 'applications' ? 'Applications' :
+                 activeMenu === 'interviews' ? 'Interviews' :
+                 activeMenu === 'saved-candidates' ? (
+                   <>
+                     <span className="sm:hidden">Saved</span>
+                     <span className="hidden sm:inline">Saved Candidates</span>
+                   </>
+                 ) :
+                 activeMenu === 'alerts' ? (
+                   <>
+                     <span className="sm:hidden">Alerts</span>
+                     <span className="hidden sm:inline">Alerts & Notifications</span>
+                   </>
+                 ) :
+                 activeMenu === 'team' ? (
+                   <>
+                     <span className="sm:hidden">Team</span>
+                     <span className="hidden sm:inline">Team Management</span>
+                   </>
+                 ) :
+                 activeMenu === 'auto-rejection' ? (
+                   <>
+                     <span className="sm:hidden">Auto-Reject</span>
+                     <span className="hidden sm:inline">AI Auto-Rejection</span>
+                   </>
+                 ) :
+                 activeMenu === 'credentialing' ? 'Credentialing' : 'Dashboard'}
+              </h1>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5 truncate">
+                {activeMenu === 'dashboard' && employerName ? (
+                  <>
+                    <span className="truncate">
+                      Welcome back, <strong className="font-semibold text-slate-700">{employerName}</strong>
+                    </span>
+                    <span className="text-slate-300 hidden lg:inline">·</span>
+                    <span className="text-slate-500 hidden lg:inline truncate">Hiring pipeline and workspace overview</span>
+                  </>
+                ) : (
+                  <span className="truncate">
+                    {activeMenu === 'applications' ? 'Review and manage candidate applications across your postings' :
+                     activeMenu === 'interviews' ? 'Scheduled candidate interviews and timeline' :
+                     activeMenu === 'saved-candidates' ? 'Candidates bookmarked for open and future positions' :
+                     activeMenu === 'alerts' ? 'Candidate updates, interview alerts, and system notifications' :
+                     activeMenu === 'team' ? 'Manage your recruitment team members and access permissions' :
+                     activeMenu === 'auto-rejection' ? 'Configure criteria-based automated applicant screening' :
+                     activeMenu === 'credentialing' ? 'Candidate credentialing and background checks' :
+                     'Hiring workspace overview'}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
+
+          {/* Right Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-slate-100 sm:border-0 justify-end">
             {/* Complete Profile Button */}
             <button
               onClick={() => {
-              if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Edit Profile', requiredRole: 'Owner' }); return; }
-              onNavigate('employer-complete-profile');
-            }}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs shadow-lg flex items-center gap-1"
+                if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Edit Profile', requiredRole: 'Owner' }); return; }
+                onNavigate('employer-complete-profile');
+              }}
+              className="flex-1 sm:flex-none h-9 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-[#1e3a8a] px-3 sm:px-3.5 rounded-lg font-medium text-xs sm:text-sm shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
               title="Complete your company profile"
+              aria-label="Edit Profile"
             >
-              <span className="hidden sm:inline">Edit Profile</span>
-              <span className="sm:hidden">Edit</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
+              <span>Edit Profile</span>
             </button>
 
-            {/* View Company Page Button */}
-            <button
-              onClick={() => {
-                const name = companyName && companyName !== 'Company' ? companyName : user?.companyName || user?.company || '';
-                if (!name) return;
-                localStorage.setItem('selectedCompany', JSON.stringify({ name, _id: user?.companyId || '' }));
-                sessionStorage.setItem('companyDetailsTab', 'reviews');
-                onNavigate('company-details');
-              }}
-              className="bg-white border border-gray-300 text-gray-700 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors text-xs shadow-sm flex items-center gap-1"
-              title="View your company page"
-            >
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span className="hidden sm:inline">Company Page</span>
-            </button>
-            
             {/* Post Job Button */}
             {canPostJobs ? (
               <button
                 onClick={() => onNavigate('job-posting-selection')}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-2 py-1.5 sm:px-5 sm:py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-xs shadow-lg"
+                className="flex-1 sm:flex-none h-9 bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 sm:px-4 rounded-md font-semibold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
                 title="Post a new job"
               >
-                <span className="hidden sm:inline">Post Job</span>
-                <span className="sm:hidden">Post</span>
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>Post Job</span>
               </button>
             ) : (
-              <span className="bg-gray-100 text-gray-400 px-2 py-1.5 sm:px-5 sm:py-2 rounded-lg text-xs border border-gray-200 cursor-not-allowed" title="View only access — cannot post jobs">
-                <span className="hidden sm:inline">View Only</span>
-                <span className="sm:hidden">View</span>
+              <span className="flex-1 sm:flex-none h-9 bg-slate-100 text-slate-400 px-3.5 rounded-lg text-xs border border-slate-200 flex items-center justify-center cursor-not-allowed" title="View only access — cannot post jobs">
+                View Only
               </span>
             )}
             
@@ -1295,67 +1381,73 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Main Grid: Col 1 is Navigation Card, Col 2-4 is Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3.5 sm:pt-4 pb-8 sm:pb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 lg:gap-6 items-start">
+          {/* Desktop Navigation Column */}
+          <div className="hidden lg:block lg:col-span-1 sticky top-4">
+            {renderNavigationCard(false)}
+          </div>
 
         {/* Dashboard Content */}
         <div className="pt-0 pb-2 flex-1 min-w-0">
           <div className="employer-section-content portal-dashboard-content px-3 sm:px-4 lg:px-6" data-section={activeMenu}>
           {activeMenu === 'dashboard' ? (
             <>
-              <div className="mb-4 sm:mb-6">
-                <h1 className="hidden lg:block text-2xl sm:text-3xl font-bold text-gray-900">Employer Dashboard</h1>
-                <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
-                {isViewer && (
-                  <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg text-sm">
-                    <span className="text-base">👁️</span>
-                    <span>You have <strong>View Only</strong> access. Contact the Owner to request additional permissions.</span>
-                  </div>
-                )}
-              </div>
+              {isViewer && (
+                <div className="mb-4 flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs sm:text-sm">
+                  <span className="text-base">👁️</span>
+                  <span>You have <strong>View Only</strong> access. Contact the Owner to request additional permissions.</span>
+                </div>
+              )}
 
-              {/* Profile Completion Top Alert (Only shown if completion < 100%) */}
+              {/* Profile Completion Alert Banner (Only shown if completion < 100%) */}
               {user && profileCompletion < 100 && (
-                <div className="mb-4 sm:mb-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/80 rounded-xl p-3.5 sm:p-4 text-amber-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
-                  <div className="flex items-start sm:items-center gap-3 min-w-0">
-                    <div className="p-2 bg-amber-100/80 rounded-lg text-amber-700 flex-shrink-0 mt-0.5 sm:mt-0">
-                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                <div className="mb-5 bg-white border border-[#e2e8f0] rounded-lg p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 text-[#1e3a8a] flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0">
+                      <Shield className="w-5 h-5 text-slate-700" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-semibold text-amber-950 flex flex-wrap items-center gap-1.5">
-                        <span>Complete your company profile — {profileCompletion}% completed.</span>
-                      </p>
-                      <p className="text-xs text-amber-700/90 mt-0.5">
-                        Complete your profile to get the most out of ZyncJobs.
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs sm:text-sm font-semibold text-[#1e3a8a]">
+                          Complete your company profile
+                        </p>
+                        <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                          {profileCompletion}% completed
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Complete your profile to increase candidate trust, boost job visibility, and unlock verified status.
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => onNavigate('employer-complete-profile')}
-                    className="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-colors whitespace-nowrap self-start sm:self-center"
+                    className="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 text-xs font-semibold rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] text-white shadow-sm transition-colors whitespace-nowrap self-start sm:self-center"
                   >
-                    Complete Profile
+                    Complete Profile &rarr;
                   </button>
                 </div>
               )}
-              <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl shadow-md border-2 border-gray-200 p-3 sm:p-4 lg:p-6">
 
               {/* ── Stat Cards ── */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
                 {stats.map((stat, index) => {
                   const isPositive = !stat.percentage.startsWith('-');
                   const numericPct = parseInt(stat.percentage.replace(/[^0-9-]/g, '')) || 0;
                   const clampedPct = Math.min(Math.abs(numericPct), 100);
                   const isNumericPct = stat.percentage.includes('%');
-                  const radius = 24;
+                  const radius = 18;
                   const circumference = 2 * Math.PI * radius;
                   const fillRatio = isNumericPct ? clampedPct / 100 : 0.6;
                   const strokeDash = fillRatio * circumference;
-                  const ringColors = ['#3b82f6','#06b6d4','#f59e0b','#10b981'];
-                  const ringColor = isPositive ? ringColors[index] : '#ef4444';
                   const numVal = parseInt(stat.value) || 0;
                   const displayVal = numVal >= 1000 ? `${(numVal/1000).toFixed(1)}K` : stat.value;
-                  const borderColors = ['border-t-blue-500','border-t-cyan-500','border-t-amber-500','border-t-emerald-500'];
-                  const bgGradients = ['from-blue-50 to-white','from-cyan-50 to-white','from-amber-50 to-white','from-emerald-50 to-white'];
+                  const StatIcon = stat.icon;
+
                   return (
                     <div key={index} className={`employer-metric-card bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
                       <p className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-2 sm:mb-3 truncate">{stat.label}</p>
@@ -1366,15 +1458,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {isNumericPct ? `${isPositive ? "▲" : "▼"} ${Math.abs(numericPct)}%` : stat.percentage.replace(' this month', '')}
                           </p>
                         </div>
-                        <div className="relative flex-shrink-0 ml-2">
-                          <svg width="40" height="40" viewBox="0 0 60 60" className="sm:w-12 sm:h-12 lg:w-15 lg:h-15">
-                            <circle cx="30" cy="30" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="5" />
-                            <circle cx="30" cy="30" r={radius} fill="none" stroke={ringColor} strokeWidth="5"
-                              strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 30 30)" />
+                        {/* Mini Circular Progress */}
+                          <div className="relative flex-shrink-0">
+                          <svg width="38" height="38" viewBox="0 0 46 46">
+                            <circle cx="23" cy="23" r={radius} fill="none" stroke="#f1f5f9" strokeWidth="3.5" />
+                            <circle
+                              cx="23" cy="23" r={radius} fill="none" stroke="#2563eb" strokeWidth="3.5"
+                              strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 23 23)"
+                            />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[8px] sm:text-[10px] lg:text-xs font-bold" style={{ color: ringColor }}>
-                              {isNumericPct ? `${isPositive ? '+' : ''}${numericPct}%` : stat.percentage.replace(' this month', '')}
+                            <span className="text-[9px] font-bold text-slate-700">
+                              {isNumericPct ? `${numericPct}%` : ''}
                             </span>
                           </div>
                         </div>
@@ -1401,11 +1496,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 const visibleJobs = tabData[activeTab] || topPerforming;
 
                 const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
-                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: Flame };
-                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', icon: null };
-                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', icon: null };
-                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', icon: AlertTriangle };
-                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', icon: AlertTriangle };
+                  if (pct >= 80) return { bar: '#2563eb', label: 'Hot Job', labelCls: 'text-[#1e3a8a] bg-slate-100 border-slate-200', icon: Flame };
+                  if (pct >= 40) return { bar: '#64748b', label: 'Growing', labelCls: 'text-slate-700 bg-slate-50 border-slate-200', icon: null };
+                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#64748b', label: null, labelCls: '', icon: null };
+                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#64748b', label: 'Needs Boost', labelCls: 'text-slate-700 bg-slate-50 border-slate-200', icon: AlertTriangle };
+                  return { bar: '#64748b', label: 'Needs Boost', labelCls: 'text-slate-700 bg-slate-50 border-slate-200', icon: AlertTriangle };
                 };
 
                 const tabs = [
@@ -1416,12 +1511,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 ];
 
                 return (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-5 overflow-hidden">
+                  <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] mb-5 overflow-hidden">
                     {/* Header */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 gap-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-200 bg-white gap-3">
                       <div>
-                        <h2 className="text-base font-bold text-gray-900">Job Performance Score</h2>
-                        <p className="text-xs text-gray-400 mt-0.5">{companyName} · Applications overview</p>
+                        <h2 className="text-sm sm:text-base font-bold text-[#1e3a8a]">Job Performance Score</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">{companyName} · Applications overview</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {jobs.length > 0 && (
@@ -1430,55 +1525,55 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             selectedJobs={jobs.map(j => ({ id: j.id || j._id, title: j.jobTitle || j.title, refreshCount: j.refreshCount || 0, lastRefreshedAt: j.lastRefreshedAt }))}
                             userPlan={user?.plan || 'free'}
                             onRefreshComplete={() => { if (user) fetchDashboardData(user); }}
-                            className="text-xs px-3 py-2"
+                            className="text-xs px-3 py-1.5"
                           />
                         )}
                       </div>
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex overflow-x-auto border-b border-gray-100 px-4 gap-1 pt-2">
+                    <div className="flex overflow-x-auto border-b border-slate-200 px-4 gap-1 pt-1.5 bg-slate-50/50">
                       {tabs.map(t => (
                         <button key={t.key} onClick={() => setChartFilterJobId(`tab:${t.key}`)}
                           className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${
                             activeTab === t.key
-                              ? t.red ? 'border-red-500 text-red-600' : 'border-blue-600 text-blue-700'
-                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                              ? 'border-[#2563eb] text-[#2563eb] font-bold'
+                              : 'border-transparent text-[#64748b] hover:text-[#1e3a8a]'
                           }`}>
                           {t.label}
                           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                             activeTab === t.key
-                              ? t.red ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-500'
+                              ? 'bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]'
+                              : 'bg-slate-100 text-[#64748b]'
                           }`}>{t.count}</span>
                         </button>
                       ))}
                     </div>
 
                     {/* Job Cards */}
-                    <div className="px-6 py-4">
+                    <div className="p-4 sm:p-5">
                       {visibleJobs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                        <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                           {activeTab === 'attention' ? (
                             <>
-                              <PartyPopper className="w-8 h-8 mb-2 text-emerald-300" />
-                              <p className="text-xs">All jobs are getting applications!</p>
+                              <PartyPopper className="w-8 h-8 mb-2 text-slate-500" />
+                              <p className="text-xs font-medium text-slate-600">All jobs are getting applications!</p>
                             </>
                           ) : (
                             <>
-                              <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
-                              <p className="text-xs">No data yet</p>
+                              <BarChart2 className="w-8 h-8 mb-2 text-slate-300" />
+                              <p className="text-xs font-medium text-slate-500">No data yet</p>
                             </>
                           )}
                         </div>
                       ) : activeTab === 'attention' ? (
-                        /* Needs Attention: special card layout */
+                        /* Needs Attention */
                         <div className="space-y-3">
                           {visibleJobs.map(job => (
-                            <div key={job.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            <div key={job.id} className="flex items-center justify-between bg-slate-50/70 border border-slate-200 rounded-xl px-4 py-3">
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
-                                <p className="text-xs text-red-500 mt-0.5">0 Applications · Posted {job.postedDaysAgo} day{job.postedDaysAgo !== 1 ? 's' : ''} ago</p>
+                                <p className="text-sm font-semibold text-slate-900 truncate">{job.title}</p>
+                                <p className="text-xs text-[#1e3a8a] mt-0.5">0 Applications · Posted {job.postedDaysAgo} day{job.postedDaysAgo !== 1 ? 's' : ''} ago</p>
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                                 {job.jobData && (
@@ -1497,8 +1592,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           ))}
                         </div>
                       ) : (
-                        /* Top/Applied/Recent: performance card layout */
-                        <div className="space-y-4">
+                        /* Performance Card Layout */
+                        <div className="space-y-3 sm:space-y-4">
                           {visibleJobs.map((job, idx) => {
                             const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
                             const { bar, label, labelCls } = status;                            return (
@@ -1506,13 +1601,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 <div className="flex items-start justify-between gap-3 mb-2">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[11px] font-bold text-gray-400">#{idx + 1}</span>
-                                      <p className="text-sm font-bold text-gray-900 truncate">{job.title}</p>
+                                      <span className="text-[11px] font-bold text-slate-400">#{idx + 1}</span>
+                                      <p className="text-sm font-bold text-[#1e3a8a] truncate">{job.title}</p>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 mt-1.5">
-                                      <span className="text-xs text-gray-500">{job.appCount} / {job.target} Applications</span>
-                                      <span className="text-xs text-cyan-600">{job.shortlisted} Shortlisted</span>
-                                      <span className="text-xs text-purple-600">{job.interviewCount} Interviews</span>
+                                    <div className="flex flex-wrap gap-2 sm:gap-3 mt-1.5">
+                                      <span className="text-xs text-slate-500 font-medium">{job.appCount} / {job.target} Applications</span>
+                                      <span className="text-xs text-slate-700 font-semibold">{job.shortlisted} Shortlisted</span>
+                                      <span className="text-xs text-slate-700 font-semibold">{job.interviewCount} Interviews</span>
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -1527,12 +1622,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   </div>
                                 </div>
                                 {/* Progress bar */}
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
                                     <div className="h-full rounded-full transition-all duration-700"
                                       style={{ width: barsAnimated ? `${Math.max(job.progressPct, 3)}%` : '0%', background: bar }} />
                                   </div>
-                                  <span className="text-[11px] font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
+                                  <span className="text-xs font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
                                   {job.jobData && (
                                     <JobRefreshButton
                                       jobId={job.jobData.id || job.jobData._id}
@@ -1550,41 +1645,41 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           })}
                         </div>
                       )}
-
-
                     </div>
                   </div>
                 );
               })()}
 
               {/* ── Row 1: Charts ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-4 sm:mb-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-5">
                 {/* Area chart */}
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all flex flex-col">
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
                     <div>
-                      <h2 className="text-sm font-bold text-gray-900">Applications Received</h2>
-                      <p className="text-xs text-gray-400 mt-0.5">Last 7 days</p>
+                      <h2 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider">Applications Received</h2>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Last 7 days</p>
                     </div>
-                    <TrendingUp className="w-4 h-4 text-blue-500" />
+                <div className="w-7 h-7 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                    </div>
                   </div>
                   <div className="flex-1 min-h-0">
                   {applications.length === 0 ? (
-                    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
+                    <div className="flex items-center justify-center h-40 text-slate-400 text-xs">No data yet</div>
                   ) : (
                     <ResponsiveContainer width="100%" height={160}>
                       <AreaChart data={applicationsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.18} />
+                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                         <Tooltip />
-                        <Area type="monotone" dataKey="applications" stroke="#8b5cf6" fill="url(#appGrad)" strokeWidth={2} />
+                        <Area type="monotone" dataKey="applications" stroke="#2563eb" fill="url(#appGrad)" strokeWidth={2} />
                       </AreaChart>
                     </ResponsiveContainer>
                   )}
@@ -1592,25 +1687,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* Status Donut */}
-                <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl p-6 shadow-md border-2 border-purple-100 hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all flex flex-col">
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
                     <div>
-                      <h2 className="text-sm font-bold text-gray-900">Status Breakdown</h2>
-                      <p className="text-xs text-gray-400 mt-0.5">All applications</p>
+                      <h2 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider">Status Breakdown</h2>
+                      <p className="text-[11px] text-slate-400 mt-0.5">All applications</p>
                     </div>
-                    <BarChart2 className="w-4 h-4 text-purple-500" />
+                <div className="w-7 h-7 rounded-lg bg-[#eff6ff] border border-[#dbeafe] text-[#2563eb] flex items-center justify-center">
+                      <BarChart2 className="w-3.5 h-3.5" />
+                    </div>
                   </div>
                   <div className="flex-1 min-h-0">
                   {statusBreakdown.length === 0 ? (
-                    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
+                    <div className="flex items-center justify-center h-40 text-slate-400 text-xs">No data yet</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={200}>
+                    <ResponsiveContainer width="100%" height={190}>
                       <PieChart>
-                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={42} outerRadius={68} paddingAngle={3} dataKey="value">
                           {statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                         </Pie>
                         <Tooltip />
-                        <Legend iconSize={9} wrapperStyle={{ fontSize: 10 }} />
+                        <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
@@ -1618,33 +1715,36 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* Acquisitions */}
-                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-6 shadow-md border-2 border-indigo-100 hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold text-gray-900">Acquisitions</h2>
-                    <span className="text-xs text-violet-500 font-semibold bg-violet-50 px-2 py-0.5 rounded-full">This Month</span>
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all flex flex-col">
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+                    <div>
+                      <h2 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider">Acquisitions</h2>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Stage breakdown</p>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-semibold bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">This Month</span>
                   </div>
                   <div className="flex-1">
                   {(() => {
                     const total = applications.length || 1;
                     const acq = [
-                      { label:'Applications', count: applications.length, color:'#8b5cf6' },
-                      { label:'Shortlisted',  count: applications.filter(a=>['shortlisted','hired'].includes(a.status)).length, color:'#06b6d4' },
-                      { label:'On-hold',      count: applications.filter(a=>a.status==='reviewed').length, color:'#f59e0b' },
-                      { label:'Rejected',     count: applications.filter(a=>a.status==='rejected').length, color:'#ef4444' },
+                      { label:'Applications', count: applications.length, color:'#2563eb' },
+                      { label:'Shortlisted',  count: applications.filter(a=>['shortlisted','hired'].includes(a.status)).length, color:'#2563eb' },
+                      { label:'On-hold',      count: applications.filter(a=>a.status==='reviewed').length, color:'#64748b' },
+                      { label:'Rejected',     count: applications.filter(a=>a.status==='rejected').length, color:'#64748b' },
                     ];
                     return (
                       <>
-                        <div className="flex h-2.5 rounded-full overflow-hidden mb-4">
+                        <div className="flex h-2 rounded-full overflow-hidden mb-4 bg-slate-100">
                           {acq.map((s,i) => <div key={i} style={{width:`${(s.count/total)*100}%`,background:s.color}} />)}
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                           {acq.map((s,i) => (
-                            <div key={i} className="flex items-center justify-between">
+                            <div key={i} className="flex items-center justify-between text-xs">
                               <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:s.color}}></span>
-                                <span className="text-xs text-gray-600">{s.label}</span>
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:s.color}}></span>
+                                <span className="text-slate-600 font-medium">{s.label}</span>
                               </div>
-                              <span className="text-xs font-bold text-gray-800">
+                              <span className="font-bold text-[#1e3a8a]">
                                 {applications.length > 0 ? `${Math.round((s.count/total)*100)}%` : '0%'}
                               </span>
                             </div>
@@ -1657,27 +1757,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
               </div>
 
-              {/* ── Row 2: Bottom Cards ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+              {/* ── Row 2: Bottom Cards (New Applicants & Recent Activity) ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mb-6">
                 {/* New Applicants */}
-                <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-bold text-gray-900">New Applicants</h2>
-                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Last 7 days</span>
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all">
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+                    <h2 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider">New Applicants</h2>
+                    <span className="text-[10px] text-[#1e3a8a] font-bold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">Last 7 days</span>
                   </div>
                   {applications.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
+                    <p className="text-xs text-slate-400 text-center py-8">No applicants yet</p>
                   ) : (
                     <div className="space-y-3">
                       {enrichedApps.slice(0, 5).map((app, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-                            style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}>
+                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[#1e3a8a] bg-slate-100 border border-slate-200 text-xs font-bold">
                             {(app.candidateName || 'C').charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName || 'Candidate'}</p>
-                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle || 'a position').substring(0, 24)}</p>
+                            <p className="text-xs font-bold text-[#1e3a8a] truncate">{app.candidateName || 'Candidate'}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{(app.jobTitle || 'a position').substring(0, 24)}</p>
                           </div>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${matchScoreClasses(getApplicantMatchScore(app, matchScores))}`}
                             title="AI Match Score">
@@ -1690,22 +1789,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* Recent Activity */}
-                <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl p-6 shadow-md border-2 border-orange-100 hover:shadow-lg transition-all duration-300">
-                  <h2 className="text-sm font-bold text-gray-900 mb-4">Recent Activity</h2>
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all">
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+                    <h2 className="text-xs sm:text-sm font-bold text-[#1e3a8a] uppercase tracking-wider">Recent Activity</h2>
+                  </div>
                   {loading ? (
-                    <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-600"></div></div>
+                    <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#1e3a8a]"></div></div>
                   ) : recentActivity.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-8">No recent activity</p>
+                    <p className="text-xs text-slate-400 text-center py-8">No recent activity</p>
                   ) : (
                     <div className="space-y-3">
                       {recentActivity.map((activity, index) => (
-                        <div key={index} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0">
-                          <div className="w-2 h-2 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
+                        <div key={index} className="flex items-start gap-2.5 pb-2.5 border-b border-slate-100 last:border-0">
+                          <div className="w-2 h-2 rounded-full bg-[#2563eb] mt-1.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-800">{activity.message}</p>
-                            {activity.details?.jobTitle && <p className="text-xs text-gray-400 truncate">{activity.details.jobTitle}</p>}
+                            <p className="text-xs font-medium text-slate-800">{activity.message}</p>
+                            {activity.details?.jobTitle && <p className="text-[11px] text-slate-400 truncate">{activity.details.jobTitle}</p>}
                           </div>
-                          <span className="text-xs text-gray-400 whitespace-nowrap">{activity.time}</span>
+                          <span className="text-[11px] text-slate-400 whitespace-nowrap">{activity.time}</span>
                         </div>
                       ))}
                     </div>
@@ -1713,14 +1814,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
               </div>
 
-              </div>{/* end white container */}
-
             </>
           ) : activeMenu === 'applications' ? (
             <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Applications</h1>
-                <span className="text-sm text-gray-500">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">Applications</h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Review and manage all candidate applications across your postings
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
                   {(() => {
                     const filtered = applications.filter(a => {
                       const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
@@ -1739,13 +1843,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search candidate..."
+                    placeholder="Search by candidate name or email..."
                     value={appSearch}
                     onChange={e => setAppSearch(e.target.value)}
-                    className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400"
+                    className="bg-transparent text-xs sm:text-sm text-slate-800 outline-none w-full placeholder-slate-400"
                   />
                 </div>
-                <div className="flex flex-row gap-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                   <AutocompleteCombobox
                     value={appFilterJob === 'all' ? '' : appFilterJob}
                     onChange={(val) => setAppFilterJob(val || 'all')}
@@ -1758,7 +1862,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       })
                     ]}
                     placeholder="All Jobs"
-                    className="text-sm flex-1 min-w-0"
+                    className="text-xs sm:text-sm min-w-[140px] flex-1 sm:flex-none"
                   />
                   <AutocompleteCombobox
                     value={appFilterStatus === 'all' ? '' : appFilterStatus}
@@ -1772,12 +1876,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       { value: 'hired', label: 'Hired' }
                     ]}
                     placeholder="All Status"
-                    className="text-sm flex-1 min-w-0"
+                    className="text-xs sm:text-sm min-w-[130px] flex-1 sm:flex-none"
                   />
                   {(appFilterJob !== 'all' || appFilterStatus !== 'all' || appSearch) && (
                     <button
                       onClick={() => { setAppFilterJob('all'); setAppFilterStatus('all'); setAppSearch(''); }}
-                      className="text-sm text-red-500 hover:text-red-700 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap"
+                      className="text-xs text-red-600 hover:text-red-700 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap"
                     >
                       Clear
                     </button>
@@ -1787,13 +1891,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
               {loading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a]"></div>
                 </div>
               ) : applications.length === 0 ? (
-                <div className="text-center py-16">
-                  <Users className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No applications yet</h3>
-                  <p className="text-gray-600 mb-6">Applications will appear here when candidates apply.</p>
+                <div className="bg-white rounded-lg border border-[#e2e8f0] p-12 text-center shadow-sm">
+                  <Users className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-1">No applications yet</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">Applications will appear here when candidates apply to your jobs.</p>
                 </div>
               ) : (() => {
                 const filtered = applications.filter(a => {
@@ -1803,12 +1907,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   return jobMatch && statusMatch && searchMatch;
                 });
                 return filtered.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No applications match your filters.</p>
+                  <div className="bg-white rounded-lg border border-[#e2e8f0] p-12 text-center shadow-sm">
+                    <Users className="w-14 h-14 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm text-slate-500 font-medium">No applications match your filters.</p>
                   </div>
                 ) : (
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {filtered.map((application) => (
                     <div key={application._id || application.id} className="employer-application-card bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
                       {/* Mobile: stacked layout | Desktop: side-by-side */}
@@ -1816,34 +1920,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         {/* Candidate info */}
                         <div className="flex-1 min-w-0">
                           {/* Avatar + name row */}
-                          <div className="flex items-start gap-2 sm:gap-3 mb-2">
-                            <div className="hidden sm:flex w-12 h-12 bg-gray-100 rounded-full items-center justify-center flex-shrink-0">
-                              <span className="text-gray-600 font-bold text-lg">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
-                            </div>
-                            <div className="flex sm:hidden w-8 h-8 bg-gray-100 rounded-full items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-gray-600 font-bold text-sm">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
+                          <div className="flex items-start gap-2.5 sm:gap-3 mb-2">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-[#1e3a8a] font-bold text-base sm:text-lg">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                                <h3 className="text-sm sm:text-base font-bold text-[#1e3a8a] leading-tight">{application.candidateName || application.candidateEmail}</h3>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${matchScoreClasses(getApplicantMatchScore(application, matchScores))}`}
                                   title="AI Match Score">
                                   {getApplicantMatchScore(application, matchScores) === null ? '—' : `${getApplicantMatchScore(application, matchScores)}%`}
                                 </span>
                               </div>
-                              <p className="text-xs text-blue-700 font-semibold flex items-start gap-1 mt-0.5 leading-snug">
-                                <Briefcase className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-slate-600 font-semibold flex items-center gap-1 mt-0.5 leading-snug">
+                                <Briefcase className="w-3 h-3 flex-shrink-0 text-slate-500" />
                                 <span>Applied for: {application.jobTitle || 'Job Position'}</span>
                               </p>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2">
-                            <span className="text-xs text-gray-500 break-all">{application.candidateEmail}</span>
-                            <span className="text-xs text-gray-400">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2.5">
+                            <span className="text-xs text-slate-500 break-all">{application.candidateEmail}</span>
+                            <span className="text-xs text-slate-400">· Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           </div>
                           {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                            <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg mb-3 border-l-2 border-gray-300">
-                              <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 100 ? `${application.coverLetter.substring(0, 100)}...` : application.coverLetter}
+                            <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg mb-3 border-l-2 border-[#1e3a8a]">
+                              <strong className="text-slate-800">Cover Letter:</strong> {application.coverLetter.length > 100 ? `${application.coverLetter.substring(0, 100)}...` : application.coverLetter}
                             </div>
                           )}
                           {application.candidateEmail ? (
@@ -1855,13 +1956,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 setSelectedResumeCandidateEmail(application.candidateEmail || null);
                                 setShowResumeModal(true);
                               }}
-                              className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                              className="text-[#2563eb] hover:text-[#1d4ed8] text-xs font-semibold inline-flex items-center gap-1.5 bg-[#eff6ff] hover:bg-blue-100 border border-[#bfdbfe] px-3 py-1.5 rounded-lg transition-colors"
                             >
-                              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              <FileText className="w-3.5 h-3.5" />
                               View Resume
                             </button>
                           ) : (
-                            <span className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Not available</span>
+                            <span className="text-slate-400 text-xs bg-slate-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Not available</span>
                           )}
                         </div>
 
@@ -1895,10 +1996,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 { value: 'hired', label: 'Hired' }
                               ]}
                               placeholder="Select status"
-                              className="w-full"
+                              className="w-full text-xs"
                             />
                           ) : (
-                            <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
+                            <span className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-slate-50 text-slate-400 text-center capitalize">{application.status}</span>
                           )}
                           {/* Action buttons */}
                           <div className="flex flex-row sm:flex-col gap-2">
@@ -1910,14 +2011,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
                                 setViewingCandidateId(String(cid));
                               }}
-                              className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                              className="flex-1 sm:flex-none sm:w-full bg-white border border-slate-200 text-[#1e3a8a] hover:bg-slate-50 px-2.5 py-2 rounded-lg font-semibold transition-colors text-xs whitespace-nowrap shadow-sm text-center"
                             >
                               View Profile
                             </button>
                             {application.status !== 'rejected' && canManageApplications && (
                               <button
                                 onClick={() => { setSelectedApplication(application); setShowScheduleModal(true); }}
-                                className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap shadow-sm"
+                                className="flex-1 sm:flex-none sm:w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-2.5 py-2 rounded-lg font-semibold transition-colors text-xs whitespace-nowrap shadow-sm text-center"
                               >
                                 Schedule
                               </button>
@@ -1955,13 +2056,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     } else { throw new Error(); }
                                   } catch { showToast('Failed to reject application.', 'error'); }
                                 }}
-                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                                className="flex-1 sm:flex-none sm:w-full border border-red-200 text-red-600 hover:bg-red-50 px-2.5 py-2 rounded-lg font-semibold transition-colors text-xs whitespace-nowrap text-center"
                               >
                                 Reject
                               </button>
                             )}
                             {application.status === 'rejected' && (
-                              <span className="flex-1 sm:flex-none sm:w-full text-center px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-red-50 text-red-600 border border-red-200">
+                              <span className="flex-1 sm:flex-none sm:w-full text-center px-2 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
                                 Rejected
                               </span>
                             )}
@@ -1980,8 +2081,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="employer-interviews-heading mb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Interviews</h1>
-                    <p className="text-sm text-gray-500">
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">Interviews</h1>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                       {interviews.length === 0 ? 'No interviews scheduled' : 
                        interviews.length === 1 ? '1 interview scheduled' : 
                        `${interviews.length} interviews scheduled`}
@@ -1997,18 +2098,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           }
                           setShowScheduleModal(true);
                         }}
-                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors shadow-sm whitespace-nowrap"
+                        className="inline-flex items-center gap-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors shadow-sm whitespace-nowrap"
                       >
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
                         Schedule Interview
                       </button>
                     )}
-                    <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap">
-                      <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                    <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap">
+                      <Clock className="w-3.5 h-3.5 flex-shrink-0 text-slate-500" />
                       Schedule Management
                     </span>
                   </div>
@@ -2016,7 +2113,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
               {loading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a]"></div>
                 </div>
               ) : interviews.length === 0 ? (
                 <div className="employer-interviews-empty text-center py-16">
@@ -2037,7 +2134,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                           
                           <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-2 gap-2">
                               <div className="min-w-0">
                                 <h3 className="employer-interview-name text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1">
                                   {interview.candidateName || 'Candidate'}
@@ -2051,9 +2148,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                                 interview.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                 interview.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                interview.status === 'completed' ? 'bg-slate-50 text-slate-700 border border-slate-200' :
                                 interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                'bg-gray-50 text-gray-600 border border-gray-200'
+                                'bg-slate-50 text-slate-600 border border-slate-200'
                               }`}>
                                 {interview.status?.charAt(0).toUpperCase() + interview.status?.slice(1) || 'Scheduled'}
                               </span>
@@ -2071,7 +2168,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/host`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors shadow-sm"
+                                  className="inline-flex items-center gap-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors shadow-sm"
                                 >
                                   <Video className="w-3.5 h-3.5" />
                                   <span>Start Meeting</span>
@@ -2081,7 +2178,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     navigator.clipboard.writeText(`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`);
                                     showToast('Candidate join link copied!', 'success');
                                   }}
-                                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-600 border border-gray-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 px-3.5 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
                                   title="Copy candidate join link"
                                 >
                                   <Link2 className="w-3.5 h-3.5" />
@@ -2091,8 +2188,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             )}
 
                             {interview.notes && (
-                              <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border-l-2 border-gray-300">
-                                <strong className="text-gray-700">Notes:</strong> {interview.notes}
+                              <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border-l-2 border-[#1e3a8a]">
+                                <strong className="text-slate-800">Notes:</strong> {interview.notes}
                               </div>
                             )}
                           </div>
@@ -2133,8 +2230,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               { value: 'cancelled', label: 'Cancelled' }
                             ]}
                             placeholder="Select status"
-                            className="px-3 sm:px-4 py-2"
-                          />) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
+                            className="px-3 py-2 text-xs"
+                          />) : (<span className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold bg-slate-50 text-slate-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
                           {canDeleteRecords && (<button 
                             onClick={(e) => {
                               e.preventDefault();
@@ -2164,7 +2261,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               }}
                               className="employer-interview-delete flex-shrink-0 lg:w-full min-h-[40px] inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-sm"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                               <span>Delete</span>
                             </button>
                           )}
@@ -2210,8 +2307,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </section>
           ) : activeMenu === 'saved-candidates' ? (
             <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Saved Candidates</h1>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">Saved Candidates</h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Talent you bookmarked for current or future opportunities
+                  </p>
+                </div>
                 <button
                   onClick={async () => {
                     if (refreshingSaved) return;
@@ -2231,30 +2333,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     }
                   }}
                   disabled={refreshingSaved}
-                  className={`bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 ${refreshingSaved ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 shadow-sm transition-colors ${refreshingSaved ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  <RefreshCw className={`w-4 h-4 ${refreshingSaved ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingSaved ? 'animate-spin text-[#1e3a8a]' : ''}`} />
                   {refreshingSaved ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
               
               {savedCandidates.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Bookmark className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Saved Candidates</h3>
-                    <p className="text-gray-600 mb-6">Save candidates from the candidate search to view them here.</p>
-                    <div className="flex gap-4 justify-center">
-                      <button
-                        onClick={() => onNavigate('candidate-search')}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Search Candidates
-                      </button>
-
-                    </div>
+                <div className="bg-white rounded-lg border border-[#e2e8f0] p-12 text-center shadow-sm">
+                  <Bookmark className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-1">No Saved Candidates</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mb-5">Save candidates from the candidate search to organize them here.</p>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={() => onNavigate('candidate-search')}
+                      className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm shadow-sm transition-colors"
+                    >
+                      Search Candidates
+                    </button>
                   </div>
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {savedCandidates.map((candidate) => {
                     const name = candidate.candidateName || candidate.fullName || candidate.name || 'Candidate';
                     const title = candidate.candidateTitle || candidate.title || '';
@@ -2274,15 +2375,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         {/* Avatar */}
                         <div className="flex-shrink-0">
                           {photo ? (
-                            <img src={photo} alt={name} className="w-16 h-16 rounded-full object-cover border-2 border-green-300 shadow"
+                            <img src={photo} alt={name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border border-slate-200 shadow-sm"
                               onError={(e) => {
                                 const initials = (name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                                 (e.target as HTMLImageElement).src = `data:image/svg+xml,${encodeURIComponent(
-                                  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#10B981" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+                                  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#1e3a8a" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
                                 )}`;
                               }} />
                           ) : (
-                            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md text-white font-bold text-2xl">
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-[#1e3a8a] font-bold text-xl shadow-sm">
                               {name.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -2292,33 +2393,33 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div className="flex-1 min-w-0">
                           {/* Name + Applied Job badge */}
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h3 className="text-xl font-bold text-gray-900">{name}</h3>
+                            <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a]">{name}</h3>
                             {candidate.appliedJobTitle && (
-                              <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Briefcase className="w-3 h-3" />
+                              <span className="text-xs font-semibold text-[#1e3a8a] bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                <Briefcase className="w-3 h-3 text-slate-500" />
                                 {candidate.appliedJobTitle}
                               </span>
                             )}
                           </div>
 
                           {/* Title */}
-                          {title && <p className="text-sm font-semibold text-green-700 mb-2">{title}</p>}
+                          {title && <p className="text-xs sm:text-sm font-medium text-slate-600 mb-2">{title}</p>}
 
                           {/* Meta row */}
-                          <div className="flex flex-wrap gap-2 mb-3">
+                          <div className="flex flex-wrap gap-2 mb-2.5">
                             {location && (
-                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
-                                <MapPin className="w-3 h-3 text-green-500" />{location}
+                              <span className="flex items-center gap-1 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                                <MapPin className="w-3 h-3 text-slate-400" />{location}
                               </span>
                             )}
                             {experience && (
-                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
-                                <Briefcase className="w-3 h-3 text-blue-500" />{experience}
+                              <span className="flex items-center gap-1 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                                <Briefcase className="w-3 h-3 text-slate-400" />{experience}
                               </span>
                             )}
                             {email && (
-                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
-                                <Mail className="w-3 h-3 text-purple-500" />{email}
+                              <span className="flex items-center gap-1 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                                <Mail className="w-3 h-3 text-slate-400" />{email}
                               </span>
                             )}
                           </div>
@@ -2327,22 +2428,23 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           {skills.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
                               {skills.slice(0, 8).map((skill, i) => (
-                                <span key={i} className="text-xs bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">{skill}</span>
+                                <span key={i} className="text-xs bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full font-medium">{skill}</span>
                               ))}
                               {skills.length > 8 && (
-                                <span className="text-xs text-gray-400 px-1 py-0.5">+{skills.length - 8} more</span>
+                                <span className="text-xs text-slate-400 px-1 py-0.5">+{skills.length - 8} more</span>
                               )}
                             </div>
                           )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col gap-2 flex-shrink-0">
+                        <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto flex-shrink-0">
                           <button
                             onClick={() => { if (email) window.location.href = `mailto:${email}`; }}
-                            className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-5 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-colors text-sm flex items-center gap-1"
+                            className="flex-1 sm:flex-none bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-1.5 transition-colors"
                           >
-                            <Mail className="w-4 h-4" />Contact
+                            <Mail className="w-3.5 h-3.5" />
+                            <span>Contact</span>
                           </button>
                           <button
                             onClick={(e) => {
@@ -2374,7 +2476,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 }
                               );
                             }}
-                            className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
+                            className="flex-1 sm:flex-none border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg font-semibold transition-colors text-xs sm:text-sm text-center"
                           >
                             Remove
                           </button>
@@ -2388,40 +2490,43 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'alerts' ? (
             <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Alerts & Notifications</h1>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">Alerts & Notifications</h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Stay updated on candidates, interviews, and team activities
+                  </p>
+                </div>
                 <button
-                    onClick={async () => {
-                      if (refreshing || !user?.email) return;
-                      setRefreshing(true);
-                      try {
-                        const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
-                        setNotifications(filterNotifications(dynamicNotifications));
-                        showToast('Notifications are up to date.', 'success');
-                      } catch (error) {
-                        showToast('Failed to refresh notifications. Please try again.', 'error');
-                      } finally {
-                        setRefreshing(false);
-                      }
-                    }}
-                    disabled={refreshing}
-                    className={`flex items-center gap-2 text-sm border px-3 py-1.5 rounded transition-colors ${
-                      refreshing
-                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                        : 'text-gray-600 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    {refreshing ? 'Refreshing...' : 'Refresh'}
-                  </button>
+                  onClick={async () => {
+                    if (refreshing || !user?.email) return;
+                    setRefreshing(true);
+                    try {
+                      const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
+                      setNotifications(filterNotifications(dynamicNotifications));
+                      showToast('Notifications are up to date.', 'success');
+                    } catch (error) {
+                      showToast('Failed to refresh notifications. Please try again.', 'error');
+                    } finally {
+                      setRefreshing(false);
+                    }
+                  }}
+                  disabled={refreshing}
+                  className={`flex items-center gap-2 text-xs sm:text-sm bg-white border border-slate-200 px-3.5 py-2 rounded-lg font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm ${
+                    refreshing ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[#1e3a8a]' : ''}`} />
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {notifications.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Bell className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Alerts</h3>
-                    <p className="text-gray-600 mb-6">You're all caught up! New alerts will appear here.</p>
+                  <div className="bg-white rounded-lg border border-[#e2e8f0] p-12 text-center shadow-sm">
+                    <Bell className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+                    <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-1">No Alerts</h3>
+                    <p className="text-xs sm:text-sm text-slate-500">You're all caught up! New alerts and notifications will appear here.</p>
                   </div>
                 ) : (
                   notifications.map((notification) => (
@@ -2431,10 +2536,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           dangerouslySetInnerHTML={{ __html: NotificationService.getNotificationIcon(notification.type) }} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-1">
-                            <h3 className="text-sm font-semibold text-gray-900">{notification.title}</h3>
-                            <span className="text-xs text-gray-400 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
+                            <h3 className="text-sm font-bold text-[#1e3a8a]">{notification.title}</h3>
+                            <span className="text-xs text-slate-400 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3">{notification.message}</p>
+                          <p className="text-xs sm:text-sm text-slate-600 mb-3">{notification.message}</p>
                           <div className="flex gap-2">
                             <button 
                               onClick={() => {
@@ -2448,7 +2553,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   onNavigate('my-jobs');
                                 }
                               }}
-                              className="text-xs font-medium text-blue-600 border border-blue-600 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
+                              className="text-xs font-semibold text-[#2563eb] border border-[#bfdbfe] px-3 py-1.5 rounded-md hover:bg-[#eff6ff] transition-colors shadow-sm"
                             >
                               View Details
                             </button>
@@ -2459,7 +2564,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 dismissed.add(notification.id);
                                 localStorage.setItem(DISMISSED_NOTIFS_KEY, JSON.stringify([...dismissed]));
                               }}
-                              className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
+                              className="text-xs font-medium text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
                             >
                               Dismiss
                             </button>
@@ -2472,57 +2577,57 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
               
               {/* Alert Settings */}
-              <div className="mt-8 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Alert Preferences</h2>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
+              <div className="mt-6 bg-white rounded-lg p-5 sm:p-6 shadow-sm border border-[#e2e8f0]">
+                <h2 className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-3">Alert Preferences</h2>
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-3 cursor-pointer text-xs sm:text-sm">
                     <input
                       type="checkbox"
                       checked={prefs.newApplications}
                       onChange={e => setPrefs(p => ({ ...p, newApplications: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 text-[#1e3a8a] focus:ring-[#2563eb]"
                     />
-                    <span className="text-gray-700">New job applications</span>
+                    <span className="text-slate-700">New job applications</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer text-xs sm:text-sm">
                     <input
                       type="checkbox"
                       checked={prefs.interviewConfirmations}
                       onChange={e => setPrefs(p => ({ ...p, interviewConfirmations: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 text-[#1e3a8a] focus:ring-[#2563eb]"
                     />
-                    <span className="text-gray-700">Interview confirmations</span>
+                    <span className="text-slate-700">Interview confirmations</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer text-xs sm:text-sm">
                     <input
                       type="checkbox"
                       checked={prefs.jobPostingUpdates}
                       onChange={e => setPrefs(p => ({ ...p, jobPostingUpdates: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 text-[#1e3a8a] focus:ring-[#2563eb]"
                     />
-                    <span className="text-gray-700">Job posting updates</span>
+                    <span className="text-slate-700">Job posting updates</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer text-xs sm:text-sm">
                     <input
                       type="checkbox"
                       checked={prefs.weeklySummary}
                       onChange={e => setPrefs(p => ({ ...p, weeklySummary: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 text-[#1e3a8a] focus:ring-[#2563eb]"
                     />
-                    <span className="text-gray-700">Weekly summary reports</span>
+                    <span className="text-slate-700">Weekly summary reports</span>
                   </label>
                 </div>
                 <button
                   onClick={handleSavePreferences}
                   disabled={savingPrefs}
-                  className={`mt-4 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  className={`mt-4 px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-colors flex items-center gap-2 shadow-sm ${
                     savingPrefs
-                      ? 'bg-blue-400 text-white cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      ? 'bg-slate-400 text-white cursor-not-allowed'
+                      : 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]'
                   }`}
                 >
                   {savingPrefs && (
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
@@ -2541,11 +2646,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             />
           ) : activeMenu === 'auto-rejection' ? (
             <>
-              <div className="mb-6">
+              <div className="mb-5">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">AI Auto-Rejection</h1>
-                    <p className="text-sm text-gray-500">
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">AI Auto-Rejection</h1>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                       Configure intelligent filtering to automatically screen applications
                     </p>
                   </div>
@@ -2568,6 +2673,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           </div>
         </div>
       </div>
+
+      {/* Mobile / Tablet Drawer */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 max-w-[310px] w-full bg-white shadow-2xl z-50 overflow-y-auto">
+            {renderNavigationCard(true)}
+          </div>
+        </div>
+      )}
 
       {/* Notification Slide-in Drawer (same as candidate page) */}
       {showNotifications && (
@@ -2653,10 +2771,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               )}
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 border-t border-gray-100 bg-white px-4 py-3">
+            <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white px-4 py-3">
               <button
                 onClick={() => { setShowNotifications(false); setActiveMenu('alerts'); }}
-                className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="w-full text-center text-xs sm:text-sm text-[#2563eb] hover:text-[#1d4ed8] font-semibold transition-colors"
               >
                 View all alerts &rarr;
               </button>
@@ -2734,25 +2852,25 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
-              <p className="text-gray-500 text-sm mb-1">
-                <span className="font-semibold text-blue-600">{accessDeniedModal.feature}</span> requires
+              <h2 className="text-xl font-bold text-[#1e3a8a] mb-2">Access Restricted</h2>
+              <p className="text-slate-500 text-sm mb-1">
+                <span className="font-semibold text-[#1e3a8a]">{accessDeniedModal.feature}</span> requires
               </p>
-              <p className="text-gray-500 text-sm mb-4">
+              <p className="text-slate-500 text-sm mb-4">
                 <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
-                  accessDeniedModal.requiredRole === 'Owner' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                  accessDeniedModal.requiredRole === 'Owner' ? 'bg-slate-100 text-[#1e3a8a]' : 'bg-slate-100 text-slate-700'
                 }`}>{accessDeniedModal.requiredRole}</span> access or higher.
               </p>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 w-full">
-                <p className="text-amber-800 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-5 w-full">
+                <p className="text-slate-700 text-xs">
                   Your current role is <span className={`font-bold px-1.5 py-0.5 rounded-full ${
-                    teamRole === 'Recruiter' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+                    teamRole === 'Recruiter' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-600'
                   }`}>{teamRole}</span>. Contact the Owner to request access.
                 </p>
               </div>
               <button
                 onClick={() => setAccessDeniedModal({ show: false, feature: '', requiredRole: '' })}
-                className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                className="w-full bg-[#2563eb] text-white py-2.5 rounded-lg font-semibold hover:bg-[#1d4ed8] transition-colors shadow-sm text-sm"
               >
                 Got it
               </button>
@@ -2800,9 +2918,9 @@ const AccessDenied: React.FC<{ role: string | null }> = ({ role }) => (
     <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
       <span className="text-4xl">🔒</span>
     </div>
-    <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
-    <p className="text-gray-500 text-sm max-w-xs">
-      Your <span className="font-semibold text-blue-600">{role}</span> role does not have permission to access this section.
+    <h2 className="text-xl font-bold text-[#1e3a8a] mb-2">Access Restricted</h2>
+    <p className="text-slate-500 text-sm max-w-xs">
+      Your <span className="font-semibold text-[#1e3a8a]">{role}</span> role does not have permission to access this section.
       Please contact the Owner to request access.
     </p>
   </div>
@@ -2968,37 +3086,37 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   };
 
   const roleColors: Record<TeamRole, string> = {
-    Owner: 'bg-blue-100 text-blue-700 border-blue-200',
-    Recruiter: 'bg-orange-100 text-orange-700 border-orange-200',
-    Viewer: 'bg-gray-100 text-gray-600 border-gray-200',
+    Owner: 'bg-slate-100 text-[#1e3a8a] border-slate-200',
+    Recruiter: 'bg-slate-50 text-slate-700 border-slate-200',
+    Viewer: 'bg-slate-50 text-slate-600 border-slate-200',
   };
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a]"></div></div>;
 
   return (
     <>
       <ConfirmDialog isOpen={confirmDialog.isOpen} title={confirmDialog.title} message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={closeConfirm} />
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Team Management</h1>
-          <p className="text-gray-500 text-xs sm:text-sm mt-1 truncate">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">Team Management</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 truncate">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           {members.some(m => m.status === 'pending') && (
             <button onClick={fetchMembers}
-              className="flex items-center justify-center gap-1 text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors min-h-[36px] sm:min-h-[40px]">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              className="flex items-center justify-center gap-1.5 text-xs border border-slate-200 bg-white text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm min-h-[36px] sm:min-h-[38px]">
+              <RefreshCw className="w-3.5 h-3.5" />
               <span>Refresh</span>
             </button>
           )}
           {canInvite ? (
             <button onClick={() => setShowInvite(true)}
-              className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs sm:text-sm min-h-[36px] sm:min-h-[40px]">
+              className="flex items-center justify-center gap-2 bg-[#2563eb] text-white px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors font-semibold text-xs sm:text-sm shadow-sm min-h-[36px] sm:min-h-[38px]">
               <UserPlus className="w-4 h-4" /> 
               <span>Invite Member</span>
             </button>
           ) : (
-            <span className="flex items-center justify-center gap-2 bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-xs sm:text-sm border border-gray-200 cursor-not-allowed min-h-[36px] sm:min-h-[40px]" title="Only Owners can invite members">
+            <span className="flex items-center justify-center gap-2 bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-xs sm:text-sm border border-slate-200 cursor-not-allowed min-h-[36px] sm:min-h-[38px]" title="Only Owners can invite members">
               <UserPlus className="w-4 h-4" /> 
               <span>Invite Member</span>
             </span>
@@ -3006,18 +3124,18 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-5">
         {(Object.entries(ROLE_PERMISSIONS) as [TeamRole, string[]][]).map(([role, perms]) => (
           <div key={role} onClick={() => setSelectedRole(selectedRole === role ? null : role)}
-            className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-pointer transition-all ${
-              selectedRole === role ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'
+            className={`bg-white rounded-lg p-3.5 sm:p-4 border border-[#e2e8f0] cursor-pointer transition-all shadow-sm ${
+              selectedRole === role ? 'border-[#2563eb] shadow-sm ring-1 ring-[#2563eb]' : 'border-slate-200 hover:border-slate-300'
             }`}>
             <div className="flex items-center justify-between mb-2">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${roleColors[role]}`}>{role}</span>
-              <span className="text-xs text-gray-400">{members.filter(m => m.role === role).length} member{members.filter(m => m.role === role).length !== 1 ? 's' : ''}</span>
+              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${roleColors[role]}`}>{role}</span>
+              <span className="text-xs text-slate-400">{members.filter(m => m.role === role).length} member{members.filter(m => m.role === role).length !== 1 ? 's' : ''}</span>
             </div>
             <ul className="space-y-1">
-              {perms.map(p => <li key={p} className="text-xs text-gray-600 flex items-center gap-1"><span className="text-green-500 flex-shrink-0">✓</span><span className="truncate">{p}</span></li>)}
+              {perms.map(p => <li key={p} className="text-xs text-slate-600 flex items-center gap-1.5"><span className="text-[#1e3a8a] font-bold flex-shrink-0">✓</span><span className="truncate">{p}</span></li>)}
             </ul>
           </div>
         ))}
@@ -3029,27 +3147,27 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
         if (!owner) return null;
         return (
           <div className="mb-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold text-blue-700 uppercase tracking-widest">Owner</span>
-              <div className="flex-1 h-px bg-blue-100" />
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider">Owner</span>
+              <div className="flex-1 h-px bg-slate-200" />
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-400 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
+            <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:border-[#bfdbfe] transition-all">
+              <div className="w-11 h-11 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-[#1e3a8a] font-bold text-base flex-shrink-0">
                 {owner.memberName.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">{owner.memberName}</p>
-                <p className="text-xs text-gray-500 truncate">{owner.memberEmail}</p>
+                <p className="font-bold text-[#1e3a8a] text-sm truncate">{owner.memberName}</p>
+                <p className="text-xs text-slate-500 truncate">{owner.memberEmail}</p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  owner.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
-                  owner.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold text-center ${
+                  owner.status === 'pending' ? 'bg-slate-50 text-slate-700 border-slate-200' : 
+                  owner.status === 'active' ? 'bg-slate-100 text-[#1e3a8a] border-slate-200' :
                   roleColors[owner.role]
                 }`}>
                   {owner.status === 'pending' ? '⏳ Pending' : owner.status === 'active' ? '✅ Active' : owner.status || 'Active'}
                 </span>
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[owner.role]}`}>
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold text-center ${roleColors[owner.role]}`}>
                   {owner.role}
                 </span>
                 {owner.memberEmail !== (currentUserEmail || employerEmail) ? (
@@ -3070,15 +3188,14 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                         await handleRemove(owner.id);
                       }
                     }}
-                      className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+                      className="text-red-600 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
                       Remove
                     </button>
                   </div>
                 ) : (
-                  <span className="text-xs text-gray-400 italic text-center sm:text-left">You</span>
+                  <span className="text-xs text-slate-400 italic text-center sm:text-left px-2">You</span>
                 )}
               </div>
-              <span className="text-xs px-3 py-1 rounded-full border font-semibold bg-green-50 text-green-700 border-green-200 flex-shrink-0">✅ Active</span>
             </div>
           </div>
         );
@@ -3089,46 +3206,44 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
         const teamMembers = members.filter(m => m.role !== 'Owner');
         return (
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Team Members</span>
-              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{teamMembers.length}</span>
-              <div className="flex-1 h-px bg-gray-200" />
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Team Members</span>
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{teamMembers.length}</span>
+              <div className="flex-1 h-px bg-slate-200" />
             </div>
             {teamMembers.length === 0 ? (
-              <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <UserPlus className="w-5 h-5 text-gray-400" />
+              <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <UserPlus className="w-5 h-5 text-slate-400" />
                 </div>
-                <p className="text-sm font-medium text-gray-500">No team members yet</p>
-                <p className="text-xs text-gray-400 mt-1">Invite recruiters or viewers to collaborate</p>
+                <p className="text-sm font-semibold text-[#1e3a8a]">No team members yet</p>
+                <p className="text-xs text-slate-400 mt-1">Invite recruiters or viewers to collaborate on hiring</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="divide-y divide-gray-100">
+              <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm overflow-hidden">
+                <div className="divide-y divide-slate-100">
                   {teamMembers.map(member => (
-                    <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
-                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0 ${
-                        member.role === 'Recruiter' ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                      }`}>
+                    <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 hover:bg-slate-50/60 transition-colors">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[#1e3a8a] font-bold text-xs sm:text-sm flex-shrink-0">
                         {member.memberName.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-gray-900 text-sm truncate">{member.memberName}</p>
+                          <p className="font-bold text-[#1e3a8a] text-sm truncate">{member.memberName}</p>
                           {member.memberEmail === currentUserEmail && (
-                            <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">You</span>
+                            <span className="text-[10px] font-semibold text-[#1e3a8a] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">You</span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
+                        <p className="text-xs text-slate-500 truncate">{member.memberEmail}</p>
                       </div>
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                        <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                          member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                          'bg-green-50 text-green-700 border-green-200'
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold text-center ${
+                          member.status === 'pending' ? 'bg-slate-50 text-slate-700 border-slate-200' :
+                          'bg-slate-100 text-[#1e3a8a] border-slate-200'
                         }`}>
                           {member.status === 'pending' ? '⏳ Pending' : '✅ Active'}
                         </span>
-                        <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold text-center ${roleColors[member.role]}`}>
                           {member.role}
                         </span>
                         {member.memberEmail !== (currentUserEmail || employerEmail) ? (
@@ -3149,12 +3264,12 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                                 await handleRemove(member.id);
                               }
                             }}
-                              className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+                              className="text-red-600 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
                               Remove
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic text-center sm:text-left">You</span>
+                          <span className="text-xs text-slate-400 italic text-center sm:text-left px-2">You</span>
                         )}
                       </div>
                     </div>
@@ -3168,52 +3283,46 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
 
       {showInvite && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl w-full max-w-sm sm:max-w-md p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl sm:rounded-2xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4 sm:mb-5">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900">
+              <h3 className="text-base sm:text-lg font-bold text-[#1e3a8a]">
                 {inviteSent ? '✅ Invite Sent!' : 'Invite Team Member'}
               </h3>
-              <button onClick={handleCloseInvite} className="text-gray-400 hover:text-gray-600 text-xl p-1">&times;</button>
+              <button onClick={handleCloseInvite} className="text-slate-400 hover:text-slate-600 text-xl p-1 leading-none">&times;</button>
             </div>
 
             {inviteSent && inviteCredentials ? (
               <div className="py-2">
                 <div className="flex flex-col items-center mb-5">
-                  <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                    <span className="text-3xl">🎉</span>
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-2.5">
+                    <span className="text-2xl">🎉</span>
                   </div>
-                  <h4 className="font-bold text-gray-900 text-base">Member Added!</h4>
-                  <p className="text-gray-500 text-xs mt-1 text-center">Share these credentials securely with the team member.</p>
+                  <h4 className="font-bold text-[#1e3a8a] text-base">Member Added!</h4>
+                  <p className="text-slate-500 text-xs mt-1 text-center">Share these credentials securely with the team member.</p>
                 </div>
 
                 {/* Credential Card */}
-                <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-xl p-4 mb-4 shadow-lg">
+                <div className="bg-[#2563eb] rounded-xl p-4 mb-4 shadow-sm text-white">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-white font-bold text-sm">🔐 Login Credentials</span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      inviteCredentials.role === 'Owner' ? 'bg-blue-400 text-white' :
-                      inviteCredentials.role === 'Recruiter' ? 'bg-orange-400 text-white' :
-                      'bg-gray-400 text-white'
-                    }`}>{inviteCredentials.role}</span>
+                    <span className="text-white font-bold text-xs uppercase tracking-wider">🔐 Login Credentials</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">{inviteCredentials.role}</span>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     <div className="bg-white/10 rounded-lg px-3 py-2">
-                      <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Login URL</p>
+                      <p className="text-slate-300 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Login URL</p>
                       <p className="text-white text-xs font-mono">{window.location.origin}/employer-login</p>
                     </div>
                     <div className="bg-white/10 rounded-lg px-3 py-2">
-                      <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Email</p>
-                      <p className="text-white text-sm font-mono">{inviteCredentials.email}</p>
-                    </div>
-                    <div className="bg-white/10 rounded-lg px-3 py-2 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Password</p>
-                        <p className="text-white text-sm font-mono">{inviteCredentials.password}</p>
-                      </div>
+                      <p className="text-slate-300 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Email</p>
+                      <p className="text-white text-xs sm:text-sm font-mono">{inviteCredentials.email}</p>
                     </div>
                     <div className="bg-white/10 rounded-lg px-3 py-2">
-                      <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Access Level</p>
-                      <p className="text-white text-xs">{ROLE_PERMISSIONS[inviteCredentials.role as TeamRole].join(' · ')}</p>
+                      <p className="text-slate-300 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Password</p>
+                      <p className="text-white text-xs sm:text-sm font-mono">{inviteCredentials.password}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-3 py-2">
+                      <p className="text-slate-300 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Access Level</p>
+                      <p className="text-slate-200 text-xs">{ROLE_PERMISSIONS[inviteCredentials.role as TeamRole].join(' · ')}</p>
                     </div>
                   </div>
                 </div>
@@ -3225,37 +3334,37 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                     navigator.clipboard.writeText(text);
                     showToast('Credentials copied to clipboard!', 'success');
                   }}
-                  className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors mb-3 flex items-center justify-center gap-2"
+                  className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors mb-3 flex items-center justify-center gap-2 shadow-sm"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                   Copy All Credentials
                 </button>
 
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 text-center">
+                <p className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4 text-center">
                   ⚠️ Share these credentials privately. The member should change their password after first login.
                 </p>
 
                 <div className="flex gap-3">
-                  <button onClick={handleCloseInvite} className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Done</button>
-                  <button onClick={() => { setInviteSent(false); setInviteCredentials(null); setInviteEmail(''); setInviteName(''); setInvitePassword(''); }} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Invite Another</button>
+                  <button onClick={handleCloseInvite} className="flex-1 border border-slate-200 text-slate-700 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-slate-50 transition-colors">Done</button>
+                  <button onClick={() => { setInviteSent(false); setInviteCredentials(null); setInviteEmail(''); setInviteName(''); setInvitePassword(''); }} className="flex-1 bg-[#2563eb] text-white py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-[#1d4ed8] transition-colors">Invite Another</button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
                     <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)}
-                      placeholder="John Doe" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                      placeholder="John Doe" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-[#2563eb] focus:border-transparent outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
                     <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-                      placeholder="recruiter@company.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                      placeholder="recruiter@company.com" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-[#2563eb] focus:border-transparent outline-none"
                       onKeyDown={e => e.key === 'Enter' && handleInvite()} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Role</label>
                     <AutocompleteCombobox value={inviteRole} onChange={(val) => setInviteRole(val as TeamRole)}
                       options={[
                         { value: 'Recruiter', label: 'Recruiter — Can post jobs & manage applications' },
@@ -3263,14 +3372,14 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                         { value: 'Owner', label: 'Owner — Full access' }
                       ]}
                       placeholder="Select role"
-                      className="w-full"
+                      className="w-full text-xs"
                     />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm font-medium text-gray-700">Login Password *</label>
+                      <label className="block text-xs font-semibold text-slate-700">Login Password *</label>
                       <button type="button" onClick={() => setInvitePassword(generatePassword())}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors">
+                        className="text-xs text-[#2563eb] hover:text-[#1d4ed8] font-semibold border border-[#e2e8f0] px-2 py-0.5 rounded-md hover:bg-[#eff6ff] transition-colors">
                         ✨ Auto-generate
                       </button>
                     </div>
@@ -3280,25 +3389,25 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                         value={invitePassword}
                         onChange={e => setInvitePassword(e.target.value)}
                         placeholder="Min. 8 characters"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 font-mono"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 pr-10 text-xs sm:text-sm focus:ring-2 focus:ring-[#2563eb] focus:border-transparent outline-none font-mono"
                       />
                       <button type="button" onClick={() => setShowInvitePw(!showInvitePw)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                         {showInvitePw
                           ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
                           : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                         }
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">Member will use this password to login at the Employer Login page.</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Member will use this password to login at the Employer Login page.</p>
                   </div>
                   {/* Role permissions preview */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 font-medium mb-1.5">This person will be able to:</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs text-slate-700 font-semibold mb-1.5">This person will be able to:</p>
                     <ul className="space-y-1">
                       {ROLE_PERMISSIONS[inviteRole].map(p => (
-                        <li key={p} className="text-xs text-gray-600 flex items-center gap-1.5">
-                          <span className="text-green-500 flex-shrink-0">✓</span>
+                        <li key={p} className="text-xs text-slate-600 flex items-center gap-1.5">
+                          <span className="text-[#1e3a8a] font-bold flex-shrink-0">✓</span>
                           <span className="truncate">{p}</span>
                         </li>
                       ))}
@@ -3306,16 +3415,16 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                   </div>
                 </div>
                 {inviteError && (
-                  <div className="mt-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2.5 text-sm">
+                  <div className="mt-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-xs">
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <span>{inviteError}</span>
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button onClick={handleCloseInvite}
-                    className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                    className="flex-1 border border-slate-200 text-slate-700 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-slate-50 transition-colors">Cancel</button>
                   <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || invitePassword.length < 8}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="flex-1 bg-[#2563eb] text-white py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-[#1d4ed8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                     {inviting ? 'Creating...' : 'Create & Send Credentials'}
                   </button>
                 </div>

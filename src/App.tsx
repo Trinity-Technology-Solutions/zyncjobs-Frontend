@@ -10,6 +10,7 @@ import ChatWidget from './components/ChatWidget';
 import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
 import CookieConsentBanner from './components/CookieConsentBanner';
+import BackToTop from './components/BackToTop';
 import SEOHead from './components/SEOHead';
 const JobCategories = lazy(() => import('./components/JobCategories'));
 const LatestJobs = lazy(() => import('./components/LatestJobs'));
@@ -792,6 +793,7 @@ function App() {
         isVisible={notification.isVisible}
         onClose={() => setNotification((n: { type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }) => ({ ...n, isVisible: false }))}
       />
+      <BackToTop />
 
       <Suspense fallback={<LoadingFallback />}>
         <main id="main-content" className={isHomePage || isAdminPage ? '' : 'has-header-offset pt-[74px] sm:pt-[82px] lg:pt-[86px]'}>
@@ -818,7 +820,7 @@ function App() {
 
             <Route path="/candidate-messages" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['candidate']}>
-                <div className="h-[calc(100vh-74px)] sm:h-[calc(100vh-82px)] lg:h-[calc(100vh-86px)] flex flex-col overflow-hidden">
+                <div className="h-screen flex flex-col overflow-hidden">
                   <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
                     <CandidateMessagesPage onNavigate={handleNavigation} />
@@ -904,7 +906,7 @@ function App() {
 
             <Route path="/candidate-messages" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <div className="h-[calc(100vh-74px)] sm:h-[calc(100vh-82px)] lg:h-[calc(100vh-86px)] flex flex-col overflow-hidden">
+                <div className="h-screen flex flex-col overflow-hidden">
                   <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
                     <CandidateMessagesPage onNavigate={handleNavigation} />

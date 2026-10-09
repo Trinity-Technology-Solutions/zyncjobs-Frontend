@@ -35,7 +35,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const { unreadCount: alertUnread } = useJobAlertStore(user?.type === 'candidate' ? user?.email : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
@@ -69,9 +68,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const lastScrollY = useRef(0);
+  const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const currentPath = location.pathname;
+
+  // Keep --header-h CSS custom property accurately synced with the actual header height
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.getBoundingClientRect().height;
+        if (height > 0) {
+          document.documentElement.style.setProperty('--header-h', `${Math.round(height)}px`);
+          document.documentElement.style.setProperty('--header-offset', '0px');
+        }
+      }
+    };
+    updateHeaderHeight();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateHeaderHeight) : null;
+    if (ro && headerRef.current) ro.observe(headerRef.current);
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
 
   const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
 
@@ -225,44 +245,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('keydown', handleKeyDown);
     
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY <= 20) {
-        setIsHeaderVisible(true);
-      } else if (currentScrollY > lastScrollY.current + 2) {
-        setIsHeaderVisible(false);
-      } else if (currentScrollY < lastScrollY.current - 2) {
-        setIsHeaderVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
-
-      // Use standard scroll detection for the header glass effect
-      // We keep it 'light' (isScrolled = true) by default for the new design
-      const scrolled = currentScrollY > 20;
-      
-      let isOverDark = false;
-      const headerCenterY = 40;
-      const darkSections = document.querySelectorAll('[data-theme="dark"]');
-      darkSections.forEach(section => {
-        const rect = section.getBoundingClientRect();
-        if (rect.top <= headerCenterY && rect.bottom >= headerCenterY) {
-          isOverDark = true;
-        }
-      });
-
-      // If we are over a dark section, switch to dark header (isScrolled = false)
-      // Otherwise, stay light (isScrolled = true)
-      setIsScrolled(!isOverDark);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Initial check
-    handleScroll();
-    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -1106,7 +1091,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             </button>
           </div>
         </div>
-      </div>
       </div>
     </header>
 

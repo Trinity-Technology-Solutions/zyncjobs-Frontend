@@ -5,20 +5,19 @@
 
 /* Header height token — update here if header size changes */
 :root {
-  --header-h: 74px;
+  --header-h: 72px;
 }
 @media (min-width: 640px) {
-  :root { --header-h: 82px; }
+  :root { --header-h: 78px; }
 }
 @media (min-width: 1024px) {
-  :root { --header-h: 86px; }
+  :root { --header-h: 84px; }
 }
 
-/* Push every page's main content below the fixed header */
+/* Main content container */
 #main-content {
-  /* padding-top: var(--header-h); handled by Header spacer */
+  width: 100%;
 }
-
 
 /* Prevent horizontal scroll without breaking position: sticky */
 html {
@@ -26,7 +25,6 @@ html {
   max-width: 100%;
   overflow-x: clip;
   scrollbar-gutter: stable;
-  scroll-padding-top: var(--header-h);
 }
 
 body {

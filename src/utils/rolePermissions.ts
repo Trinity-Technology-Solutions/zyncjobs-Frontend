@@ -2,8 +2,26 @@
 export type UserRole = 'super_admin' | 'admin' | 'manager' | 'recruiter' | 'employer' | 'candidate' | 'moderator';
 export type AccountStatus = 'active' | 'suspended' | 'deleted';
 
-// Paths that belong to the employer experience (employer landing + auth pages)
-export const EMPLOYER_PAGE_PATHS = ['/employers', '/employer-login', '/employer-register', '/employer-complete-profile'];
+// Paths that belong to the employer experience (employer landing, auth, and dashboard pages)
+export const EMPLOYER_PAGE_PATHS = [
+  '/employers',
+  '/employer-login',
+  '/employer-register',
+  '/employer-complete-profile',
+  '/job-posting-selection',
+  '/job-posting',
+  '/job-parsing',
+  '/job-management',
+  '/candidate-search',
+  '/candidate-review',
+  '/recruiter-actions',
+  '/bulk-job-import',
+  '/candidate-ranking',
+  '/ats-dashboard',
+  '/employer-profile',
+  '/job-refresh-management',
+  '/application-management'
+];
 
 // True when the current route is an employer-facing page
 export const isEmployerPagePath = (path: string): boolean =>

@@ -23,11 +23,11 @@ function RobotCanvas() {
     const startRenderer = () => {
     // ── Scene Setup ───────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0xf7f6f3, 10, 30); // Matches background
+    scene.fog = new THREE.Fog(0xffffff, 10, 35); // Matches white background
 
     const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / mount.clientHeight, 0.1, 100);
-    camera.position.set(0, 1.8, 10.0);
-    camera.lookAt(0, 0.9, 0);
+    camera.position.set(0, 1.45, 9.8);
+    camera.lookAt(0, 1.40, 0);
 
     let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
@@ -82,9 +82,7 @@ function RobotCanvas() {
     const robotGroup = new THREE.Group();
     const getRobotX = () => {
       const w = window.innerWidth;
-      if (w >= 1536) return -0.85;
-      if (w >= 1280) return -0.75;
-      if (w >= 1024) return -0.70;
+      if (w >= 1024) return -0.68;
       if (w >= 768) return -0.60;
       return 0;
     };
@@ -105,11 +103,10 @@ function RobotCanvas() {
       const w = window.innerWidth;
       const isMobile = w < 768;
       const isTablet = w >= 768 && w < 1024;
-      const isLargeScreen = w >= 1536;
 
       let targetHeight = 5.6;
       if (isMobile) {
-        targetHeight = 4.2;
+        targetHeight = 4.0;
       } else if (isTablet) {
         targetHeight = 4.6;
       } else if (isLargeScreen) {
@@ -127,9 +124,10 @@ function RobotCanvas() {
       
       // Deterministic positioning based on invariant rest-pose bounding box
       // Prevents shifts caused by animation bones or head tracking during resize/refresh
+      // Aligns the bottom of the robot's feet precisely with the floor plane (robotGroup.position.y = -1.10)
       loadedModel.position.x = -baseCenter.x * scale;
       loadedModel.position.z = -baseCenter.z * scale;
-      loadedModel.position.y = -baseMinY * scale - 1.10;
+      loadedModel.position.y = -baseMinY * scale;
       robotGroup.position.x = getRobotX();
     };
 
@@ -324,12 +322,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
       {/* Background Decoratives - Professional Corporate Aesthetic */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {/* Subtle Atmospheric Glows for Depth */}
-        <div className="absolute left-[-10%] top-[10%] w-[50%] h-[70%] bg-[#f0f4f8]/60 rounded-full blur-[100px]" />
-        <div className="absolute right-[-5%] bottom-[-10%] w-[40%] h-[60%] bg-[#eef2f6]/60 rounded-full blur-[100px]" />
+        <div className="absolute left-[-10%] top-[10%] w-[50%] h-[70%] bg-blue-50/40 rounded-full blur-[100px]" />
+        <div className="absolute right-[-5%] bottom-[-10%] w-[40%] h-[60%] bg-slate-50/50 rounded-full blur-[100px]" />
 
         {/* Subtle Dotted Grid in the center-right transition area */}
         <div
-          className="absolute left-[45%] lg:left-[50%] top-[30%] w-[250px] h-[350px] opacity-[0.35]"
+          className="absolute left-[45%] lg:left-[50%] top-[30%] w-[250px] h-[350px] opacity-[0.25]"
           style={{
             backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)',
             backgroundSize: '22px 22px',
@@ -339,7 +337,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         />
 
         {/* Left Side: Intricate Parametric Wave Mesh */}
-        <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.08] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
+        <svg className="hidden md:block absolute left-0 top-0 h-full w-[35%] max-w-[450px] text-blue-500/[0.06] pointer-events-none overflow-hidden" viewBox="0 0 500 1000" fill="none" preserveAspectRatio="none">
           {Array.from({ length: 45 }).map((_, i) => (
             <path
               key={`wave-${i}`}
@@ -351,7 +349,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </svg>
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+      <div className="relative z-10 w-full max-w-7xl xl:max-w-[1360px] 2xl:max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8
                       grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-8 xl:gap-12 items-center">
 
         {/* ════ LEFT — Content ════ */}
@@ -370,7 +368,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
             <span>Waiting For You</span>
           </h1>
           
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 leading-relaxed font-medium pb-1 sm:pb-2 max-w-xl xl:max-w-2xl">
             AI career platform for jobs, skills, interview prep, and ATS-ready resumes.
           </p>
 

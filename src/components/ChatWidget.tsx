@@ -146,6 +146,7 @@ const ChatWidget = () => {
       {/* Floating Button */}
       {!isOpen && (
         <button
+          id="zync-chat-button"
           type="button"
           onClick={() => { setIsOpen(true); setIsMinimized(false); }}
           ref={launcherRef} aria-label="Open ZyncBot career assistant" aria-haspopup="dialog"
