@@ -1,3 +1,4 @@
+import EmployerFeatureGuide from '../components/EmployerFeatureGuide';
 ﻿import React, { useState } from 'react';
 import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
@@ -1151,7 +1152,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="parser-page-heading flex items-center justify-between">
             <BackButton fallback="/job-posting-selection" text="Back" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -1173,8 +1174,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-
+        <div className="parser-workspace feature-sidebar-layout"><div className="feature-sidebar-main">
           {/* How it works */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 sm:mb-8">
             {[
@@ -1290,7 +1290,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div><EmployerFeatureGuide feature="parser" /></div>
       </div>
     </>
   );

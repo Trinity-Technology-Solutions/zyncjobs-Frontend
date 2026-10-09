@@ -1,3 +1,4 @@
+import EmployerFeatureGuide from '../components/EmployerFeatureGuide';
 import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
 import Header from '../components/Header';
@@ -6,7 +7,7 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
-import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown } from 'lucide-react';
+import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown, ClipboardList, AlertTriangle, Check, UserRound, FileText, CalendarDays, Trash2 } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
@@ -45,7 +46,7 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
       style={style}
       {...listeners}
       {...attributes}
-      className={`bg-white rounded-xl border border-gray-200 p-3 cursor-grab active:cursor-grabbing select-none transition-shadow ${isDragging ? 'shadow-2xl ring-2 ring-blue-400 opacity-90' : 'hover:shadow-md'}`}
+      className={`application-pipeline-card bg-white rounded-xl border border-gray-200 p-3 cursor-grab active:cursor-grabbing select-none transition-shadow ${isDragging ? 'shadow-2xl ring-2 ring-blue-400 opacity-90' : 'hover:shadow-md'}`}
     >
       <div className="flex items-center gap-2 mb-2">
         {application.candidateProfilePicture ? (
@@ -67,22 +68,22 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         </p>
       )}
       {/* Action buttons — stop drag propagation */}
-      <div className="flex flex-wrap gap-1" onPointerDown={e => e.stopPropagation()}>
+      <div className="candidate-pipeline-actions" onPointerDown={e => e.stopPropagation()}>
         <button onClick={() => onViewProfile(application)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-50">
-          Profile
+          <UserRound className="h-3.5 w-3.5" aria-hidden="true" /><span>Profile</span>
         </button>
-        <span className="text-gray-300 text-xs">—</span>
+        
         <button onClick={() => onViewResume(application)} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1.5 py-0.5 rounded hover:bg-blue-50">
-          Resume
+          <FileText className="h-3.5 w-3.5" aria-hidden="true" /><span>Resume</span>
         </button>
         {!isViewer && (<>
-        <span className="text-gray-300 text-xs">—</span>
+        
         <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
-          Interview
+          <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /><span>Interview</span>
         </button>
-        <span className="text-gray-300 text-xs">—</span>
+        
         <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
-          Delete
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /><span>Delete</span>
         </button>
         </>)}
       </div>
@@ -105,7 +106,7 @@ function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewPro
       {/* Drop zone */}
       <div
         ref={setNodeRef}
-        className="flex-1 rounded-xl p-2 space-y-2 transition-all min-h-[480px]"
+        className="application-pipeline-dropzone flex-1 rounded-xl p-2 space-y-2 transition-all min-h-[480px]"
         style={{
           background: isOver ? '#dbeafe' : col.light,
           border: `1.5px solid ${isOver ? '#93c5fd' : col.border}`,
@@ -114,7 +115,7 @@ function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewPro
       >
         {cards.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-xs text-gray-400 italic">
-            Drop here
+            No candidates in this stage
           </div>
         ) : (
           cards.map((app: any) => (
@@ -477,7 +478,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="application-management-page min-h-screen bg-gray-100">
       {viewingCandidateId && (
         <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
           <CandidateProfileView
@@ -490,16 +491,16 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       {!viewingCandidateId && (<>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div style={{marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px'}}>
+      <div className="application-management-container">
         {/* Top bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="application-management-heading flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <BackButton fallback="/job-management" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
               </h1>
-              <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+              <p className="text-sm text-gray-400 mt-0.5">{sessionStorage.getItem('selectedJobTitle') || 'Hiring pipeline'} &middot; {filtered.length} of {applications.length} candidates</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -510,7 +511,8 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search candidate..."
+                aria-label="Search candidates"
+                placeholder="Search candidates"
                 className="text-sm text-gray-700 bg-transparent outline-none w-44 placeholder-gray-400"
               />
             </div>
@@ -549,18 +551,22 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
         )}
 
+        <div className="application-stage-summary">
+          {COLUMNS.map(col => <div key={col.id}><span style={{background:col.color}} /><p>{col.label}</p><strong>{getColCards(col.id).length}</strong></div>)}
+        </div>
+        <div className="application-pipeline-caption"><h2>Hiring pipeline</h2><p>{isViewer ? 'Review candidates by application stage.' : 'Drag a candidate card to update their stage.'}</p></div>
         {/* Kanban Board */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="application-pipeline-panel bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         {applications.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">📋</div>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50"><ClipboardList className="h-8 w-8 text-blue-500" aria-hidden="true" /></div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
             <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
             <button onClick={() => fetchApplications()} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
           </div>
         ) : (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex gap-4 overflow-x-auto pb-6" style={{ minHeight: 560 }}>
+            <div className="application-pipeline-board flex gap-4 overflow-x-auto pb-6" style={{ minHeight: 560 }}>
               {COLUMNS.map(col => (
                 <KanbanColumn
                   key={col.id}
@@ -594,12 +600,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
               <div className="flex items-center gap-2"><Zap className="w-5 h-5 text-indigo-600" /><h3 className="text-lg font-bold text-gray-900">AI Shortlist Preview</h3></div>
               <button onClick={() => setAiPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
+            <div className="ai-shortlist-guide"><EmployerFeatureGuide feature="shortlist" /></div>
             <div className="p-4 bg-indigo-50 border-b text-sm text-indigo-700">
               {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found — using profile completeness'}
             </div>
             {aiFailed && (
               <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
-                ⚠️ AI scoring service is unavailable — scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
+                <AlertTriangle className="mr-2 inline-block h-4 w-4" aria-hidden="true" /> AI scoring service is unavailable — scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
               </div>
             )}
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
@@ -621,10 +628,10 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                   {((matchedSkills?.length ?? 0) > 0 || (missingSkills?.length ?? 0) > 0) && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {matchedSkills?.slice(0,4).map((sk: string, i: number) => (
-                        <span key={i} className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✓ {sk}</span>
+                        <span key={i} className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded inline-flex items-center gap-1"><Check className="h-3 w-3" aria-hidden="true" />{sk}</span>
                       ))}
                       {missingSkills?.slice(0,3).map((sk: string, i: number) => (
-                        <span key={i} className="text-[11px] text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded">✗ {sk}</span>
+                        <span key={i} className="text-[11px] text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded inline-flex items-center gap-1"><X className="h-3 w-3" aria-hidden="true" />{sk}</span>
                       ))}
                       {(previewJobSkills?.length ?? 0) > 0 && <span className="text-[11px] text-gray-400 ml-1">{matchedSkills?.length}/{previewJobSkills?.length} matched</span>}
                     </div>
@@ -633,7 +640,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
               ))}
             </div>
             <div className="p-4 border-t flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">✅ {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted   🔄 {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed   ❌ {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <span className="inline-flex items-center gap-1"><CheckCircle className="h-4 w-4 text-emerald-600" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted</span>
+                <span className="inline-flex items-center gap-1"><MinusCircle className="h-4 w-4 text-amber-600" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed</span>
+                <span className="inline-flex items-center gap-1"><XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</span>
+              </div>
               <div className="flex gap-2">
                 <button onClick={() => setAiPreview(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                 <button onClick={confirmAIShortlist} disabled={aiRunning} className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2">

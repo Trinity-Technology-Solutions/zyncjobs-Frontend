@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, Upload, BarChart2, BookOpen, ArrowRight, CheckCircle, Zap, Layout } from 'lucide-react';
+import React from 'react';
+import { FileText, Upload, BarChart2, BookOpen, ArrowRight, CheckCircle, Layout } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -11,7 +11,6 @@ interface ResumeStudioPageProps {
 }
 
 const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, onLogout }) => {
-  const [hovered, setHovered] = useState<number | null>(null);
 
   const cards = [
     {
@@ -125,63 +124,29 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
   ];
 
   return (
-    <div className="min-h-[calc(100vh-var(--header-h,80px))] flex flex-col justify-between" style={{ background: '#F8FAFC' }}>
+    <div className="resume-studio-page min-h-[calc(100vh-var(--header-h,80px))] flex flex-col justify-between" style={{ background: '#F8FAFC' }}>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-10 sm:pb-12 lg:pb-16">
+      <div className="portal-page-container flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-10 sm:pb-12 lg:pb-16">
         <BackButton fallback="/dashboard" className="mb-4 sm:mb-6" />
 
-        <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4">
-            <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> AI-Powered Resume Tools
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-2 sm:mb-3">
-            Everything you need to<br className="hidden sm:inline" />
-            <span className="text-blue-600">analyze and perfect</span><br className="hidden sm:inline" />
-            your resume.
-          </h1>
-          <p className="text-gray-500 text-xs sm:text-base md:text-lg max-w-xl mx-auto">
-            Powerful tools in one place — parse, analyze, and improve your resume with AI.
-          </p>
+        <div className="resume-studio-heading">
+          <p className="resume-studio-eyebrow">AI-POWERED RESUME TOOLS</p>
+          <h1>Everything you need to <span>analyze and perfect your resume.</span></h1>
+          <p>Powerful tools in one place: parse, analyze, and improve your resume with AI.</p>
+        </div>
+        <div className="resume-studio-tools">
+          {cards.map((card, index) => {
+            const ToolIcon = [FileText, Upload, BarChart2, BookOpen][index];
+            return <article className="resume-tool-card" key={card.id} style={{'--resume-tool-accent': card.accent, '--resume-tool-surface': card.accentLight} as React.CSSProperties}>
+              <div className="resume-tool-copy"><div className="resume-tool-header"><span className="resume-tool-icon"><ToolIcon size={22} strokeWidth={1.7} aria-hidden="true" /></span><h2>{card.title}</h2></div><p>{card.desc}</p></div>
+              <div className="resume-tool-preview" aria-hidden="true" inert=""><span className="resume-tool-preview-label">ILLUSTRATIVE PREVIEW</span>{card.visual}</div>
+              <div className="resume-tool-footer"><button type="button" onClick={() => onNavigate(card.page)}>{card.cta}<ArrowRight size={17} aria-hidden="true" /></button></div>
+            </article>;
+          })}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
-          {cards.map((card) => (
-            <div
-              key={card.id}
-              onMouseEnter={() => setHovered(card.id)}
-              onMouseLeave={() => setHovered(null)}
-              className="rounded-lg sm:rounded-2xl border p-4 sm:p-5 md:p-6 flex flex-col justify-between cursor-pointer transition-all duration-300 active:scale-95 sm:active:scale-100"
-              style={{
-                background: hovered === card.id ? card.accentLight : '#ffffff',
-                borderColor: hovered === card.id ? card.accentBorder : '#e5e7eb',
-                boxShadow: hovered === card.id
-                  ? `0 12px 40px -8px ${card.accent}30`
-                  : '0 1px 4px rgba(0,0,0,0.06)',
-                transform: hovered === card.id ? 'translateY(-4px)' : 'translateY(0)',
-              }}
-            >
-              {card.visual}
-              <div className="mt-3 sm:mt-4 md:mt-6">
-                <h2 className="text-base sm:text-lg md:text-2xl font-bold text-gray-900 mb-1 sm:mb-1.5 md:mb-2">{card.title}</h2>
-                <p className="text-xs sm:text-sm md:text-base text-gray-500 leading-relaxed mb-3 sm:mb-4 md:mb-5">{card.desc}</p>
-                <button
-                  onClick={() => onNavigate(card.page)}
-                  className="inline-flex items-center gap-2 text-xs sm:text-sm md:text-base font-semibold px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 rounded-full transition-all active:scale-95"
-                  style={{
-                    background: card.accent,
-                    color: '#fff',
-                    boxShadow: `0 4px 14px -2px ${card.accent}50`,
-                  }}
-                >
-                  {card.cta} <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 sm:mt-10 lg:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-400 flex-wrap">
+        <div className="resume-studio-benefits mt-8 sm:mt-10 lg:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-400 flex-wrap">
           {['ATS Optimized', 'AI-Powered', 'Free to Use', 'Instant Download'].map((t, i) => (
             <div key={i} className="flex items-center gap-1.5 sm:gap-2">
               <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-emerald-400 flex-shrink-0" />

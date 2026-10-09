@@ -11,9 +11,9 @@ interface ResumeParserPageProps {
 
 const ResumeParserPage: React.FC<ResumeParserPageProps> = ({ onNavigate, user, onLogout }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="resume-parser-page min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
+      <div className="portal-page-container py-6">
         <div className="mb-6">
           <BackButton 
             fallback={user?.type === 'employer' ? '/dashboard' : '/resume-studio'}

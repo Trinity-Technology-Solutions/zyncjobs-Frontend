@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Calendar, Users, Award, Briefcase } from 'lucide-react';
+import { apiFetch } from '../api/apiFetch';
 import { API_ENDPOINTS } from '../config/env';
 
 interface TimelineItem {
@@ -12,29 +13,23 @@ interface TimelineItem {
 interface ApplicationTimelineProps {
   applicationId: string;
   currentStatus: string;
+  hideInternalStatuses?: boolean;
 }
 
-const ApplicationTimeline: React.FC<ApplicationTimelineProps> = ({ applicationId, currentStatus }) => {
+const ApplicationTimeline: React.FC<ApplicationTimelineProps> = ({ applicationId, currentStatus, hideInternalStatuses = false }) => {
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTimeline();
-  }, [applicationId]);
-
-  const fetchTimeline = async () => {
-    try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/${applicationId}/timeline`);
-      if (response.ok) {
-        const data = await response.json();
-        setTimeline(data);
-      }
-    } catch (error) {
-      console.error('Error fetching timeline:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    let cancelled = false;
+    setLoading(true);
+    apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/${applicationId}/timeline`).then(async response => {
+      if (!response.ok) throw new Error('Timeline unavailable');
+      const data = await response.json();
+      if (!cancelled) setTimeline(Array.isArray(data) ? data : []);
+    }).catch(() => { if (!cancelled) setTimeline([]); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [applicationId, currentStatus]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -111,12 +106,14 @@ const ApplicationTimeline: React.FC<ApplicationTimelineProps> = ({ applicationId
     );
   }
 
+  const visibleTimeline = hideInternalStatuses ? timeline.filter(item => item.status !== 'ai_rejected') : timeline;
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <h3 className="text-lg font-semibold mb-4">Application Timeline</h3>
       
       <div className="space-y-4">
-        {timeline.map((item, index) => (
+        {visibleTimeline.map((item, index) => (
           <div key={index} className="flex items-start space-x-4">
             <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${getStatusColor(item.status)}`}>
               {getStatusIcon(item.status)}
@@ -149,7 +146,7 @@ const ApplicationTimeline: React.FC<ApplicationTimelineProps> = ({ applicationId
         ))}
       </div>
       
-      {timeline.length === 0 && (
+      {visibleTimeline.length === 0 && (
         <div className="text-center py-8">
           <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500">No timeline data available</p>

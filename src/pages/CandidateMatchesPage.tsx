@@ -32,7 +32,7 @@ export const CandidateMatchesPage: React.FC<{ onNavigate?: (page: string, data?:
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="portal-page-container max-w-6xl mx-auto px-4">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">

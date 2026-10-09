@@ -142,7 +142,7 @@ const EmployerProfilePage: React.FC<EmployerProfilePageProps> = ({
               {jobs.map((job) => (
                 <div 
                   key={job._id} 
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow cursor-pointer"
+                  className="portal-job-card border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow cursor-pointer"
                   onClick={() => onNavigate('job-detail', { 
                     jobId: job._id, 
                     jobData: job 

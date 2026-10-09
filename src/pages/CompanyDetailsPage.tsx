@@ -10,6 +10,7 @@ import { apiFetch } from '../api/apiFetch';
 import { EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
 import { normalizeSocialUrl } from '../utils/socialLinks';
+import { formatJobDescription, formatDate } from '../utils/textUtils';
 
 interface Company {
   _id: string;
@@ -141,7 +142,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     return jobs.filter(job => {
       if (locFilter && !(job.location || '').toLowerCase().includes(locFilter)) return false;
       if (deptFilter) {
-        const deptVal = (job.jobCategory || job.category || job.jobType || '').trim().toLowerCase();
+        const deptVal = [job.department_name, job.department, job.departmentName, job.jobCategory, job.category, job.jobType].filter(value => typeof value === 'string').join(' ').toLowerCase();
         if (!deptVal.includes(deptFilter)) return false;
       }
       return true;
@@ -549,7 +550,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="company-profile-page min-h-screen bg-gray-50">
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
         <div className="flex justify-center items-center h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -560,7 +561,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
 
   if (!company) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="company-profile-page min-h-screen bg-gray-50">
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
         <div className="text-center py-12"><p className="text-gray-500">Company not found</p></div>
       </div>
@@ -572,142 +573,69 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="company-profile-page min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Company Banner Background - Matching Companies Page */}
-      <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden border-b border-gray-200">
-        {/* Subtle Background Pattern */}
-        <div className="absolute inset-0 opacity-30" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full opacity-20 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-100 rounded-full opacity-20 blur-3xl" />
-        
-        {/* Back Button */}
-        <div className="absolute top-6 left-6 z-30">
-          <BackButton 
-            fallback="/companies" 
-            className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200" 
-          />
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-14 lg:py-20 relative z-10">
-          <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
-            {/* Company Logo */}
-            <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-3 sm:p-4 flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-300 mx-auto lg:mx-0">
-              <CompanyLogo 
-                companyName={company.name}
-                website={company.website || company.companyWebsite}
-                storedLogo={company.logo}
-                size={112}
-                className="w-full h-full rounded-xl"
-              />
-            </div>
-            
-            {/* Company Info */}
-            <div className="flex-1 min-w-0 text-center lg:text-left">
-              <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-4 lg:gap-0">
-                <div className="flex-1">
-                  {/* Company Name */}
-                  <div className="flex flex-col lg:flex-row items-center lg:items-center gap-2 lg:gap-4 mb-3">
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold tracking-[-0.02em] leading-[1.15] text-gray-900 mb-2.5">
-                      {company.name}
-                    </h1>
-                    {/* Verification Badge */}
-                    {company.gstNumber && (
-                      <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-green-50 border border-green-200 rounded-full">
-                        <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-green-600 font-semibold text-xs sm:text-sm">Verified Company</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Description */}
-                  {company.tagline && (
-                    <p className="text-sm sm:text-base text-gray-600 mb-4 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0 px-4 lg:px-0">
-                      {company.tagline}
-                    </p>
-                  )}
-                  
-                  {/* Rating & Followers Row */}
-                  <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 mb-4 sm:mb-6">
-                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      {reviews.length > 0 ? (
-                        <>
-                          <span className="text-lg font-bold text-gray-900">{avgRating}</span>
-                          <span className="text-gray-600 text-sm">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
-                        </>
-                      ) : (
-                        <span className="text-gray-600 text-sm">0 reviews</span>
-                      )}
-                    </div>
-                    {followersCount > 0 && (
-                      <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        <span className="text-base font-semibold text-gray-900">
-                          {followersCount >= 1000 ? `${Math.floor(followersCount / 1000)}K` : followersCount} followers
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span className="text-base font-semibold text-gray-900">Fast Response</span>
-                    </div>
-                  </div>
-                  
-                  {/* Tag Chips */}
-                  <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3 mb-4">
-                    {company.industry && (
-                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs sm:text-sm font-semibold">
-                        {company.industry}
-                      </span>
-                    )}
-                    {company.companyType && (
-                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                        {company.companyType}
-                      </span>
-                    )}
-                    {company.employees && (
-                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                        {cleanEmployees(company.employees)} employees
-                      </span>
-                    )}
-                    {company.foundedYear && (
-                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                        Founded {company.foundedYear}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Follow Button */}
-                {user && !isEmployer && (
-                  <button
-                    onClick={handleFollow}
-                    className={`flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl border text-sm sm:text-base ${
-                      isFollowing 
-                        ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600 hover:scale-105'
-                    }`}
-                  >
-                    <span className="text-base sm:text-lg">{isFollowing ? '✓' : '+'}</span>
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </button>
-                )}
-              </div>
-            </div>
+      <section className="company-profile-hero">
+        <div className="portal-page-container">
+          <BackButton fallback="/companies" text="Back to Companies" className="mb-6" />
+          <div className="company-profile-identity">
+            <div className="company-profile-logo"><CompanyLogo companyName={company.name} website={company.website || company.companyWebsite} storedLogo={company.logo} size={80} className="w-full h-full object-contain" /></div>
+            <div className="company-profile-copy"><p className="company-profile-eyebrow">COMPANY PROFILE</p><h1>{company.name}</h1>{company.tagline && <p className="company-profile-tagline">{company.tagline}</p>}<div className="company-profile-meta">{company.industry && <span>{company.industry}</span>}{company.companyType && <span>{company.companyType}</span>}{company.location && <span><MapPin size={14} aria-hidden="true" />{company.location}</span>}</div><div className="company-profile-reputation"><span><Star size={15} aria-hidden="true" />{avgRating ? `${avgRating} | ${reviews.length} reviews` : 'No reviews yet'}</span>{company.gstNumber && <span className="company-profile-verified">Verified Company</span>}</div></div>
+            <div className="company-profile-actions">{followersCount > 0 && <span className="company-header-followers">{followersCount.toLocaleString()} followers</span>}{!isEmployer ? <button type="button" className="company-follow-button" aria-pressed={isFollowing} onClick={() => {if (!user) onNavigate?.('login'); else handleFollow();}}>{isFollowing ? 'Following' : '+ Follow'}</button> : <button type="button" onClick={() => {setActiveTab('jobs'); document.getElementById('company-profile-tabs')?.scrollIntoView({behavior: 'smooth'});}}>View jobs ({jobs.length})</button>}</div>
           </div>
         </div>
+      </section>
+
+      {/* Clean Navigation Tabs - Mobile Responsive */}
+      <div id="company-profile-tabs" className="company-profile-tabs">
+        <div className="portal-page-container max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <nav className="flex justify-between sm:justify-start sm:gap-6 lg:gap-8 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              aria-pressed={activeTab === 'overview'}
+              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
+                activeTab === 'overview'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-black'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('jobs')}
+              aria-pressed={activeTab === 'jobs'}
+              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
+                activeTab === 'jobs'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-black'
+              }`}
+            >
+              <span className="hidden sm:inline">Jobs ({jobs.length})</span>
+              <span className="sm:hidden">Jobs ({jobs.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              aria-pressed={activeTab === 'reviews'}
+              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
+                activeTab === 'reviews'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-black'
+              }`}
+            >
+              <span className="hidden sm:inline">Reviews ({reviews.length})</span>
+              <span className="sm:hidden">Reviews ({reviews.length})</span>
+            </button>
+          </nav>
+        </div>
       </div>
-        
+
+      {/* Main Content - Seamless Integration */}
+      <div className="company-profile-content portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {activeTab === 'overview' ? (
+          <div className="company-overview-layout grid grid-cols-1 lg:grid-cols-10 gap-6 sm:gap-8">
       {/* Stats Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-6 sm:-mt-8 lg:-mt-10">
+      <div className="company-profile-facts portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
@@ -736,54 +664,11 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         </div>
       </div>
 
-      {/* Clean Navigation Tabs - Mobile Responsive */}
-      <div className="border-b border-gray-200 mt-6 sm:mt-8 sticky top-0 z-40 backdrop-blur-lg bg-gray-50/80">
-        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <nav className="flex justify-between sm:justify-start sm:gap-6 lg:gap-8 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
-                activeTab === 'overview'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-black'
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('jobs')}
-              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
-                activeTab === 'jobs'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-black'
-              }`}
-            >
-              <span className="hidden sm:inline">Jobs ({jobs.length})</span>
-              <span className="sm:hidden">Jobs ({jobs.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('reviews')}
-              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
-                activeTab === 'reviews'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-black'
-              }`}
-            >
-              <span className="hidden sm:inline">Reviews ({reviews.length})</span>
-              <span className="sm:hidden">Reviews ({reviews.length})</span>
-            </button>
-          </nav>
-        </div>
-      </div>
 
-      {/* Main Content - Seamless Integration */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {activeTab === 'overview' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 sm:gap-8">
             {/* Left Content - 70% */}
-            <div className="lg:col-span-7">
+            <div className="company-overview-main lg:col-span-7">
               {/* About Section - Rounded Top */}
-              <div className="bg-white rounded-t-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="company-about-panel company-profile-panel bg-white rounded-t-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">About {company?.name}</h2>
                 {company?.description && (
                   <>
@@ -802,7 +687,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               
             {/* Departments Hiring Section - Only show if real data exists */}
             {departments.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="company-profile-panel bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Departments Hiring at {company?.name}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {departments.map((dept, index) => (
@@ -817,7 +702,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             
             {/* Benefits Section - Enhanced with Icons */}
             {benefits.length > 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="company-profile-panel bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Benefits & Perks</h3>
                   <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded-full">
@@ -874,7 +759,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                 </div>
               </div>
             ) : company?.benefits && company.benefits.length > 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm">
+              <div className="company-profile-panel bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Benefits & Perks</h3>
                   <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-medium">
@@ -945,7 +830,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             
             {/* Employee Salaries Section - Only show if real salary data exists */}
             {salaries.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <div className="company-profile-panel bg-white rounded-lg border border-gray-200 p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Employee Salaries</h3>
                 </div>
@@ -971,7 +856,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             )}
             
             {/* More Information Section - Real Data */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+            <div className="company-information-panel company-profile-panel bg-white rounded-lg border border-gray-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {company?.companyType && (
@@ -1040,11 +925,11 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             
             {/* Current Job Openings */}
             {jobs.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="company-openings-panel company-profile-panel bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Job Openings at {company?.name}</h3>
-                <div className="space-y-4">
+                <div className="company-opening-grid">
                   {jobs.slice(0, 5).map((job, idx) => (
-                    <div key={idx} className="p-4 border border-gray-200 rounded-lg hover:shadow-sm cursor-pointer">
+                    <div key={idx} className="company-opening-preview p-4 border border-gray-200 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-2">{job.jobTitle}</h4>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
@@ -1072,10 +957,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           </div>
           
           {/* Right Sidebar - 30% Sticky */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-24 space-y-6">
+          <div className="company-overview-sidebar lg:col-span-3">
+            <div className="space-y-6">
               {/* Company Quick Facts */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="company-profile-panel bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-lg transition-all duration-300">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Facts</h3>
                 <div className="space-y-4">
                   {company?.industry && (
@@ -1154,7 +1039,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               )}
               {/* Real Reviews Section - Only show if reviews exist */}
               {reviews.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="company-profile-panel bg-white rounded-lg border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Employee Reviews</h3>
                   
                   {/* Average Rating */}
@@ -1197,7 +1082,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               
               {/* Job Openings Widget - Only show if jobs exist */}
               {jobs.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="company-profile-panel bg-white rounded-lg border border-gray-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-orange-500 rounded text-white text-sm flex items-center justify-center font-bold">
                       {company?.name?.charAt(0) || 'C'}
@@ -1236,7 +1121,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               
               {/* Write Review Section - Only for candidates */}
               {isCandidate && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="company-profile-panel bg-white rounded-lg border border-gray-200 p-6">
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-sm text-gray-600 mb-2">Write a review & help millions!</p>
                     <p className="text-sm font-medium text-gray-900 mb-3">
@@ -1256,13 +1141,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         </div>
         ) : activeTab === 'jobs' ? (
           /* Jobs Tab Content */
-          <div className="space-y-6">
+          <div className="company-jobs-browser">
+            {departments.length > 0 && <div className="company-departments-strip"><h3>Departments hiring at {company.name}</h3><div>{departments.map((department, index) => <button key={index} type="button" onClick={() => setDeptSearch(department.department_name)}><strong>{department.department_name}</strong><span>{department.job_openings} openings</span></button>)}</div></div>}
+            <div className="company-jobs-main">
             {/* Jobs Header */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="company-jobs-filters">
+              <div className="company-jobs-filter-header">
                 <div className="flex-1">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Job Openings at {company?.name}</h2>
-                  <p className="text-gray-600 mt-1">{filteredJobs.length} positions available</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{filteredJobs.length} job openings at {company?.name}</h2>
                 </div>
 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                   {/* Location searchable filter */}
@@ -1335,10 +1221,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             {filteredJobs.length > 0 ? (
               <div className="space-y-4">
                 {filteredJobs.map((job, idx) => (
-                  <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer">
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  <div key={job._id || job.id || idx} className="company-job-card portal-job-card bg-white rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="company-job-body">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">{job.jobTitle}</h3>
+                        <div className="company-job-heading"><div><h3><button type="button" onClick={() => { const jobId = job._id || job.id; if (jobId) onNavigate?.('job-detail', {jobId}); }}>{job.jobTitle || job.title}</button></h3><p>{company.name}{avgRating && <span> <Star size={12} aria-hidden="true" /> {avgRating} ({reviews.length} reviews)</span>}</p></div><CompanyLogo companyName={company.name} storedLogo={company.logo} website={company.website || company.companyWebsite} size={44} className="company-job-logo" /></div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-3">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-4 h-4 flex-shrink-0" />
@@ -1354,13 +1240,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           </span>
                         </div>
                         <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">
-                          {company?.description ? 
-                            `Join our team at ${company?.name} and contribute to our mission in the ${company?.industry} industry.` :
-                            `Exciting opportunity to work with ${company?.name} in ${company?.industry}. Apply now to be part of our growing team.`
-                          }
+                          {formatJobDescription(job.jobDescription || job.description || '') || `Explore this opportunity at ${company.name}.`}
                         </p>
                       </div>
-                      <div className="flex flex-row lg:flex-col gap-2 lg:ml-6 w-full lg:w-auto">
+                      <div className="company-job-actions">
                         {isEmployer ? (
                           <button
                             onClick={() => {
@@ -1403,18 +1286,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       </div>
                     </div>
                     
-                    {/* Job Tags */}
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                        Full-time
-                      </span>
-                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                        {Math.floor(Math.random() * 5)}-{Math.floor(Math.random() * 3) + 3} years
-                      </span>
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                        {company?.industry}
-                      </span>
-                    </div>
+                    <div className="company-job-skills">{Array.isArray(job.skills) && job.skills.filter((skill: unknown) => typeof skill === 'string').slice(0, 6).map((skill: string, index: number) => <span key={index}>{skill}</span>)}{(job.experienceRange || job.experience) && <span>{job.experienceRange || job.experience}</span>}{(job.jobType || job.type) && <span>{job.jobType || job.type}</span>}</div>{job.createdAt && <p className="company-job-posted">{formatDate(job.createdAt)}</p>}
                   </div>
                 ))}
               </div>
@@ -1455,12 +1327,29 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                 </button>
               </div>
             )}
+            </div>
+            <aside className="company-jobs-sidebar"><div className="company-interest-card"><div><h3>Interested in {company.name}?</h3><p>{user ? 'Stay connected with this company and explore new opportunities.' : 'Create your profile and let hiring teams discover your skills.'}</p>{!user ? <button type="button" onClick={() => onNavigate?.('role-selection')}>Register now</button> : !isEmployer ? <button type="button" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow company'}</button> : <button type="button" onClick={() => setActiveTab('overview')}>Company overview</button>}</div><div className="company-interest-art"><svg className="career-person-illustration" viewBox="0 0 260 220" fill="none" aria-hidden="true" focusable="false">
+  <circle cx="118" cy="106" r="88" fill="#F0EEF5" />
+  <g stroke="#243044" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M72 206 80 145 106 133 130 141 146 206" fill="#FFF" />
+    <path d="M84 148 70 168 62 200M122 145 148 159 175 126 188 133 159 181 127 170" fill="#FFF" />
+    <path d="M99 128 100 141 110 149 119 139 116 126" fill="#FFF" />
+    <path d="M93 96Q92 76 108 74Q132 73 129 96L125 116Q114 135 101 121Z" fill="#FFF" />
+    <path d="M92 92Q83 75 96 67Q103 61 111 66Q124 56 133 72Q144 78 130 91L123 82 113 87 103 78 99 93Z" fill="#243044" />
+    <path d="M101 101H111M115 101H126M111 101H115M113 104 112 113 117 113M108 119Q115 123 120 117" />
+    <circle cx="105" cy="103" r="6" /><circle cx="121" cy="103" r="6" />
+    <path d="M92 157 95 204M115 153 119 205M83 207H136M176 127 180 116Q184 111 186 117L185 124 190 119Q195 119 192 126L188 133" fill="#FFF" />
+  </g>
+  <g className="career-floating-document"><rect x="171" y="63" width="49" height="61" rx="6" fill="#FFF" stroke="#EF9D77" strokeWidth="1.5" /><rect x="181" y="76" width="22" height="5" rx="2" fill="#EF9D77" /><path d="M181 91H210M181 99H210M181 107H201" stroke="#ACB9CE" strokeWidth="2" strokeLinecap="round" /></g>
+  <g className="career-floating-document-secondary"><rect x="39" y="103" width="32" height="41" rx="5" fill="#FFF" stroke="#A8BFDF" strokeWidth="1.5" /><path d="M48 115H62M48 124H60M48 132H56" stroke="#7595C5" strokeWidth="2" strokeLinecap="round" /></g>
+  <path d="m219 158 3 7 8 1-6 5 1 8-6-4-7 3 2-8-5-5 8-1Z" fill="#F6CDB8" />
+</svg></div></div><div className="company-sidebar-reviews"><h3>Company reviews</h3>{reviews.length > 0 ? <><p><Star size={15} aria-hidden="true" />{avgRating} <span>from {reviews.length} reviews</span></p>{reviews.slice(0, 3).map((review, index) => <div key={review._id || review.id || index}><strong>{review.title || 'Employee review'}</strong><span>{review.rating}/5</span></div>)}</> : <p>No reviews yet.</p>}<button type="button" onClick={() => setActiveTab('reviews')}>View reviews</button>{isCandidate && <button type="button" onClick={() => setShowReviewModal(true)}>Write a review</button>}</div></aside>
           </div>
         ) : (
           /* Reviews Tab Content */
           <div className="space-y-6">
             {/* Reviews Header */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="company-profile-panel bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Employee Reviews for {company?.name}</h2>
@@ -1524,7 +1413,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             {reviews.length > 0 ? (
               <div className="space-y-4">
                 {reviews.map((review, idx) => (
-                  <div key={idx} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                  <div key={idx} className="company-profile-panel bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">

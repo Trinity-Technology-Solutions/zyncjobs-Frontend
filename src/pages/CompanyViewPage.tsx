@@ -59,7 +59,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
     return (
       <div className="min-h-screen bg-gray-50">
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Company Not Found</h1>
           <BackButton fallback="/companies" />
         </div>
@@ -71,7 +71,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BackButton fallback="/companies" className="mb-6" />
 
         {/* Company Header */}
@@ -123,7 +123,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
           ) : (
             <div className="space-y-4">
               {jobs.map((job: any) => (
-                <div key={job._id} className="border border-gray-200 rounded-lg p-6 hover:border-blue-300 transition-colors">
+                <div key={job._id} className="portal-job-card border border-gray-200 rounded-lg p-6 hover:border-blue-300 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="text-xl font-semibold text-gray-900 mb-2">{job.title}</h3>

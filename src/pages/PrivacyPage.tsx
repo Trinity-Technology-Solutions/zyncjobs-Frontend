@@ -40,7 +40,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, user, onLogout })
         <div className="absolute top-4 left-4 z-10">
           <BackButton fallback="/" className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
         </div>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="portal-page-container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
             <Shield className="w-8 h-8 text-gray-600" />
             <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Legal</span>
@@ -51,8 +51,8 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, user, onLogout })
       </div>
 
       {/* Tab-style bar for consistency */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-0">
+      <div className="bg-white border-b border-gray-200 portal-page-sticky sticky top-0 z-30 shadow-sm">
+        <div className="portal-page-container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-0">
           <button
             onClick={() => onNavigate?.('terms')}
             className="flex items-center gap-2 px-6 py-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors"
@@ -66,7 +66,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, user, onLogout })
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="portal-page-container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex gap-8">
 
           {/* Sidebar */}

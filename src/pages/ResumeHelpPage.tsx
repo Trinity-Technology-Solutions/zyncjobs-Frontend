@@ -149,60 +149,20 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="resume-guide-editorial min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20" />
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <BackButton fallback="/resume-studio" className="mb-8 bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30 hover:border-white/50 shadow-lg" />
-          
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="flex justify-center mb-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                <FileText className="w-12 h-12 text-white" />
-              </div>
-            </div>
-            
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold mb-2.5 leading-[1.15] tracking-[-0.02em] bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-              Resume Tips & Guide
-            </h1>
-            
-            <p className="text-sm sm:text-base text-blue-100 mb-4 leading-relaxed max-w-2xl mx-auto px-4">
-              Master the art of creating compelling resumes that get noticed by recruiters and land interviews
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-4 mb-12">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5 text-yellow-400" />
-                  <span className="font-semibold">Expert Tips</span>
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-green-400" />
-                  <span className="font-semibold">Industry Standards</span>
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-blue-400" />
-                  <span className="font-semibold">ATS Optimized</span>
-                </div>
-              </div>
-            </div>
-          </div>
+      <section className="guide-editorial-hero">
+        <div className="portal-page-container">
+          <BackButton fallback="/resume-studio" className="mb-6" />
+          <div className="guide-editorial-heading"><div><p className="guide-editorial-eyebrow">THE RESUME WRITING GUIDE</p><h1>Resume Tips &amp; Guide</h1><p>Master the art of creating compelling resumes that get noticed by recruiters and land interviews.</p></div><div className="guide-editorial-summary"><BookOpen size={26} aria-hidden="true" /><h2>Write with confidence</h2><p>Expert tips, section-by-section guidance, and practical writing advice.</p></div></div>
         </div>
-      </div>
+      </section>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <main className="portal-page-container guide-editorial-workspace max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tab Navigation */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-2 mb-12">
-          <div className="flex flex-wrap gap-2">
+        <div className="guide-editorial-navigation" aria-label="Resume guide categories">
+          <div className="guide-editorial-nav-items">
             {[
               { id: 'tips', label: 'Expert Tips', icon: Lightbulb },
               { id: 'sections', label: 'Resume Sections', icon: BookOpen },
@@ -212,6 +172,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
               return (
                 <button
                   key={tab.id}
+                  aria-pressed={activeTab === tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
                     activeTab === tab.id
@@ -227,17 +188,16 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
           </div>
         </div>
 
+        <div className="guide-editorial-content">
         {/* Tips Tab */}
         {activeTab === 'tips' && (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="guide-tip-grid">
               {resumeTips.map((tip, index) => {
                 const Icon = tip.icon;
                 return (
-                  <div key={index} className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-xl hover:border-blue-200 transition-all duration-300">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${tip.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
+                  <div key={index} className="guide-editorial-tip">
+                    <div className="guide-tip-top"><span>{String(index + 1).padStart(2, '0')}</span><Icon size={20} aria-hidden="true" /></div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">{tip.title}</h3>
                     <p className="text-gray-600 mb-4 leading-relaxed">{tip.description}</p>
                     <div className="bg-gray-50 rounded-lg px-3 py-2">
@@ -286,7 +246,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
         {activeTab === 'sections' && (
           <div className="space-y-6">
             {sections.map((section, index) => (
-              <div key={index} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-blue-200">
+              <div key={index} className="guide-editorial-section">
                 <div className="flex items-start gap-6">
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0">
                     {index + 1}
@@ -470,6 +430,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
               </div>
             </div>
           </div>
+        </div>
         </div>
       </main>
 

@@ -1004,7 +1004,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="bg-gray-50 flex" style={{height: `calc(100vh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
+    <div className="portal-employer-dashboard bg-gray-50 flex" style={{height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
@@ -1025,9 +1025,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       )}
 
       {/* Sidebar — fixed height, independent scroll */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{top: `${headerHeight}px`, width: '300px', height: `calc(100vh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth'}}>
+      <div role="navigation" aria-label="Employer workspace navigation" className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{top: `${headerHeight}px`, width: '280px', height: `calc(100dvh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth'}}>
             {/* Profile header - Enhanced */}
-            <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
+            <div className="employer-sidebar-profile px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md overflow-hidden">
@@ -1125,8 +1125,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean; show: boolean }[]).filter(item => item.show).map(item => {
                 const isActive = activeMenu === item.key;
                 return (
-                  <button key={item.key} onClick={item.action}
-                    style={{ fontSize: '15px' }}
+                  <button key={item.key} aria-current={isActive ? 'page' : undefined} onClick={() => { item.action(); if (window.innerWidth < 1024) setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left font-medium ${
                       isActive
                         ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40'
@@ -1134,7 +1133,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     }`}
                   >
                     <span className={`flex-shrink-0 text-lg ${isActive ? 'text-white' : 'text-blue-200'}`}>{item.icon}</span>
-                    <span className="leading-tight flex-1 truncate" style={{ fontSize: '15px' }}>{item.label}</span>
+                    <span className="leading-tight flex-1 truncate">{item.label}</span>
                     {item.badge ? (
                       <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[20px] h-[20px] px-1 rounded-full font-bold flex items-center justify-center ${
                         item.badgeRed ? 'bg-red-500 text-white' : 'bg-emerald-400 text-slate-900'
@@ -1173,10 +1172,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   }
                 }
               )}}
-                style={{ fontSize: '15px' }}
+                
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
                 <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
-                <span style={{ fontSize: '15px' }}>Delete Account</span>
+                <span >Delete Account</span>
               </button>
             </nav>
 
@@ -1189,21 +1188,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-blue-700/50 hover:text-white transition-all duration-200 font-medium"
               >
                 <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
-                <span style={{ fontSize: '15px' }}>Logout</span>
+                <span >Logout</span>
               </button>
             </div>
       </div>
 
       {/* Main Content — offset by sidebar width on desktop, independent scroll */}
-      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
+      <div className="portal-dashboard-main flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
 {/* Top bar with Back Button */}
-        <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
+        <div className="portal-dashboard-toolbar flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
             {/* Inline static menu toggle — mobile only */}
             <button
+              aria-label="Open workspace navigation" aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden flex-shrink-0 bg-blue-700 text-white p-2 rounded-lg"
-              aria-label="Open menu"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -1269,9 +1268,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </span>
             )}
             
-            {/* Notification Bell - Moved to right side */}
+            {/* Notification Bell */}
             <div className="relative">
-              <button
+              <button aria-label={`Notifications, ${notifications.length} alerts`} aria-expanded={showNotifications} aria-controls="employer-notification-panel"
                 onClick={async () => {
                   setShowNotifications(!showNotifications);
                   if (!showNotifications) {
@@ -1283,7 +1282,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     } catch (e) { console.error('Bell fetch error:', e); }
                   }
                 }}
-                className="relative p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="employer-notification-trigger relative p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1300,7 +1299,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
         {/* Dashboard Content */}
         <div className="pt-0 pb-2 flex-1 min-w-0">
-          <div className="px-3 sm:px-4 lg:px-6">
+          <div className="employer-section-content portal-dashboard-content px-3 sm:px-4 lg:px-6" data-section={activeMenu}>
           {activeMenu === 'dashboard' ? (
             <>
               <div className="mb-4 sm:mb-6">
@@ -1358,7 +1357,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   const borderColors = ['border-t-blue-500','border-t-cyan-500','border-t-amber-500','border-t-emerald-500'];
                   const bgGradients = ['from-blue-50 to-white','from-cyan-50 to-white','from-amber-50 to-white','from-emerald-50 to-white'];
                   return (
-                    <div key={index} className={`bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
+                    <div key={index} className={`employer-metric-card bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
                       <p className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-2 sm:mb-3 truncate">{stat.label}</p>
                       <div className="flex items-center justify-between">
                         <div className="min-w-0 flex-1">
@@ -1503,7 +1502,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           {visibleJobs.map((job, idx) => {
                             const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
                             const { bar, label, labelCls } = status;                            return (
-                              <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                              <div key={job.id} className="portal-job-card employer-job-card employer-performance-card">
                                 <div className="flex items-start justify-between gap-3 mb-2">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
@@ -1735,7 +1734,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* Filters */}
-              <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-6 flex flex-col gap-2">
+              <div className="employer-application-filters bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-6 flex flex-col gap-2">
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
                   <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <input
@@ -1811,7 +1810,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 ) : (
                 <div className="space-y-4">
                   {filtered.map((application) => (
-                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
+                    <div key={application._id || application.id} className="employer-application-card bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
                       {/* Mobile: stacked layout | Desktop: side-by-side */}
                       <div className="flex flex-col sm:flex-row gap-4">
                         {/* Candidate info */}
@@ -1977,8 +1976,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             }
             </>
           ) : activeMenu === 'interviews' ? (
-            <>
-              <div className="mb-6">
+            <section className="employer-interviews-section" aria-label="Interview management">
+              <div className="employer-interviews-heading mb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Interviews</h1>
@@ -2020,18 +2019,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
                 </div>
               ) : interviews.length === 0 ? (
-                <div className="text-center py-16">
+                <div className="employer-interviews-empty text-center py-16">
                   <MessageSquare className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No Interviews Scheduled</h3>
                   <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">Interview schedules will appear here when candidates book interviews.</p>
                 </div>
               ) : (
-                <div className="space-y-3 sm:space-y-4">
+                <div className="employer-interview-list space-y-3 sm:space-y-4">
                   {interviews.map((interview) => (
-                    <div key={interview._id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-sm transition-shadow duration-200">
-                      <div className="flex flex-col lg:flex-row items-start gap-4">
+                    <article key={interview._id} className="employer-interview-card bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-sm transition-shadow duration-200">
+                      <div className="employer-interview-row flex flex-col lg:flex-row items-start gap-4">
                         <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="employer-interview-avatar w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-gray-600 font-semibold text-xs sm:text-sm">
                               {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
@@ -2040,15 +2039,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
                               <div className="min-w-0">
-                                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1 truncate">
+                                <h3 className="employer-interview-name text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1">
                                   {interview.candidateName || 'Candidate'}
                                 </h3>
                                 <p className="text-sm sm:text-base text-purple-700 font-semibold flex items-center gap-1">
                                   <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                  <span className="truncate">{interview.jobTitle || 'Interview'}</span>
+                                  <span className="break-words">{interview.jobTitle || 'Interview'}</span>
                                 </p>
                               </div>
-                              <span className={`flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
+                              <span className={`employer-interview-status flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                                 interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                                 interview.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                 interview.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -2060,20 +2059,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </span>
                             </div>
                             
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 text-xs sm:text-sm text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span className="truncate">{formatInterviewDate(interview)}</span>
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span>{formatInterviewTime(interview)}</span>
-                              </span>
-                              <span className="truncate">{interview.candidateEmail}</span>
+                            <div className="employer-interview-details">
+                              <div><span className="employer-interview-detail-label">Interview date</span><span><Calendar size={16} aria-hidden="true" />{formatInterviewDate(interview)}</span></div>
+                              <div><span className="employer-interview-detail-label">Time</span><span><Clock size={16} aria-hidden="true" />{formatInterviewTime(interview)}</span></div>
+                              <div><span className="employer-interview-detail-label">Candidate email</span><span className="employer-interview-email">{interview.candidateEmail || 'Not provided'}</span></div>
                             </div>
 
                             {interview.meetingLink && (
-                              <div className="mb-3 inline-flex flex-wrap items-center gap-2">
+                              <div className="employer-interview-meeting-actions mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
                                   href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/host`}
                                   target="_blank"
@@ -2105,8 +2098,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
+                        <div className="employer-interview-controls flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
                           {canManageApplications ? (<AutocompleteCombobox
+                            label="Interview status" name={`interview-status-${interview._id}`}
                             value={interview.status || 'scheduled'}
                             onChange={async (newStatus) => {
                               try {
@@ -2168,7 +2162,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 }
                               );
                               }}
-                              className="flex-shrink-0 lg:w-full min-h-[40px] inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-sm"
+                              className="employer-interview-delete flex-shrink-0 lg:w-full min-h-[40px] inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-sm"
                             >
                               <Trash2 className="w-4 h-4" />
                               <span>Delete</span>
@@ -2176,7 +2170,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           )}
                         </div>
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -2213,7 +2207,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 />
               )}
 
-            </>
+            </section>
           ) : activeMenu === 'saved-candidates' ? (
             <>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
@@ -2275,7 +2269,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     })();
                     const photo = candidate.candidateProfilePicture || candidate.profilePhoto || '';
                     return (
-                    <div key={candidate._id || candidate.id} className="border-2 border-green-200 rounded-xl p-6 hover:shadow-lg hover:border-green-400 transition-all duration-300 bg-gradient-to-br from-white via-green-50 to-emerald-50">
+                    <div key={candidate._id || candidate.id} className="employer-saved-candidate-card border-2 border-green-200 rounded-xl p-6 hover:shadow-lg hover:border-green-400 transition-all duration-300 bg-gradient-to-br from-white via-green-50 to-emerald-50">
                       <div className="flex items-start justify-between gap-4">
                         {/* Avatar */}
                         <div className="flex-shrink-0">
@@ -2431,7 +2425,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                 ) : (
                   notifications.map((notification) => (
-                    <div key={notification.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
+                    <div key={notification.id} className="employer-alert-card bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-start space-x-4">
                         <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0"
                           dangerouslySetInnerHTML={{ __html: NotificationService.getNotificationIcon(notification.type) }} />
@@ -2557,12 +2551,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium border border-blue-200">
-                      🤖 Smart Filtering
+                      Smart Filtering
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <div className="employer-rejection-workspace">
                 <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
               </div>
             </>
@@ -2579,10 +2573,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {showNotifications && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40" style={{ top: headerHeight }}
             onClick={() => setShowNotifications(false)}
           />
-          <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+          <div id="employer-notification-panel" role="region" aria-label="Notifications" className="employer-notification-drawer fixed right-0 w-full sm:w-96 bg-white shadow-xl z-50" style={{ top: headerHeight, height: `calc(100dvh - ${headerHeight}px)` }}>
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
               <div className="flex items-center gap-3">
@@ -2599,7 +2593,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </button>
                 )}
                 <button
-                  onClick={() => setShowNotifications(false)}
+                  aria-label="Close notifications" onClick={() => setShowNotifications(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2609,7 +2603,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
 
-            <div className="h-full overflow-y-auto pb-20">
+            <div className="employer-notification-list overflow-y-auto pb-20">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />

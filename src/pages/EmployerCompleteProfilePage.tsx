@@ -705,14 +705,8 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
   const labelCls = "block text-sm font-semibold text-gray-700 mb-1.5";
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
+    <div className="employer-profile-editor min-h-screen bg-white relative overflow-hidden">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-
-      {/* Corner decorative circles — like login page */}
-      <div className="fixed top-16 right-0 w-80 h-80 rounded-full bg-orange-100 opacity-60 -translate-y-1/4 translate-x-1/4 pointer-events-none" />
-      <div className="fixed top-16 right-0 w-52 h-52 rounded-full bg-orange-50 opacity-80 -translate-y-1/3 translate-x-1/3 pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-96 h-96 rounded-full bg-blue-100 opacity-50 translate-y-1/4 -translate-x-1/4 pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-60 h-60 rounded-full bg-blue-50 opacity-70 translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
 
@@ -729,32 +723,14 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         </button>
 
         {/* Card */}
-        <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-
-          {/* Orange top accent bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-orange-400 to-yellow-400" />
-
-          {/* Subtle card inner tint */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at top center, rgba(249,115,22,0.04) 0%, transparent 50%)' }} />
-
-          {/* Decorative circle inside card top-right */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-orange-100 opacity-40 pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-blue-100 opacity-30 pointer-events-none" />
+        <div className="employer-profile-form-card relative bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
           <div className="relative z-10 p-4 sm:p-6 lg:p-8">
 
             {/* Header */}
-            <div className="text-center mb-6 sm:mb-8">
-              <div className="relative inline-block mb-4 sm:mb-5">
-                <div className="absolute inset-0 rounded-2xl blur-xl opacity-40 bg-orange-400" />
-                <div className="relative p-3 sm:p-4 rounded-2xl shadow-lg bg-gradient-to-br from-orange-500 to-orange-600">
-                  <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                </div>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Edit Your{' '}
-                <span className="text-orange-500">Company Profile</span>
-              </h1>
+            <div className="employer-profile-editor-heading mb-6 sm:mb-8">
+              <h1>Company profile</h1>
+              <p className="employer-profile-intro">Keep your company information up to date for candidates and your hiring team.</p>
               <p className="text-gray-500 text-sm sm:text-base px-2">
                 {currentStep === 1 && "Basic company information"}
                 {currentStep === 2 && "Contact details & verification"}
@@ -865,11 +841,11 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                 </div>
               </div>
 
-              {/* Step 1: Basic Company Information */}
+              {/* Company information */}
               {currentStep === 1 && (
                 <div className="space-y-4 sm:space-y-5">
                   <div className="bg-orange-50 rounded-xl p-3 sm:p-4 border border-orange-200 mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-orange-800 mb-2">Step 1: Basic Company Information</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-orange-800 mb-2">Company information</h3>
                     <p className="text-sm text-orange-600">All fields marked with * are mandatory</p>
                   </div>
 
@@ -1014,7 +990,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
               {currentStep === 2 && (
                 <div className="space-y-4 sm:space-y-5">
                   <div className="bg-blue-50 rounded-xl p-3 sm:p-4 border border-blue-200 mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-blue-800 mb-2">Step 2: Contact Details & Verification</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-blue-800 mb-2">Contact details & verification</h3>
                     <p className="text-sm text-blue-600">All fields marked with * are mandatory for verification</p>
                   </div>
 
@@ -1111,11 +1087,11 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                 </div>
               )}
 
-              {/* Step 3: Benefits & Additional Information */}
+              {/* Benefits & additional information */}
               {currentStep === 3 && (
                 <div className="space-y-4 sm:space-y-5">
                   <div className="bg-green-50 rounded-xl p-3 sm:p-4 border border-green-200 mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-green-800 mb-2">Step 3: Benefits & Additional Information</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-green-800 mb-2">Benefits & additional information</h3>
                     <p className="text-sm text-green-600">Optional information to make your company profile more attractive</p>
                   </div>
                   {/* Enhanced Benefits Section */}

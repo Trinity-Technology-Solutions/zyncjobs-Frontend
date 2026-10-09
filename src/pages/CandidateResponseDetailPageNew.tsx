@@ -191,7 +191,7 @@ ${candidate.company}`;
       
       {/* Top Navigation Bar */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="portal-page-container max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left: Status Filters */}
             <div className="flex items-center space-x-1">
@@ -264,7 +264,7 @@ ${candidate.company}`;
 
       {/* Secondary Navigation */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-3">
+        <div className="portal-page-container max-w-7xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
               <button 
@@ -331,7 +331,7 @@ ${candidate.company}`;
 
       {/* Action Bar */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-3">
+        <div className="portal-page-container max-w-7xl mx-auto px-6 py-3">
           <div className="flex items-center space-x-4">
             <label className="flex items-center">
               <input 
@@ -389,7 +389,7 @@ ${candidate.company}`;
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="portal-page-container max-w-7xl mx-auto px-6 py-6">
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

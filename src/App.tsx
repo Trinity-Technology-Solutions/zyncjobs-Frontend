@@ -11,7 +11,6 @@ import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import SEOHead from './components/SEOHead';
-// Lazy-load below-fold home page sections
 const JobCategories = lazy(() => import('./components/JobCategories'));
 const LatestJobs = lazy(() => import('./components/LatestJobs'));
 const HowItWorks = lazy(() => import('./components/HowItWorks'));
@@ -187,7 +186,7 @@ const DashboardRoute: React.FC<{
   return (
     <AuthGuard user={user} userLoading={userLoading} redirectTo={redirectTo}>
       <Notification {...notification} onClose={() => setNotification((n: { type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }) => ({ ...n, isVisible: false }))} />
-      {user?.type === 'admin' || user?.type === 'super_admin' || user?.type === 'recruiter' ? (
+      {user?.type === 'admin' || user?.type === 'super_admin' || user?.type === 'recruiter' || (user?.type === 'employer' && localStorage.getItem('lastUserType') === 'recruiter') ? (
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
         <>
@@ -267,6 +266,7 @@ function App() {
   const [user, setUser] = useState<UserType | null>(getInitialUser);
   const loginTimestamp = React.useRef<number>(0);
   const isHomePage = location.pathname === '/' && user?.type !== 'employer';
+  const isAdminPage = location.pathname.startsWith('/admin');
   // If we already have user from localStorage and no refresh token, skip loading state
   const [userLoading, setUserLoading] = useState(() => {
     const hasRefreshToken = !!tokenStorage.getRefresh();
@@ -675,7 +675,7 @@ function App() {
             ? 'employer'
             : (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
             ? 'employer'
-            : lastUserType === 'recruiter' && ['super_admin', 'admin', 'manager'].includes(rawType)
+            : lastUserType === 'recruiter' && ['super_admin', 'admin', 'manager', 'employer'].includes(rawType)
               ? 'recruiter'
               : rawType;
           if (resolvedRawType === 'employer') userType = 'employer';
@@ -794,18 +794,18 @@ function App() {
       />
 
       <Suspense fallback={<LoadingFallback />}>
-        <main id="main-content" className={isHomePage ? '' : 'has-header-offset pt-[74px] sm:pt-[82px] lg:pt-[86px]'}>
+        <main id="main-content" className={isHomePage || isAdminPage ? '' : 'has-header-offset pt-[74px] sm:pt-[82px] lg:pt-[86px]'}>
           <Routes>
             {/* -- Public home -- */}
             <Route path="/" element={
               user?.type === 'employer' ? (
                 <EmployersPage {...nav} />
               ) : (
-              <div className="min-h-screen bg-white overflow-x-clip">
+              <div className="zync-home min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
                 <NewHero onNavigate={handleNavigation} />
                 <CompanyCarousel />
-                <LatestJobs onNavigate={handleNavigation} />
+                <LatestJobs onNavigate={handleNavigation} user={user} />
                 <HowItWorks onNavigate={handleNavigation} />
                 <JobCategories onNavigate={handleNavigation} />
                 <TalentedPeople onNavigate={handleNavigation} />
@@ -1145,7 +1145,7 @@ function App() {
 
             {/* -- Admin Routes -- */}
             <Route path="/admin/login" element={
-              user && (user.type === 'admin' || user.type === 'super_admin' || user.type === 'recruiter')
+              user && (user.type === 'admin' || user.type === 'super_admin' || user.type === 'recruiter' || (user.type === 'employer' && localStorage.getItem('lastUserType') === 'recruiter'))
                 ? <Navigate to="/admin/dashboard" replace />
                 : <AdminLoginPage onLogin={u => {
                   handleLogin(u);

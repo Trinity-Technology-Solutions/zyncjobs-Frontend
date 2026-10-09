@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Search, Check, Sparkles, MapPin, Zap, Briefcase, CalendarClock, Clock, ChevronLeft, ChevronRight, Bookmark, TrendingUp, BadgeCheck, Video } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import WorkButton from './animata/button/work-button';
+import React, { useState, useRef, useEffect } from 'react';
+import { ArrowRight, UserPlus, FileText, Search, Check, Sparkles, Briefcase, CalendarClock, ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react';
 
 interface HowItWorksProps {
   onNavigate?: (page: string) => void;
@@ -9,684 +7,352 @@ interface HowItWorksProps {
 
 const steps = [
   {
-    id: '01',
-    title: 'Create Your Free Account',
-    page: 'candidate-register',
-    cta: 'Create Free Account',
-    desc: 'Sign up in seconds to save jobs, track applications and unlock AI-powered recommendations built around your skills.',
-    bullets: [
-      'Free signup in under 30 seconds',
-      'Save jobs & track applications',
-      'AI-personalized job recommendations',
-    ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
-    glow: 'bg-blue-400',
-    chipBg: 'bg-blue-600',
+    id: '01', label: 'Create your account', icon: UserPlus,
+    title: 'Start with a profile that tells your story.',
+    page: 'candidate-register', cta: 'Create free account',
+    desc: 'Bring your skills and experience together. Save the roles you love and discover recommendations built around you.',
+    bullets: ['Create your free account', 'Save jobs and track applications', 'Get personalised job recommendations'],
   },
   {
-    id: '02',
-    title: 'Search AI-Matched Jobs',
-    page: 'job-listings',
-    cta: 'Search Jobs',
-    desc: 'Explore thousands of opportunities matched to your skills, location and preferences — with a match score on every job.',
-    bullets: [
-      'AI-matched roles for your skills',
-      'Filter by location, salary & job type',
-      'Smart match score on every job',
-    ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
-    glow: 'bg-violet-400',
-    chipBg: 'bg-violet-600',
+    id: '02', label: 'Find your fit', icon: Search,
+    title: 'Find work that fits your ambitions.',
+    page: 'job-listings', cta: 'Explore jobs',
+    desc: 'Explore opportunities based on your skills, location, and preferences. Focus your search on the roles that matter to you.',
+    bullets: ['Discover roles matched to your skills', 'Filter by location, salary, and job type', 'Compare opportunities in one place'],
   },
   {
-    id: '03',
-    title: 'Build a Standout Resume',
-    page: 'resume-builder',
-    cta: 'Build My Resume',
-    desc: 'Create or upload your resume with our AI builder. Get an instant ATS score and clear steps to improve it.',
-    bullets: [
-      'AI builder or instant upload',
-      'Instant ATS score & improvement tips',
-      'Tailor resumes per application',
-    ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
-    glow: 'bg-cyan-400',
-    chipBg: 'bg-cyan-600',
+    id: '03', label: 'Build your resume', icon: FileText,
+    title: 'Make your first impression count.',
+    page: 'resume-builder', cta: 'Build my resume',
+    desc: 'Create or upload your resume, understand its ATS score, and get practical suggestions to make your experience stand out.',
+    bullets: ['Build a resume or upload your own', 'Get an ATS score and improvement tips', 'Tailor your resume to each opportunity'],
   },
   {
-    id: '04',
-    title: 'Apply & Track in Real-Time',
-    page: 'job-listings',
-    cta: 'Start Applying',
-    desc: 'One-click apply, then watch your application move through every stage — with notifications at each step.',
-    bullets: [
-      'One-click apply',
-      'Real-time status tracking',
-      'Notifications at every stage',
-    ],
-    gradient: 'from-slate-50 via-slate-50 to-slate-100',
-    glow: 'bg-orange-400',
-    chipBg: 'bg-orange-500',
+    id: '04', label: 'Apply & track', icon: Briefcase,
+    title: 'Take the next step with confidence.',
+    page: 'job-listings', cta: 'Start applying',
+    desc: 'Apply for your next role and follow your application through each stage. Keep your opportunities organised as your search moves forward.',
+    bullets: ['Apply with your profile and resume', 'Follow your application status', 'Stay updated as employers respond'],
   },
 ];
 
 const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
-  const [progress, setProgress] = useState(0);
-  const [isDesktop, setIsDesktop] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const ticking = useRef(false);
-
+  const [active, setActive] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const manualStepRef = useRef(false);
+  const scrollLayout = useRef({ pinned: false, header: 86, padding: 40, distance: 0, contentHeight: 0 });
+  const [trackHeight, setTrackHeight] = useState<number | undefined>();
   useEffect(() => {
-    const checkScreen = () => {
-      setIsDesktop(window.innerWidth >= 1024);
+    let frame = 0;
+    const updateStep = () => {
+      frame = 0;
+      if (manualStepRef.current) return;
+      const section = sectionRef.current;
+      if (!section) return;
+      const layout = scrollLayout.current;
+      const top = section.getBoundingClientRect().top + layout.padding;
+      const travelled = layout.header + 12 - top;
+      const progress = layout.pinned ? travelled / layout.distance : (travelled + window.innerHeight * .15) / Math.max(layout.contentHeight, 1);
+      setActive(Math.max(0, Math.min(steps.length - 1, Math.floor(progress * steps.length))));
     };
-    checkScreen();
-    window.addEventListener('resize', checkScreen);
-    return () => window.removeEventListener('resize', checkScreen);
+    const scheduleUpdate = () => { if (!frame) frame = window.requestAnimationFrame(updateStep); };
+    const handleScroll = () => { manualStepRef.current = false; scheduleUpdate(); };
+    const measure = () => {
+      if (!sectionRef.current || !contentRef.current) return;
+      const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 86;
+      const padding = parseFloat(getComputedStyle(sectionRef.current).paddingTop) || 0;
+      const bottomPadding = parseFloat(getComputedStyle(sectionRef.current).paddingBottom) || 0;
+      const contentHeight = contentRef.current.getBoundingClientRect().height;
+      const available = window.innerHeight - header - 24;
+      const pinned = contentHeight <= available;
+      const distance = Math.max(1200, available * .65 * steps.length);
+      scrollLayout.current = { pinned, header, padding, distance, contentHeight };
+      sectionRef.current.classList.toggle('journey-scroll-pinned', pinned);
+      setTrackHeight(pinned ? contentHeight + distance + padding + bottomPadding : undefined);
+      scheduleUpdate();
+    };
+    const observer = new ResizeObserver(measure);
+    if (contentRef.current) observer.observe(contentRef.current);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', measure);
+    measure();
+    return () => { observer.disconnect(); window.removeEventListener('scroll', handleScroll); window.removeEventListener('resize', measure); if (frame) window.cancelAnimationFrame(frame); };
   }, []);
-
-  useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-
-    const update = () => {
-      const rect = el.getBoundingClientRect();
-      const headerOffset = window.innerWidth >= 1024 ? 96 : window.innerWidth >= 640 ? 80 : 64;
-      const stickyHeight = window.innerHeight - headerOffset;
-      const total = el.offsetHeight - stickyHeight;
-      if (total <= 0) { ticking.current = false; return; }
-
-      const scrolled = headerOffset - rect.top;
-      const p = Math.min(1, Math.max(0, scrolled / total));
-      setProgress(p);
-      ticking.current = false;
-    };
-
-    const onScroll = () => {
-      if (!ticking.current) {
-        ticking.current = true;
-        requestAnimationFrame(update);
-      }
-    };
-
-    update();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, []);
-
-  // Equal 25% distribution across all 4 steps so Step 04 has a stable, clear scroll window
-  const frac = progress * steps.length;
-  const active = Math.min(steps.length - 1, Math.floor(frac));
-  const step = steps[active];
-  const fracFrac = frac - Math.floor(frac);
-  const parallax = isDesktop ? (0.5 - fracFrac) * 20 : 0;
-
-  const goToStep = (i: number) => {
-    const clamped = Math.max(0, Math.min(steps.length - 1, i));
-    const el = sectionRef.current;
-    if (!el) return;
-    const headerOffset = window.innerWidth >= 1024 ? 96 : window.innerWidth >= 640 ? 80 : 64;
-    const stickyHeight = window.innerHeight - headerOffset;
-    const total = el.offsetHeight - stickyHeight;
-    if (total <= 0) return;
-
-    const targetProgress = (clamped + 0.5) / steps.length;
-    const elTopDoc = window.scrollY + el.getBoundingClientRect().top;
-    const targetY = elTopDoc - headerOffset + (targetProgress * total);
-    window.scrollTo({ top: targetY, behavior: 'smooth' });
+  const selectStep = (index: number) => {
+    const next = Math.max(0, Math.min(steps.length - 1, index));
+    manualStepRef.current = !scrollLayout.current.pinned;
+    setActive(next);
+    if (!sectionRef.current || !scrollLayout.current.pinned) return;
+    const layout = scrollLayout.current;
+    const start = window.scrollY + sectionRef.current.getBoundingClientRect().top + layout.padding - layout.header - 12;
+    window.scrollTo({ top: start + layout.distance * (next / steps.length + .03), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
+  const step = steps[active];
+  const Icon = step.icon;
 
   return (
-    <section id="how-it-works" className="relative bg-slate-50 overflow-x-clip border-y border-slate-200/70">
-
-      {/* 1. Section header in standard document flow — fades out cleanly once steps pin */}
-      <div
-        className="relative pt-10 sm:pt-12 lg:pt-16 pb-4 sm:pb-5 lg:pb-6 text-center px-4 max-w-4xl mx-auto z-10 transition-opacity duration-200"
-        style={{
-          opacity: Math.max(0, 1 - progress * 8),
-          pointerEvents: progress > 0.05 ? 'none' : 'auto',
-          visibility: progress > 0.12 ? 'hidden' : 'visible',
-        }}
-      >
-        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-2 sm:mb-3 tracking-tight leading-tight">
-          Your Dream Job is Just <span className="text-orange-500">4 Steps</span> Away
-        </h2>
-        <p className="text-gray-600 max-w-xl mx-auto text-xs sm:text-sm md:text-base lg:text-lg leading-relaxed">
-          Scroll to walk through your journey — watch every step come alive as you move.
-        </p>
-      </div>
-
-      {/* 2. Scroll-driven Step Showcase Track */}
-      <div
-        ref={sectionRef}
-        className="relative"
-        style={{ height: `${steps.length * 90}vh` }}
-      >
-        <div
-          className="sticky z-20 flex flex-col justify-center overflow-hidden"
-          style={{
-            top: 'var(--header-h, 64px)',
-            height: 'calc(100dvh - var(--header-h, 64px))',
-          }}
-        >
-
-          {/* Background gradient layers */}
-          {steps.map((t, i) => (
-            <div
-              key={t.id}
-              className={`absolute inset-0 bg-gradient-to-br ${t.gradient} transition-opacity duration-700 pointer-events-none`}
-              style={{ opacity: i === active ? 1 : 0 }}
-            >
-            </div>
-          ))}
-
-          {/* Step Navigation Bar for Mobile & Tablet */}
-          <div className="lg:hidden relative z-20 flex items-center justify-between gap-2 max-w-md mx-auto w-full px-4 pt-3 sm:pt-4 mb-2 flex-shrink-0">
-            <span className="text-gray-600 text-xs font-bold uppercase tracking-wider">
-              Step {step.id} / 0{steps.length}
-            </span>
-            <div className="flex gap-1.5 items-center">
-              {steps.map((s, i) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => goToStep(i)}
-                  aria-label={`Go to step ${s.id}: ${s.title}`}
-                  className="py-1 px-0.5 cursor-pointer focus:outline-none"
-                >
-                  <span
-                    className={`block h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
-                      i === active
-                        ? 'w-7 sm:w-8 bg-blue-600 shadow-xs'
-                        : i < active
-                          ? 'w-3 sm:w-4 bg-blue-400'
-                          : 'w-3 sm:w-4 bg-gray-300'
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
+    <section ref={sectionRef} style={{ minHeight: trackHeight }} id="how-it-works" className="career-journey" aria-labelledby="journey-heading">
+      <div ref={contentRef} className="journey-container">
+        <div className="journey-header">
+          <div>
+            <span className="journey-eyebrow">HOW ZYNCJOBS WORKS</span>
+            <h2 id="journey-heading">Your dream job is just <span>4 steps away.</span></h2>
+            <p>From your first profile to your next opportunity. A simpler way to move your career forward.</p>
           </div>
+          <span className="journey-header-note"><Sparkles size={16} /> Scroll to explore your journey</span>
+        </div>
 
-          {/* Changing content — steps */}
-          <div className="relative z-10 flex-1 min-h-0 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:pr-48 py-2 sm:py-4 lg:py-6 flex items-center justify-center overflow-y-auto lg:overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={active}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -14 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                className="w-full grid md:grid-cols-2 gap-4 sm:gap-6 lg:gap-10 items-center transform scale-100 lg:scale-90 xl:scale-95 origin-top"
-              >
+        <div className="journey-step-list" role="group" aria-label="Explore the four steps">
+          {steps.map((item, index) => {
+            const StepIcon = item.icon;
+            return (
+              <button key={item.id} type="button" className={`journey-step ${active === index ? 'is-active' : ''}`} aria-pressed={active === index} aria-controls="journey-detail" onClick={() => selectStep(index)}>
+                <span className="journey-step-number">{item.id}</span>
+                <span className="journey-step-label"><small>STEP {item.id}</small><strong>{item.label}</strong></span>
+                <StepIcon size={19} strokeWidth={1.7} className="journey-step-icon" />
+              </button>
+            );
+          })}
+        </div>
 
-                {/* Step indicator — desktop */}
-                <div className="hidden lg:flex items-center gap-3 lg:col-span-2 mb-1">
-                  <span className="text-gray-500 text-xs font-bold uppercase tracking-[0.2em]">
-                    Step {step.id} / {steps.length}
-                  </span>
-                  <div className="flex gap-1.5 items-center">
-                    {steps.map((s, i) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => goToStep(i)}
-                        aria-label={`Go to step ${s.id}: ${s.title}`}
-                        className="py-1 cursor-pointer focus:outline-none"
-                      >
-                        <span
-                          className={`block h-1.5 rounded-full transition-all duration-300 ${
-                            i === active
-                              ? 'w-8 bg-blue-600'
-                              : i < active
-                                ? 'w-4 bg-blue-600/40'
-                                : 'w-4 bg-gray-900/10'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Left — text */}
-                <div className="relative overflow-hidden sm:overflow-visible w-full max-w-lg mx-auto md:max-w-none">
-                  <span className="absolute -top-4 sm:-top-6 lg:-top-8 -left-2 lg:-left-6 text-[55px] sm:text-[90px] lg:text-[140px] font-black text-blue-900/5 leading-none select-none pointer-events-none">
-                    {step.id}
-                  </span>
-
-                  <div className="relative flex items-start gap-2.5 sm:gap-3 lg:gap-4">
-                    <span className={`w-9 h-9 sm:w-11 sm:h-11 lg:w-13 lg:h-13 rounded-xl sm:rounded-2xl ${step.chipBg} flex items-center justify-center text-sm sm:text-base lg:text-lg font-black text-white shadow-md sm:shadow-lg shadow-black/10 ring-2 sm:ring-4 ring-white/70 flex-shrink-0`}>
-                      {step.id}
-                    </span>
-                    <div className="pt-0.5 min-w-0 flex-1">
-                      <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-0.5">
-                        Step {step.id}
-                      </p>
-                      <h3 className="text-lg sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 leading-tight sm:leading-tight">
-                        {step.title}
-                      </h3>
-                      <span className={`mt-1 sm:mt-1.5 block h-0.5 sm:h-1 w-8 sm:w-12 rounded-full bg-gradient-to-r ${step.chipBg} to-white/40`} />
-                    </div>
-                  </div>
-
-                  <p className="relative mt-2 sm:mt-3 lg:mt-4 text-gray-600 text-xs sm:text-sm lg:text-base leading-relaxed max-w-lg">
-                    {step.desc}
-                  </p>
-
-                  <ul className="relative mt-2.5 sm:mt-4 lg:mt-5 space-y-1.5 sm:space-y-2">
-                    {step.bullets.map((b, idx) => (
-                      <li
-                        key={b}
-                        className={`items-center gap-2 sm:gap-2.5 rounded-lg sm:rounded-xl bg-white/80 backdrop-blur-xs border border-gray-100 shadow-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 ${
-                          idx === 2 ? 'hidden sm:flex' : 'flex'
-                        }`}
-                      >
-                        <span className={`w-4 h-4 sm:w-4.5 sm:h-4.5 min-w-[16px] min-h-[16px] sm:min-w-[18px] sm:min-h-[18px] rounded-full ${step.chipBg} flex items-center justify-center flex-shrink-0`}>
-                          <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
-                        </span>
-                        <span className="text-xs sm:text-sm lg:text-[15px] font-medium text-gray-800 leading-normal truncate">{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="relative mt-3 sm:mt-5 lg:mt-6 flex items-center gap-3 sm:gap-4">
-                    <WorkButton
-                      size="sm"
-                      text={step.cta}
-                      onClick={() => onNavigate?.(step.page)}
-                      className="sm:hidden"
-                    />
-                    <WorkButton
-                      size="md"
-                      text={step.cta}
-                      onClick={() => onNavigate?.(step.page)}
-                      className="hidden sm:inline-flex"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => goToStep(active - 1)}
-                        disabled={active === 0}
-                        aria-label="Previous step"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-300 bg-white/80 backdrop-blur-md flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 cursor-pointer"
-                      >
-                        <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => goToStep(active + 1)}
-                        disabled={active === steps.length - 1}
-                        aria-label="Next step"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-300 bg-white/80 backdrop-blur-md flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 cursor-pointer"
-                      >
-                        <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right / Stacked — app window mockup */}
-                <div
-                  className="relative w-full max-w-sm sm:max-w-md md:max-w-none mx-auto justify-self-center md:justify-self-end mt-3 sm:mt-4 md:mt-0"
-                  style={isDesktop ? { transform: `translateY(${parallax}px)`, transition: 'transform 0.1s ease-out' } : undefined}
-                >
-                  <div className="transform scale-[0.88] sm:scale-95 md:scale-90 lg:scale-95 xl:scale-100 origin-top">
-                    <div className="absolute -top-10 -left-6 w-44 h-44 bg-white/50 rounded-full blur-3xl" />
-
-                    <div className="rounded-2xl sm:rounded-3xl bg-white ring-1 ring-black/5 shadow-xl sm:shadow-2xl shadow-gray-300/60 overflow-hidden">
-                      <div className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border-b border-gray-100">
-                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-400" />
-                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-400" />
-                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-400" />
-                        <span className="ml-2 sm:ml-3 h-5 sm:h-6 flex-1 max-w-[200px] sm:max-w-[220px] rounded-md bg-white border border-gray-200 flex items-center justify-center text-[9px] sm:text-[10px] text-gray-400">
-                          zyncjobs.com
-                        </span>
-                      </div>
-                      <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-2.5 sm:p-4 lg:p-6">
-                        <StepMockup index={active} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
+        <div className="journey-panel" id="journey-detail">
+          <div className="journey-copy" key={step.id}>
+            <div className="journey-detail-label"><span><Icon size={21} strokeWidth={1.7} /></span> STEP {step.id} OF 04</div>
+            <h3>{step.title}</h3>
+            <p>{step.desc}</p>
+            <ul>{step.bullets.map(bullet => <li key={bullet}><Check size={16} /><span>{bullet}</span></li>)}</ul>
+            <button className="journey-action" onClick={() => onNavigate?.(step.page)}>{step.cta} <ArrowRight size={17} /></button>
           </div>
+          <div className="journey-preview layered-journey-preview">
+            <div className="journey-preview-heading"><span className="journey-preview-brand">zync<span>jobs</span></span></div>
+            <div className="journey-preview-content" {...{ inert: '' }} aria-hidden="true"><LayeredStepPreview index={active} /></div>
+            <p className="journey-preview-caption">An illustration of your journey on ZyncJobs</p>
+          </div>
+        </div>
 
-          {/* Vertical step rail — desktop */}
-          <div className="absolute right-6 2xl:right-10 top-1/2 -translate-y-1/2 hidden xl:flex flex-col items-start gap-0 z-20">
-            <div className="relative flex flex-col items-start gap-5 2xl:gap-6">
-              <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-gray-900/10 rounded-full" />
-              <div
-                className="absolute left-[15px] top-3 w-0.5 bg-gradient-to-b from-blue-600 to-violet-600 rounded-full transition-all duration-300"
-                style={{ height: `calc((100% - 24px) * ${(active + 1) / steps.length})` }}
-              />
-              {steps.map((s, i) => {
-                const done = i < active;
-                const current = i === active;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => goToStep(i)}
-                    className="relative flex items-center gap-3 group cursor-pointer focus:outline-none"
-                  >
-                    <span
-                      className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 ${
-                        current
-                          ? 'bg-gradient-to-br from-blue-600 to-violet-600 border-white text-white shadow-lg scale-110'
-                          : done
-                            ? 'bg-blue-600 text-white border-white shadow'
-                            : 'bg-white/80 text-gray-500 border-gray-300 group-hover:border-gray-400'
-                      }`}
-                    >
-                      {done ? <Check className="w-4 h-4" /> : s.id}
-                    </span>
-                    <span className={`text-xs 2xl:text-sm font-semibold transition-colors ${current ? 'text-gray-900' : done ? 'text-gray-700' : 'text-gray-400'}`}>
-                      {s.title}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        <div className="journey-footer">
+          <span>One step at a time. All the way forward.</span>
+          <div className="journey-controls">
+            <span aria-live="polite" aria-atomic="true">Step {active + 1} of {steps.length}: {step.label}</span>
+            <button type="button" aria-label="Previous step" disabled={active === 0} onClick={() => selectStep(active - 1)}><ChevronLeft size={18} /></button>
+            <button type="button" aria-label="Next step" disabled={active === steps.length - 1} onClick={() => selectStep(active + 1)}><ChevronRight size={18} /></button>
           </div>
         </div>
       </div>
-
       <style>{`
-        @keyframes stepIn {
-          from { opacity: 0; transform: translateY(30px) scale(0.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+        .career-journey { background: #fff; border-block: 1px solid #e8edf5; padding: 40px 0; color: #172b4d; }
+        .career-journey .journey-container { width: min(1200px, calc(100% - 64px)); margin: auto; }
+        .career-journey .journey-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+        .career-journey .journey-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.8px; color: #627697; display: block; margin-bottom: 12px; }
+        .career-journey h2 { font-size: clamp(24px, 2.5vw, 30px); font-weight: 600; letter-spacing: -1px; line-height: 1.25; margin: 0; }
+        .career-journey h2 > span { color: #245be0; font-size: inherit; }
+        .career-journey .journey-header p { font-size: 14px; line-height: 1.8; color: #64748b; max-width: 580px; margin: 12px 0 0; }
+        .career-journey .journey-header-note { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: #75849b; white-space: nowrap; padding-bottom: 4px; }
+        .career-journey .journey-header-note svg { color: #245be0; }
+        .career-journey .journey-step-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+        .career-journey .journey-step { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; background: #fff; border: 1px solid #e2e8f2; border-radius: 10px; color: #64748b; cursor: pointer; transition: background .2s, border-color .2s; }
+        .career-journey .journey-step:hover { background: #f6f9ff; border-color: #a9bfee; }
+        .career-journey .journey-step.is-active { border-color: #245be0; background: #eff4ff; color: #245be0; }
+        .career-journey .journey-step-number { width: 34px; height: 34px; display: grid; place-items: center; flex-shrink: 0; border-radius: 8px; background: #f1f4f8; font-size: 12px; font-weight: 600; }
+        .career-journey .is-active .journey-step-number { background: #245be0; color: #fff; }
+        .career-journey .journey-step-label { flex: 1; }
+        .career-journey .journey-step-label small { font-size: 9px; letter-spacing: 1.1px; display: block; margin-bottom: 3px; }
+        .career-journey .journey-step-label strong { font-size: 13px; font-weight: 600; color: #243858; display: block; }
+        .career-journey .journey-step-icon { flex-shrink: 0; }
+        .career-journey .journey-panel { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e2e8f2; border-radius: 16px; overflow: hidden; background: #fff; }
+        .career-journey .journey-copy { padding: 28px; align-self: center; animation: journey-reveal .22s ease-out; }
+        .career-journey .journey-detail-label { display: flex; align-items: center; gap: 12px; font-size: 10px; font-weight: 600; letter-spacing: 1.4px; color: #71829c; margin-bottom: 14px; }
+        .career-journey .journey-detail-label > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: #edf3ff; color: #245be0; }
+        .career-journey h3 { font-size: 25px; font-weight: 600; line-height: 1.3; letter-spacing: -.8px; margin: 0 0 15px; max-width: 380px; }
+        .career-journey .journey-copy > p { font-size: 14px; line-height: 1.8; color: #64748b; margin: 0; }
+        .career-journey .journey-copy ul { list-style: none; padding: 0; margin: 16px 0 20px; display: grid; gap: 9px; }
+        .career-journey .journey-copy li { display: flex; align-items: flex-start; gap: 8px; }
+        .career-journey .journey-copy li svg { color: #27836d; flex-shrink: 0; margin-top: 2px; }
+        .career-journey .journey-copy li span { font-size: 13px; color: #405371; }
+        .career-journey .journey-action { display: inline-flex; align-items: center; gap: 20px; background: #245be0; color: #fff; border: 0; border-radius: 8px; padding: 13px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .career-journey .journey-action:hover { background: #1948bd; }
+        .career-journey .journey-preview { background: #f4f7fc; border-left: 1px solid #e2e8f2; padding: 18px 20px 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
+        .career-journey .journey-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .career-journey .journey-preview-brand { font-size: 17px; font-weight: 700; letter-spacing: -.5px; }
+        .career-journey .journey-preview-brand > span { color: #245be0; font-size: inherit; }
+        .career-journey .journey-preview-heading > span:last-child { font-size: 9px; color: #8b99ae; letter-spacing: 1.4px; }
+        .career-journey .journey-preview-content { pointer-events: none; }
+        .career-journey .journey-preview { background: linear-gradient(145deg, #eef3fc, #f8faff); padding-inline: 18px; }
+        .career-journey .journey-product-window { background: white; border: 1px solid #d8e2f0; border-radius: 12px; box-shadow: 0 18px 40px #193b6810, 0 3px 8px #193b6808; overflow: hidden; animation: journey-reveal .25s ease-out; }
+        .career-journey .journey-browser-bar { display: flex; align-items: center; gap: 12px; background: #f2f5fa; border-bottom: 1px solid #e5eaf3; height: 34px; padding: 0 12px; }
+        .career-journey .journey-browser-dots { display: flex; gap: 4px; }
+        .career-journey .journey-browser-dots i { width: 6px; height: 6px; background: #c5d0df; border-radius: 50%; }
+        .career-journey .journey-browser-address { display: flex; justify-content: center; align-items: center; gap: 5px; flex: 1; background: #fff; border: 1px solid #e4eaf3; border-radius: 4px; padding: 3px 6px; color: #8090a7; font-size: 9px; }
+        .career-journey .journey-browser-menu { color: #8b9bb1; font-size: 16px; }
+        .career-journey .journey-product-toolbar { display: flex; align-items: center; gap: 13px; padding: 11px 15px; border-bottom: 1px solid #edf0f6; }
+        .career-journey .journey-product-logo { color: #172b4d; font-size: 18px; font-weight: 700; letter-spacing: -1px; }
+        .career-journey .journey-product-logo > span { color: #245be0; font-size: inherit; }
+        .career-journey .journey-product-toolbar > span:nth-child(2) { font-size: 10px; color: #516581; font-weight: 500; }
+        .career-journey .journey-product-avatar { margin-left: auto; display: grid; place-items: center; width: 24px; height: 24px; background: #eaf2ff; border-radius: 50%; color: #456cba; font-size: 8px; font-weight: 600; }
+        .career-journey .journey-product-body { display: flex; background: #f8fafd; min-height: 0; }
+        .career-journey .journey-product-sidebar { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 42px; flex-shrink: 0; background: #fff; border-right: 1px solid #edf0f6; padding: 14px 5px; }
+        .career-journey .journey-product-sidebar > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; color: #97a6bb; }
+        .career-journey .journey-product-sidebar > .is-selected { color: #245be0; background: #edf3ff; }
+        .career-journey .journey-product-sidebar > .journey-sidebar-bottom { margin-top: auto; }
+        .career-journey .journey-product-screen { flex: 1; min-width: 0; padding: 12px 10px; align-self: center; }
+        .career-journey .journey-screen-card { border: 1px solid #e3e9f2; border-radius: 9px; padding: 17px; background: #fff; max-width: none; box-shadow: 0 3px 10px #172b4d04; }
+        .career-journey .journey-screen-card .bg-gradient-to-r, .career-journey .journey-screen-card .bg-gradient-to-br { background-image: none; background-color: #245be0; box-shadow: none; }
+        .career-journey .journey-screen-card .rounded-full.text-white { border-radius: 6px; }
+        .career-journey .journey-screen-card .journey-resume-banner { margin: -17px -17px 0; height: 60px; border-radius: 9px 9px 0 0; background: #172b4d; }
+        .career-journey .journey-screen-card .journey-job-meta { display: flex; flex-wrap: wrap; white-space: normal; gap: 3px; line-height: 1.7; }
+        .career-journey .journey-screen-card .journey-job-row { align-items: flex-start; background: #fff; border-color: #e5eaf2; }
+        .career-journey .journey-screen-card .journey-job-row:first-child { border-color: #bdcef2; background: #f9fbff; }
+        .career-journey .journey-screen-card .journey-video-preview { border: 1px solid #e5eaf2; }
+        .career-journey .journey-preview-caption { text-align: center; font-size: 10px; color: #8392a8; margin: 12px 0 0; }
+        .career-journey .journey-footer { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding-top: 12px; }
+        .career-journey .journey-footer > span { font-size: 12px; color: #7a899e; }
+        .career-journey .journey-controls { display: flex; align-items: center; gap: 8px; }
+        .career-journey .journey-controls > span { font-size: 11px; color: #7a899e; margin-right: 8px; }
+        .career-journey .journey-controls button { width: 40px; height: 40px; border: 1px solid #dce4ef; background: #fff; border-radius: 8px; color: #405371; display: grid; place-items: center; cursor: pointer; }
+        .career-journey .journey-controls button:hover:not(:disabled) { background: #eff4ff; border-color: #a9bfee; }
+        .career-journey .journey-controls button:disabled { opacity: .35; cursor: default; }
+        .career-journey button:focus-visible { outline: 2px solid #245be0; outline-offset: 3px; }
+        .career-journey .preview-ui { background: #fff; border: 1px solid #e1e7f0; border-radius: 10px; padding: 14px; color: #243858; box-shadow: 0 3px 12px #172b4d05; }
+        .career-journey .preview-ui :is(h4, h5, p) { margin: 0; }
+        .career-journey .preview-ui h4 { font-size: 14px; font-weight: 600; line-height: 1.4; letter-spacing: -.2px; }
+        .career-journey .preview-ui h5 { font-size: 12px; font-weight: 600; line-height: 1.4; }
+        .career-journey .preview-ui p { font-size: 10px; color: #7b8aa0; line-height: 1.6; margin-top: 3px; }
+        .career-journey .preview-heading { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #edf0f5; }
+        .career-journey .preview-symbol { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #edf3ff; color: #245be0; flex-shrink: 0; }
+        .career-journey .preview-form { display: grid; gap: 10px; margin-block: 14px; }
+        .career-journey .preview-field > span { display: block; font-size: 10px; font-weight: 500; color: #516581; margin-bottom: 6px; }
+        .career-journey .preview-field > div { display: flex; align-items: center; gap: 8px; border: 1px solid #dfe6f0; border-radius: 6px; background: #fafcff; min-height: 32px; padding: 8px 10px; font-size: 11px; color: #3f5473; }
+        .career-journey .preview-field svg, .career-journey .preview-at { color: #95a4ba; flex-shrink: 0; }
+        .career-journey .preview-field .preview-valid { color: #329078; margin-left: auto; }
+        .career-journey .preview-at { font-size: 13px; }
+        .career-journey .preview-password { letter-spacing: 3px; font-size: 11px; }
+        .career-journey .preview-solid-button { display: flex; justify-content: center; align-items: center; gap: 12px; background: #245be0; color: #fff; border-radius: 6px; padding: 11px; font-size: 11px; font-weight: 600; }
+        .career-journey .preview-ui .preview-login { text-align: center; margin-top: 12px; font-size: 10px; }
+        .career-journey .preview-login span { color: #245be0; font-size: inherit; font-weight: 600; }
+        .career-journey .preview-member-line { border-top: 1px solid #edf0f5; margin-top: 12px; padding-top: 10px; display: flex; align-items: center; justify-content: center; gap: 9px; }
+        .career-journey .preview-member-line > span { font-size: 9px; color: #7b8aa0; }
+        .career-journey .preview-avatars { display: flex; padding-left: 5px; }
+        .career-journey .preview-avatars > * { width: 23px; height: 23px; border-radius: 50%; border: 2px solid #fff; margin-left: -5px; object-fit: cover; display: grid; place-items: center; background: #e3edff; color: #5c7bbe; font-size: 8px; }
+        .career-journey .preview-avatars > span:last-child { background: #e3f3ec; color: #37856d; }
+        .career-journey .preview-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .career-journey .preview-results-heading > span { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #8090a7; }
+        .career-journey .preview-results-heading svg { color: #329078; }
+        .career-journey .preview-searchbar { display: flex; align-items: center; gap: 6px; border: 1px solid #dfe6f0; border-radius: 6px; padding: 5px 5px 5px 8px; color: #8d9cb1; }
+        .career-journey .preview-searchbar > svg { flex-shrink: 0; }
+        .career-journey .preview-searchbar > span:first-of-type { font-size: 10px; flex: 1; min-width: 0; }
+        .career-journey .preview-search-button { background: #245be0; color: #fff; border-radius: 4px; padding: 6px 8px; font-size: 9px; }
+        .career-journey .preview-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 12px; }
+        .career-journey .preview-filters > span { font-size: 9px; border: 1px solid #e3e9f2; color: #74849d; border-radius: 5px; padding: 4px 9px; }
+        .career-journey .preview-filters > .is-selected { color: #245be0; border-color: #bbcff7; background: #edf3ff; }
+        .career-journey .preview-jobs { display: grid; gap: 8px; }
+        .career-journey .preview-job { border: 1px solid #e3e9f2; border-radius: 8px; padding: 9px; }
+        .career-journey .preview-job:first-child { border-color: #b4c8f1; background: #fafcff; }
+        .career-journey .preview-job-top { display: flex; align-items: center; gap: 8px; }
+        .career-journey .preview-job-top > div { min-width: 0; flex: 1; }
+        .career-journey .preview-job-top h5 { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+        .career-journey .preview-job-top h5 svg { color: #487bd8; flex-shrink: 0; }
+        .career-journey .preview-company-logo { width: 32px; height: 32px; border: 1px solid #e3e9f2; background: #eef3fd; color: #245be0; display: grid; place-items: center; border-radius: 7px; font-size: 15px; font-weight: 600; flex-shrink: 0; }
+        .career-journey .preview-company-logo img { width: 24px; height: 24px; object-fit: contain; }
+        .career-journey .preview-save { color: #9daac0; flex-shrink: 0; }
+        .career-journey .preview-job-details { display: flex; flex-wrap: wrap; gap: 9px; margin: 10px 0; }
+        .career-journey .preview-job-details span { font-size: 9px; color: #71829b; display: flex; align-items: center; gap: 3px; }
+        .career-journey .preview-job-details span + span { font-weight: 500; color: #3f5473; border-left: 1px solid #e1e8f2; padding-left: 9px; }
+        .career-journey .preview-job-bottom { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #edf0f6; padding-top: 9px; }
+        .career-journey .preview-match { display: inline-flex; align-items: center; gap: 4px; background: #edf7f2; color: #28866e; border-radius: 4px; padding: 4px 7px; font-size: 9px; font-weight: 500; }
+        .career-journey .preview-small-button { display: flex; gap: 6px; align-items: center; color: #245be0; font-size: 10px; font-weight: 600; }
+        .career-journey .preview-resume-label { display: flex; gap: 5px; align-items: center; border-bottom: 1px solid #edf0f6; padding-bottom: 12px; color: #71829b; }
+        .career-journey .preview-resume-label > span { font-size: 9px; }
+        .career-journey .preview-resume-label .preview-badge { margin-left: auto; color: #245be0; background: #edf3ff; padding: 4px 6px; border-radius: 4px; }
+        .career-journey .preview-profile { display: flex; align-items: center; gap: 12px; padding-block: 12px; }
+        .career-journey .preview-profile img { width: 44px; height: 44px; object-fit: cover; object-position: top; border-radius: 50%; border: 3px solid #f0f4fa; }
+        .career-journey .preview-score-panel { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid #dcece5; border-radius: 8px; background: #f5faf7; padding: 10px; }
+        .career-journey .preview-score-panel p { display: flex; align-items: center; gap: 4px; font-size: 9px; }
+        .career-journey .preview-score-ring { width: 52px; height: 52px; flex-shrink: 0; position: relative; }
+        .career-journey .preview-score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .career-journey .preview-score-ring > span { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .career-journey .preview-score-ring strong { font-size: 20px; font-weight: 600; line-height: 1.1; color: #236e5c; }
+        .career-journey .preview-score-ring small { font-size: 8px; color: #80988e; }
+        .career-journey .preview-skill-list { display: grid; gap: 8px; padding-block: 12px; }
+        .career-journey .preview-skill-list > div > div:first-child { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .career-journey .preview-skill-list span { font-size: 10px; color: #516581; }
+        .career-journey .preview-skill-track { background: #edf1f7; height: 5px; border-radius: 4px; overflow: hidden; }
+        .career-journey .preview-skill-track span { display: block; height: 100%; background: #7299e6; border-radius: 4px; }
+        .career-journey .preview-resume-tips { display: grid; gap: 5px; border-top: 1px solid #edf0f6; padding-top: 10px; }
+        .career-journey .preview-resume-tips > div { display: flex; align-items: center; gap: 7px; padding: 6px; background: #f8fafc; border-radius: 5px; color: #38856f; }
+        .career-journey .preview-resume-tips svg { flex-shrink: 0; }
+        .career-journey .preview-resume-tips span { font-size: 10px; color: #60738f; }
+        .career-journey .preview-resume-tips > .is-suggestion { background: #fff9ee; color: #b88d36; }
+        .career-journey .preview-application-heading { display: flex; align-items: center; gap: 8px; }
+        .career-journey .preview-application-status { padding: 12px 0; border-bottom: 1px solid #edf0f6; }
+        .career-journey .preview-status-dot { width: 5px; height: 5px; border-radius: 50%; background: #329078; }
+        .career-journey .preview-timeline { padding-block: 10px; }
+        .career-journey .preview-timeline-row { display: flex; align-items: center; gap: 10px; min-height: 33px; position: relative; }
+        .career-journey .preview-timeline-row:not(:last-child)::after { content: ''; position: absolute; width: 1px; height: 15px; background: #dce5f3; top: 30px; left: 12px; }
+        .career-journey .preview-timeline-icon { position: relative; z-index: 1; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #edf3ff; color: #4f7cd2; font-size: 10px; }
+        .career-journey .preview-timeline-row strong { font-size: 11px; font-weight: 500; }
+        .career-journey .preview-timeline-row > span:last-child { font-size: 9px; color: #8b9ab0; margin-left: auto; }
+        .career-journey .preview-timeline-row.is-current .preview-timeline-icon { background: #245be0; color: #fff; box-shadow: 0 0 0 3px #edf3ff; }
+        .career-journey .preview-timeline-row.is-pending { color: #a4afbf; }
+        .career-journey .preview-timeline-row.is-pending .preview-timeline-icon { background: #f1f4f8; color: #a4afbf; }
+        .career-journey .preview-interview { height: 105px; position: relative; border-radius: 8px; overflow: hidden; }
+        .career-journey .preview-interview > img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+        .career-journey .preview-interview-overlay { position: absolute; inset: 0; background: linear-gradient(0deg, #172b4df2, #172b4d05); }
+        .career-journey .preview-live { position: absolute; right: 9px; top: 9px; display: flex; align-items: center; gap: 4px; font-size: 8px; color: #fff; padding: 4px 6px; background: #172b4d60; border-radius: 4px; }
+        .career-journey .preview-live > span { width: 4px; height: 4px; border-radius: 50%; background: #f59191; }
+        .career-journey .preview-interview-info { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 7px; color: #fff; }
+        .career-journey .preview-interview-info > svg { flex-shrink: 0; }
+        .career-journey .preview-interview-info > div { flex: 1; min-width: 0; }
+        .career-journey .preview-interview-info strong { font-size: 10px; display: block; font-weight: 500; }
+        .career-journey .preview-interview-info div > span { font-size: 8px; color: #c6d5ed; display: block; margin-top: 3px; }
+        .career-journey .preview-join { background: #fff; color: #245be0; padding: 6px 10px; font-size: 9px; border-radius: 5px; }
+        .career-journey .preview-tracking-note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px; margin-top: 12px; }
+        .career-journey .preview-tracking-note span { display: flex; align-items: center; gap: 4px; font-size: 8px; color: #8696ac; }
+        @media (max-width: 1023px) { .career-journey .preview-ui { padding: 14px; } }
+        @media (max-width: 380px) { .career-journey .preview-ui { padding: 11px; } .career-journey .preview-job { padding: 9px; } .career-journey .preview-member-line { flex-wrap: wrap; } }
+        @keyframes journey-reveal { from { opacity: .4; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 1023px) { .career-journey .journey-header-note, .career-journey .journey-step-icon { display: none; } .career-journey .journey-copy { padding: 24px; } .career-journey .journey-preview { padding-inline: 20px; } }
+        @media (max-width: 767px) {
+          .career-journey { padding: 28px 0; }
+          .career-journey .journey-container { width: calc(100% - 36px); }
+          .career-journey .journey-step-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+          .career-journey .journey-step { padding: 13px 10px; gap: 9px; }
+          .career-journey .journey-step-label strong { font-size: 12px; }
+          .career-journey .journey-panel { grid-template-columns: 1fr; }
+          .career-journey .journey-copy { padding: 20px 18px; }
+          .career-journey h3 { font-size: 25px; }
+          .career-journey .journey-preview { border-left: 0; border-top: 1px solid #e2e8f2; min-height: 0; padding: 16px; }
+          .career-journey .journey-footer { flex-wrap: wrap; }
+          .career-journey .journey-controls { width: 100%; justify-content: flex-end; }
+          .career-journey .journey-controls > span { margin-right: auto; }
         }
-        .step-in { animation: stepIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
-        .step-in-delay { animation: stepIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+        @media (prefers-reduced-motion: reduce) { .career-journey .journey-copy { animation: none; } .career-journey .journey-step { transition: none; } .career-journey .animate-pulse { animation: none; } }
+        @media (max-width: 767px) {
+          .career-journey .journey-preview { padding: 14px 12px; }
+          .career-journey .journey-product-sidebar { width: 34px; padding-inline: 2px; }
+          .career-journey .journey-product-sidebar > span { width: 26px; }
+          .career-journey .journey-product-screen { padding: 12px 8px; }
+          .career-journey .journey-screen-card { padding: 12px; }
+          .career-journey .journey-screen-card .journey-resume-banner { margin: -12px -12px 0; }
+          .career-journey .journey-product-body { min-height: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) { .career-journey .journey-product-window { animation: none; } }
       `}</style>
     </section>
   );
 };
 
-/* ── Lightweight UI mockups (no images) — industry-grade fidelity ── */
-
-const StepMockup: React.FC<{ index: number }> = ({ index }) => {
-  switch (index) {
-    case 0: return <SignupMockup />;
-    case 1: return <SearchMockup />;
-    case 2: return <ResumeMockup />;
-    default: return <ApplyMockup />;
-  }
-};
-
-const mockupCard = 'rounded-xl sm:rounded-2xl bg-white border border-gray-200/90 p-3 sm:p-4 lg:p-5 w-full max-w-md mx-auto';
-const field = 'h-8 sm:h-9 lg:h-10 rounded-lg bg-gray-50 border border-gray-200 px-2.5 sm:px-3 flex items-center gap-2 text-xs text-gray-500';
-const miniBtn = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-semibold transition-colors';
-
-const SignupMockup = () => (
-  <div className={mockupCard}>
-    <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
-      <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center shadow-md shadow-blue-600/20 flex-shrink-0">
-        <Sparkles className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-white" />
-      </span>
-      <div>
-        <p className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">Create your free account</p>
-        <p className="text-[10px] sm:text-[11px] text-gray-400">No credit card required</p>
-      </div>
+const LayeredStepPreview: React.FC<{ index: number }> = ({ index }) => {
+  const Segments = ({ filled = 4 }: { filled?: number }) => <span className="layered-fit-segments">{Array.from({length: 5}, (_, position) => <i key={position} className={position < filled ? 'is-filled' : ''} />)}</span>;
+  const Lines = () => <div className="layered-document-lines"><i /><i /><i /></div>;
+  const titles = ['Your candidate profile', 'Find your next role', 'Your professional resume', 'Track your applications'];
+  return <div key={index} className={`journey-layered-scene layered-step-${index}`}>
+    <div className="layered-main-sheet"><div className="layered-sheet-heading"><span className="layered-zync-mark">zj</span><strong>{titles[index]}</strong><span className="layered-sheet-tag">{['Profile', 'Discover', 'Resume', 'Applications'][index]}</span></div>
+      {index === 0 ? <><div className="layered-profile-summary"><span><UserPlus size={25} /></span><div><strong>Your skills. Your story.</strong><p>Build a profile for your next move</p></div></div><div className="layered-fields">{['Personal details', 'Work experience', 'Career preferences'].map(label => <div key={label}><span>{label}</span><div><i /><Check size={13} /></div></div>)}</div></> : index === 1 ? <><h4 className="layered-opportunity-title">Customer Support Specialist</h4><p className="layered-sheet-subtitle">Explore a role that fits your strengths</p><div className="layered-skills"><strong>Skills</strong><div>{['Communication', 'Teamwork', 'Customer focus'].map(skill => <span key={skill}><Check size={10} />{skill}</span>)}</div></div><strong className="layered-section-label">Role details</strong><Lines /><Lines /></> : index === 2 ? <><div className="layered-resume-name"><span><FileText size={22} /></span><div><strong>Your experience</strong><p>Clearly presented. Ready to share.</p></div></div>{['Professional summary', 'Experience', 'Skills'].map(label => <div className="layered-resume-section" key={label}><strong>{label}</strong><Lines /></div>)}</> : <><h4 className="layered-opportunity-title">Your selected opportunity</h4><p className="layered-sheet-subtitle">Keep every application organised</p><div className="layered-application-progress">{['Applied', 'In review', 'Interview'].map((label, position) => <div key={label} className={position === 1 ? 'is-current' : ''}><span>{position === 0 ? <Check size={12} /> : position + 1}</span><strong>{label}</strong><i /></div>)}</div><Lines /></>}
     </div>
-    <div className="space-y-2 sm:space-y-2.5">
-      <div>
-        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5 sm:mb-1">Full name</p>
-        <div className={field}>Karthik R</div>
-      </div>
-      <div>
-        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5 sm:mb-1">Email address</p>
-        <div className={field}>karthik@email.com</div>
-      </div>
-      <div className="hidden sm:block">
-        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5 sm:mb-1">Password</p>
-        <div className={field}>••••••••</div>
-      </div>
-    </div>
-    <div className="mt-3 sm:mt-4 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 text-white text-xs sm:text-sm font-semibold py-2 sm:py-2.5 text-center shadow-md sm:shadow-lg shadow-blue-600/25">
-      Create Account
-    </div>
-    <p className="mt-2 sm:mt-3 text-center text-[10px] sm:text-[11px] text-gray-400">
-      Already have an account? <span className="text-blue-600 font-semibold">Log in</span>
-    </p>
-    <div className="mt-2.5 sm:mt-4 pt-2 sm:pt-3 border-t border-gray-100 flex items-center justify-center gap-2">
-      <div className="flex -space-x-1.5">
-        <img src="/images/women.png" alt="New member" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-white object-cover object-top" />
-        <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-white bg-gradient-to-br from-violet-500 to-purple-600 text-[7px] sm:text-[8px] font-bold text-white flex items-center justify-center">K</span>
-        <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-white bg-gradient-to-br from-orange-400 to-rose-500 text-[7px] sm:text-[8px] font-bold text-white flex items-center justify-center">R</span>
-      </div>
-      <span className="text-[10px] sm:text-[11px] text-gray-500">Join <b className="text-gray-800">thousands</b> of job seekers</span>
-    </div>
-  </div>
-);
-
-const SearchMockup = () => {
-  const jobs = [
-    { role: 'Frontend Developer', company: 'Zync Labs', loc: 'Chennai', salary: '₹12-18 LPA', match: '96%', logo: null },
-    { role: 'React Engineer', company: 'L&T Infotech', loc: 'Remote', salary: '₹10-15 LPA', match: '92%', logo: '/images/company-logos/lt-logo.png' },
-    { role: 'UI Developer', company: 'Nambikkai', loc: 'Bengaluru', salary: '₹8-12 LPA', match: '89%', logo: '/images/company-logos/nambikkai-logo.png' },
-  ];
-  return (
-    <div className={`${mockupCard} max-w-lg`}>
-      <div className="flex items-center justify-between mb-2 sm:mb-3">
-        <p className="text-xs sm:text-sm font-bold text-gray-900">2,340 jobs found</p>
-        <span className="text-[10px] sm:text-[11px] text-gray-400 flex items-center gap-1">
-          <TrendingUp className="w-3 h-3 text-emerald-500" /> Updated 2m ago
-        </span>
-      </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-1 sm:p-1.5 flex items-center gap-2 shadow-xs">
-        <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 ml-1.5 flex-shrink-0" />
-        <span className="text-[11px] sm:text-xs text-gray-400 flex-1 truncate">Frontend developer in Chennai</span>
-        <span className="rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-white shadow-xs flex-shrink-0">Search</span>
-      </div>
-      <div className="flex gap-1 sm:gap-1.5 mt-2 sm:mt-3">
-        {['All', 'Remote', 'Full-time', '₹10L+'].map((f, i) => (
-          <span key={f} className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-semibold ${i === 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{f}</span>
-        ))}
-      </div>
-      <div className="mt-2.5 sm:mt-3.5 space-y-2 sm:space-y-2.5">
-        {jobs.map((j, idx) => (
-          <div key={j.role} className={`rounded-xl border border-gray-100 bg-gray-50/60 p-2 sm:p-2.5 lg:p-3 items-center gap-2.5 sm:gap-3 ${idx === 2 ? 'hidden sm:flex' : 'flex'}`}>
-            {j.logo ? (
-              <img src={j.logo} alt={`${j.company} logo`} className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-contain bg-white border border-gray-200 p-1 flex-shrink-0" />
-            ) : (
-              <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-xs">
-                {j.company[0]}
-              </span>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs sm:text-[13px] font-bold text-gray-900 truncate">{j.role}</p>
-                <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1 truncate">
-                <Briefcase className="w-3 h-3" /> {j.company} <span className="text-gray-300">•</span>
-                <MapPin className="w-3 h-3" /> {j.loc} <span className="text-gray-300">•</span> {j.salary}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-1 flex-shrink-0">
-              <span className="rounded-full bg-emerald-50 text-emerald-600 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5">
-                {j.match} match
-              </span>
-              <button className={`${miniBtn} bg-blue-600 text-white hover:bg-blue-700`}>Apply</button>
-            </div>
-            <Bookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ResumeMockup = () => {
-  const R = 24;
-  const C = 2 * Math.PI * R;
-  const score = 85;
-  const skills = [
-    { name: 'JavaScript', pct: 90 },
-    { name: 'React', pct: 85 },
-    { name: 'TypeScript', pct: 72 },
-  ];
-  const tips = [
-    { text: 'Strong professional summary', ok: true },
-    { text: '5 target keywords found', ok: true },
-    { text: 'Add 2 more skills to boost ATS', ok: false },
-  ];
-  return (
-    <div className={mockupCard}>
-      {/* Top purple/indigo header banner */}
-      <div className="relative -mx-3 sm:-mx-4 lg:-mx-5 -mt-3 sm:-mt-4 lg:-mt-5 h-12 sm:h-14 lg:h-16 rounded-t-xl sm:rounded-t-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600">
-        <span className="absolute top-2.5 sm:top-3 right-3 sm:right-4 text-white/80 text-[9px] sm:text-[10px] font-semibold flex items-center gap-1">
-          <Sparkles className="w-3 h-3" /> Premium resume
-        </span>
-      </div>
-
-      {/* Candidate profile avatar row overlapping the header */}
-      <div className="relative z-10 flex items-center gap-2.5 sm:gap-3 -mt-6 sm:-mt-7 mb-3 sm:mb-4">
-        <div className="relative z-20 shrink-0">
-          <img
-            src="/images/women.png"
-            alt="Candidate profile"
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover object-top shrink-0 ring-3 sm:ring-4 ring-white shadow-md"
-          />
-        </div>
-        <div className="pt-3 sm:pt-4">
-          <p className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">Priya S</p>
-          <p className="text-[10px] sm:text-[11px] text-gray-400">Frontend Developer • 4 yrs exp</p>
-        </div>
-        <span className="ml-auto mt-3 sm:mt-4 rounded-full bg-blue-50 text-blue-600 text-[9px] sm:text-[10px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1">ATS Ready</span>
-      </div>
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div>
-          <p className="text-xs sm:text-sm font-bold text-gray-900">Resume ATS Score</p>
-          <p className="text-[10px] sm:text-[11px] text-gray-400 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-violet-500" /> AI-powered analysis
-          </p>
-        </div>
-        <div className="relative w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16">
-          <svg viewBox="0 0 64 64" className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 -rotate-90">
-            <circle cx="32" cy="32" r={R} fill="none" stroke="#e5e7eb" strokeWidth="6" />
-            <circle
-              cx="32" cy="32" r={R} fill="none"
-              stroke="url(#atsGrad)" strokeWidth="6" strokeLinecap="round"
-              strokeDasharray={C} strokeDashoffset={C * (1 - score / 100)}
-            />
-            <defs>
-              <linearGradient id="atsGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#f97316" />
-                <stop offset="100%" stopColor="#f59e0b" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-sm sm:text-base font-bold text-gray-900 leading-none">{score}</span>
-            <span className="text-[7px] sm:text-[8px] text-gray-400 font-semibold mt-0.5">/100</span>
-          </span>
-        </div>
-      </div>
-      <div className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4">
-        {skills.map((s) => (
-          <div key={s.name}>
-            <div className="flex items-center justify-between mb-0.5">
-              <span className="text-[10px] sm:text-[11px] font-semibold text-gray-600">{s.name}</span>
-              <span className="text-[9px] sm:text-[10px] text-gray-400 font-medium">{s.pct}%</span>
-            </div>
-            <div className="h-1 sm:h-1.5 rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500" style={{ width: `${s.pct}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="space-y-1.5 sm:space-y-2">
-        {tips.map((t, idx) => (
-          <div key={t.text} className={`items-center gap-2 sm:gap-2.5 rounded-lg bg-gray-50 border border-gray-100 px-2.5 sm:px-3 py-1.5 sm:py-2 ${idx === 2 ? 'hidden sm:flex' : 'flex'}`}>
-            {t.ok ? (
-              <span className="w-4 h-4 sm:w-4.5 sm:h-4.5 min-w-[16px] min-h-[16px] sm:min-w-[18px] sm:min-h-[18px] rounded-full bg-emerald-100 flex items-center justify-center">
-                <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" />
-              </span>
-            ) : (
-              <span className="w-4 h-4 sm:w-4.5 sm:h-4.5 min-w-[16px] min-h-[16px] sm:min-w-[18px] sm:min-h-[18px] rounded-full bg-orange-100 flex items-center justify-center">
-                <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-orange-500" />
-              </span>
-            )}
-            <span className="text-[11px] sm:text-xs text-gray-600">{t.text}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ApplyMockup = () => {
-  const statuses = [
-    { label: 'Applied', state: 'done' as const, meta: 'Aug 14' },
-    { label: 'Viewed', state: 'done' as const, meta: 'Aug 15' },
-    { label: 'Interview', state: 'current' as const, meta: 'Thu, 10 AM' },
-    { label: 'Offer', state: 'pending' as const, meta: '—' },
-  ];
-  return (
-    <div className={mockupCard}>
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shadow-xs flex-shrink-0">Z</span>
-          <div>
-            <p className="text-xs sm:text-[13px] font-bold text-gray-900 leading-tight">Frontend Developer</p>
-            <p className="text-[10px] sm:text-[11px] text-gray-400">Zync Labs • ₹12-18 LPA</p>
-          </div>
-        </div>
-        <span className="rounded-full bg-emerald-50 text-emerald-600 text-[9px] sm:text-[10px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1">
-          In Progress
-        </span>
-      </div>
-      <div className="flex items-center justify-between mb-2">
-        {statuses.map((s, i) => (
-          <React.Fragment key={s.label}>
-            <div className="flex flex-col items-center gap-0.5 sm:gap-1 flex-shrink-0">
-              <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold ${
-                s.state === 'done' ? 'bg-blue-600 text-white' :
-                s.state === 'current' ? 'bg-orange-500 text-white animate-pulse ring-2 sm:ring-4 ring-orange-100' :
-                'bg-gray-100 text-gray-400'
-              }`}>
-                {s.state === 'done' ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : s.state === 'current' ? '●' : i + 1}
-              </span>
-              <span className={`text-[8px] sm:text-[9px] font-semibold ${s.state === 'pending' ? 'text-gray-400' : 'text-gray-700'}`}>{s.label}</span>
-              <span className="text-[7px] sm:text-[8px] text-gray-400 -mt-0.5">{s.meta}</span>
-            </div>
-            {i < statuses.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-0.5 sm:mx-1 mt-0.5 ${s.state === 'done' ? 'bg-blue-600' : 'bg-gray-200'}`} />
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-      <div className="mt-2.5 sm:mt-4 rounded-xl overflow-hidden relative">
-        <img src="/images/women.png" alt="Interview video call" className="w-full h-20 sm:h-24 lg:h-28 object-cover object-top" />
-        <div className="absolute inset-0 bg-gradient-to-t from-violet-900/85 via-violet-900/25 to-transparent" />
-        <span className="absolute top-2 right-2 rounded-full bg-white/15 backdrop-blur-md border border-white/30 text-white text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> LIVE
-        </span>
-        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0">
-              <Video className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
-            </span>
-            <div>
-              <p className="text-white text-[10px] sm:text-[11px] font-bold leading-tight">Interview with Zync Labs</p>
-              <p className="text-white/80 text-[8px] sm:text-[9px]">Thursday, 10:00 AM • Video call</p>
-            </div>
-          </div>
-          <span className="rounded-full bg-white text-violet-700 text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3.5 py-1 sm:py-1.5 shadow-md">Join</span>
-        </div>
-      </div>
-      <div className="mt-2 sm:mt-3 flex items-center gap-2 text-[9px] sm:text-[10px] text-gray-400">
-        <CalendarClock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Tracked in real-time <span className="text-gray-200">|</span> <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Notified at every stage
-      </div>
-    </div>
-  );
+    <div className="layered-floating-insight"><div className="layered-insight-title"><Sparkles size={14} /><strong>{['Profile ready', 'Explore your fit', 'Resume check', 'Application sent'][index]}</strong></div>{index === 0 || index === 3 ? <><div className="layered-insight-confirmation"><Check size={18} /><span>{index === 0 ? 'Your details, all in one place' : 'Follow your progress here'}</span></div><Lines /></> : <div className="layered-fit-grid">{(index === 1 ? ['Skills', 'Role relevance', 'Preferences'] : ['Structure', 'Keywords', 'Readability']).map((label, position) => <div key={label}><strong>{label}</strong><Segments filled={position === 2 ? 3 : 4} /></div>)}</div>}</div>
+    <div className="layered-side-cards"><div className="layered-side-note"><span>{index === 0 ? <BadgeCheck size={18} /> : index === 1 ? <Search size={18} /> : index === 2 ? <FileText size={18} /> : <CalendarClock size={18} />}</span><strong>{['Ready to connect', 'Discover opportunities', 'Improve your impact', 'Stay prepared'][index]}</strong><Lines /></div><div className="layered-recommendations"><strong>{['Your next steps', 'More roles to explore', 'Resume suggestions', 'What comes next'][index]}</strong>{(index === 0 ? ['Explore jobs', 'Build your resume'] : index === 1 ? ['Sales Executive', 'Support Associate'] : index === 2 ? ['Highlight your skills', 'Show clear outcomes'] : ['Check application updates', 'Prepare for interviews']).map(label => <div key={label}><span><Briefcase size={12} /></span><div><strong>{label}</strong><i /></div></div>)}</div></div>
+  </div>;
 };
 
 export default HowItWorks;

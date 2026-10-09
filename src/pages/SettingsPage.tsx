@@ -205,44 +205,33 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         isVisible={notification.isVisible}
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+      <div className={`${(user?.type === 'employer' || user?.userType === 'employer' || !!user?.employerOwnerId) ? 'employer-content-page' : ''} career-workspace SettingsPage min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50`}>
         {/* Header */}
-        <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="career-page-heading border-b">
+          <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col space-y-4">
               <BackButton
                 onClick={() => onNavigate('dashboard')}
                 text="Back to Dashboard"
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors self-start"
               />
-              <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('Account Information')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'Account Information'
-                    ? 'border-red-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Account Information
-              </button>
+              <div className="settings-heading-copy"><p className="settings-eyebrow">ACCOUNT &amp; PREFERENCES</p><h1>Settings</h1><p>Manage your account details, security, and privacy from one place.</p></div>
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="portal-page-container settings-content py-8">
+          <div className="settings-layout">
+            <nav className="settings-navigation" aria-label="Settings sections">
+              <p>ACCOUNT SETTINGS</p>
+              {[{id: 'email', label: 'Email address', icon: Mail}, {id: 'password', label: 'Password & security', icon: Lock}, {id: 'privacy', label: 'Privacy & data', icon: Shield}, {id: 'manage', label: 'Account management', icon: User}].map(item => <a key={item.id} href={`#settings-${item.id}`} onClick={() => { setActiveTab('Account Information'); if (item.id !== 'privacy') setExpandedSections(prev => ({...prev, [item.id]: true})); }}><item.icon size={18} aria-hidden="true" /><span>{item.label}</span><ChevronDown size={14} aria-hidden="true" /></a>)}
+            </nav>
+            <div className="settings-main">
+
           {activeTab === 'Account Information' && (
             <div className="space-y-6">
-              <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border card-hover">
+              <div className="career-panel bg-white/90 backdrop-blur-md rounded-lg shadow-sm border card-hover">
                 <div className="p-6 border-b">
                   <h2 className="text-xl font-semibold text-gray-900">Account Information</h2>
                   <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
@@ -251,7 +240,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 {/* ── Email Section ── */}
                 <div className="border-b">
                   <button
-                    onClick={() => toggleSection('email')}
+                    id="settings-email" aria-expanded={Boolean(expandedSections.email)} onClick={() => toggleSection('email')}
                     className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center">
@@ -401,7 +390,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                                       const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
                                       setOtpForm({ otp: pasted });
                                     }}
-                                    className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                                    className="career-panel w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
                                     aria-label={`OTP digit ${idx + 1}`}
                                   />
                                 ))}
@@ -448,7 +437,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 {/* ── Password Section ── */}
                 <div className="border-b">
                   <button
-                    onClick={() => toggleSection('password')}
+                    id="settings-password" aria-expanded={Boolean(expandedSections.password)} onClick={() => toggleSection('password')}
                     className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center">
@@ -569,7 +558,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 </div>
 
                 {/* ── Privacy Settings Link ── */}
-                <div className="border-b">
+                <div id="settings-privacy" className="border-b">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
                     <div className="flex items-start gap-3">
                       <Shield className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
@@ -591,7 +580,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 {/* ── Account Management ── */}
                 <div className="border-b">
                   <button
-                    onClick={() => toggleSection('manage')}
+                    id="settings-manage" aria-expanded={Boolean(expandedSections.manage)} onClick={() => toggleSection('manage')}
                     className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center">
@@ -652,6 +641,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
               </div>
             </div>
           )}
+            </div>
+          </div>
         </div>
       </div>
 

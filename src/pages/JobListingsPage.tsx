@@ -1,7 +1,7 @@
 // Quick filter buttons: Last 48h, This week, Remote Jobs (single-select only) - v2
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Flame, Sparkles, CheckCircle, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -798,7 +798,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F8FF]">
+    <div className="job-search-page min-h-screen bg-[#F6F8FF]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Search Section */}
@@ -826,18 +826,14 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
+        <div className="job-search-hero portal-page-container relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
           {/* Header Content */}
-          <div className="text-center max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto mb-5 sm:mb-6">
+          <div className="job-search-intro mb-5">
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/80 backdrop-blur-md border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-widest shadow-sm mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
               Explore Opportunities
             </span>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5 lg:whitespace-nowrap">
-              Discover Your Dream Job,{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
-                curated for you
-              </span>
+              Find your next career opportunity
             </h1>
             <p className="text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
               {selectedCategory 
@@ -845,31 +841,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 : 'Explore verified job openings from top employers and high-growth startups tailored to your career goals.'}
             </p>
 
-            {/* Trust Badges matching CandidateSearch style */}
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mb-5">
-              <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
-                <span className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Briefcase className="w-3 h-3 text-blue-600" />
-                </span>
-                Live Opportunities
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
-                <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <CheckCircle className="w-3 h-3 text-emerald-500" />
-                </span>
-                Verified Employers
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
-                <span className="w-5 h-5 rounded-full bg-orange-50 flex items-center justify-center">
-                  <Flame className="w-3 h-3 text-orange-500" />
-                </span>
-                Actively Hiring
-              </span>
+            <div className="job-search-trust">
+              <span>Live Opportunities</span>
+              <span>Verified Employers</span>
+              <span>Actively Hiring</span>
             </div>
           </div>
 
           {/* Tab Navigation - Compact Segmented Control */}
-          <div className="flex justify-center mb-5">
+          <div className="job-search-tabs flex mb-4">
             <div className="inline-flex p-1 bg-gray-100/90 backdrop-blur-md rounded-xl border border-gray-200/80 shadow-inner">
               <button 
                 type="button"
@@ -881,7 +861,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 }`}
                 aria-pressed={activeTab === 'search'}
               >
-                <Search className={`w-3.5 h-3.5 ${activeTab === 'search' ? 'text-orange-500' : 'text-gray-400'}`} />
                 <span>Search Jobs</span>
               </button>
               <button 
@@ -894,7 +873,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 }`}
                 aria-pressed={activeTab === 'recommended'}
               >
-                <TrendingUp className={`w-3.5 h-3.5 ${activeTab === 'recommended' ? 'text-blue-600' : 'text-gray-400'}`} />
                 <span>Recommended Jobs</span>
               </button>
             </div>
@@ -902,8 +880,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
           {/* Search Bar - Only show in search tab */}
           {activeTab === 'search' && (
-            <div className="max-w-4xl lg:max-w-5xl mx-auto">
-              <div className="bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 shadow-lg shadow-blue-900/5 ring-1 ring-gray-200/90">
+            <div className="job-search-form">
+              <div className="job-search-form-surface">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-2 sm:gap-2.5 items-center">
                   {/* 1. Job Title */}
                   <div className="md:col-span-4 lg:col-span-4 relative" ref={jobTitleRef}>
@@ -1184,7 +1162,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       </div>
 
       {/* Job Listings */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Job Alert Banner — shown to non-logged-in users */}
         {!user && !alertDismissed && activeTab === 'search' && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl px-5 py-4 mb-4 gap-3">
@@ -1242,7 +1220,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} onNavigate={onNavigate} />
           </div>
         ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="job-search-layout grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Mobile Filter Toggle */}
           <div className="lg:hidden flex items-center justify-between mb-2">
             <button
@@ -1305,7 +1283,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           )}
 
           {/* Left Sidebar - Filters (desktop only) */}
-          <div className="hidden lg:block lg:col-span-1">
+          <div className="job-search-filter-rail hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
               {/* Trending Job Titles - Dynamic count from real data */}
               {jobs.length > 0 && (() => {
@@ -1525,8 +1503,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           </div>
 
           {/* Right Content - Job Results */}
-          <div className="col-span-1 lg:col-span-3" ref={jobResultsRef}>
-            <div className="mb-3 flex items-center justify-between">
+          <div className="job-search-results col-span-1 lg:col-span-3" ref={jobResultsRef}>
+            <div className="job-results-toolbar mb-4 flex items-center justify-between">
               <p className="text-gray-600 text-sm">
                 {loading ? 'Searching...' : (
                   `${filteredJobs.length} results` +
@@ -1628,11 +1606,19 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         ) : (
           <div className="space-y-6">
             {Array.isArray(filteredJobs) && filteredJobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage).map((job) => (
-            <div key={getId(job) || job.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+            <div key={getId(job) || job.id} className="portal-job-card job-search-card">
               <div className="flex flex-col gap-3">
                 <div className="flex-1">
                   <div className="flex items-start mb-3">
                     <div className="flex-1">
+                      {/* Job title */}
+                      <h3><button type="button"
+                        className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
+                        onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: getId(job), companyName: job.company, jobData: job })}
+                      >
+                        {decodeHtmlEntities(job.title || job.jobTitle)}
+                      </button></h3>
+
                       {/* Company logo + name row */}
                       <div className="flex items-center gap-3 mb-2">
                          <CompanyLogo
@@ -1645,15 +1631,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                         <span className="text-blue-600 font-semibold text-base">{job.company}</span>
                       </div>
 
-                      {/* Job title */}
-                      <h3
-                        className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: getId(job), companyName: job.company, jobData: job })}
-                      >
-                        {decodeHtmlEntities(job.title || job.jobTitle)}
-                      </h3>
-
-                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <div className="job-card-metadata flex flex-wrap items-center gap-3 mb-3">
                         <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
                           <MapPin className="w-4 h-4 text-gray-600" />
                           <span className="text-sm font-medium text-gray-700">{job.location}</span>
@@ -1729,7 +1707,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 sm:min-w-[130px] w-full sm:w-auto">
+                <div className="job-card-actions">
                   {user?.type === 'candidate' && appliedJobIds.has(getId(job)) && (
                     <span className="flex items-center justify-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg text-sm font-medium min-h-[40px] w-full">
                       <span className="text-base leading-none">✅</span> Applied

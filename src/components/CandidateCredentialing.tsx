@@ -1,3 +1,4 @@
+import EmployerFeatureGuide from './EmployerFeatureGuide';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle, Clock, XCircle, User, FileText, IndianRupee, Shield,
@@ -133,6 +134,7 @@ const CandidateCredentialing: React.FC<CandidateCredentialingProps> = ({ employe
   );
 
   return (
+    <div className="feature-sidebar-layout"><div className="feature-sidebar-main">
     <div>
       <div className="mb-6 flex items-start justify-between">
         <div>
@@ -144,6 +146,7 @@ const CandidateCredentialing: React.FC<CandidateCredentialingProps> = ({ employe
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
+
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
         {[
@@ -181,6 +184,7 @@ const CandidateCredentialing: React.FC<CandidateCredentialingProps> = ({ employe
       {activeTab === 'timesheets' && <TimesheetsTab candidates={verified} showToast={showToast} />}
       {activeTab === 'billing' && <BillingTab candidates={verified} showToast={showToast} />}
     </div>
+    </div><EmployerFeatureGuide feature="credentialing" /></div>
   );
 };
 

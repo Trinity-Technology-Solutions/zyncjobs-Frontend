@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Upload, Users, UserX, Mail, ChevronRight, Copy, FileSpreadsheet, Search, RotateCcw, Brain, Zap, AlertCircle, X, Check, Loader2, Eye, ArrowRight, MapPin, Phone, Building2, FileText, Briefcase } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { S3Service } from '../../../services/s3Service';
 import { apiFetch } from '../../../api/apiFetch';
 import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 import ConfirmModal from '../../../components/ConfirmModal';
+import TalentPoolSubmissionModal from './TalentPoolSubmissionModal';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
@@ -15,10 +16,12 @@ const getToken = () =>
 type SubPage = 'upload' | 'extracted' | 'internal' | 'compare' | 'email';
 
 interface Props {
+  recruiterName?: string;
+  onOpenTracker?: () => void;
   onUnauthorized: () => void;
 }
 
-export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: Props) {
+export default function TalentPoolSection({ onUnauthorized, recruiterName = '', onOpenTracker }: Props) {
   const [subPage, setSubPage] = useState<SubPage>('upload');
   const [lastUploadAt, setLastUploadAt] = useState(0);
   const [globalProcessingStatus, setGlobalProcessingStatus] = useState<{
@@ -30,11 +33,8 @@ export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: P
   // Check for global processing status
   useEffect(() => {
     const checkGlobalProcessing = async () => {
-      const token = getToken();
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/processing-status`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/processing-status`);
         if (response.ok) {
           const data = await response.json();
           setGlobalProcessingStatus({
@@ -43,9 +43,7 @@ export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: P
             progress: data.progress || 0
           });
         }
-      } catch (error) {
-        console.error('Error checking global processing status:', error);
-      }
+      } catch { /* silent — non-critical polling */ }
     };
     
     checkGlobalProcessing();
@@ -120,7 +118,7 @@ export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: P
 
       {/* Sub Pages — keep all mounted to preserve state */}
       <div className={subPage === 'upload'    ? '' : 'hidden'}><UploadPage onUploadDone={() => setLastUploadAt(Date.now())} /></div>
-      <div className={subPage === 'extracted' ? '' : 'hidden'}><ExtractedPage lastUploadAt={lastUploadAt} /></div>
+      <div className={subPage === 'extracted' ? '' : 'hidden'}><ExtractedPage lastUploadAt={lastUploadAt} onUnauthorized={onUnauthorized} recruiterName={recruiterName} onOpenTracker={onOpenTracker} /></div>
       <div className={subPage === 'internal'  ? '' : 'hidden'}><InternalPage /></div>
       <div className={subPage === 'compare'   ? '' : 'hidden'}><ComparePage /></div>
       <div className={subPage === 'email'     ? '' : 'hidden'}><BulkEmailPage /></div>
@@ -723,7 +721,10 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
 }
 
 /* ─── 2. Extracted Candidates Page ──────────────────────────── */
-function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
+function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTracker }: { lastUploadAt: number; onUnauthorized: () => void; recruiterName: string; onOpenTracker?: () => void }) {
+  const previousData = useRef<string | null>(null);
+  const fetchVersion = useRef(0);
+  const [trackerCandidates, setTrackerCandidates] = useState<any[]>([]);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -775,7 +776,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
     setDeletingIds(prev => new Set(prev).add(id));
     try {
       const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' });
-      if (res.ok) setCandidates(prev => prev.filter(c => c.id !== id));
+      if (res.ok) { setCandidates(prev => prev.filter(c => c.id !== id)); fetchCandidates(); }
     } catch { /* ignore */ } finally {
       setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
@@ -794,16 +795,21 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
     ));
     const deleted = new Set(results.filter(r => r.ok).map(r => r.id));
     setCandidates(prev => prev.filter(c => !deleted.has(c.id)));
+    if (deleted.size) fetchCandidates();
     setDeletingIds(new Set());
   };
 
   const fetchCandidates = () => {
+    const version = ++fetchVersion.current;
     apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ 
+      .then(d => {
+        if (version !== fetchVersion.current) return;
+        if (!Array.isArray(d) && !Array.isArray(d?.candidates)) throw new Error('Invalid Talent Pool response');
+        const records = (Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ 
         ...c, 
         id: c.id || c._id,
         // Ensure all parsed JSON fields are arrays
@@ -815,10 +821,27 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         certifications: parseJSON(c.certifications),
         languages: Array.isArray(c.languages) ? c.languages : (c.languages || '').split(',').map((s: string) => s.trim()).filter(Boolean),
         awards: parseJSON(c.awards),
-      }))))
+      }));
+        const canonical = (value: unknown): unknown => {
+          if (Array.isArray(value)) return value.map(canonical);
+          if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
+          return value;
+        };
+        const fingerprint = JSON.stringify(canonical([...records].sort((a, b) => String(a.id).localeCompare(String(b.id)))));
+        const changed = previousData.current !== null && previousData.current !== fingerprint;
+        previousData.current = fingerprint;
+        setCandidates(records);
+        if (changed) window.dispatchEvent(new CustomEvent('zync:talent-pool-updated', { detail: Date.now() }));
+      })
       .catch((err) => console.error('ExtractedPage fetch error:', err))
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    const refresh = () => fetchCandidates();
+    window.addEventListener('zync:talent-pool-refresh', refresh);
+    return () => window.removeEventListener('zync:talent-pool-refresh', refresh);
+  }, []);
 
   // Load on mount + re-fetch whenever a new upload completes
   useEffect(() => {
@@ -876,7 +899,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
     setConfirmState(s => ({ ...s, open: false }));
     try {
       const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' });
-      if (res.ok) setCandidates(prev => prev.filter(c => c.id !== id));
+      if (res.ok) { setCandidates(prev => prev.filter(c => c.id !== id)); fetchCandidates(); }
     } catch { /* ignore */ }
   };
 
@@ -891,6 +914,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
 
   return (
     <>
+    {trackerCandidates.length > 0 && <TalentPoolSubmissionModal candidates={trackerCandidates} recruiterName={recruiterName} onUnauthorized={onUnauthorized} onClose={() => setTrackerCandidates([])} onOpenTracker={onOpenTracker} onCreated={ids => setSelected(previous => new Set([...previous].filter(id => !ids.includes(id))))} />}
     <div className="space-y-4">
       {/* Processing active banner */}
       {isProcessing && (
@@ -1014,6 +1038,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         </button>
         {selected.size > 0 && (
           <>
+            <button type="button" onClick={() => setTrackerCandidates(candidates.filter(candidate => selected.has(candidate.id) && candidate.status === 'Parsed'))} disabled={!candidates.some(candidate => selected.has(candidate.id) && candidate.status === 'Parsed')} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg disabled:opacity-40"><ArrowRight size={16} /> Send to Submission Tracker</button>
             <button
               onClick={moveToInternal}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -1030,6 +1055,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
                 ));
                 const deleted = new Set(results.filter(r => r.ok).map(r => r.id));
                 setCandidates(prev => prev.filter(c => !deleted.has(c.id)));
+                if (deleted.size) fetchCandidates();
                 setSelected(new Set());
               }}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -1110,6 +1136,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      {c.status === 'Parsed' && <button type="button" onClick={() => setTrackerCandidates([c])} className="text-xs px-2 py-1 bg-emerald-900/40 border border-emerald-700/50 text-emerald-300 rounded">Send to Submission Tracker</button>}
                       <button onClick={() => setViewCandidate(c)}
                         className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition-colors">View Profile</button>
                       <a href={getResumeUrl(c)} target="_blank" rel="noopener noreferrer"
@@ -1335,7 +1362,7 @@ function InternalPage() {
     setConfirmStateI(s => ({ ...s, open: false }));
     try {
       const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE' });
-      if (res.ok) setCandidates(prev => prev.filter(c => c.id !== id));
+      if (res.ok) { setCandidates(prev => prev.filter(c => c.id !== id)); window.dispatchEvent(new Event('zync:talent-pool-refresh')); }
     } catch { /* ignore */ }
   };
 
@@ -1754,6 +1781,7 @@ function BulkEmailPage() {
           body: JSON.stringify({ candidateIds: batch.map((c:any) => c.id), template, batchSize: batch.length })
         });
         const data = await res.json();
+        if (res.ok && data.sent > 0) window.dispatchEvent(new Event('zync:talent-pool-refresh'));
         const batchSent = data.sent || batch.length;
         totalSent += batchSent;
         setSentCount(prev => prev + batchSent);

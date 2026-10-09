@@ -186,41 +186,32 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
   return (
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="min-h-screen bg-gray-50">
+      <div className="career-workspace SkillGapAnalysisPage min-h-screen bg-gray-50">
 
         {/* Compact Hero Banner */}
-        <div className="text-white px-4 py-5">
-          <div className="max-w-6xl mx-auto relative overflow-hidden">
+        <div className="career-page-heading px-4 py-8">
+          <div className="portal-page-container relative">
             <BackButton fallback="/dashboard" className="mb-3" />
-            <div className="flex flex-col items-center text-center">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
-                  <Zap className="w-3 h-3" /> AI Powered
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
-                  <TrendingUp className="w-3 h-3" /> Real-time Insights
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
-                <span className="text-gray-900">AI</span>
-                <span className="text-blue-600"> Skill Gap Insights</span>
-              </h1>
+            <div className="career-tool-title flex flex-col items-start text-left">
+            <p className="career-tool-eyebrow">SKILL DEVELOPMENT</p>
+            <h1>Identify your skill gaps</h1>
               <p className="text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
-                Compare your skills with job requirements and get a personalized AI learning roadmap.
+                Compare your skills with a role, identify what you need to learn, and plan your development.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="portal-page-container max-w-6xl mx-auto px-4 py-4">
 
-          {/* Top Row: Skills + Job Selection side by side */}
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div className="skill-gap-workspace">
+          {/* Skills and job selection */}
+          <div className="skill-gap-setup">
 
             {/* Your Skills */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="career-panel bg-white rounded-xl border border-gray-200 p-4">
               <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xs">✦</span>
+                <span className="career-setup-number">01</span>
                 Your Skills
                 <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">{userSkills.length} added</span>
               </h2>
@@ -243,9 +234,9 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
             </div>
 
             {/* Job Selection */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="career-panel bg-white rounded-xl border border-gray-200 p-4">
               <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs">🎯</span>
+                <span className="career-setup-number">02</span>
                 Select Job to Compare
                 {selectedJob && <span className="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-medium truncate max-w-[140px]">{selectedJob.jobTitle || selectedJob.title}</span>}
               </h2>
@@ -285,12 +276,13 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
             </div>
           </div>
 
+          <div className="skill-gap-results">
           {/* Results Section */}
           {selectedJob ? (
             <div className="space-y-4">
 
               {/* Match Score Bar */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="career-panel bg-white rounded-xl border border-gray-200 p-4">
                 <div className="flex items-center gap-4">
                   {/* Big Score Circle */}
                   <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center flex-shrink-0 font-bold text-lg ${
@@ -329,7 +321,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
               {/* Matched + Missing side by side */}
               {jobSkills.length > 0 && (
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-xl border border-green-200 p-4">
+                  <div className="career-panel bg-white rounded-xl border border-green-200 p-4">
                     <h3 className="text-base font-semibold text-green-700 mb-2 flex items-center gap-1.5">
                       <CheckCircle className="w-4 h-4" /> Matched Skills
                       <span className="ml-auto bg-green-100 text-green-700 text-sm px-2 py-0.5 rounded-full">{matched.length}</span>
@@ -345,7 +337,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                     )}
                   </div>
 
-                  <div className="bg-white rounded-xl border border-red-200 p-4">
+                  <div className="career-panel bg-white rounded-xl border border-red-200 p-4">
                     <h3 className="text-base font-semibold text-red-600 mb-2 flex items-center gap-1.5">
                       <XCircle className="w-4 h-4" /> Missing Skills
                       <span className="ml-auto bg-red-100 text-red-600 text-sm px-2 py-0.5 rounded-full">{missing.length}</span>
@@ -368,14 +360,14 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
 
                 {/* AI Learning Roadmap — wider */}
                 {missing.length > 0 && (
-                  <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="career-panel lg:col-span-3 bg-white rounded-xl border border-gray-200 p-4">
                     <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                       <BookOpen className="w-5 h-5 text-blue-600" /> AI Learning Roadmap
                       <span className="text-sm text-gray-400 font-normal ml-1">({missing.length} skills to learn)</span>
                     </h3>
                     <div className="space-y-2">
                       {missing.map((skill, idx) => (
-                        <div key={skill} className="border border-gray-100 rounded-lg p-3 bg-gray-50 hover:bg-white transition-colors">
+                        <div key={skill} className="career-panel border border-gray-100 rounded-lg p-3 bg-gray-50 hover:bg-white transition-colors">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="w-6 h-6 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center font-bold flex-shrink-0">
@@ -407,7 +399,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                                   href={r.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                                  className="career-panel flex items-center justify-between p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
                                 >
                                   <span className="text-sm text-gray-700 truncate">{r.title}</span>
                                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{r.type}</span>
@@ -517,12 +509,14 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
             </div>
           ) : (
             /* Empty state — compact */
-            <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center">
+            <div className="career-panel bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center">
               <div className="text-4xl mb-3">📊</div>
               <h3 className="font-medium text-gray-600 mb-1">No Analysis Yet</h3>
               <p className="text-sm text-gray-400">Add skills &amp; select a job to see AI insights</p>
             </div>
           )}
+          </div>
+          </div>
         </div>
       </div>
       <Footer onNavigate={onNavigate} />

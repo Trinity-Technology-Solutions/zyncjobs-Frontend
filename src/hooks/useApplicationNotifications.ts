@@ -24,8 +24,8 @@ const DISMISSED_APP_IDS_KEY = 'candidate_dismissed_app_ids';
 const POLL_INTERVAL = 30000; // 30 seconds
 
 /** Returns the epoch ms when the user last pressed "Clear All", or 0 if never. */
-function getClearedAt(): number {
-  return parseInt(localStorage.getItem(CLEARED_AT_KEY) || '0', 10);
+function getClearedAt(userEmail?: string): number {
+  return parseInt(localStorage.getItem(`${CLEARED_AT_KEY}:${userEmail || "signed-out"}`) || '0', 10);
 }
 
 function getStatusMessage(status: string): string {
@@ -39,26 +39,37 @@ function getStatusMessage(status: string): string {
   }
 }
 
-function loadStored(): AppNotification[] {
+function loadStored(userEmail?: string): AppNotification[] {
+  if (!userEmail) return [];
   try {
-    const clearedAt = getClearedAt();
-    const all: AppNotification[] = JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]');
+    const clearedAt = getClearedAt(userEmail);
+    const all: AppNotification[] = JSON.parse(localStorage.getItem(`${NOTIF_KEY}:${userEmail || "signed-out"}`) || '[]');
     // Drop any notification that existed before the last "Clear All"
     return all.filter(n => n.timestamp > clearedAt);
   } catch { return []; }
 }
 
-function persist(notifs: AppNotification[]): AppNotification[] {
+function persistForUser(notifs: AppNotification[], userEmail?: string): AppNotification[] {
   const trimmed = notifs.slice(0, 50);
-  localStorage.setItem(NOTIF_KEY, JSON.stringify(trimmed));
+  localStorage.setItem(`${NOTIF_KEY}:${userEmail || "signed-out"}`, JSON.stringify(trimmed));
   return trimmed;
 }
 
 export function useApplicationNotifications(userEmail: string | undefined) {
-  const [notifications, setNotifications] = useState<AppNotification[]>(loadStored);
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => loadStored(userEmail));
+  const persist = (items: AppNotification[]) => persistForUser(items, userEmail);
+  const activeEmailRef = useRef(userEmail);
+  activeEmailRef.current = userEmail;
   const [toast, setToast] = useState<AppNotification | null>(null);
   const prevStatusesRef = useRef<Record<string, string>>({});
   const isFirstPollRef = useRef(true);
+
+  useEffect(() => {
+    setNotifications(loadStored(userEmail));
+    setToast(null);
+    prevStatusesRef.current = {};
+    isFirstPollRef.current = true;
+  }, [userEmail]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -69,25 +80,26 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       const res = await fetch(
         `${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`
       );
-      if (!res.ok) return;
+      if (!res.ok || activeEmailRef.current !== userEmail) return;
       const data: any[] = await res.json();
+      if (activeEmailRef.current !== userEmail) return;
 
       const currentStatuses: Record<string, string> = {};
       data.forEach(app => { if (app?._id) currentStatuses[app._id] = app.status; });
 
       if (isFirstPollRef.current) {
         // First load: seed from localStorage or current state — no notifications
-        const saved = localStorage.getItem(STATUS_KEY);
+        const saved = localStorage.getItem(`${STATUS_KEY}:${userEmail || "signed-out"}`);
         prevStatusesRef.current = saved ? JSON.parse(saved) : currentStatuses;
         isFirstPollRef.current = false;
-        localStorage.setItem(STATUS_KEY, JSON.stringify(currentStatuses));
+        localStorage.setItem(`${STATUS_KEY}:${userEmail || "signed-out"}`, JSON.stringify(currentStatuses));
         return;
       }
 
       const prev = prevStatusesRef.current;
       const newNotifs: AppNotification[] = [];
 
-      const dismissedAppIds: Set<string> = new Set(JSON.parse(localStorage.getItem(DISMISSED_APP_IDS_KEY) || '[]'));
+      const dismissedAppIds: Set<string> = new Set(JSON.parse(localStorage.getItem(`${DISMISSED_APP_IDS_KEY}:${userEmail || "signed-out"}`) || '[]'));
       data.forEach(app => {
         if (!app?._id || !app?.jobId) return;
         const prevStatus = prev[app._id];
@@ -113,7 +125,7 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       }
 
       prevStatusesRef.current = currentStatuses;
-      localStorage.setItem(STATUS_KEY, JSON.stringify(currentStatuses));
+      localStorage.setItem(`${STATUS_KEY}:${userEmail || "signed-out"}`, JSON.stringify(currentStatuses));
     } catch {
       // Silently fail
     }
@@ -127,11 +139,12 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       const res = await fetch(
         `${API_ENDPOINTS.BASE_URL}/notifications/candidate/${encodeURIComponent(userEmail)}`
       );
-      if (!res.ok) return;
+      if (!res.ok || activeEmailRef.current !== userEmail) return;
       const dbNotifs: any[] = await res.json();
+      if (activeEmailRef.current !== userEmail) return;
 
       // Only keep application_status and interview notifications created AFTER the last "Clear All"
-      const clearedAt = getClearedAt();
+      const clearedAt = getClearedAt(userEmail);
 
       const converted: AppNotification[] = dbNotifs
         .filter(n => n.type === 'application_status' || n.type === 'interview')
@@ -239,11 +252,11 @@ export function useApplicationNotifications(userEmail: string | undefined) {
   const clearAll = useCallback(async () => {
     // Optimistic clear — remove all notifications from state immediately
     setNotifications([]);
-    localStorage.removeItem(NOTIF_KEY);
-    localStorage.removeItem(STATUS_KEY);
-    localStorage.removeItem(DISMISSED_APP_IDS_KEY);
+    localStorage.removeItem(`${NOTIF_KEY}:${userEmail || "signed-out"}`);
+    localStorage.removeItem(`${STATUS_KEY}:${userEmail || "signed-out"}`);
+    localStorage.removeItem(`${DISMISSED_APP_IDS_KEY}:${userEmail || "signed-out"}`);
     const clearedAtMs = Date.now();
-    localStorage.setItem(CLEARED_AT_KEY, clearedAtMs.toString());
+    localStorage.setItem(`${CLEARED_AT_KEY}:${userEmail || "signed-out"}`, clearedAtMs.toString());
     prevStatusesRef.current = {};
 
     // Permanently delete notifications on the backend so they never reappear
@@ -272,9 +285,9 @@ export function useApplicationNotifications(userEmail: string | undefined) {
     });
     // Track application ID so pollApplications never recreates this status change
     if (notif?.applicationId) {
-      const dismissed = new Set(JSON.parse(localStorage.getItem(DISMISSED_APP_IDS_KEY) || '[]'));
+      const dismissed = new Set(JSON.parse(localStorage.getItem(`${DISMISSED_APP_IDS_KEY}:${userEmail || "signed-out"}`) || '[]'));
       dismissed.add(notif.applicationId + '_' + notif.newStatus);
-      localStorage.setItem(DISMISSED_APP_IDS_KEY, JSON.stringify([...dismissed]));
+      localStorage.setItem(`${DISMISSED_APP_IDS_KEY}:${userEmail || "signed-out"}`, JSON.stringify([...dismissed]));
     }
     // Delete from backend — strip frontend-only "db_" prefix if present
     const backendId = id.startsWith('db_') ? id.slice(3) : id;

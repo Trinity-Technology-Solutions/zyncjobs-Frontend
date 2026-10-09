@@ -134,7 +134,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   };
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden bg-[#f7f4ef]">
+    <div className="employer-login-page portal-auth-page flex flex-col overflow-x-hidden bg-[#f7f4ef]">
       <Header onNavigate={onNavigate} />
 
       <AccountLockedModal
@@ -184,15 +184,15 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         </div>
       )}
 
-      <div className="flex flex-1 lg:min-h-[calc(100vh-86px)]">
+      <div className="portal-auth-layout flex flex-1">
 
         {/* LEFT PANEL */}
-        <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-[#fffaf2] border-r border-[#eadfce]">
+        <div className="employer-login-welcome hidden lg:flex lg:w-[45%] relative overflow-hidden bg-[#fffaf2] border-r border-[#eadfce]">
           <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full border-[28px] border-orange-100/70" />
           <div className="absolute -bottom-32 -right-28 w-[30rem] h-[30rem] rounded-full border-[40px] border-blue-100/60" />
           <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(135deg, transparent 0 49%, rgba(16,42,67,0.05) 49% 50%, transparent 50% 100%)', backgroundSize: '34px 34px' }} />
 
-          <div className="relative z-10 flex flex-col justify-between px-12 xl:px-16 py-10 xl:py-12 w-full">
+          <div className="portal-auth-intro relative z-10 flex flex-col justify-between py-10 xl:py-12 w-full">
             <BackButton fallback="/" />
             <div>
               <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] mb-5 text-[#102a43]">
@@ -233,11 +233,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-[55%] flex items-center justify-center bg-[#f7f4ef] px-4 sm:px-8 lg:px-12 py-8 sm:py-12 relative overflow-hidden">
+        <div className="portal-auth-form w-full lg:w-[55%] flex items-center justify-center bg-[#f7f4ef] py-8 sm:py-12 relative overflow-hidden">
           <div className="absolute inset-0 opacity-50 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d8d0c3 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
           
-          <div className="relative z-10 w-full max-w-xl">
-            <div className="bg-white border border-[#e8e0d5] rounded-[1.25rem] shadow-[0_24px_70px_-36px_rgba(16,42,67,0.5)] p-5 sm:p-8 lg:p-10">
+          <div className="employer-login-form-wrapper relative z-10 w-full max-w-xl">
+            <div className="employer-login-form-card bg-white border border-[#e8e0d5] rounded-[1.25rem] shadow-[0_24px_70px_-36px_rgba(16,42,67,0.5)] p-5 sm:p-8 lg:p-10">
               <div className="mb-8">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sign in to your employer account</h2>
                 <p className="text-gray-500 text-sm mt-1">Manage your hiring pipeline from one focused workspace</p>

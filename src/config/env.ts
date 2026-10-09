@@ -133,6 +133,7 @@ export const API_ENDPOINTS = {
   ADMIN_TOP_COMPANIES: `${config.API_URL}/admin/analytics/top-companies`,
   ADMIN_TOP_ROLES: `${config.API_URL}/admin/analytics/top-roles`,
   ADMIN_USERS: `${config.API_URL}/admin/users`,
+  ADMIN_USER_PERMISSIONS: `${config.API_URL}/admin/users/:id/permissions`,
   ADMIN_JOBS_PENDING: `${config.API_URL}/admin/jobs/pending`,
   ADMIN_SETTINGS: `${config.API_URL}/admin/settings`,
   ADMIN_AUDIT: `${config.API_URL}/admin/audit`,
@@ -150,6 +151,9 @@ export const API_ENDPOINTS = {
   // Submission Tracker
   TRACKER_ROWS: `${config.API_URL}/admin/tracker/rows`,
   TRACKER_PARSE_RESUME: `${config.API_URL}/admin/tracker/parse-resume`,
+  TRACKER_BACKFILL_SUBIDS: `${config.API_URL}/admin/tracker/backfill-subids`,
+  TRACKER_ANALYTICS: `${config.API_URL}/admin/tracker/analytics`,
+  TRACKER_RECRUITER_ANALYTICS: `${config.API_URL}/admin/tracker/analytics/recruiter`,
 };
 
 // Google OAuth base — strips /api suffix to get server root

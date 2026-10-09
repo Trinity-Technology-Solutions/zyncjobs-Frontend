@@ -41,7 +41,7 @@ const ResumeManagementPage: React.FC<ResumeManagementPageProps> = ({ onNavigate,
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="portal-page-container max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">My Resumes</h1>

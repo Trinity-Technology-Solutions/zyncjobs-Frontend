@@ -335,7 +335,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F8FF]">
+    <div className="candidate-search-clean employer-content-page min-h-screen bg-[#F6F8FF]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <style>{`
@@ -348,47 +348,20 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         .cand-gradient { background-size: 200% auto; animation: cand-gradient-x 6s ease infinite; }
       `}</style>
 
-      {/* Hero Header */}
-      <div className="relative bg-white border-b border-gray-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8">
-          <div className="text-center max-w-3xl mx-auto">
-            <span className="cand-fade-1 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/80 backdrop-blur-md border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-widest shadow-sm mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-              AI-Powered Candidate Sourcing
-            </span>
-            <h1 className="cand-fade-2 text-2xl sm:text-3xl md:text-4xl lg:text-[2.35rem] xl:text-[2.6rem] font-extrabold text-gray-900 leading-[1.15] tracking-[-0.02em] mb-2.5">
-              Discover Top Talent,{' '}
-              <span className="cand-gradient text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-orange-500">
-                decoded by AI
-              </span>
-            </h1>
-            <p className="cand-fade-3 text-sm sm:text-base text-gray-500 leading-relaxed mb-4 max-w-2xl mx-auto px-4">
-              Search a verified pool of professionals by skills, experience, salary and availability.
-            </p>
-            <div className="cand-fade-3 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mb-6">
-              <span className="inline-flex items-center gap-1.5 bg-white/85 border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
-                <span className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center"><Target className="w-3 h-3 text-blue-600" /></span>
-                Quality talent pool
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/85 border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
-                <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center"><CheckCircle className="w-3 h-3 text-emerald-500" /></span>
-                Verified profiles
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/85 border border-gray-200/80 rounded-full pl-2 pr-3 py-1 text-xs text-gray-700 shadow-sm">
-                <span className="w-5 h-5 rounded-full bg-violet-50 flex items-center justify-center"><Bot className="w-3 h-3 text-violet-600" /></span>
-                AI match on every profile
-              </span>
-            </div>
-          </div>
+      {/* Candidate search heading */}
+      <div className="candidate-sourcing-heading bg-white">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1>Find your next hire</h1>
+          <p>Search professionals by skills, experience, location and availability.</p>
         </div>
       </div>
 
       {/* Search bar */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row gap-3">
+      <div className="candidate-sourcing-search bg-white border-b border-gray-200">
+        <div className="portal-page-container max-w-6xl mx-auto px-4 py-4">
+          <div className="candidate-search-controls flex flex-col md:flex-row gap-3">
             {/* Keyword */}
-            <div className="relative flex-1">
+            <div className="candidate-search-field candidate-keyword-field relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               <input
                 type="text"
@@ -400,9 +373,9 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             </div>
 
             {/* Skills */}
-            <div className="relative md:w-72">
+            <div className="candidate-search-field relative md:w-72">
               <Code className="absolute left-3 top-3 text-gray-400 w-4 h-4 pointer-events-none z-10" />
-              <div className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded-lg min-h-[42px] flex flex-wrap items-center gap-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 bg-white">
+              <div className="candidate-search-chip-field w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded-lg min-h-[42px] flex flex-wrap items-center gap-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 bg-white">
                 {filters.skills.map((s, i) => (
                   <span key={i} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs px-2 py-0.5 rounded font-medium">
                     {s}<button type="button" onClick={() => removeSkill(i)}><X className="w-3 h-3" /></button>
@@ -441,9 +414,9 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             </div>
 
             {/* Location */}
-            <div className="relative md:w-60">
+            <div className="candidate-search-field relative md:w-60">
               <MapPin className="absolute left-3 top-3 text-gray-400 w-4 h-4 pointer-events-none z-10" />
-              <div className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded-lg min-h-[42px] flex flex-wrap items-center gap-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 bg-white">
+              <div className="candidate-search-chip-field w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded-lg min-h-[42px] flex flex-wrap items-center gap-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 bg-white">
                 {filters.locations.map((l, i) => (
                   <span key={i} className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs px-2 py-0.5 rounded font-medium">
                     {l}<button type="button" onClick={() => removeLocation(i)}><X className="w-3 h-3" /></button>
@@ -484,7 +457,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="portal-page-container max-w-6xl mx-auto px-4 py-6">
         {/* Result count + clear */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-600">

@@ -470,7 +470,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
             })() : '';
 
             return (
-              <div key={jobId} className="relative bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all overflow-hidden group mx-1">
+              <div key={jobId} className="portal-job-card portal-job-card-framed relative bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all overflow-hidden group mx-1">
 
                 {/* Blue left border strip */}
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600" />

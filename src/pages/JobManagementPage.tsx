@@ -45,6 +45,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('posted');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  useEffect(() => { setCurrentPage(1); setSelectedJobs([]); setOpenMenuId(null); }, [searchTerm, filter, sortBy]);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showCollaborateModal, setShowCollaborateModal] = useState(false);
   const [collaborateEmail, setCollaborateEmail] = useState('');
@@ -166,7 +169,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   };
 
   const handleSelectAll = () => {
-    setSelectedJobs(selectedJobs.length === filteredJobs.length ? [] : filteredJobs.map(job => job.id || job._id).filter((id): id is string => id !== undefined));
+    const ids = visibleJobs.map(job => job.id || job._id).filter((id): id is string => id !== undefined);
+    setSelectedJobs(ids.every(id => selectedJobs.includes(id)) ? [] : ids);
   };
 
   const handleDeleteSelectedJobs = async () => {
@@ -324,21 +328,31 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+  const activePage = Math.min(currentPage, totalPages);
+  const visibleJobs = sortJobs(filteredJobs).slice((activePage - 1) * pageSize, activePage * pageSize);
+  const changePage = (page: number) => {
+    setCurrentPage(page);
+    setSelectedJobs([]);
+    setOpenMenuId(null);
+    document.getElementById('employer-job-results')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="job-management-page employer-content-page min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <BackButton 
           fallback="/dashboard"
           text="Back to Dashboard"
           className="mb-4 sm:mb-6"
         />
         
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
+        <div className="job-management-heading flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Job Management</h1>
-            <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage your job postings and track responses</p>
+            <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage openings, review applications and keep your hiring on track.</p>
           </div>
           <button
             onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
@@ -349,8 +363,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           </button>
         </div>
 
+        <div className="job-management-summary">
+          <div><span>Total postings</span><strong>{loading ? '—' : statusCounts.all}</strong><p>All your job postings</p></div>
+          <div><span>Active openings</span><strong>{loading ? '—' : statusCounts.active}</strong><p>Open for applications</p></div>
+          <div><span>Closed jobs</span><strong>{loading ? '—' : statusCounts.closed}</strong><p>Completed or closed postings</p></div>
+        </div>
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg shadow-sm border mb-4 sm:mb-6">
+        <div className="job-management-filters bg-white rounded-lg shadow-sm border mb-4 sm:mb-6">
           <div className="p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-4 gap-3">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -378,11 +397,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   type="text"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Search by Title/Ref Code/Location"
+                  aria-label="Search job postings"
+                  placeholder="Search title, reference code or location"
                   className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
               </div>
               <select
+                aria-label="Sort job postings"
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
                 className="w-full sm:w-56 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-700"
@@ -400,12 +421,12 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
-                  checked={selectedJobs.length === filteredJobs.length && filteredJobs.length > 0}
+                  checked={visibleJobs.length > 0 && visibleJobs.every(job => selectedJobs.includes((job.id || job._id)!))}
                   onChange={handleSelectAll}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-700">
-                  Select All ({selectedJobs.length} of {filteredJobs.length} selected)
+                  Select page ({selectedJobs.length} of {visibleJobs.length} selected)
                 </span>
               </label>
               
@@ -419,8 +440,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 </button>
               )}
               
-              <div className="flex flex-wrap gap-2 sm:gap-4">
+              <div className="job-management-status-tabs flex flex-wrap gap-2 sm:gap-4">
+                <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>All jobs {statusCounts.all}</button>
                 <button
+                  aria-pressed={filter === 'active'}
                   onClick={() => setFilter('active')}
                   className={`text-xs sm:text-sm font-medium ${
                     filter === 'active' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
@@ -429,6 +452,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   Active Jobs {statusCounts.active}
                 </button>
                 <button
+                  aria-pressed={filter === 'closed'}
                   onClick={() => setFilter('closed')}
                   className={`text-xs sm:text-sm font-medium ${
                     filter === 'closed' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
@@ -443,11 +467,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
+          <div className="job-management-empty text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           </div>
         ) : filteredJobs.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="job-management-empty text-center py-12">
             <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               {jobs.length === 0 ? 'No job postings yet' : 'No jobs match your filters'}
@@ -465,7 +489,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border">
+          <div id="employer-job-results" className="job-management-results bg-white rounded-lg shadow-sm border">
             <div className="p-3 sm:p-4 border-b">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3 sm:gap-6">
@@ -476,10 +500,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   <button
                     onClick={handleSelectAll}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
-                    title="Select all jobs"
+                    title="Select jobs on this page"
                   >
                     <CheckSquare className="w-4 h-4" />
-                    <span className="font-medium">Select All</span>
+                    <span className="font-medium">Select page</span>
                   </button>
                   
                   <button
@@ -570,11 +594,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               </div>
             </div>
             
-            <div className="divide-y divide-gray-200">
-              {sortJobs(filteredJobs).map((job: Job) => {
+            <div className="employer-job-list">
+              {visibleJobs.map((job: Job) => {
                 const jobId = job.id || job._id;
                 return (
-                <div key={jobId} className="p-3 sm:p-4 hover:bg-gray-50">
+                <div key={jobId} className="portal-job-card employer-job-card">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-start space-x-3 flex-1">
                       <input
@@ -586,7 +610,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                          <h3
+                          <h3><button type="button"
                             className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm sm:text-base truncate"
                             onClick={() => {
                               if (!jobId) return;
@@ -597,7 +621,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                             }}
                           >
                             {job.jobTitle || job.title || 'Job Position'}
-                          </h3>
+                          </button></h3>
                           {(job.applicationCount ?? 0) > 0 && (
                             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium self-start">
                               {job.applicationCount} New
@@ -751,6 +775,14 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 </div>
               )})}
             </div>
+            <nav className="job-management-pagination" aria-label="Job pages">
+              <span>Showing {(activePage - 1) * pageSize + 1}-{Math.min(activePage * pageSize, filteredJobs.length)} of {filteredJobs.length} jobs</span>
+              <div>
+                <button type="button" disabled={activePage === 1} onClick={() => changePage(activePage - 1)}>Previous</button>
+                <span aria-live="polite">Page {activePage} of {totalPages}</span>
+                <button type="button" disabled={activePage === totalPages} onClick={() => changePage(activePage + 1)}>Next</button>
+              </div>
+            </nav>
           </div>
         )}
       </div>

@@ -33,6 +33,7 @@ export const PERMISSIONS = {
   POST_JOBS: 'post_jobs',
   VIEW_APPLICANTS: 'view_applicants',
   MANAGE_OWN_JOBS: 'manage_own_jobs',
+  RECRUITER_PORTAL_ACCESS: 'recruiter_portal_access',
 
   // Candidate permissions
   APPLY_JOBS: 'apply_jobs',

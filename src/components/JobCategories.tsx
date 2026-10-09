@@ -78,15 +78,15 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-10 sm:py-12 lg:py-14 bg-slate-50 border-y border-slate-200/70">
+    <section className="home-categories py-10 sm:py-12 lg:py-14 bg-slate-50 border-y border-slate-200/70">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-200/70 text-xs font-semibold text-orange-600 mb-3 tracking-wide">
+        <div className="max-w-2xl mb-8 sm:mb-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/70 text-xs font-semibold text-blue-600 mb-3 tracking-wide">
             <span>Categories</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
-            Explore Jobs by <span className="text-orange-500">Category</span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight leading-tight">
+            Explore Jobs by <span className="text-blue-500">Category</span>
           </h2>
           <p className="mt-3 text-sm sm:text-base text-gray-600 leading-relaxed">
             Find your next opportunity across the industries hiring now.
@@ -111,21 +111,21 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
                     handleCategoryClick(cat);
                   }
                 }}
-                className="group relative bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:border-orange-300 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 select-none"
+                className="group relative bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 select-none"
               >
                 <div>
                   {/* Top Row: Icon and subtle arrow indicator */}
                   <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 group-hover:bg-orange-50 group-hover:border-orange-200 group-hover:text-orange-500 transition-colors duration-200 flex-shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors duration-200 flex-shrink-0">
                       <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.8} />
                     </div>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-orange-500 group-hover:bg-orange-50 transition-all duration-200 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 transition-all duration-200 flex-shrink-0">
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
                     </div>
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 leading-snug group-hover:text-orange-600 transition-colors duration-200">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors duration-200">
                     {cat.name}
                   </h3>
                   <p className="mt-1.5 text-xs sm:text-sm text-slate-500 line-clamp-2 leading-relaxed font-normal">
@@ -135,10 +135,10 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
 
                 {/* Bottom Row: View Jobs CTA */}
                 <div className="pt-4 mt-5 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-orange-600 transition-colors duration-200">
+                  <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-blue-600 transition-colors duration-200">
                     View Jobs
                   </span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-200" />
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200" />
                 </div>
               </div>
             );
@@ -150,7 +150,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
           <button
             type="button"
             onClick={() => onNavigate && onNavigate('job-listings')}
-            className="group inline-flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-800 hover:text-orange-600 font-semibold text-sm rounded-xl border border-slate-200 hover:border-orange-300 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+            className="group inline-flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-800 hover:text-blue-600 font-semibold text-sm rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             <span>View All Categories</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />

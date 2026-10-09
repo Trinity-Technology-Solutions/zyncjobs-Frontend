@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, RefreshCw } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, RefreshCw, Search, ChevronRight, ArrowLeft, BookOpen } from 'lucide-react';
 import { getId } from '../utils/getId';
 import Header from '../components/Header';
 import CompanyLogo from '../components/CompanyLogo';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
-import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
 import Notification from '../components/Notification';
+import { apiFetch } from '../api/apiFetch';
+import { decodeHtmlEntities, formatSalary } from '../utils/textUtils';
 import { stripHtmlTags } from '../utils/htmlUtils';
 
 interface Application {
@@ -53,11 +54,13 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [filter, setFilter] = useState<string>('all');
   const [editingApp, setEditingApp] = useState<string | null>(null);
   const [editCoverLetter, setEditCoverLetter] = useState<string>('');
-  const [showTimeline] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showMobileDetails, setShowMobileDetails] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [withdrawingApp, setWithdrawingApp] = useState<string | null>(null);
   const [withdrawalReason, setWithdrawalReason] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreApplications, setHasMoreApplications] = useState(true);
   const applicationsPerPage = 10;
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'info' | 'error'; message: string; isVisible: boolean }>({ type: 'info', message: '', isVisible: false });
@@ -65,50 +68,36 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const isFirstLoadRef = useRef(true);
   const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    fetchMyApplications();
-  }, [user]);
-
-  useEffect(() => {
-    fetchMyApplications();
-  }, [filter]);
-
-  // Auto-refresh every 30s to detect status changes
-  useEffect(() => {
-    const interval = setInterval(() => fetchMyApplications(), 30000);
-    return () => clearInterval(interval);
-  }, [user]);
-
-  const fetchMyApplications = async (page = 1, append = false) => {
-    if (!user?.email) {
+  const candidateEmail = user?.email || '';
+  const fetchVersion = useRef(0);
+  const fetchMyApplications = useCallback(async () => {
+    const version = ++fetchVersion.current;
+    if (!candidateEmail) {
       setLoading(false);
       return;
     }
 
     try {
-      if (!append) setLoading(true);
+      if (isFirstLoadRef.current) setLoading(true);
+      setLoadError('');
       
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      params.append('limit', applicationsPerPage.toString());
-      
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${user.email}?${params}`);
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(candidateEmail)}`);
       if (response.ok) {
-        const data = await response.json();
+        const raw = await response.json();
+        if (version !== fetchVersion.current) return;
+        if (!Array.isArray(raw)) throw new Error('Unexpected application response.');
+        const data: Application[] = raw.map(app => ({ ...app, _id: app._id || app.id }));
         
-        if (!isFirstLoadRef.current && !append) {
+        if (!isFirstLoadRef.current) {
           // Detect status changes
           const prev = prevStatusesRef.current;
-          const changed = data.filter((app: Application) => prev[app._id] && prev[app._id] !== app.status);
+          const changed = data.filter((app: Application) => prev[app._id] && prev[app._id] !== app.status && app.status !== 'ai_rejected');
           if (changed.length > 0) {
             const app = changed[0];
             // ai_rejected is internal — never notify candidate, wait for employer to confirm
-            if (app.status === 'ai_rejected') return;
             const statusLabels: Record<string, string> = {
-              reviewed: 'is being reviewed',
-              shortlisted: '— you have been shortlisted! 🎉',
-              hired: '— you got the job! 🎊',
-              rejected: 'was not selected',
+              reviewed: 'is being reviewed', shortlisted: '- you have been shortlisted!',
+              hired: '- you got the job!', rejected: 'was not selected',
             };
             const label = statusLabels[app.status] || `updated to ${app.status}`;
             const isPositive = ['shortlisted', 'hired', 'reviewed'].includes(app.status);
@@ -126,43 +115,45 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
         prevStatusesRef.current = newStatuses;
         isFirstLoadRef.current = false;
 
-        if (append) {
-          setApplications(prev => [...prev, ...data]);
-        } else {
-          setApplications(data);
-        }
-        
-        setHasMoreApplications(data.length === applicationsPerPage);
+        setApplications(data);
 
         // Fetch interview status for each application
         const ids: string[] = data.map((a: Application) => a._id).filter(Boolean);
         const settled = await Promise.all(
           ids.map(async (id: string) => {
             try {
-              const r = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/application/${id}`);
+              const r = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/application/${id}`);
               if (r.ok) {
                 const d = await r.json();
                 return (Array.isArray(d) ? d.length > 0 : !!d?._id) ? id : null;
               }
-            } catch {}
+            } catch { /* Interview activity is optional; application records remain visible. */ }
             return null;
           })
         );
         const scheduled = new Set<string>(settled.filter(Boolean) as string[]);
-        setScheduledAppIds(prev => append ? new Set([...prev, ...scheduled]) : scheduled);
-      }
+        if (version === fetchVersion.current) setScheduledAppIds(scheduled);
+      } else { throw new Error('Unable to load your applications. Please retry.'); }
     } catch (error) {
+      if (version !== fetchVersion.current) return;
+      setLoadError(error instanceof Error ? error.message : 'Unable to load your applications.');
       console.error('Error fetching applications:', error);
     } finally {
-      if (!append) setLoading(false);
+      if (version === fetchVersion.current) setLoading(false);
     }
-  };
+  }, [candidateEmail]);
 
-  const handleLoadMoreApplications = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchMyApplications(nextPage, true);
-  };
+  useEffect(() => {
+    setApplications([]); setScheduledAppIds(new Set()); setSelectedId(null);
+    setFilter('all'); setSearchQuery(''); setCurrentPage(1); setShowMobileDetails(false);
+    prevStatusesRef.current = {}; isFirstLoadRef.current = true;
+    void fetchMyApplications();
+    const interval = setInterval(() => { void fetchMyApplications(); }, 30000);
+    return () => { clearInterval(interval); fetchVersion.current++; };
+  }, [fetchMyApplications]);
+  useEffect(() => { setCurrentPage(1); setShowMobileDetails(false); }, [filter, searchQuery]);
+
+  const handleLoadMoreApplications = () => setCurrentPage(page => page + 1);
 
   const handleEditApplication = (appId: string, currentCoverLetter: string) => {
     setEditingApp(appId);
@@ -171,7 +162,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
   const handleSaveApplication = async (appId: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/${appId}`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/${appId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -210,7 +201,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
     }
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/${appId}/withdraw`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/${appId}/withdraw`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: withdrawalReason })
@@ -239,7 +230,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       }
 
       // Update the application status back to applied using existing endpoint
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${application._id}/status`, {
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${application._id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -264,7 +255,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   };
 
   // ai_rejected is INTERNAL employer state — candidate always sees it as "applied"
-  const toDisplay = (s: string) => s === 'ai_rejected' ? 'applied' : s;
+  const toDisplay = (s: string) => ['ai_rejected', 'pending'].includes(s) ? 'applied' : s;
 
   const getStatusIcon = (status: string) => {
     switch (toDisplay(status)) {
@@ -304,7 +295,8 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
   // ai_rejected counts as 'applied' for candidate view
   const filteredApplications = applications.filter(app =>
-    filter === 'all' || toDisplay(app.status) === filter
+    (filter === 'all' || (filter === 'updates' ? ['reviewed', 'shortlisted', 'hired', 'rejected'].includes(toDisplay(app.status)) || scheduledAppIds.has(app._id) : toDisplay(app.status) === filter)) &&
+    (!searchQuery.trim() || `${app.jobId?.jobTitle || ''} ${app.jobId?.company || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()))
   );
 
   const statusCounts = {
@@ -317,429 +309,70 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
     withdrawn: applications.filter(app => app.status === 'withdrawn').length,
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your applications...</p>
-        </div>
-      </div>
-    );
-  }
+  const visibleApplications = filteredApplications.slice(0, currentPage * applicationsPerPage);
+  const selected = filteredApplications.find(app => app._id === selectedId) || filteredApplications[0];
+  const updatesCount = applications.filter(app => ['reviewed', 'shortlisted', 'hired', 'rejected'].includes(toDisplay(app.status)) || scheduledAppIds.has(app._id)).length;
+  const filters = [{ key: 'all', label: 'All applications', count: statusCounts.all }, { key: 'updates', label: 'Recruiter updates', count: updatesCount }, ...(['applied','reviewed','shortlisted','hired','rejected','withdrawn'] as const).map(key => ({ key, label: key.charAt(0).toUpperCase() + key.slice(1), count: statusCounts[key] }))];
+  const dateLabel = (value: string) => { const date = new Date(value); return Number.isFinite(date.getTime()) ? date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date unavailable'; };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="candidate-applications-page min-h-screen">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <Notification
-        type={toast.type}
-        message={toast.message}
-        isVisible={toast.isVisible}
-        onClose={() => setToast(t => ({ ...t, isVisible: false }))}
-      />
-      
-      {/* Page Header */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div className="flex items-center space-x-4">
-            <BackButton fallback="/dashboard" />
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-2xl">📊</div>
-            <h1 className="text-2xl font-bold text-gray-900">My Applications</h1>
-          </div>
-          <button
-            onClick={async () => {
-              if (refreshing) return;
-              setRefreshing(true);
-              await fetchMyApplications();
-              setRefreshing(false);
-            }}
-            disabled={refreshing}
-            className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Refresh applications"
-            aria-label="Refresh applications"
-          >
-            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
+      <Notification type={toast.type} message={toast.message} isVisible={toast.isVisible} onClose={() => setToast(value => ({ ...value, isVisible: false }))} />
+      <div className="candidate-applications-summary">
+        <div className="portal-page-container candidate-applications-summary-inner">
+          <div><BackButton fallback="/dashboard" /><h1>My Applications</h1><p>Follow your applications and stay up to date with recruiter activity.</p></div>
+          <div className="candidate-applications-metrics"><div><strong>{statusCounts.all}</strong><span>Total<br />applications</span></div><div><strong>{updatesCount}</strong><span>Recruiter<br />updates</span></div><button type="button" onClick={async () => { if (refreshing) return; setRefreshing(true); try { await fetchMyApplications(); } finally { setRefreshing(false); } }} disabled={refreshing || loading} aria-label="Refresh applications"><RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} /></button></div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-          {[
-            { label: 'Total Applied', value: statusCounts.all, color: 'text-gray-900', border: 'border-gray-200', icon: <Briefcase className="w-5 h-5 text-gray-400" /> },
-            { label: 'Applied', value: statusCounts.applied, color: 'text-blue-600', border: 'border-blue-200', icon: <Clock className="w-5 h-5 text-blue-400" /> },
-            { label: 'Reviewed', value: statusCounts.reviewed, color: 'text-yellow-600', border: 'border-yellow-200', icon: <Eye className="w-5 h-5 text-yellow-400" /> },
-            { label: 'Shortlisted', value: statusCounts.shortlisted, color: 'text-green-600', border: 'border-green-200', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
-            { label: 'Rejected', value: statusCounts.rejected, color: 'text-red-600', border: 'border-red-200', icon: <XCircle className="w-5 h-5 text-red-400" /> },
-            { label: 'Hired', value: statusCounts.hired, color: 'text-purple-600', border: 'border-purple-200', icon: <CheckCircle className="w-5 h-5 text-purple-400" /> },
-          ].map((stat) => (
-            <div key={stat.label} className={`p-4 rounded-xl bg-white shadow-md hover:shadow-xl transition-all border ${stat.border}`}>
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-gray-500 text-xs font-medium">{stat.label}</p>
-                {stat.icon}
-              </div>
-              <h2 className={`text-2xl font-bold ${stat.color}`}>{stat.value}</h2>
-            </div>
-          ))}
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="bg-white rounded-lg shadow-sm border mb-6">
-          <div className="p-4 border-b">
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: 'all', label: 'All', active: 'bg-gray-800 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
-                { key: 'applied', label: 'Applied', active: 'bg-blue-600 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600' },
-                { key: 'reviewed', label: 'Reviewed', active: 'bg-yellow-500 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-yellow-50 hover:text-yellow-600' },
-                { key: 'shortlisted', label: 'Shortlisted', active: 'bg-green-600 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-600' },
-                { key: 'rejected', label: 'Rejected', active: 'bg-red-500 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600' },
-                { key: 'hired', label: 'Hired', active: 'bg-purple-600 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600' },
-                { key: 'withdrawn', label: 'Withdrawn', active: 'bg-gray-500 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
-              ].map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => setFilter(f.key)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${filter === f.key ? f.active : f.inactive}`}
-                >
-                  {f.label} ({statusCounts[f.key as keyof typeof statusCounts]})
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Applications List */}
-          <div className="p-6">
-            <div className="mb-4 text-sm text-gray-600">
-              Showing {filteredApplications.length} applications
-            </div>
-            
-            <div className="space-y-4">
-              {filteredApplications.length === 0 ? (
-                <EmptyState
-                  title={filter === 'all' ? 'No applications yet' : `No ${filter} applications`}
-                  description={filter === 'all' 
-                    ? 'Start applying to jobs to see your applications here'
-                    : `You don't have any ${filter} applications at the moment`
-                  }
-                  buttonText="Browse Jobs"
-                  onButtonClick={() => onNavigate('job-listings')}
-                  icon="applications"
-                />
-              ) : (
-                filteredApplications.map((application) => (
-                  application && application.jobId ? (
-                    <div key={application._id} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all border border-gray-100">
-                      <div className="flex flex-col sm:flex-row items-start gap-4">
-                        <div className="flex-1">
-                          {/* Company logo + name row */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-blue-50 border border-blue-100">
-                              <CompanyLogo
-                                companyName={application.jobId?.company || ''}
-                                storedLogo={application.jobId?.companyLogo}
-                                size={40}
-                                className="w-10 h-10 object-contain"
-                              />
-                            </div>
-                            <span className="font-semibold text-blue-700 text-base">{application.jobId?.company || 'Company Not Available'}</span>
-                          </div>
-
-                          {/* Job title + status */}
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-lg text-gray-900">
-                              {application.jobId?.jobTitle || 'Job Title Not Available'}
-                            </h3>
-                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(application.status)}`}>
-                              {getStatusIcon(application.status)}
-                              <span className="ml-2">{toDisplay(application.status).charAt(0).toUpperCase() + toDisplay(application.status).slice(1)}</span>
-                            </div>
-                            {scheduledAppIds.has(application._id) && (
-                              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                <Calendar className="w-3.5 h-3.5 mr-1" />
-                                Interview Scheduled
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-2 mb-3">
-                            {application.jobId?.location && (
-                              <div className="flex items-center space-x-1 bg-gray-100 px-3 py-1 rounded-lg">
-                                <MapPin className="w-4 h-4 text-gray-600" />
-                                <span className="text-gray-700 font-medium">{application.jobId.location}</span>
-                              </div>
-                            )}
-                            {application.isQuickApply && (
-                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
-                                ⚡ Quick Apply
-                              </span>
-                            )}
-                          </div>
-                          
-                          {application.jobId?.jobDescription && (
-                            <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
-                              <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                                <span className="font-semibold text-blue-900">Job Description: </span>
-                                {(() => {
-                                  const plainText = stripHtmlTags(application.jobId.jobDescription);
-                                  return plainText.substring(0, 300) + (plainText.length > 300 ? '...' : '');
-                                })()}
-                              </p>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center gap-3 mb-3 flex-wrap">
-                            {application.jobId?.salary && (
-                              <div className="flex items-center space-x-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                                <span className="text-green-600 font-bold">💰</span>
-                                <span className="text-green-700 font-semibold text-sm">
-                                  {typeof application.jobId.salary === 'object' 
-                                    ? `${application.jobId.salary.currency || ''} ${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
-                                    : application.jobId.salary
-                                  }
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex items-center space-x-1 bg-gray-100 px-3 py-1 rounded-lg">
-                              <Calendar className="w-4 h-4 text-gray-600" />
-                              <span className="text-gray-700 text-sm font-medium">Applied {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                            </div>
-                          </div>
-                          
-                          {application.jobId?.skills && application.jobId.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {application.jobId.skills.slice(0, 5).map((skill: string, idx: number) => (
-                                <span key={idx} className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                                  {skill}
-                                </span>
-                              ))}
-                              {application.jobId.skills.length > 5 && (
-                                <span className="text-xs text-gray-500 px-2 py-1 font-medium">+{application.jobId.skills.length - 5} more</span>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Progress bar */}
-                          {(() => {
-                            const steps = ['applied','reviewed','shortlisted','hired'];
-                            const displayStatus = toDisplay(application.status);
-                            const idx = steps.indexOf(displayStatus);
-                            const pct = idx >= 0 ? Math.round(((idx + 1) / steps.length) * 100) : 0;
-                            const barColor = displayStatus === 'rejected' ? 'bg-red-500' : displayStatus === 'hired' ? 'bg-purple-500' : 'bg-green-500';
-                            return displayStatus !== 'withdrawn' ? (
-                              <div className="mb-3">
-                                <div className="flex justify-between text-xs text-gray-400 mb-1">
-                                  <span>Progress</span><span>{pct}%</span>
-                                </div>
-                                <div className="h-1.5 bg-gray-100 rounded-full">
-                                  <div className={`h-1.5 ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }}></div>
-                                </div>
-                                <div className="flex justify-between text-xs text-gray-300 mt-1">
-                                  {steps.map(s => <span key={s} className={displayStatus === s ? 'text-blue-500 font-semibold' : ''}>{s.charAt(0).toUpperCase()+s.slice(1)}</span>)}
-                                </div>
-                              </div>
-                            ) : null;
-                          })()}
-
-                          {/* Status message */}
-                          <div className="mb-3">
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">Status:</span> {getStatusMessage(application.status)}
-                            </div>
-                          </div>
-                          
-                          {/* Cover Letter */}
-                          {application.coverLetter && (
-                            <div className="mb-4">
-                              {editingApp === application._id ? (
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Edit Cover Letter:</label>
-                                  <textarea
-                                    value={editCoverLetter}
-                                    onChange={(e) => setEditCoverLetter(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                    rows={4}
-                                    maxLength={1000}
-                                  />
-                                  <div className="flex justify-end space-x-2 mt-2">
-                                    <button
-                                      onClick={handleCancelEdit}
-                                      className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => handleSaveApplication(application._id)}
-                                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                                    >
-                                      Save
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                      <div className="text-sm text-gray-600 mb-2">
-                                        <span className="font-medium">Application Method:</span>
-                                      </div>
-                                      <p className="text-sm text-gray-700">
-                                        {application.isQuickApply 
-                                          ? "Professional application submitted with resume and profile details"
-                                          : application.coverLetter.length > 150 
-                                            ? `${application.coverLetter.substring(0, 150)}...`
-                                            : application.coverLetter
-                                        }
-                                      </p>
-                                    </div>
-                                    {application.status === 'applied' && !application.isQuickApply && (
-                                      <button
-                                        onClick={() => handleEditApplication(application._id, application.coverLetter || '')}
-                                        className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                                      >
-                                        Edit
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Right side - Actions */}
-                        <div className="flex flex-row sm:flex-col items-start sm:items-end gap-2 flex-shrink-0">
-                          {/* Action buttons */}
-                          <div className="flex flex-col space-y-2">
-                            <div className="flex space-x-2">
-                              <button 
-                                onClick={() => onNavigate('job-detail', { jobId: getId(application.jobId) || (typeof application.jobId === 'string' ? application.jobId : ''), jobData: application.jobId })}
-                                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                              >
-                                View Job
-                              </button>
-                            </div>
-                            
-                            {(application.status === 'applied' || application.status === 'ai_rejected') && (
-                              <button
-                                onClick={() => setWithdrawingApp(application._id)}
-                                className="flex items-center justify-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors"
-                              >
-                                <X className="w-4 h-4" />
-                                <span>Withdraw</span>
-                              </button>
-                            )}
-                            
-                            {scheduledAppIds.has(application._id) && (
-                              <button
-                                onClick={() => onNavigate('candidate-interviews')}
-                                className="flex items-center justify-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 transition-colors"
-                              >
-                                <Calendar className="w-4 h-4" />
-                                <span>View Interview</span>
-                              </button>
-                            )}
-                            
-                            {application.status === 'withdrawn' && (
-                              <button
-                                onClick={() => handleReapply(application)}
-                                className="flex items-center justify-center space-x-1 px-3 py-2 border border-green-300 text-green-600 text-sm rounded-lg hover:bg-green-50 transition-colors"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                                <span>Reapply</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Timeline */}
-                      {showTimeline === application._id && (
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <ApplicationTimeline 
-                            applicationId={application._id}
-                            currentStatus={application.status}
-                          />
-                        </div>
-                      )}
-                      
-                      {/* Bottom section with additional info */}
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-sm text-gray-500">
-                          <div>
-                            {application.withdrawnAt && application.withdrawalReason && (
-                              <span className="text-red-600">
-                                Withdrawn: {application.withdrawalReason}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs">
-                            Last updated {new Date(application.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null
-                ))
-              )}
-            </div>
-            
-            {filteredApplications.length > 0 && hasMoreApplications && (
-              <div className="flex justify-center py-6">
-                <button
-                  onClick={handleLoadMoreApplications}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  Load More Applications
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        {applications.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                onClick={() => onNavigate('job-listings')}
-                className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left"
-              >
-                <div className="flex items-center">
-                  <Briefcase className="w-8 h-8 text-blue-600 mr-3" />
-                  <div>
-                    <h4 className="font-medium">Apply to More Jobs</h4>
-                    <p className="text-sm text-gray-600">Browse and apply to new opportunities</p>
-                  </div>
-                </div>
-              </button>
-              
-              <button
-                onClick={() => onNavigate('dashboard')}
-                className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left"
-              >
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                    <div className="w-4 h-4 bg-green-600 rounded-full"></div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Improve Profile</h4>
-                    <p className="text-sm text-gray-600">Complete your profile to get better matches</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
-      
+      <main className="portal-page-container candidate-applications-main">
+        {loadError && <div role="alert" className="candidate-applications-error"><AlertCircle size={18} />{loadError}<button type="button" onClick={() => void fetchMyApplications()}>Retry</button></div>}
+        <div className="candidate-applications-workspace" data-mobile-detail={showMobileDetails}>
+          <aside className="candidate-applications-list-panel" aria-label="Your applications">
+            <div className="candidate-applications-list-controls">
+              <div className="candidate-applications-filter-chips">{filters.filter(item => item.count > 0 || item.key === 'all' || item.key === 'updates').map(item => <button key={item.key} type="button" aria-pressed={filter === item.key} onClick={() => setFilter(item.key)}>{item.label} ({item.count})</button>)}</div>
+              <label className="candidate-applications-search"><Search size={16} aria-hidden="true" /><input type="search" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search job or company" aria-label="Search applications by job or company" /></label>
+            </div>
+            <div className="candidate-applications-list">
+              {loading && !applications.length ? <div role="status" className="candidate-applications-loading">Loading your applications...</div> : visibleApplications.length === 0 ? <div className="candidate-applications-empty"><Briefcase size={30} /><h2>{applications.length ? 'No matching applications' : 'Start your next opportunity'}</h2><p>{applications.length ? 'Try another status or search term.' : 'Your submitted job applications will appear here.'}</p><button type="button" onClick={() => applications.length ? (setFilter('all'), setSearchQuery('')) : onNavigate('job-listings')}>{applications.length ? 'Clear filters' : 'Find jobs'}</button></div> : visibleApplications.map(app => <div key={app._id} className="candidate-application-list-item" data-selected={selected?._id === app._id}>
+                <button type="button" className="candidate-application-select" aria-pressed={selected?._id === app._id} onClick={() => { setSelectedId(app._id); setShowMobileDetails(true); }}>
+                  <h2>{decodeHtmlEntities(app.jobId?.jobTitle) || 'Position unavailable'}</h2><p>{decodeHtmlEntities(app.jobId?.company) || 'Company unavailable'}</p>
+                  <span className="candidate-application-list-location"><MapPin size={13} />{app.jobId?.location || 'Location not specified'}</span>
+                  <div className="candidate-application-list-status"><span className={getStatusColor(app.status)}>{getStatusIcon(app.status)}{toDisplay(app.status).charAt(0).toUpperCase() + toDisplay(app.status).slice(1)}</span><time dateTime={app.createdAt}>{dateLabel(app.createdAt)}</time></div>
+                  {scheduledAppIds.has(app._id) && <span className="candidate-application-interview-note"><Calendar size={13} /> Interview activity available</span>}
+                </button>
+                <div className="candidate-application-prep"><span>Prepare for your interview</span><button type="button" onClick={() => onNavigate('interview-tips')}><BookOpen size={14} /> Tips</button></div>
+              </div>)}
+              {visibleApplications.length < filteredApplications.length && <button type="button" onClick={handleLoadMoreApplications} className="candidate-applications-load-more">Load more applications</button>}
+            </div>
+          </aside>
+          <section className="candidate-application-detail" aria-label="Selected application details">
+            <button type="button" className="candidate-application-back-list" onClick={() => setShowMobileDetails(false)}><ArrowLeft size={16} /> All applications</button>
+            {selected ? <>
+              <div className="candidate-application-detail-heading"><div><h2>{decodeHtmlEntities(selected.jobId?.jobTitle) || 'Position unavailable'}</h2><p>{decodeHtmlEntities(selected.jobId?.company) || 'Company unavailable'}</p><button type="button" disabled={!getId(selected.jobId)} onClick={() => onNavigate('job-detail', { jobId: getId(selected.jobId), jobData: selected.jobId })}>View job details <ChevronRight size={14} /></button></div><CompanyLogo storedLogo={selected.jobId?.companyLogo} companyName={selected.jobId?.company || ''} size={48} /></div>
+              <div className="candidate-application-detail-meta"><span><MapPin size={15} />{selected.jobId?.location || 'Location not specified'}</span><span><Calendar size={15} />Applied {dateLabel(selected.createdAt)}</span>{selected.jobId?.salary && <span>{formatSalary(selected.jobId.salary)}</span>}{selected.isQuickApply && <span>Quick Apply</span>}</div>
+              <div className="candidate-application-current-status"><span className={getStatusColor(selected.status)}>{getStatusIcon(selected.status)}{toDisplay(selected.status).charAt(0).toUpperCase() + toDisplay(selected.status).slice(1)}</span><p>{getStatusMessage(selected.status)}</p></div>
+              {scheduledAppIds.has(selected._id) && <div className="candidate-application-interview-banner"><Calendar size={20} /><div><strong>Interview activity available</strong><p>Check your interviews for the schedule and meeting details.</p></div><button type="button" onClick={() => onNavigate('interviews')}>View interviews</button></div>}
+              <div className="candidate-application-section"><h3>Application activity</h3><ApplicationTimeline key={`${selected._id}-${selected.status}`} applicationId={selected._id} currentStatus={toDisplay(selected.status)} hideInternalStatuses /></div>
+              {selected.jobId?.skills?.length ? <div className="candidate-application-section"><h3>Skills for this opportunity</h3><div className="candidate-application-skills">{selected.jobId.skills.map(skill => <span key={skill}>{skill}</span>)}</div></div> : null}
+              {selected.jobId?.jobDescription && <div className="candidate-application-section"><h3>About this opportunity</h3><p className="candidate-application-description">{decodeHtmlEntities(stripHtmlTags(selected.jobId.jobDescription))}</p></div>}
+              <div className="candidate-application-section"><h3>Your application</h3>
+                {editingApp === selected._id ? <div className="candidate-application-cover-editor"><label htmlFor="application-cover-letter">Cover letter</label><textarea id="application-cover-letter" rows={6} maxLength={1000} value={editCoverLetter} onChange={event => setEditCoverLetter(event.target.value)} /><div><button type="button" onClick={handleCancelEdit}>Cancel</button><button type="button" onClick={() => void handleSaveApplication(selected._id)}>Save changes</button></div></div> : <><p className="candidate-application-description">{selected.isQuickApply ? 'Submitted using Quick Apply.' : selected.coverLetter || 'No cover letter added.'}</p>{toDisplay(selected.status) === 'applied' && !selected.isQuickApply && <button type="button" className="candidate-application-text-action" onClick={() => handleEditApplication(selected._id, selected.coverLetter || '')}>Edit cover letter</button>}</>}
+                {selected.withdrawalReason && <p className="candidate-application-withdrawal-reason">Withdrawal reason: {selected.withdrawalReason}</p>}
+              </div>
+              <div className="candidate-application-detail-actions"><button type="button" onClick={() => onNavigate('job-listings')}>Browse more jobs</button><button type="button" onClick={() => onNavigate('dashboard')}>Improve profile</button>{['applied','reviewed','shortlisted'].includes(toDisplay(selected.status)) && <button type="button" className="candidate-application-withdraw" onClick={() => setWithdrawingApp(selected._id)}>Withdraw application</button>}{selected.status === 'withdrawn' && <button type="button" onClick={() => void handleReapply(selected)}>Reapply</button>}</div>
+            </> : <div className="candidate-application-detail-placeholder"><Briefcase size={40} /><h2>Your application details</h2><p>Select an application to see its progress, job details and next steps.</p></div>}
+          </section>
+        </div>
+      </main>
       <Footer onNavigate={onNavigate} user={user} />
-
       {/* Withdrawal Modal */}
       {withdrawingApp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">Withdraw Application</h3>
             <p className="text-gray-600 mb-4">
-              Are you sure you want to withdraw this application? This action cannot be undone.
+              Withdrawing will update the application status and record your reason.
             </p>
             
             <div className="mb-4">

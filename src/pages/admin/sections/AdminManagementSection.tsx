@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Shield, UserPlus, RefreshCw, AlertCircle, CheckCircle, 
-  Mail, User, Crown, Settings, Trash2, Eye, EyeOff, Key 
+  Mail, User, Crown, Settings, Trash2, Eye, EyeOff, Key, Building2, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
@@ -56,6 +56,201 @@ interface AddAdminForm {
   password?: string;
 }
 
+// ── Employer Portal Access Section ─────────────────────────────────────────
+function EmployerPortalAccessSection({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
+  const [employers, setEmployers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [search, setSearch] = useState('');
+
+  function authHeaders() {
+    const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
+    return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/users?role=employer&limit=500`, { headers: authHeaders() });
+      if (res.status === 401) { onUnauthorized(); return; }
+      const data = await res.json();
+      setEmployers(data.users ?? data.data ?? data ?? []);
+    } catch {
+      setError('Failed to load employers.');
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE, onUnauthorized]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggleAccess = async (userId: string, rawPermissions: any) => {
+    setToggling(userId);
+    setError('');
+    setSuccess('');
+    const currentPermissions: string[] = Array.isArray(rawPermissions)
+      ? rawPermissions
+      : typeof rawPermissions === 'object' && rawPermissions !== null
+        ? Object.keys(rawPermissions).filter(k => rawPermissions[k] === true || rawPermissions[k] === 1 || rawPermissions[k] === 'true')
+        : [];
+    const hasAccess = currentPermissions.includes('recruiter_portal_access');
+    const newPermissions = hasAccess
+      ? currentPermissions.filter(p => p !== 'recruiter_portal_access')
+      : [...currentPermissions, 'recruiter_portal_access'];
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/users/${userId}/permissions`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ permissions: newPermissions }),
+      });
+      if (res.status === 401) { onUnauthorized(); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.message || 'Failed to update permissions');
+      }
+      setEmployers(prev => prev.map(e =>
+        (e._id || e.id) === userId ? { ...e, permissions: newPermissions } : e
+      ));
+      setSuccess(`Recruiter portal access ${hasAccess ? 'revoked' : 'granted'} successfully.`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e: any) {
+      setError(e.message || 'Failed to update permissions.');
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  const filtered = employers.filter(e =>
+    !search ||
+    (e.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.email || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.companyName || e.company || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-gray-200 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-emerald-400" />
+            Employer Recruiter Portal Access
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Grant employers access to the Recruiter Portal (Talent Pool, Candidate Search, Submission Tracker)
+          </p>
+        </div>
+        <button onClick={load} disabled={loading} className="text-gray-400 hover:text-white disabled:opacity-40">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="px-6 py-3 border-b border-gray-800">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, email or company..."
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+
+      {error && (
+        <div className="mx-6 mt-3 flex items-center gap-2 bg-red-900/30 border border-red-700/50 text-red-300 rounded-lg px-4 py-2 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />{error}
+        </div>
+      )}
+      {success && (
+        <div className="mx-6 mt-3 flex items-center gap-2 bg-emerald-900/30 border border-emerald-700/50 text-emerald-300 rounded-lg px-4 py-2 text-sm">
+          <CheckCircle className="w-4 h-4 shrink-0" />{success}
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-gray-400 border-b border-gray-800">
+              <th className="text-left px-6 py-3 font-medium">Employer</th>
+              <th className="text-left px-6 py-3 font-medium">Company</th>
+              <th className="text-left px-6 py-3 font-medium">Recruiter Portal Access</th>
+              <th className="text-left px-6 py-3 font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-gray-800 animate-pulse">
+                    {Array.from({ length: 4 }).map((_, j) => (
+                      <td key={j} className="px-6 py-3"><div className="h-4 bg-gray-700 rounded w-28" /></td>
+                    ))}
+                  </tr>
+                ))
+              : filtered.length === 0
+              ? (
+                <tr><td colSpan={4} className="text-center py-10 text-gray-500 text-sm">No employers found.</td></tr>
+              )
+              : filtered.map(emp => {
+                  const id = emp._id || emp.id;
+                  const rawPerms = emp.permissions;
+                  const permissions: string[] = Array.isArray(rawPerms)
+                    ? rawPerms
+                    : typeof rawPerms === 'object' && rawPerms !== null
+                      ? Object.keys(rawPerms).filter(k => rawPerms[k] === true || rawPerms[k] === 1 || rawPerms[k] === 'true')
+                      : [];
+                  const hasAccess = permissions.includes('recruiter_portal_access');
+                  return (
+                    <tr key={id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                      <td className="px-6 py-3">
+                        <p className="text-gray-200 font-medium">{emp.name || emp.fullName || '—'}</p>
+                        <p className="text-gray-500 text-xs">{emp.email}</p>
+                      </td>
+                      <td className="px-6 py-3 text-gray-400 text-xs">
+                        {emp.companyName || emp.company || '—'}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          hasAccess
+                            ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-700/50'
+                            : 'bg-gray-800 text-gray-500 border border-gray-700'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${hasAccess ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                          {hasAccess ? 'Granted' : 'Not Granted'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3">
+                        <button
+                          onClick={() => toggleAccess(id, permissions)}
+                          disabled={toggling === id}
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                            hasAccess
+                              ? 'bg-red-900/30 text-red-400 hover:bg-red-900/60'
+                              : 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/60'
+                          }`}
+                        >
+                          {toggling === id ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : hasAccess ? (
+                            <ToggleRight className="w-3.5 h-3.5" />
+                          ) : (
+                            <ToggleLeft className="w-3.5 h-3.5" />
+                          )}
+                          {hasAccess ? 'Revoke Access' : 'Grant Access'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminManagementSection({ 
   onUnauthorized, 
   currentUser 
@@ -77,6 +272,7 @@ export default function AdminManagementSection({
   const [resetPasswordData, setResetPasswordData] = useState<{ adminId: string; adminName: string } | null>(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [createMode, setCreateMode] = useState<'invite' | 'manual'>('invite');
+  const [activeTab, setActiveTab] = useState<'admins' | 'employer-access'>('admins');
 
   const isCurrentUserSuperAdmin = isSuperAdmin(currentUser.email) || 
                                    isSuperAdmin((currentUser as any).role || '') ||
@@ -416,13 +612,37 @@ const [confirmState, setConfirmState] = useState<{ open: boolean; message: strin
                 <p className="text-sm text-gray-400">Manage administrator accounts and permissions</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Admin
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Tabs */}
+              <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
+                <button
+                  onClick={() => setActiveTab('admins')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                    activeTab === 'admins' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Admin Accounts
+                </button>
+                <button
+                  onClick={() => setActiveTab('employer-access')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'employer-access' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Building2 className="w-3 h-3" />
+                  Employer Portal Access
+                </button>
+              </div>
+              {activeTab === 'admins' && (
+                <button
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add Admin
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -442,7 +662,7 @@ const [confirmState, setConfirmState] = useState<{ open: boolean; message: strin
         )}
 
         {/* Add Admin Form */}
-        {showAddForm && (
+        {activeTab === 'admins' && showAddForm && (
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
             <h3 className="text-lg font-semibold text-gray-200 mb-4">Add New Administrator</h3>
             <form onSubmit={addAdmin} className="space-y-4">
@@ -553,6 +773,7 @@ const [confirmState, setConfirmState] = useState<{ open: boolean; message: strin
         )}
 
         {/* Admins List */}
+        {activeTab === 'admins' && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
             <h3 className="text-lg font-semibold text-gray-200">Administrator Accounts</h3>
@@ -701,6 +922,12 @@ const [confirmState, setConfirmState] = useState<{ open: boolean; message: strin
             </table>
           </div>
         </div>
+        )} {/* end activeTab === 'admins' */}
+
+        {/* Employer Portal Access Tab */}
+        {activeTab === 'employer-access' && (
+          <EmployerPortalAccessSection onUnauthorized={onUnauthorized} />
+        )}
       </div>
 
       <ConfirmModal

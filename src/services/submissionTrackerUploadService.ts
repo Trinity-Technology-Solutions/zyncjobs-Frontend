@@ -40,7 +40,7 @@ export function subscribeToTrackerUploads(listener: Listener) {
 
 export function enqueueTrackerResumeUpload(
   files: File[],
-  recruiterName: string,
+  _recruiterName: string,
   onUnauthorized: () => void,
 ) {
   if (!files.length) return;
@@ -49,56 +49,22 @@ export function enqueueTrackerResumeUpload(
     publish({ active: true, total: files.length, completed: 0, failed: 0, currentFile: '', error: null });
 
     for (const file of files) {
-      publish({ currentFile: file.name, error: null });
-      let parsed: any = {};
-
+      publish({ currentFile: file.name });
       try {
+        if (!file.size) throw new Error('Empty files cannot be uploaded.');
+        if (!/\.(pdf|doc|docx)$/i.test(file.name)) throw new Error('Only PDF, DOC and DOCX resumes are supported.');
+        if (file.size > 10 * 1024 * 1024) throw new Error('Resume must be 10 MB or smaller.');
         const formData = new FormData();
         formData.append('resume', file);
-        const parseResponse = await apiFetch(API_ENDPOINTS.TRACKER_PARSE_RESUME, {
-          method: 'POST',
-          body: formData,
-        });
-        if (parseResponse.status === 401) {
-          onUnauthorized();
-          return;
-        }
-        if (!parseResponse.ok) {
-          const body = await parseResponse.json().catch(() => ({}));
-          throw new Error(body.error || `Resume parsing failed (${parseResponse.status})`);
-        }
-        parsed = await parseResponse.json();
-      } catch (error: any) {
-        publish({ failed: status.failed + 1, error: `${file.name}: ${error.message || 'Resume parsing failed.'}` });
-      }
-
-      try {
-        const saveResponse = await apiFetch(API_ENDPOINTS.TRACKER_ROWS, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            date: new Date().toISOString().slice(0, 10),
-            clientName: '',
-            skillRole: parsed.skillRole || parsed.title || parsed.currentRole || '',
-            candidateName: parsed.name || parsed.fullName || '',
-            phone: parsed.phone || parsed.phoneNumber || '',
-            email: parsed.email || parsed.emailAddress || '',
-            recruiterName,
-            status: '',
-            resumeFile: file.name,
-          }),
-        });
-        if (saveResponse.status === 401) {
-          onUnauthorized();
-          return;
-        }
-        if (!saveResponse.ok) {
-          const body = await saveResponse.json().catch(() => ({}));
-          throw new Error(body.error || `Tracker row save failed (${saveResponse.status})`);
-        }
+        const response = await apiFetch(`${API_ENDPOINTS.TRACKER_ROWS.replace(/\/rows$/, '')}/upload-resume`, { method: 'POST', body: formData });
+        if (response.status === 401) { onUnauthorized(); publish({ active: false, currentFile: '' }); return; }
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Resume upload failed.');
+        if (!body.id || !body.candidateName) throw new Error('Server did not return a valid submission record.');
         publish({ completed: status.completed + 1 });
-      } catch (error: any) {
-        publish({ failed: status.failed + 1, error: `${file.name}: ${error.message || 'Tracker row save failed.'}` });
+      } catch (cause) {
+        const message = `${file.name}: ${cause instanceof Error ? cause.message : 'Resume upload failed.'}`;
+        publish({ failed: status.failed + 1, error: status.error ? `${status.error}\n${message}` : message });
       }
     }
 

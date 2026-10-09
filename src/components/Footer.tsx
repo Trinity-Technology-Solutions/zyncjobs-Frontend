@@ -59,9 +59,10 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   ];
 
   return (
-    <footer className="bg-white text-gray-900 border-t border-gray-200" role="contentinfo" aria-label="Site footer">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="mb-6 sm:mb-8">
+    <footer className="portal-footer" role="contentinfo" aria-label="Site footer">
+      <div className="portal-footer-container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="portal-footer-main">
+        <div className="portal-footer-brand">
           <img 
             src="/images/zyncjobs-logo.png" 
             alt="ZyncJobs" 
@@ -70,7 +71,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-5 leading-relaxed max-w-2xl">
             The smart platform connecting job seekers and employers across every field and industry. Find jobs, hire talent, and grow your career.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="portal-footer-socials flex items-center gap-4">
             <a href="https://www.zyncjobs.com" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 transition-colors" aria-label="Website">
               <Globe className="w-5 h-5" />
             </a>
@@ -86,7 +87,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <nav className="portal-footer-links" aria-label="Footer navigation">
           {!isEmployer && (
           <div>
             <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900" id="footer-jobseekers">For Job Seekers</h4>
@@ -158,9 +159,10 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
               ))}
             </ul>
           </div>
+        </nav>
         </div>
         
-        <div className="border-t border-gray-200 mt-8 sm:mt-10 pt-5 sm:pt-6">
+        <div className="portal-footer-bottom">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="text-gray-500 text-xs sm:text-sm text-center sm:text-left">
               © 2026 ZyncJobs. All rights reserved.

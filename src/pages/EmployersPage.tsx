@@ -5,7 +5,7 @@ import GetStartedButton from '../components/animata/button/get-started-button';
 import WorkButton from '../components/animata/button/work-button';
 import { API_ENDPOINTS } from '../config/env';
 import {
-  Briefcase, Search, LogIn, UserPlus, ArrowRight, CheckCircle2,
+  Briefcase, Search, ArrowRight, CheckCircle2,
   Bot, CalendarClock, Wallet,
   Building2, Users, Zap, Target, TrendingUp, Phone, Mail,
   User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck, HelpCircle
@@ -16,24 +16,23 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
   user?: { name: string; type: 'candidate' | 'employer' } | null;
   onLogout?: () => void;
 }) => {
-  const isEmployer = user?.type === 'employer';
-
   const go = (page: string) => onNavigate && onNavigate(page);
+  const [previewRuns, setPreviewRuns] = useState<Record<string, number>>({});
 
   const scrollToCallback = () => document.getElementById('request-callback')?.scrollIntoView({ behavior: 'smooth' });
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="employer-home min-h-screen bg-white">
       <GlobalMotionStyles />
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       {/* ── 1. Hero — light "live" background ── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white">
+      <section className="employer-hero relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-white to-white">
         <LiveHeroBackground />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-14 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-18 xl:pt-16 xl:pb-20">
+        <div className="portal-page-container relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-14 sm:pt-12 sm:pb-16 lg:pt-14 lg:pb-18 xl:pt-16 xl:pb-20">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 xl:gap-12 items-start">
-            <div className="lg:col-span-7 flex flex-col items-start">
+            <div className="employer-hero-copy lg:col-span-7 flex flex-col items-start">
               <div className="hero-fade-1 inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold tracking-wide uppercase px-3.5 py-1.5 rounded-full mb-4">
                 <Sparkles className="w-3.5 h-3.5 animate-pulse-soft" />
                 AI-Powered Hiring Platform
@@ -46,7 +45,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 Post jobs, search verified candidate profiles, and let AI shortlist the best matches — across every field and industry.
               </p>
               <div className="hero-fade-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <WorkButton size="md" text="Explore Our Products" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })} />
+                <button className="employer-explore-button" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}>Explore Our Products <ArrowRight size={17} aria-hidden="true" /></button>
                 <button
                   onClick={scrollToCallback}
                   className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-white hover:bg-orange-50/40 border border-gray-200/90 hover:border-orange-200/80 text-gray-700 hover:text-gray-900 font-semibold text-sm tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-gray-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] group"
@@ -55,7 +54,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                   <span>Sales Enquiry</span>
                 </button>
               </div>
-              <div className="hero-fade-5 mt-7 lg:mt-8 flex flex-wrap items-center gap-x-5 gap-y-2.5">
+              <div className="employer-hero-benefits hero-fade-5 mt-7 lg:mt-8 flex flex-wrap items-center gap-x-5 gap-y-2.5">
                 {[
                   { icon: ShieldCheck, text: '100% verified profiles' },
                   { icon: Bot, text: 'AI-matched shortlists' },
@@ -69,7 +68,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
             </div>
 
             {/* Hero visual — quick callback form */}
-            <div className="lg:col-span-5 hidden sm:block w-full">
+            <div className="employer-hero-form lg:col-span-5 w-full">
               <HeroCallbackCard />
             </div>
           </div>
@@ -79,11 +78,10 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
         <JobTicker />
 
         {/* Soft seam into the next section */}
-        <div className="h-6 bg-gradient-to-b from-blue-50/40 to-transparent" />
       </section>
 
       {/* ── Trusted by marquee ── */}
-      <section className="border-b border-gray-100 bg-white pt-16 pb-10 overflow-hidden">
+      <section className="employer-trusted bg-white pt-16 pb-10 overflow-hidden">
         <p className="text-center text-xs font-semibold tracking-[0.2em] uppercase text-gray-400 mb-8">
           Trusted by hiring teams across every industry
         </p>
@@ -136,8 +134,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       <ProductsSection go={go} />
 
       {/* ── 3. What ZyncJobs offers — cards with real site previews ── */}
-      <section className="py-16 lg:py-24 bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="employer-features py-16 lg:py-24 bg-white overflow-hidden">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeader
               overline="What ZyncJobs offers"
@@ -145,7 +143,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               sub="From sourcing and screening to scheduling — so you can focus on interviewing the best talent."
             />
           </Reveal>
-          <div className="space-y-10 lg:space-y-14">
+          <div className="employer-offerings-grid">
             {[
               {
                 icon: Briefcase, title: 'Job Posting', target: 'job-posting-selection',
@@ -182,50 +180,22 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 variant: 'salary-insights', url: 'zyncjobs.ai/salary-insights',
                 grad: 'from-amber-500 to-orange-400', tile: 'bg-amber-50', text: 'text-amber-500', cta: 'Explore Insights',
               },
+              {
+                icon: Building2, title: 'Employer Branding', target: 'employer-register',
+                desc: 'Showcase your company, culture, and career opportunities to attract the right talent.',
+                bullets: ['Branded company profile', 'Share your workplace story', 'Highlight career opportunities'],
+                variant: 'branding', url: 'zyncjobs.ai/companies',
+                grad: 'from-indigo-500 to-violet-500', tile: 'bg-indigo-50', text: 'text-indigo-600', cta: 'Build Your Brand',
+              },
             ].map((f, i) => (
-              <Reveal key={f.title} delay={i * 60}>
-                <div className="group relative grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14 items-center bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:border-blue-200 p-6 lg:p-10 transition-all duration-500 hover:-translate-y-1.5">
-                  <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
-                    <div className={`w-14 h-14 bg-gradient-to-br ${f.grad} rounded-2xl flex items-center justify-center mb-6 shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3`}>
-                      <f.icon className="w-7 h-7 text-white" />
-                    </div>
-                    <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-3 tracking-tight">{f.title}</h3>
-                    <p className="text-gray-500 text-lg leading-relaxed mb-6">{f.desc}</p>
-                    <ul className="space-y-3 mb-8">
-                      {f.bullets.map((b) => (
-                        <li key={b} className="flex items-start gap-3 text-gray-700">
-                          <CheckCircle2 className={`w-5 h-5 ${f.text} flex-shrink-0 mt-0.5`} />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      onClick={() => go(f.target)}
-                      className={`inline-flex items-center gap-2 bg-gradient-to-r ${f.grad} hover:opacity-90 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 shadow-lg`}
-                    >
-                      {f.cta} <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                    </button>
-                  </div>
-
-                  <div className={`relative ${i % 2 === 1 ? 'lg:order-1' : ''}`}>
-                    <div className={`absolute -inset-3 bg-gradient-to-br ${f.grad} opacity-10 blur-2xl rounded-3xl transition-opacity duration-500 group-hover:opacity-25`} />
-                    <div className="relative bg-white rounded-2xl border border-gray-200 shadow-xl shadow-blue-100/60 overflow-hidden transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-1.5 group-hover:rotate-0 lg:group-hover:-rotate-1">
-                      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                        <span className="ml-3 flex-1 truncate text-[11px] text-gray-400 bg-white border border-gray-100 rounded-md px-2.5 py-1 font-medium">
-                          {f.url}
-                        </span>
-                      </div>
-                      <div className="aspect-[16/10] overflow-hidden">
-                        <div className="h-full transition-transform duration-700 ease-out group-hover:scale-[1.06]">
-                          <SitePreview variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights'} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <Reveal key={f.title} delay={i * 60} className="employer-offering-reveal">
+                <article className={`employer-offering-card offering-${f.variant}`}>
+                  <button type="button" className="employer-offering-preview" aria-label={`${f.title} demo, plays on hover or focus`} onMouseEnter={() => setPreviewRuns(previous => ({...previous, [f.variant]: (previous[f.variant] || 0) + 1}))} onFocus={() => setPreviewRuns(previous => ({...previous, [f.variant]: (previous[f.variant] || 0) + 1}))}>
+                    
+                    <div key={`${f.variant}-${previewRuns[f.variant] || 0}`} className={`offering-preview-scene ${previewRuns[f.variant] ? 'is-playing' : ''}`} aria-hidden="true" inert=""><SitePreview run={previewRuns[f.variant] || 0} variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' | 'branding'} /></div>
+                  </button>
+                  <div className="employer-offering-copy"><h3>{f.title}</h3><p>{f.desc}</p><ul>{f.bullets.map(bullet => <li key={bullet}><CheckCircle2 size={13} aria-hidden="true" />{bullet}</li>)}</ul><button type="button" onClick={() => go(f.target)}>{f.cta}<ArrowRight size={16} aria-hidden="true" /></button></div>
+                </article>
               </Reveal>
             ))}
           </div>
@@ -233,8 +203,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       </section>
 
       {/* ── 4. Hiring made simple ── */}
-      <section className="py-16 lg:py-24 bg-[#F6F8FF]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="employer-segments py-16 lg:py-24 bg-[#F6F8FF]">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeader
               overline="Built for every business"
@@ -283,7 +253,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
 
       {/* ── 5b. Testimonials — why recruiters trust us ── */}
       <section className="py-16 lg:py-24 bg-[#F6F8FF] md:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeader
               overline="Why recruiters trust us"
@@ -340,7 +310,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       <FAQSection go={go} />
 
       {/* ── Final CTA band ── */}
-      <section className="bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden">
+      <section className="employer-final-cta bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden">
         <div className="absolute inset-0 opacity-70" style={{ backgroundImage: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.2) 0%, transparent 50%)' }}></div>
         <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-float-slow" />
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-cyan-300/10 rounded-full blur-3xl animate-float-slow-alt" />
@@ -435,6 +405,191 @@ function GlobalMotionStyles() {
       @keyframes suite-chip-in { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
       .suite-chip-in { animation: suite-chip-in 0.4s 0.2s cubic-bezier(.16,.84,.44,1) both; }
 
+      .employer-home { color: #172b4d; }
+      .employer-home > section { scroll-margin-top: calc(var(--header-h, 86px) + 16px); }
+      .employer-home :is(.max-w-7xl, .max-w-6xl) { max-width: 1264px; }
+      .employer-home .employer-hero { background: linear-gradient(115deg, #f6f9ff, #edf3fd); }
+      .employer-home .employer-hero :is(.orb-1, .orb-2, .orb-3, .particle, .grid-pan) { display: none; }
+      .employer-home .employer-hero > .max-w-7xl { padding-block: 44px; }
+      .employer-home .employer-hero > .max-w-7xl > .grid { align-items: center; }
+      .employer-home .employer-hero h1 { color: #172b4d; font-size: clamp(36px, 4.1vw, 57px); font-weight: 600; letter-spacing: -1.8px; line-height: 1.12; }
+      .employer-home .employer-hero h1 > span { font-size: inherit; color: #245be0; background: none; animation: none; }
+      .employer-home .employer-hero .hero-fade-1 { background: #fff; border-color: #dfe7f5; font-size: 10px; letter-spacing: 1px; }
+      .employer-home .employer-hero .hero-fade-3 { font-size: 16px; color: #64748b; line-height: 1.8; }
+      .employer-home .employer-hero .hero-fade-4 button { border-radius: 8px; box-shadow: none; transform: none; font-size: 14px; }
+      .employer-home .employer-hero .hero-fade-4 button:first-child { background: #245be0; }
+      .employer-home .employer-hero-form > div { border-color: #dfe7f4; border-radius: 14px; box-shadow: 0 12px 35px #234b7d0c; padding: 26px; }
+      .employer-home .employer-hero-form > div > .absolute { display: none; }
+      .employer-home .employer-hero-form h3 { font-size: 20px; font-weight: 600; color: #172b4d; line-height: 1.4; margin-bottom: 20px; }
+      .employer-home .employer-hero-form :is(input, select) { background: #f8fafd; border-color: #dfe6f1; border-radius: 7px; min-height: 44px; }
+      .employer-home .employer-hero-form button[type="submit"] { background: #245be0; box-shadow: none; }
+      .employer-home .employer-trusted { padding-block: 30px; }
+      .employer-home .employer-trusted > p { font-size: 10px; color: #73849e; margin-bottom: 22px; }
+      .employer-home .employer-trusted img { width: 38px; height: 38px; }
+      .employer-home .employer-trusted .marquee-track span { font-size: 12px; font-weight: 500; }
+      .employer-home :is(#products, .employer-segments) { background: #f8fafd; }
+      .employer-home :is(#products, .employer-features, .employer-segments, .employer-callback, .employer-faq) { padding-block: 52px; }
+      .employer-home .employer-section-heading { text-align: left; margin-bottom: 30px; }
+      .employer-home .employer-section-heading > p:first-child { font-size: 10px; font-weight: 600; letter-spacing: 1.8px; color: #7386a5; margin-bottom: 10px; }
+      .employer-home .employer-section-heading h2 { font-size: clamp(25px, 2.8vw, 34px); font-weight: 600; letter-spacing: -.8px; color: #172b4d; line-height: 1.3; margin-bottom: 10px; }
+      .employer-home .employer-section-heading > p:last-child:not(:first-child) { font-size: 14px; color: #64748b; line-height: 1.8; margin-inline: 0; }
+      .employer-home #products .flex.flex-wrap { justify-content: flex-start; margin-bottom: 25px; gap: 8px; }
+      .employer-home #products button[aria-pressed] { border-radius: 7px; font-size: 12px; box-shadow: none; }
+      .employer-home #products button[aria-pressed="true"] { background: #245be0; }
+      .employer-home #products .suite-panel-in .group { border-color: #e0e7f1; border-radius: 12px; box-shadow: none; padding: 25px; }
+      .employer-home #products .suite-panel-in .group:hover { transform: none; border-color: #abc1ed; }
+      .employer-home #products .suite-panel-in .group > .absolute { display: none; }
+      .employer-home #products .suite-panel-in button { border-radius: 7px; box-shadow: none; transform: none; background: #245be0; }
+      .employer-home #products .suite-panel-in .bg-gradient-to-br { background: #edf3ff; color: #245be0; box-shadow: none; transform: none; }
+      .employer-home .employer-feature-card { padding: 30px; gap: 38px; border-color: #e0e7f1; border-radius: 14px; box-shadow: none; transition-duration: .2s; }
+      .employer-home .employer-feature-card:hover { transform: none; border-color: #abc1ed; box-shadow: 0 6px 20px #245be009; }
+      .employer-home .employer-feature-card h3 { font-size: 25px; font-weight: 600; color: #172b4d; }
+      .employer-home .employer-feature-card p { font-size: 14px; line-height: 1.8; color: #64748b; margin-bottom: 18px; }
+      .employer-home .employer-feature-card li { font-size: 13px; }
+      .employer-home .employer-feature-card ul { margin-bottom: 22px; }
+      .employer-home .employer-feature-card > div > .bg-gradient-to-br { background: #edf3ff; border-radius: 10px; box-shadow: none; transform: none; width: 46px; height: 46px; margin-bottom: 18px; }
+      .employer-home .employer-feature-card > div > .bg-gradient-to-br svg { color: #245be0; width: 23px; height: 23px; }
+      .employer-home .employer-feature-card button { background: #245be0; border-radius: 7px; box-shadow: none; transform: none; }
+      .employer-home .employer-feature-card > div > .absolute { display: none; }
+      .employer-home .employer-product-preview { transform: none; border-color: #dce5f3; border-radius: 10px; box-shadow: 0 8px 22px #172b4d09; }
+      .employer-home .employer-feature-card:hover .employer-product-preview { transform: none; box-shadow: 0 8px 22px #172b4d09; }
+      .employer-home .employer-feature-card:hover .employer-product-preview .h-full { transform: none; }
+      .employer-home .employer-features .space-y-10 > :not(:first-child) { margin-top: 24px; }
+      .employer-home .employer-segments .grid { align-items: stretch; }
+      .employer-home .employer-segments .grid > .reveal > .group { height: 100%; border-color: #e0e7f1; box-shadow: none; transform: none; border-radius: 12px; }
+      .employer-home .employer-segments .group > .h-1 { background: #245be0; }
+      .employer-home .employer-segments .group .p-8 { padding: 26px; }
+      .employer-home .employer-segments h3 { font-size: 20px; font-weight: 600; color: #172b4d; }
+      .employer-home .employer-segments button { background: #245be0; box-shadow: none; transform: none; font-size: 13px; }
+      .employer-home .employer-segments .group .w-14 { background: #edf3ff; box-shadow: none; transform: none; }
+      .employer-home .employer-segments .group .w-14 svg { color: #245be0; }
+      .employer-home .employer-segments .group > span { background: #edf3ff; color: #245be0; box-shadow: none; font-size: 9px; }
+      .employer-home .employer-callback .grid { box-shadow: 0 8px 25px #172b4d08; border-color: #e0e7f1; border-radius: 14px; }
+      .employer-home .employer-callback .grid > .bg-gradient-to-br { background: #172b4d; }
+      .employer-home .employer-callback .grid > div { padding: 34px; }
+      .employer-home .employer-callback h2 { font-weight: 600; line-height: 1.3; }
+      .employer-home .employer-callback :is(input, select) { background: #f8fafd; border-color: #dfe6f1; border-radius: 7px; }
+      .employer-home .employer-callback button[type="submit"] { background: #245be0; box-shadow: none; border-radius: 7px; }
+      .employer-home .employer-faq { background: #fff; }
+      .employer-home .employer-faq > .absolute { display: none; }
+      .employer-home .employer-faq .group { border-radius: 10px; box-shadow: none; border-color: #e0e7f1; }
+      .employer-home .employer-faq .group > button { padding: 18px 20px; }
+      .employer-home .employer-faq button > .flex-1 { font-size: 15px; font-weight: 500; }
+      .employer-home .employer-faq .group > button > span:first-child { background: #edf3ff; color: #245be0; box-shadow: none; transform: none; }
+      .employer-home .employer-final-cta { background: #172b4d; }
+      .employer-home .employer-final-cta > .absolute { display: none; }
+      .employer-home .employer-final-cta .max-w-4xl { padding-block: 48px; }
+      .employer-home .employer-final-cta h2 { font-weight: 600; letter-spacing: -.8px; }
+      .employer-home .employer-final-cta p { font-size: 15px; line-height: 1.8; }
+      .employer-home .employer-final-cta button { border-radius: 8px; box-shadow: none; transform: none; }
+      .employer-home .employer-final-cta button:first-child { background: #fff; color: #172b4d; }
+      .employer-home section button:focus-visible { outline: 2px solid #759bec; outline-offset: 3px; }
+      @media (max-width: 767px) {
+        .employer-home .employer-hero > .max-w-7xl { padding-block: 28px; }
+        .employer-home .employer-hero h1 { font-size: 38px; letter-spacing: -1.2px; }
+        .employer-home .employer-hero .hero-fade-3 { font-size: 14px; }
+        .employer-home .employer-hero-form > div { margin-inline: auto; max-width: none; padding: 22px; }
+        .employer-home :is(#products, .employer-features, .employer-segments, .employer-callback, .employer-faq) { padding-block: 34px; }
+        .employer-home .employer-section-heading { margin-bottom: 23px; }
+        .employer-home .employer-feature-card { padding: 22px; gap: 25px; }
+        .employer-home .employer-feature-card h3 { font-size: 22px; }
+        .employer-home .employer-callback .grid > div { padding: 25px; }
+        .employer-home .employer-faq .group > button { padding: 16px; gap: 10px; }
+        .employer-home .employer-faq button > .flex-1 { font-size: 14px; }
+      }
+      .employer-home #products.employer-solution-section { background: #f8fafd; padding-block: 48px; }
+      .employer-home .employer-solution-section .employer-section-heading { max-width: 680px; margin-bottom: 28px; }
+      .employer-home .solution-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 28px; align-items: start; }
+      .employer-home .solution-categories { display: grid; gap: 6px; padding: 8px; background: #fff; border: 1px solid #e0e7f1; border-radius: 12px; }
+      .employer-home #products .solution-categories button { display: flex; align-items: center; gap: 11px; text-align: left; padding: 13px 10px; border: 1px solid transparent; border-radius: 7px; background: #fff; color: #71829b; font-size: 12px; font-weight: 500; cursor: pointer; }
+      .employer-home .solution-category-icon { display: grid; place-items: center; flex-shrink: 0; color: #8194b0; }
+      .employer-home .solution-categories button > span:nth-child(2) { flex: 1; font-size: inherit; }
+      .employer-home .solution-category-arrow { opacity: 0; flex-shrink: 0; }
+      .employer-home #products .solution-categories button:hover { background: #f7f9fd; color: #245be0; }
+      .employer-home #products .solution-categories button[aria-pressed="true"] { background: #edf3ff; border-color: #dce7ff; color: #245be0; }
+      .employer-home .solution-categories button[aria-pressed="true"] .solution-category-icon { color: #245be0; }
+      .employer-home .solution-categories button[aria-pressed="true"] .solution-category-arrow { opacity: 1; }
+      .employer-home .solution-content-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 18px; }
+      .employer-home .solution-content-heading > div { display: flex; align-items: center; gap: 9px; color: #5d7cb4; }
+      .employer-home .solution-content-heading h3 { font-size: 16px; font-weight: 600; color: #243858; margin: 0; }
+      .employer-home .solution-content-heading > span { font-size: 11px; color: #8b9ab0; }
+      .employer-home .solution-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      .employer-home .solution-card-grid.has-single-card { grid-template-columns: minmax(0, 1fr); }
+      .employer-home .solution-card { display: flex; flex-direction: column; align-items: stretch; padding: 26px; background: #fff; border: 1px solid #e0e7f1; border-radius: 12px; transition: border-color .2s, box-shadow .2s; }
+      .employer-home .solution-card:hover { border-color: #adc3ed; box-shadow: 0 5px 18px #245be007; }
+      .employer-home .solution-card-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px; }
+      .employer-home .solution-product-icon { display: grid; place-items: center; width: 42px; height: 42px; background: #edf3ff; color: #456dba; border-radius: 9px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+      .employer-home .solution-card-heading h4 { font-size: 18px; line-height: 1.35; font-weight: 600; color: #172b4d; letter-spacing: -.3px; margin: 0; }
+      .employer-home .solution-card-heading p { font-size: 11px; line-height: 1.6; color: #8593a9; margin: 5px 0 0; }
+      .employer-home .solution-card ul { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 12px; flex: 1; }
+      .employer-home .solution-card li { display: flex; align-items: flex-start; gap: 9px; }
+      .employer-home .solution-card li svg { color: #378b75; flex-shrink: 0; margin-top: 2px; }
+      .employer-home .solution-card li span { font-size: 13px; color: #64748b; line-height: 1.6; }
+      .employer-home .solution-stats { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px solid #edf0f6; padding-block: 16px; margin-bottom: 20px; }
+      .employer-home .solution-stats > div { display: flex; flex-direction: column; gap: 4px; }
+      .employer-home .solution-stats > div + div { border-left: 1px solid #edf0f6; padding-left: 18px; }
+      .employer-home .solution-stats strong { font-size: 18px; font-weight: 600; color: #243858; }
+      .employer-home .solution-stats span { font-size: 10px; color: #8593a9; }
+      .employer-home .solution-card > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #245be0; background: #f3f6fe; border: 1px solid #e4ebfc; padding: 11px 13px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer; }
+      .employer-home .solution-card > button:hover { background: #e8efff; }
+      @media (max-width: 1023px) {
+        .employer-home .solution-layout { grid-template-columns: 1fr; gap: 18px; }
+        .employer-home .solution-categories { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .employer-home .solution-category-arrow { display: none; }
+      }
+      @media (max-width: 639px) {
+        .employer-home #products.employer-solution-section { padding-block: 32px; }
+        .employer-home .solution-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 5px; gap: 4px; }
+        .employer-home #products .solution-categories button { padding: 11px 8px; font-size: 11px; gap: 7px; }
+        .employer-home .solution-card-grid { grid-template-columns: 1fr; gap: 12px; }
+        .employer-home .solution-card { padding: 22px; }
+      }
+      /* Employer hero: a focused enterprise layout with an accessible demo form. */
+      .employer-home .employer-hero { background: #172b4d; }
+      .employer-home .employer-hero > .max-w-7xl { padding-block: 52px; }
+      .employer-home .employer-hero > .max-w-7xl > .grid { gap: 56px; }
+      .employer-home .employer-hero h1 { color: #fff; max-width: 650px; font-size: clamp(38px, 4vw, 56px); letter-spacing: -1.6px; line-height: 1.15; }
+      .employer-home .employer-hero h1 > span { color: #9ebeff; }
+      .employer-home .employer-hero .hero-fade-1 { color: #c5d7f6; background: #ffffff08; border-color: #ffffff24; border-radius: 6px; font-size: 10px; letter-spacing: 1.3px; padding: 8px 11px; margin-bottom: 24px; }
+      .employer-home .employer-hero .hero-fade-1 svg { animation: none; }
+      .employer-home .employer-hero .hero-fade-3 { color: #b9c9e1; max-width: 490px; margin-bottom: 27px; font-size: 15px; }
+      .employer-home .employer-hero .hero-fade-4 { width: 100%; }
+      .employer-home .employer-hero .hero-fade-4 button { min-height: 46px; padding-inline: 20px; font-weight: 500; }
+      .employer-home .employer-hero .hero-fade-4 .employer-explore-button { display: inline-flex; align-items: center; justify-content: center; gap: 15px; background: #fff; color: #172b4d; border: 1px solid #fff; }
+      .employer-home .employer-hero .hero-fade-4 .employer-explore-button:hover { background: #e8effc; }
+      .employer-home .employer-hero .hero-fade-4 button:last-child { background: transparent; color: #d5e1f4; border-color: #ffffff40; }
+      .employer-home .employer-hero .hero-fade-4 button:last-child svg { color: #a9c2ea; }
+      .employer-home .employer-hero .hero-fade-4 button:last-child:hover { background: #ffffff0a; border-color: #ffffff70; }
+      .employer-home .employer-hero-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 17px; border-top: 1px solid #ffffff20; padding-top: 23px; margin-top: 34px; width: 100%; max-width: 535px; }
+      .employer-home .employer-hero-benefits > span { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; font-size: 11px; line-height: 1.6; color: #bccce3; }
+      .employer-home .employer-hero-benefits svg { color: #9ebeff; width: 19px; height: 19px; }
+      .employer-home .employer-hero-form > .employer-demo-card { max-width: 440px; padding: 30px; border: 1px solid #fff; box-shadow: 0 18px 50px #07172926; border-radius: 14px; }
+      .employer-home .employer-demo-icon { display: grid; place-items: center; width: 44px; height: 44px; background: #eaf3ef; color: #34866f; border-radius: 10px; margin-bottom: 18px; }
+      .employer-home .employer-demo-card > p:first-of-type { font-size: 10px; letter-spacing: 1.5px; font-weight: 500; color: #7689a4; margin-bottom: 7px; }
+      .employer-home .employer-hero-form .employer-demo-card h3 { font-size: 23px; line-height: 1.35; letter-spacing: -.5px; margin-bottom: 24px; }
+      .employer-home .employer-demo-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 12px; }
+      .employer-home .employer-demo-wide { grid-column: 1 / -1; }
+      .employer-home .employer-demo-field { min-width: 0; }
+      .employer-home .employer-demo-field label { display: block; color: #536782; font-size: 11px; font-weight: 500; margin-bottom: 6px; }
+      .employer-home .employer-hero-form .employer-demo-field :is(input, select) { background: #fff; border-color: #dbe3ef; font-size: 12px; min-height: 43px; padding-right: 10px; }
+      .employer-home .employer-demo-field select { padding-right: 30px; }
+      .employer-home .employer-demo-field input::placeholder { color: #a0aec0; }
+      .employer-home .employer-demo-submit { display: flex; align-items: center; justify-content: center; gap: 15px; background: #245be0; color: #fff; border: 0; border-radius: 7px; min-height: 45px; font-size: 13px; font-weight: 600; margin-top: 5px; cursor: pointer; }
+      .employer-home .employer-demo-submit:hover { background: #1948bd; }
+      .employer-home .employer-demo-consent { font-size: 10px; line-height: 1.7; color: #8b9ab0; margin: 0; }
+      .employer-home .employer-job-ticker { background: #f8fafd; border: 0; }
+      @media (max-width: 1023px) {
+        .employer-home .employer-hero > .max-w-7xl > .grid { gap: 35px; }
+        .employer-home .employer-hero-form > .employer-demo-card { max-width: none; margin-inline: 0; }
+      }
+      @media (max-width: 639px) {
+        .employer-home .employer-hero > .max-w-7xl { padding-block: 30px; }
+        .employer-home .employer-hero h1 { font-size: 37px; }
+        .employer-home .employer-hero-form > .employer-demo-card { padding: 24px 20px; }
+        .employer-home .employer-demo-form { grid-template-columns: 1fr; gap: 12px; }
+        .employer-home .employer-hero-benefits { gap: 10px; }
+        .employer-home .employer-hero-benefits > span { font-size: 10px; }
+      }
       @media (prefers-reduced-motion: reduce) {
         .marquee-track, .ticker-track, .animate-gradient-shift, .animate-pulse-soft, .animate-float-slow, .animate-float-slow-alt, .animate-float,
         .orb-1, .orb-2, .orb-3, .grid-pan, .particle, .suite-panel-in, .suite-progress, .suite-chip-in,
@@ -565,7 +720,7 @@ function JobTicker() {
   const row = jobs.concat(jobs);
 
   return (
-    <div className="relative border-y border-blue-100 bg-blue-50/60 overflow-hidden">
+    <div className="employer-job-ticker relative border-y border-blue-100 bg-blue-50/60 overflow-hidden">
       <div className="flex items-center gap-3 px-4 sm:px-6 lg:px-8 py-3">
         <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse-soft" /> Live
@@ -671,34 +826,46 @@ function HeroCallbackCard() {
   }
 
   return (
-    <div className="relative w-full max-w-[420px] ml-auto bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-100/70 p-5 sm:p-6">
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-violet-600 rounded-t-2xl" />
+    <div className="employer-demo-card relative w-full max-w-[420px] ml-auto bg-white rounded-2xl border border-gray-100 shadow-xl shadow-blue-100/70 p-5 sm:p-6">
+      <div className="employer-demo-icon"><Phone size={21} strokeWidth={1.7} aria-hidden="true" /></div>
       <p className="text-[11px] font-bold uppercase tracking-widest text-blue-600 mb-1">Request callback</p>
       <h3 className="text-base sm:text-[17px] font-bold text-gray-900 mb-3.5">Get a free demo of our hiring suite</h3>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="relative">
+      <form onSubmit={handleSubmit} className="employer-demo-form">
+        <div className="employer-demo-field">
+          <label htmlFor="employer-demo-name">Full name</label>
+          <div className="relative">
           <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input type="text" value={form.name} onChange={handleNameChange} placeholder="Full name" className={`${inputCls} pl-[38px]`} />
+          <input id="employer-demo-name" autoComplete="name" type="text" value={form.name} onChange={handleNameChange} placeholder="Full name" className={`${inputCls} pl-[38px]`} />
+          </div>
         </div>
-        <div className="relative">
+        <div className="employer-demo-field">
+          <label htmlFor="employer-demo-phone">Mobile number</label>
+          <div className="relative">
           <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Mobile number" className={`${inputCls} pl-[38px]`} />
+          <input id="employer-demo-phone" autoComplete="tel-national" inputMode="numeric" type="tel" value={form.phone} onChange={handlePhoneChange} maxLength={10} placeholder="Mobile number" className={`${inputCls} pl-[38px]`} />
+          </div>
         </div>
-        <div className="relative">
+        <div className="employer-demo-field employer-demo-wide">
+          <label htmlFor="employer-demo-email">Work email</label>
+          <div className="relative">
           <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input type="email" value={form.email} onChange={handleEmailChange} placeholder="Work email" className={`${inputCls} pl-[38px]`} />
+          <input id="employer-demo-email" autoComplete="email" type="email" value={form.email} onChange={handleEmailChange} placeholder="Work email" className={`${inputCls} pl-[38px]`} />
+          </div>
         </div>
-        <div className="relative">
+        <div className="employer-demo-field employer-demo-wide">
+          <label htmlFor="employer-demo-hiring">Hiring for</label>
+          <div className="relative">
           <Globe2 className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <select value={form.hiringFor} onChange={(e) => setForm({ ...form, hiringFor: e.target.value })} className={`${inputCls} pl-[38px] appearance-none`}>
+          <select id="employer-demo-hiring" value={form.hiringFor} onChange={(e) => setForm({ ...form, hiringFor: e.target.value })} className={`${inputCls} pl-[38px] appearance-none`}>
             <option>Your company</option>
             <option>Your consultancy</option>
           </select>
           <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
+          </div>
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <WorkButton type="submit" size="md" rounded="rounded-lg" text="Request callback" className="w-full" />
-        <p className="text-[10.5px] text-gray-400 text-center pt-0.5">By submitting, you agree to be contacted by our hiring experts.</p>
+        {error && <p role="alert" className="employer-demo-wide text-xs text-red-600">{error}</p>}
+        <button className="employer-demo-submit employer-demo-wide" type="submit">Request callback <ArrowRight size={16} aria-hidden="true" /></button>
+        <p className="employer-demo-consent employer-demo-wide text-[10.5px] text-gray-400 text-center pt-0.5">By submitting, you agree to be contacted by our hiring experts.</p>
       </form>
     </div>
   );
@@ -744,91 +911,42 @@ const PRODUCTS: Record<ProductCategoryId, {
 };
 
 function ProductsSection({ go }: { go: (page: string) => void }) {
-  const [active, setActive] = useState<ProductCategoryId>('sourcing');
 
   return (
-    <section id="products" className="py-16 lg:py-24 bg-[#F6F8FF]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Reveal>
-          <SectionHeader
-            overline="One-Stop Solution. Talent Decoded."
-            title="Comprehensive solutions for all your hiring needs"
-          />
-        </Reveal>
-
-        {/* Category tabs */}
-        <Reveal>
-          <div className="flex flex-wrap justify-center gap-2.5 mb-10">
-            {PRODUCT_CATEGORIES.map((c) => {
-              const isActive = c.id === active;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setActive(c.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border ${isActive
-                    ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white border-transparent shadow-lg shadow-blue-200'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
-                    }`}
-                >
-                  <c.icon className="w-4 h-4" />
-                  {c.label}
-                </button>
-              );
-            })}
+    <section id="products" className="employer-solution-section py-16 lg:py-24 bg-[#F6F8FF]">
+      <div className="employer-discovery-workspace portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="career-discovery-intro"><div className="career-discovery-art"><svg className="career-person-illustration employer-hiring-illustration" viewBox="0 0 260 220" fill="none" aria-hidden="true" focusable="false">
+  <circle cx="126" cy="111" r="88" fill="#E9EFF8" />
+  <rect x="39" y="64" width="155" height="113" rx="10" fill="#FFF" stroke="#26374F" strokeWidth="2" />
+  <path d="M39 86H194" stroke="#D6E1F1" strokeWidth="2" />
+  <circle cx="51" cy="75" r="3" fill="#AFC2DF" /><circle cx="62" cy="75" r="3" fill="#C8D6EB" /><circle cx="73" cy="75" r="3" fill="#DDE6F2" />
+  <g className="career-floating-document"><rect x="54" y="101" width="58" height="59" rx="6" fill="#F4F7FC" stroke="#C5D5EA" /><circle cx="83" cy="118" r="8" fill="#FFF" stroke="#6E89B2" strokeWidth="1.5" /><path d="M70 141Q72 128 83 128Q94 128 96 141Z" fill="#FFF" stroke="#6E89B2" strokeWidth="1.5" /><path d="M72 151H94" stroke="#A6BBDD" strokeWidth="2" strokeLinecap="round" /></g>
+  <rect x="122" y="103" width="53" height="5" rx="2" fill="#7996C0" /><rect x="122" y="116" width="44" height="4" rx="2" fill="#CBD8EA" /><rect x="122" y="128" width="48" height="4" rx="2" fill="#CBD8EA" />
+  <rect x="122" y="143" width="46" height="15" rx="4" fill="#E6F5EE" /><path d="m130 150 3 3 6-7" stroke="#4D967A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  <g stroke="#26374F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M170 207 172 170 186 154 211 156 227 177 234 207Z" fill="#FFF" />
+    <path d="M186 139 188 156 198 163 207 155 204 139" fill="#FFF" />
+    <path d="M182 112Q180 94 197 95Q214 94 214 114L210 136Q199 148 188 136Z" fill="#FFF" />
+    <path d="M182 115Q174 100 185 92Q197 86 208 94Q220 96 215 116L207 108 191 106 185 116Z" fill="#26374F" />
+    <path d="M189 119H193M203 119H207M198 120 197 129 201 129M193 134Q199 137 204 133" />
+    <path d="M184 164 166 182 149 165 140 174 164 199 178 190M211 170 215 199M140 174 132 165Q129 160 134 158L142 163 142 156Q148 153 149 165" fill="#FFF" />
+  </g>
+  <g className="career-floating-document-secondary"><circle cx="204" cy="64" r="18" fill="#FFF" stroke="#85B79F" strokeWidth="1.5" /><path d="m196 64 5 5 10-11" stroke="#4D967A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></g>
+  <path d="M46 192H145" stroke="#C5D5EA" strokeWidth="2" strokeLinecap="round" />
+</svg></div><div className="career-discovery-copy"><Reveal><SectionHeader overline="One-Stop Solution. Talent Decoded." title="Comprehensive solutions for all your hiring needs" /></Reveal></div></div>
+        <div className="employer-category-panel">          <div className="solution-categories" role="group" aria-label="Hiring solution categories">
+            <p className="solution-navigation-label">Hiring solutions</p>
+            {PRODUCT_CATEGORIES.map(item => <button key={item.id} id={`solution-category-${item.id}`} type="button" onClick={() => go(PRODUCTS[item.id][0].target)}><span className="solution-category-icon"><item.icon size={19} strokeWidth={1.7} /></span><span>{item.label}<small>Explore tools</small></span><ArrowRight size={14} className="solution-category-arrow" /></button>)}
           </div>
-        </Reveal>
-
-        {/* Product cards for active category */}
-        <div key={active} className="suite-panel-in grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {PRODUCTS[active].map((p, i) => (
-            <Reveal key={p.name} delay={i * 80}>
-              <div className="group relative bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:border-blue-200 hover:-translate-y-1.5 transition-all duration-300 p-7 h-full flex flex-col overflow-hidden">
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${p.grad}`} />
-                <div className="flex items-center gap-4 mb-5">
-                  <span className={`w-12 h-12 bg-gradient-to-br ${p.grad} rounded-2xl flex items-center justify-center text-white font-extrabold text-sm shadow-md transition-transform duration-300 group-hover:scale-110`}>
-                    {p.initials}
-                  </span>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 leading-tight">{p.name}</h3>
-                    <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mt-0.5">{p.tag}</p>
-                  </div>
-                </div>
-                <ul className="space-y-2.5 mb-6 flex-1">
-                  {p.bullets.map((b) => (
-                    <li key={b} className="flex items-start gap-2.5 text-sm text-gray-600">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center gap-3 mb-6">
-                  {p.stats.map((s) => (
-                    <div key={s.l} className="flex-1 bg-gray-50 rounded-xl py-2.5 px-3 text-center">
-                      <p className="text-sm font-extrabold text-gray-900">{s.v}</p>
-                      <p className="text-[10px] text-gray-400 font-medium">{s.l}</p>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => go(p.target)}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 shadow-md shadow-blue-100"
-                >
-                  Explore {p.name.split(' ')[0]} <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </Reveal>
-          ))}
         </div>
       </div>
     </section>
   );
 }
 
-/* ── Shared section pieces ── */
-
 function SectionHeader({ overline, title, sub }: { overline: string; title: string; sub?: string }) {
   return (
-    <div className="text-center mb-12 lg:mb-14">
+    <div className="employer-section-heading text-center mb-12 lg:mb-14">
       <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-600 mb-3">{overline}</p>
       <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-4">{title}</h2>
       {sub && <p className="text-gray-500 max-w-2xl mx-auto text-lg">{sub}</p>}
@@ -955,8 +1073,8 @@ function CallbackForm() {
   const inputCls = "w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-shadow";
 
   return (
-    <section id="request-callback" className="py-16 lg:py-24 bg-white">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="request-callback" className="employer-callback py-16 lg:py-24 bg-white">
+      <div className="portal-page-container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
           <div className="grid grid-cols-1 md:grid-cols-2 shadow-2xl shadow-blue-100/70 rounded-2xl overflow-hidden border border-gray-100">
             <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-violet-600 relative overflow-hidden p-8 lg:p-12 text-white">
@@ -1090,7 +1208,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
   ];
 
   return (
-    <section className="relative py-20 lg:py-28 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 overflow-hidden">
+    <section className="employer-faq relative py-20 lg:py-28 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-blue-400/10 via-indigo-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
@@ -1113,6 +1231,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
                   onClick={() => setOpen(open === i ? null : i)}
                   className="w-full flex items-center gap-3.5 sm:gap-5 px-5 sm:px-7 py-5 sm:py-6 text-left transition-colors cursor-pointer select-none"
                   aria-expanded={open === i}
+                  aria-controls={`employer-faq-answer-${i}`}
                 >
                   <span
                     className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold tracking-tight transition-all duration-300 ${open === i
@@ -1141,6 +1260,8 @@ function FAQSection({ go }: { go: (page: string) => void }) {
                 </button>
 
                 <div
+                  id={`employer-faq-answer-${i}`}
+                  aria-hidden={open !== i}
                   className="grid transition-[grid-template-rows] duration-300 ease-out"
                   style={{ gridTemplateRows: open === i ? '1fr' : '0fr' }}
                 >
@@ -1157,19 +1278,23 @@ function FAQSection({ go }: { go: (page: string) => void }) {
         </div>
 
         <Reveal>
-          <div className="mt-14 sm:mt-16 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-blue-50/80 border border-blue-100/80 rounded-3xl p-8 sm:p-10 text-center relative overflow-hidden shadow-xs">
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-44 h-44 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="w-12 h-12 bg-white rounded-2xl border border-blue-100 shadow-sm flex items-center justify-center mb-4 text-blue-600">
-                <HelpCircle className="w-6 h-6" />
-              </div>
-              <p className="text-gray-600 font-medium text-base sm:text-lg mb-6 max-w-lg">
-                Still have questions? Our hiring experts are here to help.
-              </p>
-              <div className="flex justify-center">
-                <GetStartedButton text="Get Started" onClick={() => go('employer-register')} />
-              </div>
-            </div>
+          <div className="employer-help-card">
+            <div className="employer-help-copy"><span className="employer-help-eyebrow">LET'S TALK HIRING</span><h3>Still have questions? Our hiring experts are here to help.</h3><GetStartedButton text="Get Started" onClick={() => go('employer-register')} /></div>
+            <svg className="employer-support-illustration" viewBox="0 0 260 210" fill="none" aria-hidden="true" focusable="false">
+              <circle cx="132" cy="108" r="82" fill="#E7EDFA" />
+              <g className="career-floating-document"><rect x="172" y="27" width="65" height="39" rx="10" fill="#FFF" stroke="#AFC4E5" strokeWidth="1.5" /><path d="m183 66-2 10 15-10" fill="#FFF" stroke="#AFC4E5" strokeWidth="1.5" /><circle cx="189" cy="46" r="3" fill="#839EC8" /><circle cx="204" cy="46" r="3" fill="#839EC8" /><circle cx="219" cy="46" r="3" fill="#839EC8" /></g>
+              <g stroke="#26374F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M75 187 82 143 111 130 142 132 169 147 180 187Z" fill="#FFF" />
+                <path d="M112 117 113 135 128 145 139 134 139 117" fill="#FFF" />
+                <path d="M108 78Q108 60 127 61Q149 61 149 80L146 110Q130 132 115 110Z" fill="#FFF" />
+                <path d="M108 87Q96 61 113 53Q124 45 137 53Q157 57 151 83L143 75 121 72 113 86Z" fill="#26374F" />
+                <path d="M116 88H122M135 88H141M128 90 126 101 131 101M122 109Q130 115 138 107" />
+                <path d="M99 84Q96 57 126 51Q157 52 158 86" stroke="#6D8FBF" strokeWidth="4" />
+                <rect x="97" y="83" width="9" height="21" rx="4" fill="#ECF2FC" stroke="#6D8FBF" /><rect x="151" y="83" width="9" height="21" rx="4" fill="#ECF2FC" stroke="#6D8FBF" />
+                <path d="M157 104Q154 120 137 118" stroke="#6D8FBF" /><rect x="130" y="114" width="10" height="6" rx="3" fill="#6D8FBF" stroke="#6D8FBF" />
+              </g>
+              <path d="M88 150H167L157 188H98Z" fill="#DDE8F8" stroke="#9FB7DB" strokeWidth="1.5" /><circle cx="128" cy="169" r="5" fill="#FFF" /><path d="M66 189H194" stroke="#AFC4E5" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </div>
         </Reveal>
       </div>
@@ -1179,199 +1304,22 @@ function FAQSection({ go }: { go: (page: string) => void }) {
 
 
 /* ── Site preview — mini replica of the real ZyncJobs page UI ── */
-function SitePreview({ variant }: { variant: 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' }) {
-  const Bar = () => (
-    <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100">
-      <div className="flex items-center gap-1.5">
-        <span className="w-3.5 h-3.5 bg-blue-600 rounded-[4px]" />
-        <span className="text-[11px] font-extrabold text-blue-600">ZyncJobs</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-10 h-2 rounded-full bg-gray-100" />
-        <span className="w-10 h-2 rounded-full bg-gray-100" />
-        <span className="w-6 h-4 rounded bg-blue-600" />
-      </div>
-    </div>
-  );
-
-  if (variant === 'job-posting') {
-    return (
-      <div className="bg-gray-50 h-full flex flex-col">
-        <Bar />
-        <div className="p-4 flex-1">
-          <p className="text-[12px] font-bold text-gray-900 mb-1">What type of job posting do you need?</p>
-          <p className="text-[9px] text-gray-400 mb-3">Pick a plan that fits your hiring goal</p>
-          <div className="grid grid-cols-3 gap-2.5">
-            {[
-              { name: 'Pay-per-Job', price: '₹499', per: '/job', hot: false, feats: ['30 days live', 'Applications dashboard', 'Standard visibility'] },
-              { name: 'Featured', price: '₹1,299', per: '/job', hot: true, feats: ['AI-assisted description', 'Featured placement', 'Priority in search'] },
-              { name: 'Platinum', price: '₹2,999', per: '/job', hot: false, feats: ['Everything in Featured', 'Branded career page', 'Bulk job import'] },
-            ].map((p) => (
-              <div key={p.name} className={`relative bg-white rounded-lg border p-3 ${p.hot ? 'border-blue-600 ring-2 ring-blue-100' : 'border-gray-200'}`}>
-                {p.hot && <span className="absolute -top-1.5 right-2 bg-orange-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">Most popular</span>}
-                <p className="text-[9px] font-bold text-gray-900">{p.name}</p>
-                <p className="text-[11px] font-extrabold text-blue-600 mt-1">{p.price}<span className="text-[7px] font-medium text-gray-400">{p.per}</span></p>
-                <div className="mt-2 space-y-1">
-                  {p.feats.map((ft) => (
-                    <p key={ft} className="text-[7.5px] text-gray-500 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {ft}
-                    </p>
-                  ))}
-                </div>
-                <div className={`mt-2.5 text-center text-[8px] font-bold py-1.5 rounded-md ${p.hot ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}>Post a Job</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'candidate-search') {
-    return (
-      <div className="bg-gray-50 h-full flex flex-col">
-        <Bar />
-        <div className="p-4 flex-1">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 mb-3">
-            <span className="text-[9px] text-gray-400">🔍</span>
-            <span className="text-[9px] text-gray-500 flex-1">Search by skills, role, location…</span>
-            <span className="text-[8px] font-bold text-white bg-blue-600 px-2.5 py-1 rounded-md">Search</span>
-          </div>
-          <div className="flex gap-1.5 mb-3">
-            {['Location', 'Experience', 'Skills', 'Salary'].map((c) => (
-              <span key={c} className="text-[8px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-full px-2.5 py-1">{c} ▾</span>
-            ))}
-          </div>
-          {[
-            { ini: 'SK', name: 'Suresh Kumar', role: 'Senior Frontend Developer', loc: 'Chennai', exp: '6 yrs', skills: ['React', 'TypeScript'], match: '96%' },
-            { ini: 'PM', name: 'Priya Menon', role: 'Product Designer', loc: 'Bengaluru', exp: '4 yrs', skills: ['Figma', 'UI/UX'], match: '91%' },
-            { ini: 'AR', name: 'Arjun Rao', role: 'Backend Engineer', loc: 'Hyderabad', exp: '5 yrs', skills: ['Node.js', 'PostgreSQL'], match: '88%' },
-          ].map((c) => (
-            <div key={c.name} className="flex items-center gap-2.5 bg-white border border-gray-200 rounded-lg p-2.5 mb-2">
-              <span className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0">{c.ini}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9.5px] font-bold text-gray-900 truncate">{c.name} <span className="text-gray-400 font-medium">· {c.role}</span></p>
-                <p className="text-[7.5px] text-gray-400">{c.loc} · {c.exp}</p>
-                <div className="flex gap-1 mt-1">
-                  {c.skills.map((s) => (
-                    <span key={s} className="text-[7px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">{s}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-[9px] font-extrabold text-emerald-500">{c.match}</p>
-                <p className="text-[7px] text-gray-400">match</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'ai-recruiter') {
-    return (
-      <div className="bg-gray-50 h-full flex flex-col">
-        <Bar />
-        <div className="p-4 flex-1 flex flex-col">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-rose-400 text-white text-[8px] font-bold flex items-center justify-center">AI</span>
-            <div>
-              <p className="text-[9.5px] font-bold text-gray-900">AI Recruiter Assistant</p>
-              <p className="text-[7px] text-emerald-500 font-semibold">● Online — 24/7 sourcing</p>
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg rounded-br-sm p-2.5 mb-2 self-start max-w-[75%]">
-            <p className="text-[8.5px] text-gray-600">Find me backend engineers with 5+ years in Node.js, Bangalore preferred.</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg rounded-bl-sm p-2.5 mb-2 self-end max-w-[75%]">
-            <p className="text-[8.5px] text-gray-600 font-semibold mb-1.5">🤖 Sourced 12 candidates — top 3 ranked</p>
-            {[
-              { ini: 'VR', name: 'Vikram Reddy', match: '94%', tag: 'Shortlist' },
-              { ini: 'NS', name: 'Nisha Sharma', match: '91%', tag: 'Shortlist' },
-              { ini: 'RP', name: 'Rahul Pillai', match: '87%', tag: 'Review' },
-            ].map((c) => (
-              <div key={c.name} className="flex items-center gap-2 bg-gray-50 rounded-md p-1.5 mb-1.5 last:mb-0">
-                <span className="w-5 h-5 rounded-full bg-violet-500 text-white text-[7px] font-bold flex items-center justify-center">{c.ini}</span>
-                <p className="text-[8px] font-bold text-gray-800 flex-1">{c.name}</p>
-                <span className="text-[7px] font-extrabold text-emerald-500">{c.match}</span>
-                <span className="text-[7px] font-bold text-white bg-blue-600 px-1.5 py-0.5 rounded">{c.tag}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-1.5 mt-auto">
-            <div className="flex-1 bg-white border border-gray-200 rounded-full px-3 py-1.5 text-[8px] text-gray-400">Ask anything about hiring…</div>
-            <span className="w-7 h-6 rounded-lg bg-orange-500 text-white text-[9px] flex items-center justify-center">➤</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'interviews') {
-    return (
-      <div className="bg-gray-50 h-full flex flex-col">
-        <Bar />
-        <div className="p-4 flex-1">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[12px] font-bold text-gray-900">Upcoming Interviews</p>
-            <div className="flex gap-1.5">
-              <span className="text-[8px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full">Upcoming</span>
-              <span className="text-[8px] font-bold text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded-full">Completed</span>
-            </div>
-          </div>
-          {[
-            { ini: 'SK', name: 'Suresh Kumar', role: 'Senior Frontend Developer', date: 'Mon, 18 Aug', time: '10:30 AM', type: 'Video', status: 'Confirmed', stBg: 'bg-emerald-50 text-emerald-600' },
-            { ini: 'PM', name: 'Priya Menon', role: 'Product Designer', date: 'Tue, 19 Aug', time: '2:00 PM', type: 'Video', status: 'Pending', stBg: 'bg-amber-50 text-amber-600' },
-            { ini: 'AR', name: 'Arjun Rao', role: 'Backend Engineer', date: 'Wed, 20 Aug', time: '11:00 AM', type: 'Phone', status: 'Confirmed', stBg: 'bg-emerald-50 text-emerald-600' },
-          ].map((iv) => (
-            <div key={iv.name} className="bg-white border border-gray-200 rounded-lg p-3 mb-2.5">
-              <div className="flex items-center gap-2.5">
-                <span className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-sky-400 text-white text-[8px] font-bold flex items-center justify-center flex-shrink-0">{iv.ini}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9.5px] font-bold text-gray-900 truncate">{iv.name} <span className="text-gray-400 font-medium">· {iv.role}</span></p>
-                  <p className="text-[7.5px] text-gray-400">{iv.date} · {iv.time} · {iv.type}</p>
-                </div>
-                <span className={`text-[7.5px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${iv.stBg}`}>{iv.status}</span>
-              </div>
-            </div>
-          ))}
-          <div className="text-[8px] font-bold text-white bg-blue-600 py-2 rounded-lg text-center">Schedule Interview</div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-50 h-full flex flex-col">
-      <Bar />
-      <div className="p-4 flex-1">
-        <p className="text-[12px] font-bold text-gray-900 mb-1">Salary Insights</p>
-        <p className="text-[9px] text-gray-400 mb-3">Benchmark salaries by role & location</p>
-        <div className="flex gap-1.5 mb-3">
-          {['All Roles', 'Bengaluru', 'Hyderabad', 'Chennai'].map((c) => (
-            <span key={c} className={`text-[8px] font-semibold px-2.5 py-1 rounded-full ${c === 'All Roles' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>{c}</span>
-          ))}
-        </div>
-        {[
-          { role: 'Frontend Developer', range: '₹6 – ₹24 LPA', bar: 'w-4/5' },
-          { role: 'Backend Engineer', range: '₹8 – ₹28 LPA', bar: 'w-3/4' },
-          { role: 'Data Analyst', range: '₹5 – ₹18 LPA', bar: 'w-3/5' },
-          { role: 'Product Designer', range: '₹7 – ₹22 LPA', bar: 'w-2/3' },
-        ].map((s) => (
-          <div key={s.role} className="bg-white border border-gray-200 rounded-lg p-3 mb-2.5">
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[9px] font-bold text-gray-900">{s.role}</p>
-              <p className="text-[8px] font-extrabold text-violet-600">{s.range}</p>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full ${s.bar} bg-gradient-to-r from-violet-600 to-purple-400 rounded-full`} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function SitePreview({ variant, run = 0 }: { variant: 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' | 'branding'; run?: number }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    setStep(1);
+    const second = window.setTimeout(() => setStep(2), 600);
+    const third = window.setTimeout(() => setStep(3), 1250);
+    return () => { window.clearTimeout(second); window.clearTimeout(third); };
+  }, [run]);
+  const Frame = ({ children }: { children: React.ReactNode }) => <div className={`zync-mini-window demo-step-${step}`}><div className="zync-mini-window-header"><i /><i /><i /><span>zyncjobs</span>{step > 0 && <span className="zync-demo-progress">{step < 3 ? 'Demo in progress' : 'Demo complete'}</span>}</div><div className="zync-mini-window-body">{children}</div></div>;
+  if (variant === 'candidate-search') return <Frame><div className="zync-mini-search"><Search size={14} /><span>{step ? 'Communication + customer support' : 'Find talent by skills'}</span></div><div className="zync-mini-results">{['Relevant skills', 'Relevant experience'].map((label,index) => <div key={label} className={`preview-motion-item ${step >= 3 && index === 0 ? 'demo-result-selected' : ''}`}><span className="zync-mini-avatar"><User size={19} /></span><div><strong>{step >= 2 ? ['Customer support profile', 'Sales profile'][index] : label}</strong><span>{step >= 3 && index === 0 ? 'Added to demo shortlist' : step === 1 ? 'Matching role requirements...' : 'Review candidate profile'}</span></div>{step >= 3 && index === 0 ? <CheckCircle2 size={16} /> : <Search size={13} />}</div>)}</div></Frame>;
+  if (variant === 'ai-recruiter') return <Frame><div className="zync-mini-label"><Bot size={16} />{step ? ['','Finding relevant profiles','Reviewing role requirements','Your demo shortlist is ready'][step] : 'AI hiring workflow'}</div><div className="zync-mini-process">{[{label:'Source', icon:Search}, {label:'Screen', icon:ClipboardCheck}, {label:'Shortlist', icon:Target}].map((stage,index) => <React.Fragment key={stage.label}>{index > 0 && <span className={`zync-process-connector ${step > index ? 'is-complete' : ''}`} />}<div className={`zync-process-node preview-motion-item ${step === index + 1 ? 'is-active' : ''} ${step > index + 1 ? 'is-complete' : ''}`}><span>{step > index + 1 ? <CheckCircle2 size={23} /> : <stage.icon size={23} />}</span><strong>{stage.label}</strong></div></React.Fragment>)}</div><div className="zync-mini-process-note"><CheckCircle2 size={13} />{step === 3 ? 'Demo candidates ready for review' : 'A clear path from sourcing to shortlist'}</div></Frame>;
+  if (variant === 'interviews') return <Frame><div className="zync-mini-label"><CalendarClock size={15} />Interview planner</div><div className="zync-mini-agenda">{[{title:'Invitation', detail:'Choose a suitable time'}, {title:'Confirmation', detail:'Keep everyone informed'}, {title:'Interview', detail:'Connect with your candidate'}].map((event,index) => <div key={event.title} className={`preview-motion-item ${step >= index + 1 ? 'demo-agenda-confirmed' : ''}`}><span>{step >= index + 1 ? <CheckCircle2 size={14} /> : String(index + 1).padStart(2,'0')}</span><div><strong>{event.title}</strong><p>{step >= index + 1 ? ['Demo invitation sent','Demo time confirmed','Ready to join demo'][index] : event.detail}</p></div></div>)}</div></Frame>;
+  if (variant === 'salary-insights') return <Frame><div className="zync-mini-label"><TrendingUp size={16} />{step ? 'Comparing demo career levels' : 'Compare experience levels'}</div><div className="zync-mini-benchmarks">{[{label:'Entry level', width:'38%'}, {label:'Mid level', width:'63%'}, {label:'Senior level', width:'87%'}].map((level,index) => <div key={level.label} className={step === index + 1 ? 'demo-benchmark-selected' : ''}><span>{level.label}</span><div><i className="zync-benchmark-fill" style={{width: !step || step > index ? level.width : '10%'}} /></div></div>)}</div><p className="zync-mini-footnote">{step === 3 ? 'Demo comparison complete' : 'Illustrative ranges, not market salary data'}</p></Frame>;
+  if (variant === 'branding') return <Frame><div className="zync-mini-brand-cover"><Building2 size={28} /><div><strong>Your workplace</strong><span>{step === 3 ? 'Demo career page ready' : 'Share your company story'}</span></div></div><div className="zync-mini-brand-sections">{['Culture', 'People', 'Careers'].map((label,index) => <div key={label} className={`preview-motion-item ${step >= index + 1 ? 'demo-brand-ready' : ''}`}><i />{step >= index + 1 && <CheckCircle2 size={11} />}<strong>{label}</strong><span /></div>)}</div></Frame>;
+  return <Frame><div className="zync-mini-label"><Briefcase size={16} />{['Job publishing workspace','Draft your role','Publish your demo job','Review demo applications'][step]}</div><div className="zync-mini-job-board">{['Draft', 'Published', 'Applications'].map((label,index) => <div key={label} className={Math.max(0, step - 1) === index ? 'demo-board-active' : ''}><span>{label}</span>{Math.max(0, step - 1) === index ? <div className="preview-motion-item"><strong>{step === 3 ? 'New application' : 'Your open role'}</strong><i /><i />{index === 1 ? <CheckCircle2 size={15} /> : index === 2 ? <Users size={19} /> : <Briefcase size={15} />}</div> : <div className="demo-board-placeholder"><i /><i /></div>}</div>)}</div></Frame>;
 }
 
 export default EmployersPage;

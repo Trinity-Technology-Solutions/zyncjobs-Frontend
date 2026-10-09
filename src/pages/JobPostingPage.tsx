@@ -3655,12 +3655,12 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       />
       
       
-      <div className="min-h-screen bg-white">
-        {/* Fixed Header Section */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto px-6 py-4">
+      <div className="employer-content-page min-h-screen bg-white">
+        {/* Step heading and progress */}
+        <div className="job-posting-step-header">
+          <div className="job-posting-step-container">
             {/* Progress Bar */}
-            <div className="mb-4">
+            <div className="job-posting-progress">
               <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
                 <span>Step {currentStep === 1 ? 1 : currentStep === 3 ? 2 : currentStep === 4 ? 3 : currentStep === 5 ? 4 : currentStep === 6 ? 5 : 6} of 6</span>
                 <span>{Math.round(((currentStep === 1 ? 1 : currentStep === 3 ? 2 : currentStep === 4 ? 3 : currentStep === 5 ? 4 : currentStep === 6 ? 5 : 6) / 6) * 100)}% Complete</span>
@@ -3673,7 +3673,8 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
               </div>
             </div>
             
-            <div className="text-center">
+            <div className="job-posting-step-title">
+              <button type="button" onClick={() => onNavigate('job-management')} className="job-posting-exit">Back to job management</button>
               <h1 className="text-3xl font-bold text-gray-800">
                 {currentStep === 1 && (mode === 'parse' ? 'Review Parsed Job' : 'Add job basics')}
                 {currentStep === 3 && 'Add job details'}
@@ -3682,6 +3683,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                 {currentStep === 6 && 'Describe the job'}
                 {currentStep === 7 && 'Review'}
               </h1>
+              <p>{currentStep === 1 ? 'Start with the role, location and experience requirements.' : currentStep === 3 ? 'Define the employment type and how candidates will work.' : currentStep === 4 ? 'Help candidates understand the compensation and benefits.' : currentStep === 5 ? 'Set the skills and qualifications needed for this role.' : currentStep === 6 ? 'Give candidates a clear picture of the role and responsibilities.' : 'Check your job details before publishing.'}</p>
               {currentStep === 1 && parsedData && (
                 <span className="text-sm text-green-600 ml-2">AI Parsed</span>
               )}
@@ -3703,7 +3705,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
           
           {/* Sidebar with Tips */}
           <div className="hidden lg:block w-80 bg-gray-50 border-l border-gray-200 p-6">
-            <div className="sticky top-32">
+            <div className="job-posting-guidance">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Tips & Help</h3>
               
               {currentStep === 1 && (
