@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import React, { useEffect, useState } from 'react';
 import { matchAPI } from '../services/matchAPI';
 import { MatchBreakdownModal } from '../components/match/MatchBreakdownModal';
@@ -264,9 +265,10 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         </div>
       </div>
 
-      <div className="portal-page-container max-w-6xl mx-auto px-4 py-8 w-full flex-1">
+      <div className="candidate-matches-layout portal-page-container py-8"><div className="candidate-matches-content">
 
         {/* Search & Category Filter Bar */}
+        
         {!loading && !error && jobs.length > 0 && (
           <>
           <div className="career-panel bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 flex flex-col gap-3">
@@ -532,7 +534,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
             </button>
           </div>
         )}
-      </div>
+      </div><CandidateFeatureGuide feature="matches" /></div>
 
       <Footer onNavigate={onNavigate} user={user} />
 

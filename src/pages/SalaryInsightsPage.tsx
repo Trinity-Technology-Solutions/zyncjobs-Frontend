@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, IndianRupee, BarChart2, Award } from 'lucide-react';
 import BackButton from '../components/BackButton';
@@ -76,6 +77,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
           </div>
         </div>
       )}
+
 
       {/* Search */}
       <div className="salary-search-panel flex gap-2 mb-6">
@@ -232,6 +234,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
           </div>
         </div>
       )}
+      <CandidateFeatureGuide feature="salary" />
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import React from 'react';
 import { FileText, Upload, BarChart2, BookOpen, ArrowRight, CheckCircle, Layout } from 'lucide-react';
 import BackButton from '../components/BackButton';
@@ -135,6 +136,7 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
           <h1>Everything you need to <span>analyze and perfect your resume.</span></h1>
           <p>Powerful tools in one place: parse, analyze, and improve your resume with AI.</p>
         </div>
+        <CandidateFeatureGuide feature="builder" />
         <div className="resume-studio-tools">
           {cards.map((card, index) => {
             const ToolIcon = [FileText, Upload, BarChart2, BookOpen][index];

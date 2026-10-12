@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -17,9 +18,22 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
   onLogout?: () => void;
 }) => {
   const go = (page: string) => onNavigate && onNavigate(page);
+  const pageLocation = useLocation();
   const [previewRuns, setPreviewRuns] = useState<Record<string, number>>({});
 
-  const scrollToCallback = () => document.getElementById('request-callback')?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToPlans = () => go('employer-plans');
+  const scrollToCallback = () => {
+    const section = document.getElementById('request-callback');
+    if (!section) return;
+    section.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+    section.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+  };
+
+  useEffect(() => {
+    if (pageLocation.hash !== '#request-callback') return;
+    const frame = requestAnimationFrame(scrollToCallback);
+    return () => cancelAnimationFrame(frame);
+  }, [pageLocation.hash]);
 
   return (
     <div className="employer-home min-h-screen bg-white">
@@ -192,7 +206,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 <article className={`employer-offering-card offering-${f.variant}`}>
                   <button type="button" className="employer-offering-preview" aria-label={`${f.title} demo, plays on hover or focus`} onMouseEnter={() => setPreviewRuns(previous => ({...previous, [f.variant]: (previous[f.variant] || 0) + 1}))} onFocus={() => setPreviewRuns(previous => ({...previous, [f.variant]: (previous[f.variant] || 0) + 1}))}>
                     
-                    <div key={`${f.variant}-${previewRuns[f.variant] || 0}`} className={`offering-preview-scene ${previewRuns[f.variant] ? 'is-playing' : ''}`} aria-hidden="true" inert=""><SitePreview run={previewRuns[f.variant] || 0} variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' | 'branding'} /></div>
+                    <div key={`${f.variant}-${previewRuns[f.variant] || 0}`} className={`offering-preview-scene ${previewRuns[f.variant] ? 'is-playing' : ''}`} aria-hidden="true" {...{ inert: '' } as React.HTMLAttributes<HTMLDivElement>}><SitePreview run={previewRuns[f.variant] || 0} variant={f.variant as 'job-posting' | 'candidate-search' | 'ai-recruiter' | 'interviews' | 'salary-insights' | 'branding'} /></div>
                   </button>
                   <div className="employer-offering-copy"><h3>{f.title}</h3><p>{f.desc}</p><ul>{f.bullets.map(bullet => <li key={bullet}><CheckCircle2 size={13} aria-hidden="true" />{bullet}</li>)}</ul><button type="button" onClick={() => go(f.target)}>{f.cta}<ArrowRight size={16} aria-hidden="true" /></button></div>
                 </article>
@@ -212,7 +226,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               sub="Whether you're an enterprise, an SMB, or a consultancy — there's a plan that fits."
             />
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+          <div className="business-segments-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <Reveal delay={0}>
               <SegmentCard
                 icon={Building2}
@@ -232,7 +246,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 tagline="Hire locally, affordably"
                 points={['Find local candidates with quick applies', 'Hire candidates with relevant industry experience', 'Start hiring with plans that deliver value']}
                 cta="Explore plans"
-                onClick={() => go('job-posting-selection')}
+                onClick={scrollToPlans}
                 featured
               />
             </Reveal>
@@ -251,57 +265,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
         </div>
       </section>
 
-      {/* ── 5b. Testimonials — why recruiters trust us ── */}
-      <section className="py-16 lg:py-24 bg-[#F6F8FF] md:hidden">
-        <div className="portal-page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Reveal>
-            <SectionHeader
-              overline="Why recruiters trust us"
-              title="Here's why recruiters trust ZyncJobs"
-              sub="Testimonials from valued clients who've elevated their hiring with ZyncJobs."
-            />
-          </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                quote: 'The AI shortlists are spot on. We cut our time-to-hire by half and every shortlist candidate came interview-ready.',
-                name: 'Rajesh Kumar', role: 'Talent Acquisition Lead', company: 'TechNova',
-                initials: 'RK', grad: 'from-blue-600 to-cyan-500',
-              },
-              {
-                quote: 'One dashboard for posting, screening and scheduling changed how our small team hires. The callback team is genuinely helpful.',
-                name: 'Priya Venkatesan', role: 'HR Manager', company: 'Loop Studio',
-                initials: 'PV', grad: 'from-violet-600 to-purple-400',
-              },
-              {
-                quote: 'Verified profiles mean we skip the guesswork. Match scores are accurate and the assessments filter candidates perfectly.',
-                name: 'Arun Prakash', role: 'Director', company: 'Finlytics',
-                initials: 'AP', grad: 'from-emerald-500 to-teal-400',
-              },
-            ].map((t, i) => (
-              <Reveal key={t.name} delay={i * 100}>
-                <div className="group relative bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-blue-100/70 hover:-translate-y-1.5 transition-all duration-300 p-8 h-full flex flex-col">
-                  <div className="flex gap-1 mb-5">
-                    {[...Array(5)].map((_, s) => (
-                      <Award key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 leading-relaxed text-[15px] flex-1">"{t.quote}"</p>
-                  <div className="flex items-center gap-3 mt-7 pt-5 border-t border-gray-100">
-                    <span className={`w-11 h-11 bg-gradient-to-br ${t.grad} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                      {t.initials}
-                    </span>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">{t.name}</p>
-                      <p className="text-xs text-gray-400">{t.role} · {t.company}</p>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* ── 5. Request callback ── */}
       <CallbackForm />
@@ -460,7 +424,7 @@ function GlobalMotionStyles() {
       .employer-home .employer-segments .group > .h-1 { background: #245be0; }
       .employer-home .employer-segments .group .p-8 { padding: 26px; }
       .employer-home .employer-segments h3 { font-size: 20px; font-weight: 600; color: #172b4d; }
-      .employer-home .employer-segments button { background: #245be0; box-shadow: none; transform: none; font-size: 13px; }
+      .employer-home .employer-segments button { background: #245be0; color: #fff; border-color: #245be0; box-shadow: none; transform: none; font-size: 13px; }
       .employer-home .employer-segments .group .w-14 { background: #edf3ff; box-shadow: none; transform: none; }
       .employer-home .employer-segments .group .w-14 svg { color: #245be0; }
       .employer-home .employer-segments .group > span { background: #edf3ff; color: #245be0; box-shadow: none; font-size: 9px; }
@@ -748,6 +712,8 @@ function JobTicker() {
 function HeroCallbackCard() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', hiringFor: 'Your company' });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState('');
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -783,7 +749,7 @@ function HeroCallbackCard() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Please fill in all required fields.');
@@ -802,13 +768,22 @@ function HeroCallbackCard() {
       return;
     }
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
     setError('');
     try {
-      const existing = JSON.parse(localStorage.getItem('employer_callbacks') || '[]');
-      existing.push({ ...form, createdAt: new Date().toISOString() });
-      localStorage.setItem('employer_callbacks', JSON.stringify(existing));
-    } catch { /* ignore */ }
-    setSubmitted(true);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/contact`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(),
+          subject: 'Employer callback request',
+          message: `Please call me about hiring. Phone: ${form.phone}. Hiring for: ${form.hiringFor}.` }),
+      });
+      if (!response.ok) throw new Error('Unable to send your callback request. Please try again.');
+      setSubmitted(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to send your request. Please try again.');
+    } finally { submittingRef.current = false; setSubmitting(false); }
   };
 
   const inputCls = "w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-[13px] sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-shadow bg-gray-50 focus:bg-white";
@@ -864,7 +839,7 @@ function HeroCallbackCard() {
           </div>
         </div>
         {error && <p role="alert" className="employer-demo-wide text-xs text-red-600">{error}</p>}
-        <button className="employer-demo-submit employer-demo-wide" type="submit">Request callback <ArrowRight size={16} aria-hidden="true" /></button>
+        <button className="employer-demo-submit employer-demo-wide" type="submit" disabled={submitting}>{submitting ? 'Sending...' : 'Request callback'} <ArrowRight size={16} aria-hidden="true" /></button>
         <p className="employer-demo-consent employer-demo-wide text-[10.5px] text-gray-400 text-center pt-0.5">By submitting, you agree to be contacted by our hiring experts.</p>
       </form>
     </div>
@@ -966,40 +941,17 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
   featured?: boolean;
 }) {
   return (
-    <div className={`group relative bg-white rounded-2xl overflow-hidden border flex flex-col h-full transition-all duration-300 ${featured
-      ? 'border-orange-200 shadow-xl shadow-orange-100 lg:-translate-y-3 hover:-translate-y-4'
-      : 'border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 hover:-translate-y-1.5'
-      }`}>
-      <div className={`h-1 bg-gradient-to-r ${grad}`} />
-      {featured && (
-        <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1 rounded-full shadow-md shadow-orange-200">
-          <Award className="w-3 h-3" /> Most chosen
-        </span>
-      )}
-      <div className="p-8 flex flex-col flex-1">
-        <div className={`w-14 h-14 bg-gradient-to-br ${grad} rounded-xl flex items-center justify-center mb-5 shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
-          <Icon className="w-7 h-7 text-white" />
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-1">{title}</h3>
-        <p className="text-sm text-gray-500 mb-6">{tagline}</p>
-        <ul className="space-y-3 mb-8 flex-1">
-          {points.map((p) => (
-            <li key={p} className="flex items-start gap-2.5 text-sm text-gray-600">
-              <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${featured ? 'text-orange-500' : 'text-blue-600'}`} /> {p}
-            </li>
-          ))}
-        </ul>
-        <button
-          onClick={onClick}
-          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${featured
-            ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200'
-            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100'
-            }`}
-        >
-          {cta}
-        </button>
+    <article className={`business-segment-card ${featured ? 'business-segment-featured' : ''}`}>
+      <div className="business-segment-top">
+        <div className={`business-segment-icon bg-gradient-to-br ${grad}`}><Icon className="w-7 h-7 text-white" /></div>
+        <span className="business-segment-label">{featured ? 'Build your team' : title.includes('Consultants') ? 'Support your clients' : 'Scale your workforce'}</span>
       </div>
-    </div>
+      <h3>{title}</h3>
+      <p className="business-segment-tagline">{tagline}</p>
+      <div className="business-segment-divider" />
+      <ul>{points.map(point => <li key={point}><CheckCircle2 className="w-4 h-4 flex-shrink-0" /><span>{point}</span></li>)}</ul>
+      <button type="button" onClick={onClick}>{cta}<ArrowRight className="w-4 h-4" /></button>
+    </article>
   );
 }
 
@@ -1007,6 +959,8 @@ function SegmentCard({ icon: Icon, grad, title, tagline, points, cta, onClick, f
 function CallbackForm() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', hiringFor: 'Your company' });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState('');
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -1042,7 +996,7 @@ function CallbackForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('Please fill in all required fields.');
@@ -1061,13 +1015,22 @@ function CallbackForm() {
       return;
     }
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
     setError('');
     try {
-      const existing = JSON.parse(localStorage.getItem('employer_callbacks') || '[]');
-      existing.push({ ...form, createdAt: new Date().toISOString() });
-      localStorage.setItem('employer_callbacks', JSON.stringify(existing));
-    } catch { /* ignore */ }
-    setSubmitted(true);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/contact`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(),
+          subject: 'Employer callback request',
+          message: `Please call me about hiring. Phone: ${form.phone}. Hiring for: ${form.hiringFor}.` }),
+      });
+      if (!response.ok) throw new Error('Unable to send your callback request. Please try again.');
+      setSubmitted(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to send your request. Please try again.');
+    } finally { submittingRef.current = false; setSubmitting(false); }
   };
 
   const inputCls = "w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-shadow";
@@ -1146,7 +1109,7 @@ function CallbackForm() {
                     </div>
                   </FormField>
                   {error && <p className="text-sm text-red-600">{error}</p>}
-                  <WorkButton type="submit" text="Request callback" className="w-full" />
+                  <button type="submit" disabled={submitting} className="w-full rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50">{submitting ? 'Sending...' : 'Request callback'}</button>
                   <p className="text-xs text-gray-400 text-center">By submitting, you agree to be contacted by our hiring experts.</p>
                 </form>
               )}

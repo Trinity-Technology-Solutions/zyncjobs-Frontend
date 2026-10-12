@@ -169,6 +169,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterJob, setAppFilterJob] = useState('all');
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
+  const [profileApplication, setProfileApplication] = useState<any>(null);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [closingJobId, setClosingJobId] = useState<string | null>(null);
@@ -996,7 +997,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         <CandidateProfileView
           candidateId={viewingCandidateId}
           onNavigate={onNavigate}
-          onBack={() => setViewingCandidateId(null)}
+          application={profileApplication}
+          onViewApplicationResume={profileApplication ? () => {
+            setViewingCandidateId(null);
+            setSelectedResumeAppId(profileApplication._id || profileApplication.id || null);
+            setSelectedResumeUrl(profileApplication.resumeUrl || null);
+            setSelectedResumeCandidateName(profileApplication.candidateName || null);
+            setSelectedResumeCandidateEmail(profileApplication.candidateEmail || null);
+            setShowResumeModal(true);
+          } : undefined}
+          onScheduleInterview={profileApplication && canManageApplications ? () => {
+            setViewingCandidateId(null);
+            setSelectedApplication(profileApplication);
+            setShowScheduleModal(true);
+          } : undefined}
+          onBack={() => { setViewingCandidateId(null); setProfileApplication(null); setActiveMenu('applications'); }}
           onLogout={onLogout}
         />
       </div>
@@ -1908,6 +1923,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
                                 sessionStorage.setItem('viewCandidateId', String(cid));
                                 sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
+                                setProfileApplication(application);
                                 setViewingCandidateId(String(cid));
                               }}
                               className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap"

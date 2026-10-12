@@ -12,7 +12,7 @@ const COMPANIES = [
 
 const CompanyCarousel: React.FC = () => {
   // Duplicate the companies array to create a seamless infinite loop
-  const duplicatedCompanies = [...COMPANIES, ...COMPANIES, ...COMPANIES];
+  const loopCompanies = [...COMPANIES, ...COMPANIES];
 
   return (
     <div className="home-company-strip w-full bg-white py-5 sm:py-6 overflow-hidden">
@@ -27,11 +27,12 @@ const CompanyCarousel: React.FC = () => {
           <div className="absolute right-0 top-0 bottom-0 w-10 sm:w-20 company-marquee-edge company-marquee-edge-right z-10 pointer-events-none"></div>
 
           {/* Marquee container */}
-          <div className="flex items-center gap-12 sm:gap-16 md:gap-24 animate-[marquee_30s_linear_infinite] w-max">
-            {duplicatedCompanies.map((company, index) => (
+          <div className="company-logo-track">
+            {[0, 1].map(copy => <div key={copy} className="company-logo-group" aria-hidden={copy === 1 ? true : undefined}>
+            {loopCompanies.map((company, index) => (
               <div 
                 key={`${company.name}-${index}`} 
-                className="flex items-center justify-center transition-transform duration-200 hover:scale-105"
+                className="company-logo-item flex items-center justify-center"
               >
                 <img 
                   src={company.logo} 
@@ -44,16 +45,12 @@ const CompanyCarousel: React.FC = () => {
                 />
               </div>
             ))}
+            </div>)}
           </div>
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes marquee {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-33.33%); }
-        }
-      `}} />
+
     </div>
   );
 };
