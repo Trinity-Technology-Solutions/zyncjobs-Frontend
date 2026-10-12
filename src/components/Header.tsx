@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
-  X, Search, User, UserCircle, Building, ChevronDown, Settings, 
+  X, Search, UserCircle, ChevronDown, Settings, 
   FileText, Sparkles, Bell, LogOut, ChevronRight, Briefcase, PlusCircle, LayoutDashboard,
   Menu 
 } from 'lucide-react';
-import JobAlertBadge from './JobAlertBadge';
 import { useJobAlertStore } from '../hooks/useJobAlertStore';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
@@ -35,7 +34,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const { unreadCount: alertUnread } = useJobAlertStore(user?.type === 'candidate' ? user?.email : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
@@ -64,14 +62,35 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     if (!user) return <button type="button" className="portal-notification-bell" aria-label="Sign in to view notifications" onClick={() => onNavigate?.(isEmployerContext ? 'employer-login' : 'login')}><Bell size={23} strokeWidth={1.5} aria-hidden="true" /></button>;
     return null;
   };
-  const [isScrolled, setIsScrolled] = useState(true); // Default to light header
+  const isScrolled = true; // Default to light header
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const lastScrollY = useRef(0);
+  const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const currentPath = location.pathname;
+
+  // Keep --header-h CSS custom property accurately synced with the actual header height
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.getBoundingClientRect().height;
+        if (height > 0) {
+          document.documentElement.style.setProperty('--header-h', `${Math.round(height)}px`);
+          document.documentElement.style.setProperty('--header-offset', '0px');
+        }
+      }
+    };
+    updateHeaderHeight();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateHeaderHeight) : null;
+    if (ro && headerRef.current) ro.observe(headerRef.current);
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
 
   const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
 
@@ -225,44 +244,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('keydown', handleKeyDown);
     
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY <= 20) {
-        setIsHeaderVisible(true);
-      } else if (currentScrollY > lastScrollY.current + 2) {
-        setIsHeaderVisible(false);
-      } else if (currentScrollY < lastScrollY.current - 2) {
-        setIsHeaderVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
-
-      // Use standard scroll detection for the header glass effect
-      // We keep it 'light' (isScrolled = true) by default for the new design
-      const scrolled = currentScrollY > 20;
-      
-      let isOverDark = false;
-      const headerCenterY = 40;
-      const darkSections = document.querySelectorAll('[data-theme="dark"]');
-      darkSections.forEach(section => {
-        const rect = section.getBoundingClientRect();
-        if (rect.top <= headerCenterY && rect.bottom >= headerCenterY) {
-          isOverDark = true;
-        }
-      });
-
-      // If we are over a dark section, switch to dark header (isScrolled = false)
-      // Otherwise, stay light (isScrolled = true)
-      setIsScrolled(!isOverDark);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Initial check
-    handleScroll();
-    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -807,7 +791,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     <>
       <header
         className="zync-site-header fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out"
-        style={{ transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)' }}
       >
       <div
         className="portal-header-surface w-full border-b transition-colors duration-200"

@@ -2,34 +2,43 @@
 
 /* Header height tokens & responsive layout offset */
 :root {
-  --header-h: 74px;
-  --header-offset: 74px;
+  --header-h: 72px;
+  --header-offset: 0px;
 }
 @media (min-width: 640px) {
   :root {
-    --header-h: 82px;
-    --header-offset: 82px;
+    --header-h: 78px;
+    --header-offset: 0px;
   }
 }
 @media (min-width: 1024px) {
   :root {
-    --header-h: 86px;
-    --header-offset: 86px;
+    --header-h: 84px;
+    --header-offset: 0px;
   }
 }
 
-/* Header offset on shared layout wrapper for all non-home pages */
-#main-content.has-header-offset {
-  padding-top: 74px;
+/* Page content top offset to clear the header cleanly without extra whitespace */
+.has-header-offset,
+.page-content-offset {
+  padding-top: 0;
+}
+.page-header-offset {
+  padding-top: 1.5rem;
+}
+.page-header-offset-tight {
+  padding-top: 0.75rem;
 }
 @media (min-width: 640px) {
-  #main-content.has-header-offset {
-    padding-top: 82px;
+  .has-header-offset,
+  .page-content-offset {
+    padding-top: 0;
   }
 }
 @media (min-width: 1024px) {
-  #main-content.has-header-offset {
-    padding-top: 86px;
+  .has-header-offset,
+  .page-content-offset {
+    padding-top: 0;
   }
 }
 
