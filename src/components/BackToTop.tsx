@@ -42,7 +42,7 @@ const BackToTop: React.FC = () => {
 
   const shouldShow = isVisible && !isChatOpen;
   const positionClasses = hasChatButton
-    ? 'bottom-[72px] right-4 sm:bottom-[84px] sm:right-6'
+    ? 'bottom-[104px] right-4 sm:bottom-[116px] sm:right-6'
     : 'bottom-4 right-4 sm:bottom-6 sm:right-6';
 
   return (

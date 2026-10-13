@@ -8,7 +8,7 @@ export interface ParsedResume {
     address?: { city: string; state: string; country: string; postal_code: string; full_address: string };
   };
   skills: { featuredSkills: { skill: string }[] };
-  workExperiences: { jobTitle: string; company: string; date: string; descriptions: string[] }[];
+  workExperiences: { jobTitle: string; company: string; location?: string; date: string; descriptions: string[] }[];
   educations: { degree: string; school: string; date: string; gpa?: string; descriptions?: string[] }[];
   projects?: { name: string; date?: string; descriptions?: string[]; description?: string }[];
   competitions?: string[];
@@ -27,6 +27,35 @@ const RESUME_CACHE_TTL = 30 * 60 * 1000;
 async function hashText(text: string): Promise<string> {
   const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function mergeWorkExperiences(local: ParsedResume['workExperiences'], ai: ParsedResume['workExperiences']): ParsedResume['workExperiences'] {
+  const merged = local.map(item => ({ ...item, descriptions: [...(item.descriptions || [])] }));
+  for (const item of ai) {
+    const match = merged.find(entry => {
+      const sameTitle = entry.jobTitle && item.jobTitle && entry.jobTitle.toLowerCase() === item.jobTitle.toLowerCase();
+      const sameCompany = entry.company && item.company && entry.company.toLowerCase() === item.company.toLowerCase();
+      return sameTitle && sameCompany || sameCompany && (!entry.jobTitle || !item.jobTitle) || sameTitle && (!entry.company || !item.company);
+    });
+    if (!match) { merged.push(item); continue; }
+    match.jobTitle ||= item.jobTitle;
+    match.company ||= item.company;
+    match.location ||= item.location;
+    match.date ||= item.date;
+    match.descriptions = [...new Set([...match.descriptions, ...(item.descriptions || [])])];
+  }
+  return merged;
+}
+
+function mergeProjects(local: NonNullable<ParsedResume['projects']>, ai: NonNullable<ParsedResume['projects']>): NonNullable<ParsedResume['projects']> {
+  const merged = local.map(item => ({ ...item, descriptions: [...(item.descriptions || (item.description ? [item.description] : []))] }));
+  for (const item of ai) {
+    const match = merged.find(entry => entry.name.toLowerCase() === item.name.toLowerCase());
+    if (!match) { merged.push(item); continue; }
+    match.date ||= item.date;
+    match.descriptions = [...new Set([...(match.descriptions || []), ...(item.descriptions || []), ...(item.description ? [item.description] : [])])];
+  }
+  return merged;
 }
 
 // ─── Known institution keywords ───────────────────────────────────────────────
@@ -108,10 +137,15 @@ function isResumeContent(text: string): boolean {
   const hasDegreePattern = /\b(b\.?tech|b\.?e|b\.?sc|m\.?tech|mba|ph\.?d|bachelor|master|diploma|b\.?sc|b\.?a|m\.?a|sslc|hsc)\b/i.test(text);
   const hasCompanyPattern = /\b(company|inc|ltd|pvt|llc|corp|technologies|solutions|services)\b/i.test(text);
   
-  // Must have contact + at least 2 sections + at least one resume-specific indicator
+  // A resume-builder export can be structurally valid even if its contact line
+  // is missing or PDF text extraction loses it. Keep the strict contact check
+  // for ordinary documents, but allow content-rich resumes with several sections.
   const hasResumeIndicator = hasNamePattern || hasDatePattern || hasDegreePattern || hasCompanyPattern;
-  
-  return hasContact && sectionHits >= 2 && hasResumeIndicator;
+  const hasBulletContent = (text.match(/(?:^|\n)\s*[•*-]\s+\S/g) || []).length >= 2;
+  const structuredResume = sectionHits >= 4 && text.split(/\s+/).filter(Boolean).length >= 30 &&
+    (hasDatePattern || hasDegreePattern || hasCompanyPattern || hasBulletContent);
+
+  return (hasContact && sectionHits >= 2 && hasResumeIndicator) || structuredResume;
 }
 
 // ─── LOCAL PARSER ─────────────────────────────────────────────────────────────
@@ -190,7 +224,7 @@ function parseResumeLocally(text: string): ParsedResume {
       !/^(software|developer|engineer|analyst|manager|designer|intern|student|professional|experienced|skilled|passionate|motivated|dedicated|strong|excellent|proven|responsible|i\s)/i.test(l) &&
       !/^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|responsible|managed|led|handled|assisted|wrote|identified|collaborated|studied|conducted|coordinated|facilitated|participated|performed|optimized|proposed|monitored|ensured|presented|organized|maintained|trained|mentored|coached|launched|delivered|established|improved|increased|reduced|streamlined|strengthened|transformed|generated|prepared|produced|provided|researched|resolved|reviewed|supported|tested|validated|automated|configured|deployed|documented|integrated|migrated|upgraded|architected|authored|championed|spearheaded|pioneered|acted|contributed|learned)/i.test(l);
 
-    let cur: { jobTitle: string; company: string; date: string; descriptions: string[] } | null = null;
+    let cur: { jobTitle: string; company: string; location?: string; date: string; descriptions: string[] } | null = null;
     for (const line of expSection) {
       const isBullet = /^[•\-–*]/.test(line);
       const isDateLine = dateRangePattern.test(line) && line.length < 80;
@@ -214,8 +248,9 @@ function parseResumeLocally(text: string): ParsedResume {
       if (isFullPipeExpLine) {
         const dateSegIdx = pipeSegs.findIndex((s: string) => dateRangePattern.test(s));
         const expDate = dateSegIdx >= 0 ? pipeSegs[dateSegIdx] : '';
+        const expLocation = dateSegIdx > 2 ? pipeSegs.slice(2, dateSegIdx).join(', ') : '';
         if (cur && (cur.jobTitle || cur.company)) workExperiences.push(cur);
-        cur = { jobTitle: pipeSegs[0], company: pipeSegs[1] || '', date: expDate, descriptions: [] };
+        cur = { jobTitle: pipeSegs[0], company: pipeSegs[1] || '', location: expLocation, date: expDate, descriptions: [] };
         continue;
       }
 
@@ -299,8 +334,8 @@ function parseResumeLocally(text: string): ParsedResume {
         pushCur();
         const degSeg  = DEGREE_KEYWORDS.test(eduPipeSegs[0]) ? eduPipeSegs[0] : '';
         const schoolSeg = eduPipeSegs.find((s: string, i: number) =>
-          i > 0 && (INSTITUTION_KEYWORDS.test(s) || (!DEGREE_KEYWORDS.test(s) && !/^\d/.test(s) && !/^\d{1,3}[.%]/.test(s)))
-        ) || eduPipeSegs[1] || '';
+          i > 0 && INSTITUTION_KEYWORDS.test(s) && !/^(university|college|school|institute)$/i.test(s)
+        ) || eduPipeSegs.find((s: string, i: number) => i > 0 && !DEGREE_KEYWORDS.test(s) && !/^\d/.test(s) && !/^\d{1,3}[.%]/.test(s)) || '';
         const yearSeg = eduPipeSegs.find((s: string) => /^\d{4}$/.test(s.trim())) || '';
         const pctSeg  = eduPipeSegs.find((s: string) => /\d{1,3}\.?\d*\s*%/.test(s)) || '';
         const gpaSeg  = eduPipeSegs.find((s: string) => /\b(gpa|cgpa)[:\s]*[\d.]+/i.test(s)) || '';
@@ -406,7 +441,10 @@ function parseResumeLocally(text: string): ParsedResume {
         // Reject Strengths/soft-skill lines bleeding in
         !/^(strong|excellent|dedicated|proven|highly|passionate|motivated|skilled|experienced|good|great|ability|communication|problem|team|leadership)/i.test(line) &&
         !/^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|innovated|engineered|enabled|ensured|managed|handled|integrated|contributed|learned|performed|deployed)/i.test(line);
-      if (isProjectHeader && (!cur || cur.descriptions!.length > 0 || !cur.name)) {
+      if (!cur && !isBullet && /^(tested|built|developed|created|designed|implemented|deployed)\b/i.test(line)) {
+        const match = line.match(/^(?:tested|built|developed|created|designed|implemented|deployed)\s+(?:a|an|the)?\s*([^,.]+?)(?:\s+(?:covering|for|using|with|to)\b|[,.;]|$)/i);
+        cur = { name: match?.[1]?.trim() || 'Project details', descriptions: [line] };
+      } else if (isProjectHeader && (!cur || cur.descriptions!.length > 0 || !cur.name)) {
         if (cur) projects.push(cur);
         cur = { name: line.replace(/\b(19|20)\d{2}\b/, '').replace(/[-–]\s*$/, '').trim(), date: hasYear ? line.match(/\b(19|20)\d{2}\b/)?.[0] : undefined, descriptions: [] };
       } else if (cur) {
@@ -545,7 +583,7 @@ export async function parseResumeFromText(
 
   try {
     const textHash = await hashText(text);
-    const cKey = cacheKey('resume-parse-v17', textHash);
+    const cKey = cacheKey('resume-parse-v18', textHash);
     const cached = getCached<ParsedResume>(cKey);
     if (cached) { onStatus?.('ai'); return cached; }
 
@@ -586,15 +624,16 @@ export async function parseResumeFromText(
           skills: [...(raw.skills?.technical || []), ...(raw.skills?.frameworks || [])],
           softSkills: raw.skills?.soft || [],
           tools: raw.skills?.tools || [],
-          workExperiences: (raw.experience || []).map((e: any) => ({
+          workExperiences: (raw.experience || raw.workExperiences || []).map((e: any) => ({
             jobTitle: e.title || e.jobTitle || '',
-            company: e.company || '',
+            company: e.company || e.companyName || '',
+            location: e.location || e.city || '',
             date: e.start_date ? `${e.start_date} - ${e.end_date || 'Present'}` : (e.date || ''),
             descriptions: Array.isArray(e.descriptions) ? e.descriptions : (e.description ? [e.description] : []),
           })),
           educations: (raw.education || raw.educations || []).map((e: any) => ({
             degree: e.degree || e.field_of_study || '',
-            school: e.institution || e.school || e.college || '',
+            school: [e.college, e.university, e.institution, e.school].find((value: any) => value && !/^(university|college|school|institution)$/i.test(String(value).trim())) || '',
             date: e.end_date || e.year || e.date || '',
             gpa: e.gpa || e.cgpa || e.percentage || '',
           })),
@@ -606,7 +645,7 @@ export async function parseResumeFromText(
           ...raw,
           educations: (raw.educations || raw.education || []).map((e: any) => ({
             degree: e.degree || e.class || '',
-            school: e.school || e.college || e.institution || '',
+            school: [e.college, e.university, e.institution, e.school].find((value: any) => value && !/^(university|college|school|institution)$/i.test(String(value).trim())) || '',
             date: e.date || e.year || e.end_date || '',
             gpa: e.gpa || e.cgpa || e.percentage || '',
           })),
@@ -656,6 +695,7 @@ export async function parseResumeFromText(
     const aiWork = (p.workExperiences || p.experience || []).map((e: any) => ({
       jobTitle: e.jobTitle || e.title || '',
       company: e.company || e.companyName || '',
+      location: e.location || e.city || '',
       date: e.date || '',
       descriptions: mergeFrags(Array.isArray(e.descriptions) ? e.descriptions : (e.description ? [e.description] : [])),
     })).filter((e: any) => !isGarbage(e.company) && !isGarbage(e.jobTitle));
@@ -677,7 +717,7 @@ export async function parseResumeFromText(
     // Validate AI education — must have school or degree with real keywords
     const aiEdu = (p.educations || []).map((e: any) => ({
       degree: e.degree || e.class || '',
-      school: e.school || e.college || e.institution || '',
+      school: [e.college, e.university, e.institution, e.school].find((value: any) => value && !/^(university|college|school|institution)$/i.test(String(value).trim())) || '',
       date: e.date || e.year || '',
       gpa: e.gpa || e.cgpa || e.percentage || '',
       descriptions: e.descriptions || [],
@@ -703,11 +743,11 @@ export async function parseResumeFromText(
         ])].map(s => ({ skill: s })),
       },
       // Work: local preferred (structured), AI fills gaps only
-      workExperiences: localResult.workExperiences.length > 0 ? localResult.workExperiences : fixedAiWork,
+      workExperiences: mergeWorkExperiences(localResult.workExperiences, fixedAiWork),
       // Education: local first, AI fallback
       educations: cleanLocalEdu.length > 0 ? cleanLocalEdu : aiEdu,
       // Projects: AI if valid (2+ word names), else local
-      projects: aiProjects.length > 0 ? aiProjects : (localResult.projects || []),
+      projects: mergeProjects(localResult.projects || [], aiProjects),
       summary: (p.summary || '').trim() || localResult.summary || '',
       competitions: p.competitions?.length ? p.competitions : (localResult.competitions || []),
       certifications: p.certifications?.length

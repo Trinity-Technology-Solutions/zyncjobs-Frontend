@@ -1009,9 +1009,6 @@ html, body {
 .portal-employer-dashboard .employer-notification-list > div.border-b { padding: 18px 20px; border-color: #e8edf5; }
 .portal-employer-dashboard .employer-notification-list h4 { font-size: 13px; color: #172b4d; line-height: 1.5; }
 .portal-employer-dashboard .employer-notification-list p { font-size: 12px; line-height: 1.7; color: #64748b; }
-@media (min-width: 1024px) {
-  .portal-employer-dashboard .portal-dashboard-main { padding-left: 280px; }
-}
 @media (max-width: 767px) {
   .portal-employer-dashboard .portal-dashboard-toolbar { padding-block: 16px; margin-bottom: 20px; }
   .portal-employer-dashboard .portal-dashboard-content h1 { font-size: 24px; }
@@ -1024,6 +1021,43 @@ html, body {
 .portal-employer-dashboard .employer-sidebar-profile > div > .relative > div { width: 52px; height: 52px; }
 .portal-employer-dashboard .employer-sidebar nav > button.text-red-300 { color: #fca5a5; }
 .portal-employer-dashboard .employer-sidebar nav > button.text-red-300:hover { background: #ffffff0c; color: #fecaca; }
+/* Desktop employer workspace: flush left navigation and a full-width content area. */
+@media (min-width: 1024px) {
+  .portal-employer-dashboard .employer-dashboard-sidebar-shell {
+    position: fixed;
+    z-index: 40;
+    top: var(--header-h, 92px);
+    bottom: 0;
+    left: 0;
+    width: 285px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #496184 transparent;
+    transition: top .5s cubic-bezier(.22,.61,.36,1);
+  }
+  .portal-employer-dashboard .employer-dashboard-sidebar-shell > .employer-sidebar {
+    min-height: 100%;
+    border-radius: 0;
+    border-top: 0;
+    border-bottom: 0;
+  }
+  .portal-employer-dashboard .portal-dashboard-main {
+    padding-left: 285px;
+  }
+  .portal-employer-dashboard > .w-full.max-w-none {
+    width: calc(100% - 285px);
+    max-width: none;
+    margin-left: 285px;
+    padding-left: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  body:has(.zync-site-header[data-scroll-hidden="true"]) .portal-employer-dashboard .employer-dashboard-sidebar-shell {
+    top: 0;
+  }
+}
 /* Interview management: candidate identity, schedule details and actions have clear hierarchy. */
 .portal-employer-dashboard .employer-interviews-heading { margin-bottom: 24px; }
 .portal-employer-dashboard .employer-interviews-heading h1 { margin-bottom: 6px; }
@@ -1832,9 +1866,11 @@ html, body {
 .resume-analyzer-input button.bg-green-600 { background: #245be0; border-radius: 7px; min-height: 44px; }
 .resume-analyzer-input > .flex > button { border-radius: 6px; }
 .resume-parser-workspace { width: 100%; }
-.resume-parser-panels { align-items: start; gap: 24px; }
+.resume-parser-panels { align-items: stretch; gap: 24px; }
 .resume-parser-panels > .bg-white { border-color: #dce5f1; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px #172b4d05; }
 .resume-parser-panels h2 { font-size: 20px; font-weight: 600; color: #172b4d; }
+.resume-parser-results { display: flex; flex-direction: column; min-width: 0; overflow: visible; }
+.resume-parser-empty { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 150px; }
 /* Builder controls only: these rules do not style the generated resume document. */
 .resume-builder-toolbar { min-height: 58px; padding: 10px 16px; gap: 10px; flex-wrap: wrap; border-color: #dce5f1; }
 .resume-builder-toolbar button { border-radius: 6px; min-height: 32px; }
@@ -3243,3 +3279,34 @@ html, body {
 .zync-home .home-first-screen { clip-path:none; border-radius:0 0 72px 72px; padding-bottom:0; }
 .zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,86px)); }
 @media(max-width:639px) { .zync-home .home-first-screen { clip-path:none; border-radius:0 0 36px 36px; padding-bottom:0; } .zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,74px)); } }
+
+/* One shared footer palette; no hard divider between the page and footer. */
+:root { --footer-top-shade:#e4efff; }
+.portal-footer.portal-footer { background:linear-gradient(180deg,var(--footer-top-shade) 0%,#f2f7ff 38%,#fff 100%); border:0; box-shadow:none; color:#203755; }
+.portal-footer .portal-footer-bottom { border:0; }
+.portal-footer .portal-footer-brand > p,.portal-footer .portal-footer-links button,.portal-footer .portal-footer-bottom button { color:#607894; }
+.portal-footer .portal-footer-socials > a { background:#ffffffa6; }
+.zync-home .home-final-cta.illustrated-candidate-cta::after,.employer-home.employer-home .employer-final-cta::after { content:""; position:absolute; left:0; right:0; bottom:0; height:110px; background:linear-gradient(180deg,transparent,var(--footer-top-shade)); z-index:0; pointer-events:none; }
+.zync-home .home-final-cta.illustrated-candidate-cta,.employer-home.employer-home .employer-final-cta { border-bottom:0; box-shadow:none; margin-bottom:0; }
+
+/* Shared footer: aligned reading width, tighter rhythm and balanced employer columns. */
+.portal-footer .portal-footer-container { max-width:1480px; margin-inline:auto; padding-inline:32px; }
+.portal-footer .portal-footer-main { min-height:0; padding-block:40px 28px; gap:48px; align-items:start; }
+.portal-footer .portal-footer-brand > img { display:block; height:42px; max-width:170px; margin:0 0 18px; }
+.portal-footer .portal-footer-brand > p { max-width:340px; font-size:14px; line-height:1.8; margin-bottom:18px; }
+.portal-footer .portal-footer-links { gap:28px; }
+.portal-footer .portal-footer-links h4 { margin:0 0 16px; font-size:15px; line-height:1.5; }
+.portal-footer .portal-footer-links ul { display:grid; gap:12px; }
+.portal-footer .portal-footer-links li { margin:0; }
+.portal-footer .portal-footer-links button { font-size:13px; line-height:1.5; padding:0; }
+.portal-footer .portal-footer-bottom { padding-block:18px 24px; }
+.portal-footer.portal-footer-employer .portal-footer-main { grid-template-columns:minmax(240px,1.1fr) minmax(0,1.9fr); gap:80px; }
+.portal-footer.portal-footer-employer .portal-footer-links { grid-template-columns:repeat(2,minmax(0,1fr)); gap:48px; }
+@media(max-width:900px) { .portal-footer .portal-footer-main,.portal-footer.portal-footer-employer .portal-footer-main { grid-template-columns:1fr; gap:28px; } .portal-footer .portal-footer-container { padding-inline:24px; } }
+@media(max-width:639px) { .portal-footer .portal-footer-container { padding-inline:20px; } .portal-footer .portal-footer-main { padding-block:32px 20px; } .portal-footer.portal-footer-employer .portal-footer-links { gap:24px; } }
+
+.zync-site-header { transition:transform .5s cubic-bezier(.22,.61,.36,1); }
+.zync-site-header:focus-within { transform:translateY(0) !important; }
+.zync-site-header[data-scroll-hidden=true] { pointer-events:none; }
+.zync-site-header[data-scroll-hidden=true]:focus-within { pointer-events:auto; }
+@media(prefers-reduced-motion:reduce) { .zync-site-header { transition:none; } }

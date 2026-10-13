@@ -22,7 +22,11 @@ const ResumeParserPage: React.FC<ResumeParserPageProps> = ({ onNavigate, user, o
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
           />
         </div>
-<div className="candidate-parser-layout"><CandidateFeatureGuide feature="parser" /><div className="candidate-parser-content"><ResumeParserComponent onNavigate={onNavigate} user={user} /></div></div>
+        <ResumeParserComponent
+          onNavigate={onNavigate}
+          user={user}
+          guide={<CandidateFeatureGuide feature="parser" />}
+        />
       </div>
     </div>
   );

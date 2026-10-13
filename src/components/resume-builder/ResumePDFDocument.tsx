@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { ResumeData } from '../../store/useResumeStore';
 import {
@@ -7,8 +7,9 @@ import {
   formatEducationMeta,
   formatGrade,
 } from '../../utils/educationFormatter';
+import { prepareResumeContent } from '../../utils/prepareResumeContent';
 
-// Built-in PDF standard fonts — no network fetch, no CDN dependency.
+// Built-in PDF standard fonts â€” no network fetch, no CDN dependency.
 // Helvetica/Helvetica-Bold are embedded in @react-pdf/pdfkit and resolved
 // via the STANDARD_FONTS branch in @react-pdf/font, bypassing fetch().
 Font.register({
@@ -30,10 +31,11 @@ const base = StyleSheet.create({
 });
 
 function Bullet({ text, color }: { text: string; color?: string }) {
+  const cleanText = text.replace(/^[\s>*â€¢-]+/, '').trim();
   return (
     <View style={base.bullet}>
-      <Text style={base.bulletDot}>•</Text>
-      <Text style={[base.bulletText, color ? { color } : {}]}>{text}</Text>
+      <Text style={base.bulletDot}>â€¢</Text>
+      <Text style={[base.bulletText, color ? { color } : {}]}>{cleanText}</Text>
     </View>
   );
 }
@@ -55,29 +57,58 @@ function applyHidden(data: ResumeData): ResumeData {
   };
 }
 
+// Keep generated PDFs readable in standard PDF viewers and extractable by ATS parsers.
+// Imported text can contain double-encoded punctuation (for example "Ã¢â‚¬â€œ") which
+// otherwise appears literally in the PDF and damages section/date parsing.
+function sanitizePdfValue(value: any): any {
+  if (typeof value === 'string') {
+    return value
+      .replace(/Ã¢â‚¬â€œ|Ã¢â‚¬â€|Ã¢â‚¬\u0093|Ã¢â‚¬\u0094/g, '-')
+      .replace(/Ã¢â‚¬Â¢|\u2022/g, '-')
+      .replace(/Ã‚Â·|\u00b7/g, '|')
+      .replace(/[\u2012-\u2015]/g, '-')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/\uFFFD/g, '');
+  }
+  if (Array.isArray(value)) return value.map(sanitizePdfValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizePdfValue(item)]));
+  }
+  return value;
+}
+
 function normSummary(s: string | string[]): string {
   return Array.isArray(s) ? s.join(' ') : s || '';
 }
 
-// ─── CLASSIC
+// â”€â”€â”€ CLASSIC
 const cs = StyleSheet.create({
-  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#111', paddingTop: 36, paddingBottom: 36, paddingHorizontal: 40, lineHeight: 1.45 },
-  name:   { fontSize: 18, fontWeight: 700, marginBottom: 2 },
-  contact:{ fontSize: 9, color: '#555', marginBottom: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  secHdr: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', borderBottomWidth: 1, borderBottomColor: '#d0d0d0', paddingBottom: 2, marginBottom: 4, marginTop: 8, letterSpacing: 0.5, color: '#333' },
+  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#202a38', paddingTop: 36, paddingBottom: 38, paddingHorizontal: 44, lineHeight: 1.45 },
+  header: { alignItems: 'center', marginBottom: 12 },
+  name:   { fontSize: 22, fontWeight: 700, color: '#17376b', letterSpacing: 0.5, marginBottom: 2 },
+  role:   { fontSize: 9.5, color: '#52677e', marginBottom: 6 },
+  rule:   { height: 1.2, backgroundColor: '#17376b', marginBottom: 2 },
+  ruleThin:{ height: 0.6, backgroundColor: '#17376b', marginBottom: 6 },
+  contact:{ fontSize: 9, color: '#445267', textAlign: 'center' },
+  secHdr: { fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', borderBottomWidth: 0.7, borderBottomColor: '#91a1b5', paddingBottom: 3, marginBottom: 5, marginTop: 9, letterSpacing: 0.6, color: '#17376b' },
   muted:  { color: '#777', fontSize: 9 },
-  skills: { fontSize: 9.5, color: '#333', marginBottom: 3 },
+  skills: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 2 },
+  skill:  { width: '50%', fontSize: 9.3, color: '#36475a', paddingRight: 10, marginBottom: 3 },
+  jobTitle:{ flex: 1, fontSize: 10, fontWeight: 700, color: '#202a38' },
 });
 
 function ClassicPDF({ d }: { d: ResumeData }) {
   const n = d.personalInfo;
-  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean);
+  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  ');
   const summary = normSummary(d.summary);
   return (
     <Page size="A4" style={cs.page}>
-      <Text style={cs.name}>{n.name || ''}</Text>
-      <View style={cs.contact}>
-        {contact.map((p, i) => <Text key={i}>{p}{i < contact.length - 1 ? '  |' : ''}</Text>)}
+      <View style={cs.header}>
+        <Text style={cs.name}>{n.name || ''}</Text>
+        {d.targetRole ? <Text style={cs.role}>{d.targetRole}</Text> : null}
+        <View style={{ width: '100%' }}><View style={cs.rule} /><View style={cs.ruleThin} /></View>
+        <Text style={cs.contact}>{contact}</Text>
       </View>
       {summary ? (
         <View><Text style={cs.secHdr}>Professional Summary</Text>
@@ -86,18 +117,18 @@ function ClassicPDF({ d }: { d: ResumeData }) {
       ) : null}
       {d.skills.length > 0 && (
         <View><Text style={cs.secHdr}>Core Competencies</Text>
-          <Text style={cs.skills}>{d.skills.join('  ·  ')}</Text>
+          <View style={cs.skills}>{d.skills.map((skill, i) => <Text key={i} style={cs.skill}>{skill}</Text>)}</View>
         </View>
       )}
       {d.experience.length > 0 && (
         <View><Text style={cs.secHdr}>Experience</Text>
           {d.experience.map(e => (
-            <View key={e.id} style={base.mb8}>
+            <View key={e.id} style={base.mb8} wrap={false}>
               <View style={base.row}>
-                <Text style={[base.bold, { flex: 1 }]}>{e.title}</Text>
-                <Text style={cs.muted}>{e.duration}</Text>
+                <Text style={cs.jobTitle}>{e.title}{e.company ? `  |  ${e.company}` : ''}</Text>
+                {e.duration ? <Text style={cs.muted}>{e.duration}</Text> : null}
               </View>
-              {e.company ? <Text style={{ fontSize: 9.5, color: '#555', marginBottom: 2 }}>{e.company}</Text> : null}
+              {e.location ? <Text style={{ fontSize: 9, color: '#66778a', marginTop: 1 }}>{e.location}</Text> : null}
               {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} />)}
             </View>
           ))}
@@ -117,7 +148,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
                   <Text style={cs.muted}>{edu.duration}</Text>
                 </View>
                 <View style={base.row}>
-                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? '  —  ' + meta : ''}</Text>
+                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? '  â€”  ' + meta : ''}</Text>
                   {grade ? <Text style={cs.muted}>{grade}</Text> : null}
                 </View>
                 {edu.description ? <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -130,7 +161,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
         <View><Text style={cs.secHdr}>Certifications</Text>
           {d.certifications.map(c => (
             <View key={c.id} style={[base.row, base.mb4]}>
-              <Text>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
+              <Text>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
               <Text style={cs.muted}>{c.year}</Text>
             </View>
           ))}
@@ -140,7 +171,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
         <View><Text style={cs.secHdr}>Awards</Text>
           {d.awards.map((a: any) => (
             <View key={a.id} style={[base.row, base.mb4]}>
-              <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
+              <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
               <Text style={cs.muted}>{a.year}</Text>
             </View>
           ))}
@@ -151,7 +182,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
           {d.projects.map(p => (
             <View key={p.id} style={base.mb8}>
               <View style={base.row}>
-                <Text style={base.bold}>{p.name}{p.role ? ' — ' + p.role : ''}</Text>
+                <Text style={base.bold}>{p.name}{p.role ? ' â€” ' + p.role : ''}</Text>
                 <Text style={cs.muted}>{p.duration}</Text>
               </View>
               {p.url ? <Text style={{ fontSize: 9, color: '#2563eb', marginBottom: 2 }}>{p.url}</Text> : null}
@@ -162,7 +193,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
       )}
       {d.languages.length > 0 && (
         <View><Text style={cs.secHdr}>Languages</Text>
-          <Text style={cs.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join('  ·  ')}</Text>
+          <View style={cs.skills}>{d.skills.map((skill, i) => <Text key={i} style={cs.skill}>{skill}</Text>)}</View>
         </View>
       )}
       {d.achievements?.length > 0 && (
@@ -184,13 +215,15 @@ function ClassicPDF({ d }: { d: ResumeData }) {
   );
 }
 
-// ─── MODERN
+// â”€â”€â”€ MODERN
 const ms = StyleSheet.create({
-  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#111', paddingTop: 32, paddingBottom: 36, paddingHorizontal: 38, lineHeight: 1.45 },
-  name:   { fontSize: 20, fontWeight: 700, marginBottom: 2 },
-  contact:{ fontSize: 9, color: '#666', marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  rule:   { borderBottomWidth: 1, borderBottomColor: '#ccc', marginBottom: 8, marginTop: 2 },
-  secHdr: { fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#555', borderBottomWidth: 1, borderBottomColor: '#ccc', paddingBottom: 2, marginBottom: 4, marginTop: 8 },
+  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#172b3a', paddingTop: 34, paddingBottom: 36, paddingHorizontal: 40, lineHeight: 1.45 },
+  hdr:    { backgroundColor: '#effaf8', borderLeftWidth: 5, borderLeftColor: '#0f9f91', padding: 12, marginBottom: 8 },
+  name:   { fontSize: 21, fontWeight: 700, color: '#123b48', marginBottom: 2 },
+  role:   { fontSize: 9.5, color: '#0f766e', marginBottom: 4 },
+  contact:{ fontSize: 9, color: '#526b75', marginBottom: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  rule:   { borderBottomWidth: 1, borderBottomColor: '#99d7ce', marginBottom: 8, marginTop: 2 },
+  secHdr: { fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#087f76', borderBottomWidth: 1, borderBottomColor: '#99d7ce', paddingBottom: 2, marginBottom: 4, marginTop: 8 },
   muted:  { color: '#777', fontSize: 9 },
   skills: { fontSize: 9.5, color: '#444', marginBottom: 3 },
 });
@@ -201,9 +234,12 @@ function ModernPDF({ d }: { d: ResumeData }) {
   const summary = normSummary(d.summary);
   return (
     <Page size="A4" style={ms.page}>
-      <Text style={ms.name}>{n.name || ''}</Text>
-      <View style={ms.contact}>
-        {contact.map((p, i) => <Text key={i}>{p}{i < contact.length - 1 ? ' ·' : ''}</Text>)}
+      <View style={ms.hdr}>
+        <Text style={ms.name}>{n.name || ''}</Text>
+        {d.targetRole ? <Text style={ms.role}>{d.targetRole}</Text> : null}
+        <View style={ms.contact}>
+          {contact.map((p, i) => <Text key={i}>{p}{i < contact.length - 1 ? ' |' : ''}</Text>)}
+        </View>
       </View>
       <View style={ms.rule} />
       {summary ? (
@@ -213,7 +249,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
       ) : null}
       {d.skills.length > 0 && (
         <View><Text style={ms.secHdr}>Skills</Text>
-          <Text style={ms.skills}>{d.skills.join(' · ')}</Text>
+          <Text style={ms.skills}>{d.skills.join(' Â· ')}</Text>
         </View>
       )}
       {d.experience.length > 0 && (
@@ -244,7 +280,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
                   <Text style={ms.muted}>{edu.duration}</Text>
                 </View>
                 <View style={base.row}>
-                  <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' · ' + meta : ''}</Text>
+                  <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' Â· ' + meta : ''}</Text>
                   {grade ? <Text style={ms.muted}>{grade}</Text> : null}
                 </View>
                 {edu.description ? <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -257,7 +293,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
         <View><Text style={ms.secHdr}>Certifications</Text>
           {d.certifications.map(c => (
             <View key={c.id} style={[base.row, base.mb4]}>
-              <Text>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
+              <Text>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
               <Text style={ms.muted}>{c.year}</Text>
             </View>
           ))}
@@ -267,7 +303,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
         <View><Text style={ms.secHdr}>Awards</Text>
           {d.awards.map((a: any) => (
             <View key={a.id} style={[base.row, base.mb4]}>
-              <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
+              <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
               <Text style={ms.muted}>{a.year}</Text>
             </View>
           ))}
@@ -290,7 +326,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
       )}
       {d.languages.length > 0 && (
         <View><Text style={ms.secHdr}>Languages</Text>
-          <Text style={ms.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join(' · ')}</Text>
+          <Text style={ms.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join(' Â· ')}</Text>
         </View>
       )}
       {d.achievements?.length > 0 && (
@@ -315,27 +351,27 @@ function ModernPDF({ d }: { d: ResumeData }) {
 // --- MINIMAL
 const mns = StyleSheet.create({
   page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#111', paddingTop: 38, paddingBottom: 38, paddingHorizontal: 42, lineHeight: 1.45 },
-  name:   { fontSize: 22, fontWeight: 400, letterSpacing: 2, marginBottom: 3 },
-  contact:{ fontSize: 9, color: '#777', marginBottom: 14, letterSpacing: 0.5 },
-  secRow: { flexDirection: 'row', marginBottom: 12, gap: 18 },
-  secLbl: { width: 68, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#999', paddingTop: 3, flexShrink: 0 },
-  secBody:{ flex: 1, borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingTop: 4 },
+  name:   { fontSize: 22, fontWeight: 700, marginBottom: 3 },
+  contact:{ fontSize: 9, color: '#555', marginBottom: 12 },
+  secRow: { flexDirection: 'column', marginBottom: 9 },
+  secLbl: { width: 'auto', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: '#333', paddingTop: 0, marginBottom: 3 },
+  secBody:{ borderTopWidth: 1, borderTopColor: '#d5d5d5', paddingTop: 4 },
   muted:  { color: '#999', fontSize: 9 },
 });
 
 function MinimalPDF({ d }: { d: ResumeData }) {
   const n = d.personalInfo;
-  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('   ·   ');
+  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('   Â·   ');
   const summary = normSummary(d.summary);
   const sections: Array<{ label: string; body: React.ReactNode }> = [];
-  if (summary) sections.push({ label: 'About', body: <Text style={{ fontSize: 9.5, color: '#333' }}>{summary}</Text> });
+  if (summary) sections.push({ label: 'Professional Summary', body: <Text style={{ fontSize: 9.5, color: '#333' }}>{summary}</Text> });
   if (d.skills.length > 0) sections.push({ label: 'Skills', body: <Text style={{ fontSize: 9.5, color: '#444' }}>{d.skills.join(', ')}</Text> });
   if (d.experience.length > 0) sections.push({ label: 'Experience', body: (
     <View>
       {d.experience.map(e => (
         <View key={e.id} style={base.mb8}>
           <View style={base.row}>
-            <Text style={base.bold}>{e.title}{e.company ? ' — ' + e.company : ''}</Text>
+            <Text style={base.bold}>{e.title}{e.company ? ' â€” ' + e.company : ''}</Text>
             <Text style={mns.muted}>{e.duration}</Text>
           </View>
           {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} color="#555" />)}
@@ -357,7 +393,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
               <Text style={mns.muted}>{edu.duration}</Text>
             </View>
             <View style={base.row}>
-              <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' — ' + meta : ''}</Text>
+              <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' â€” ' + meta : ''}</Text>
               {grade ? <Text style={mns.muted}>{grade}</Text> : null}
             </View>
             {edu.description ? <Text style={{ fontSize: 8.5, color: '#666', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -369,7 +405,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
   if (d.certifications.length > 0) sections.push({ label: 'Certifications', body: (
     <View>{d.certifications.map(c => (
       <View key={c.id} style={[base.row, base.mb4]}>
-        <Text style={{ fontSize: 9.5, color: '#444' }}>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
+        <Text style={{ fontSize: 9.5, color: '#444' }}>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
         <Text style={mns.muted}>{c.year}</Text>
       </View>
     ))}</View>
@@ -378,7 +414,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
     <View>{d.awards.map((a: any) => (
       <View key={a.id} style={base.mb4}>
         <View style={base.row}>
-          <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
+          <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
           <Text style={mns.muted}>{a.year}</Text>
         </View>
         {a.description ? <Text style={{ fontSize: 9, color: '#777' }}>{a.description}</Text> : null}
@@ -389,7 +425,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
     <View>{d.projects.map(p => (
       <View key={p.id} style={base.mb8}>
         <View style={base.row}>
-          <Text style={base.bold}>{p.name}{p.role ? ' — ' + p.role : ''}</Text>
+          <Text style={base.bold}>{p.name}{p.role ? ' â€” ' + p.role : ''}</Text>
           <Text style={mns.muted}>{p.duration}</Text>
         </View>
         {p.url ? <Text style={{ fontSize: 9, color: '#666', marginBottom: 2 }}>{p.url}</Text> : null}
@@ -426,51 +462,59 @@ function MinimalPDF({ d }: { d: ResumeData }) {
 
 // --- EXECUTIVE
 const es = StyleSheet.create({
-  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#111', paddingTop: 32, paddingBottom: 36, paddingHorizontal: 38, lineHeight: 1.45 },
-  hdrBox: { borderTopWidth: 2, borderBottomWidth: 2, borderColor: '#1a1a1a', paddingVertical: 7, marginBottom: 14, alignItems: 'center' },
-  name:   { fontSize: 20, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' },
-  contact:{ fontSize: 9, color: '#666', marginTop: 3 },
-  secHdr: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, borderBottomWidth: 1, borderBottomColor: '#888', paddingBottom: 2, marginBottom: 5, marginTop: 10 },
+  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#182230', paddingTop: 38, paddingBottom: 40, paddingHorizontal: 44, lineHeight: 1.45 },
+  hdrBox: { backgroundColor: '#183451', borderBottomWidth: 4, borderBottomColor: '#c49a54', padding: 14, marginBottom: 14 },
+  name:   { fontSize: 21, fontWeight: 700, color: '#ffffff', letterSpacing: 0.7 },
+  role:   { fontSize: 9.5, color: '#e7d6b8', marginTop: 2, marginBottom: 6 },
+  rule:   { height: 0.7, backgroundColor: '#58718a', marginBottom: 5 },
+  ruleThin:{ height: 0 },
+  contact:{ fontSize: 8.5, color: '#e1e8ef' },
+  secHdr: { fontSize: 10, fontWeight: 700, color: '#244a73', borderBottomWidth: 0.7, borderBottomColor: '#aab8c7', paddingBottom: 3, marginBottom: 6, marginTop: 10 },
   muted:  { color: '#777', fontSize: 9 },
-  skills: { fontSize: 9.5, color: '#444', marginBottom: 3 },
+  skills: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 3 },
+  skill:  { width: '50%', fontSize: 9.5, color: '#36475a', paddingRight: 8, marginBottom: 4 },
+  jobTitle:{ flex: 1, fontSize: 10, fontWeight: 700, color: '#182230' },
+  employer:{ fontSize: 9, color: '#526174', marginTop: 1, marginBottom: 2 },
 });
 
 function ExecutivePDF({ d }: { d: ResumeData }) {
   const n = d.personalInfo;
-  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  ·  ');
+  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  ');
   const summary = normSummary(d.summary);
   return (
     <Page size="A4" style={es.page}>
       <View style={es.hdrBox}>
-        <Text style={es.name}>{n.name || ''}</Text>
+        <Text style={es.name}>{(n.name || '').toLocaleUpperCase()}</Text>
+        {d.targetRole ? <Text style={es.role}>{d.targetRole}</Text> : null}
+        <View style={{ width: '100%' }}><View style={es.rule} /><View style={es.ruleThin} /></View>
         <Text style={es.contact}>{contact}</Text>
       </View>
       {summary ? (
-        <View><Text style={es.secHdr}>Executive Summary</Text>
+        <View><Text style={es.secHdr}>Professional Summary</Text>
           <Text style={{ fontSize: 9.5, color: '#333', marginBottom: 4 }}>{summary}</Text>
         </View>
       ) : null}
       {d.skills.length > 0 && (
-        <View><Text style={es.secHdr}>Areas of Expertise</Text>
-          <Text style={es.skills}>{d.skills.join('  ·  ')}</Text>
+        <View><Text style={es.secHdr}>Skills</Text>
+          <View style={es.skills}>{d.skills.map((skill, i) => <Text key={i} style={es.skill}>â€¢ {skill}</Text>)}</View>
         </View>
       )}
       {d.experience.length > 0 && (
-        <View><Text style={es.secHdr}>Career History</Text>
+        <View><Text style={es.secHdr}>Professional Experience</Text>
           {d.experience.map(e => (
-            <View key={e.id} style={base.mb8}>
+            <View key={e.id} style={base.mb8} wrap={false}>
               <View style={base.row}>
-                <Text style={[base.bold, { flex: 1 }]}>{e.title}</Text>
-                <Text style={es.muted}>{e.duration}</Text>
+                <Text style={es.jobTitle}>{e.title}</Text>
+                {e.duration ? <Text style={es.muted}>{e.duration}</Text> : null}
               </View>
-              {e.company ? <Text style={{ fontSize: 9.5, color: '#555', fontStyle: 'italic', marginBottom: 2 }}>{e.company}</Text> : null}
-              {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={'> ' + b} />)}
+              {(e.company || e.location) ? <Text style={es.employer}>{[e.company, e.location].filter(Boolean).join('  |  ')}</Text> : null}
+              {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b.replace(/^[\s>*â€¢-]+/, '')} />)}
             </View>
           ))}
         </View>
       )}
       {d.education.length > 0 && (
-        <View><Text style={es.secHdr}>Education & Credentials</Text>
+        <View><Text style={es.secHdr}>Education</Text>
           {d.education.map(edu => {
             const inst = formatEducationSubtitle(edu);
             const deg  = formatEducationDegreeLabel(edu);
@@ -483,7 +527,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
                   <Text style={es.muted}>{edu.duration}</Text>
                 </View>
                 <View style={base.row}>
-                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? ' · ' + meta : ''}</Text>
+                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? ' Â· ' + meta : ''}</Text>
                   {grade ? <Text style={es.muted}>{grade}</Text> : null}
                 </View>
                 {edu.description ? <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -496,7 +540,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
         <View><Text style={es.secHdr}>Certifications</Text>
           {d.certifications.map(c => (
             <View key={c.id} style={[base.row, base.mb4]}>
-              <Text>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
+              <Text>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
               <Text style={es.muted}>{c.year}</Text>
             </View>
           ))}
@@ -506,7 +550,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
         <View><Text style={es.secHdr}>Awards & Recognition</Text>
           {d.awards.map((a: any) => (
             <View key={a.id} style={[base.row, base.mb4]}>
-              <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
+              <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
               <Text style={es.muted}>{a.year}</Text>
             </View>
           ))}
@@ -529,7 +573,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
       )}
       {d.languages.length > 0 && (
         <View><Text style={es.secHdr}>Languages</Text>
-          <Text style={es.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join('  ·  ')}</Text>
+          <Text style={es.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join('  Â·  ')}</Text>
         </View>
       )}
       {d.achievements?.length > 0 && (
@@ -824,7 +868,7 @@ function ProfessionalPDF({ d }: { d: ResumeData }) {
 
 // --- ROUTER
 export default function ResumePDFDocument({ data }: { data: ResumeData }) {
-  const d = applyHidden(data);
+  const d = applyHidden(prepareResumeContent(sanitizePdfValue(data)));
   const n = d.personalInfo;
   const page = (() => {
     switch (d.template) {

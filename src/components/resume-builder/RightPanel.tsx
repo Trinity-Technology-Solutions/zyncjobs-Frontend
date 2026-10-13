@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FileText, ZoomIn, ZoomOut, ChevronDown, ChevronUp,
-  LayoutTemplate, Maximize2, Minimize2,
+  LayoutTemplate, Maximize2, Minimize2, Expand, X,
 } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import ResumeTemplate from './ResumeTemplate';
@@ -24,6 +25,8 @@ interface Props {
 export default function RightPanel({ onNavigate: _onNavigate }: Props) {
   const { data, update } = useResumeStore();
   const [showTemplates, setShowTemplates] = useState(false);
+  const [expandedPreview, setExpandedPreview] = useState(false);
+  const [expandedZoom, setExpandedZoom] = useState(1);
   const [page, setPage] = useState(1);
 
   // zoom === null means "fit mode" — scale is auto-calculated from container
@@ -32,6 +35,20 @@ export default function RightPanel({ onNavigate: _onNavigate }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(0.75);
+
+  useEffect(() => {
+    if (!expandedPreview) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedPreview(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expandedPreview]);
 
   const hasContent = !!(
     data.personalInfo.name ||
@@ -197,6 +214,15 @@ export default function RightPanel({ onNavigate: _onNavigate }: Props) {
           <Minimize2 className="w-3 h-3" />
         </button>
 
+        <button
+          onClick={() => { setExpandedZoom(1); setExpandedPreview(true); }}
+          className="ml-1 p-1 rounded border border-gray-200 bg-white hover:bg-blue-50 hover:text-blue-700 text-gray-500 transition-colors"
+          title="Open a larger resume preview"
+          aria-label="Open a larger resume preview"
+        >
+          <Expand className="w-3.5 h-3.5" />
+        </button>
+
         <div className="flex-1" />
 
         {/* Page nav */}
@@ -281,6 +307,60 @@ export default function RightPanel({ onNavigate: _onNavigate }: Props) {
           </div>
         )}
       </div>
+
+      {expandedPreview && createPortal(
+        <div
+          className="fixed inset-0 z-[10000] flex flex-col bg-black/60 p-2 sm:p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Expanded resume preview"
+          onMouseDown={event => { if (event.target === event.currentTarget) setExpandedPreview(false); }}
+        >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-gray-100 shadow-2xl">
+            <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
+              <FileText className="h-4 w-4 text-blue-600" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-gray-900">Resume preview</div>
+                <div className="text-xs capitalize text-gray-500">{data.template} template · updates as you edit</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExpandedZoom(value => Math.max(0.5, Number((value - 0.1).toFixed(2))))}
+                  className="rounded border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50"
+                  aria-label="Zoom out"
+                ><ZoomOut className="h-4 w-4" /></button>
+                <span className="w-12 text-center text-xs font-medium text-gray-600">{Math.round(expandedZoom * 100)}%</span>
+                <button
+                  type="button"
+                  onClick={() => setExpandedZoom(value => Math.min(1.6, Number((value + 0.1).toFixed(2))))}
+                  className="rounded border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50"
+                  aria-label="Zoom in"
+                ><ZoomIn className="h-4 w-4" /></button>
+                <button
+                  type="button"
+                  onClick={() => setExpandedZoom(1)}
+                  className="rounded border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >100%</button>
+                <button
+                  type="button"
+                  onClick={() => setExpandedPreview(false)}
+                  className="ml-1 rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                  aria-label="Close expanded preview"
+                ><X className="h-5 w-5" /></button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-8">
+              <div className="mx-auto w-fit origin-top shadow-xl" style={{ zoom: expandedZoom }}>
+                <div style={{ width: DOC_W, background: '#fff' }}>
+                  <ResumeTemplate data={data} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import EmployerFeatureGuide from './EmployerFeatureGuide';
-import React, { useState, useEffect } from 'react';
-import { Settings, Save, BarChart3, Users, Brain, X, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, Save, BarChart3, Users, Brain, X, Eye, Briefcase, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
+import { apiFetch } from '../api/apiFetch';
 
 interface AutoRejectionSettingsProps {
   jobId?: string;
@@ -9,6 +10,7 @@ interface AutoRejectionSettingsProps {
 }
 
 const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, onSave }) => {
+  const getSettingsCacheKey = (email: string) => `aiRejectionSettings:${email.trim().toLowerCase()}:${jobId || 'company'}`;
   const [settings, setSettings] = useState({
     autoReject: false,
     minSkillsMatch: 60,
@@ -37,53 +39,114 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   const [showModal, setShowModal] = useState(false);
   const [modalData, setModalData] = useState<{ type: string; candidates: any[] }>({ type: '', candidates: [] });
   const [candidateDetails, setCandidateDetails] = useState<any[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
+    dirtyRef.current = false;
+    setIsDirty(false);
     loadSettings();
+    const refresh = () => { if (document.visibilityState === 'visible' && !dirtyRef.current) loadSettings(); };
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
   }, [jobId]);
 
+  // Keep the preview responsive while thresholds and rule toggles are edited.
+  // Saving is still required before these rules affect applications.
+  useEffect(() => {
+    if (!candidateDetails.length) return;
+    const evaluated = candidateDetails.map((candidate: any) => {
+      const skillFailure = settings.rejectReasons.skillsMismatch && candidate.hasSkillData && candidate.skillsMatch < settings.minSkillsMatch;
+      const experienceFailure = settings.rejectReasons.insufficientExperience && candidate.hasExperienceData && candidate.experienceMatch < settings.minExperienceMatch;
+      const overallFailure = candidate.hasSkillData && candidate.hasExperienceData && candidate.overallScore < settings.minOverallScore;
+      const educationFailure = settings.rejectReasons.educationGap && candidate.hasEducationData && candidate.educationMatch === 0;
+      const locationFailure = settings.rejectReasons.locationMismatch && candidate.hasLocationData && candidate.locationMatch === 0;
+      const wouldBeRejected = Boolean(skillFailure || experienceFailure || overallFailure || educationFailure || locationFailure);
+      const reason = skillFailure ? 'skillsMismatch'
+        : experienceFailure ? 'insufficientExperience'
+          : overallFailure ? 'overallScore'
+            : educationFailure ? 'educationGap'
+              : locationFailure ? 'locationMismatch' : null;
+      return {
+        ...candidate,
+        wouldBeRejected,
+        status: settings.autoReject && wouldBeRejected ? 'auto-rejected' : candidate.originalStatus || 'pending',
+        reason
+      };
+    });
+    setCandidateDetails(evaluated);
+    setAnalytics(previous => ({
+      ...previous,
+      autoRejected: evaluated.filter((candidate: any) => candidate.wouldBeRejected).length,
+      rejectionReasons: {
+        ...previous.rejectionReasons,
+        skillsMismatch: evaluated.filter((candidate: any) => candidate.reason === 'skillsMismatch').length,
+        insufficientExperience: evaluated.filter((candidate: any) => candidate.reason === 'insufficientExperience').length,
+        educationGap: evaluated.filter((candidate: any) => candidate.reason === 'educationGap').length,
+        locationMismatch: evaluated.filter((candidate: any) => candidate.reason === 'locationMismatch').length
+      }
+    }));
+  }, [settings]);
+
   const loadSettings = async () => {
+    if (dirtyRef.current) return;
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const employerEmail = user.email;
       if (!employerEmail) return;
 
       const url = `${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}?employerEmail=${encodeURIComponent(employerEmail)}`;
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       if (response.ok) {
-        const savedSettings = await response.json();
-        setSettings(prev => ({ ...prev, ...savedSettings }));
-        await loadCandidateData({ ...settings, ...savedSettings });
+        const payload = await response.json();
+        const savedSettings = payload.settings || payload;
+        if (dirtyRef.current) return;
+        const mergedSettings = {
+          ...settings,
+          ...savedSettings,
+          rejectReasons: { ...settings.rejectReasons, ...(savedSettings.rejectReasons || {}) }
+        };
+        setSettings(mergedSettings);
+        localStorage.setItem(getSettingsCacheKey(employerEmail), JSON.stringify(mergedSettings));
+        await loadCandidateData(mergedSettings);
       } else {
-        const saved = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
-        const parsed = saved ? JSON.parse(saved) : null;
-        if (parsed) setSettings(parsed);
-        await loadCandidateData(parsed || settings);
+        if (dirtyRef.current) return;
+        const cached = localStorage.getItem(getSettingsCacheKey(employerEmail));
+        const restoredSettings = cached ? { ...settings, ...JSON.parse(cached) } : settings;
+        setSettings(restoredSettings);
+        await loadCandidateData(restoredSettings);
       }
     } catch {
-      const saved = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
-      const parsed = saved ? JSON.parse(saved) : null;
-      if (parsed) setSettings(parsed);
-      await loadCandidateData(parsed || settings);
+      if (dirtyRef.current) return;
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const cached = user.email ? localStorage.getItem(getSettingsCacheKey(user.email)) : null;
+        const restoredSettings = cached
+          ? { ...settings, ...JSON.parse(cached), rejectReasons: { ...settings.rejectReasons, ...(JSON.parse(cached).rejectReasons || {}) } }
+          : settings;
+        setSettings(restoredSettings);
+        await loadCandidateData(restoredSettings);
+      } catch {
+        await loadCandidateData(settings);
+      }
     }
   };
 
   const loadCandidateData = async (overrideSettings?: typeof settings) => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userEmail = user.email;
-      if (!userEmail) return;
-
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || sessionStorage.getItem('accessToken') || '';
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (!response.ok) return;
+      const response = await apiFetch(API_ENDPOINTS.APPLICATIONS);
+      if (!response.ok) throw new Error(`Could not load applications (${response.status})`);
 
       const allApplications = await response.json();
       const applications = Array.isArray(allApplications) ? allApplications : allApplications.applications || [];
-
-      const employerApplications = applications;
+      const employerApplications = jobId
+        ? applications.filter((app: any) => String(app.jobId?._id || app.jobId?.id || app.jobId) === String(jobId))
+        : applications;
 
       // Fetch job details only (not candidate profile — use application data directly)
       const appsWithData = await Promise.all(
@@ -94,7 +157,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           // Fetch full job if skills/experienceRange are missing
           if (jobId && (!Array.isArray(jobData.skills) || !jobData.experienceRange)) {
             try {
-              const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+              const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
               if (jobRes.ok) jobData = await jobRes.json();
             } catch { /* ignore */ }
           }
@@ -110,19 +173,40 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         const overallScore = typeof aiOverall === 'number' && aiOverall > 0
           ? Math.min(100, Math.max(0, Math.round(aiOverall)))
           : Math.round(skillsMatch * 0.6 + experienceMatch * 0.4);
+        const requiredSkills = app._jobData?.skills || app._jobData?.requiredSkills || [];
+        const candidateSkills = app.skills || app.resumeSkills || app.candidateProfile?.skills || [];
+        const hasSkillData = toList(requiredSkills).length > 0 && toList(candidateSkills).length > 0;
+        const rawExperience = app.yearsExperience ?? app.experience ?? app.candidateExperience ?? app.candidateProfile?.yearsExperience;
+        const hasExperienceData = rawExperience !== undefined && rawExperience !== null && String(rawExperience).trim() !== '';
+        const candidateEducation = app.education || app.candidateProfile?.education || app.resumeParsed?.education || '';
+        const requiredEducation = app._jobData?.education || app._jobData?.educationLevel || app._jobData?.minimumEducation || '';
+        const hasEducationData = Boolean(String(candidateEducation).trim() && String(requiredEducation).trim());
+        const candidateLocation = app.location || app.candidateProfile?.location || '';
+        const requiredLocation = app._jobData?.location || app._jobData?.jobLocation || '';
+        const isRemoteJob = /remote|anywhere/i.test(`${app._jobData?.locationType || ''} ${app._jobData?.workSetting || ''} ${requiredLocation}`);
+        const hasLocationData = Boolean(String(candidateLocation).trim() && String(requiredLocation).trim()) && !isRemoteJob;
+        const educationMatch = hasEducationData
+          ? (String(candidateEducation).toLowerCase().includes(String(requiredEducation).toLowerCase()) ? 100 : 0)
+          : null;
+        const locationMatch = hasLocationData
+          ? (String(candidateLocation).toLowerCase().includes(String(requiredLocation).toLowerCase()) || String(requiredLocation).toLowerCase().includes(String(candidateLocation).toLowerCase()) ? 100 : 0)
+          : null;
 
         // Read latest settings from DB response (passed in) or current state
         const currentSettings = overrideSettings || settings;
-        const shouldReject = currentSettings.autoReject && (
-          (currentSettings.rejectReasons.skillsMismatch && skillsMatch < currentSettings.minSkillsMatch) ||
-          (currentSettings.rejectReasons.insufficientExperience && experienceMatch < currentSettings.minExperienceMatch) ||
-          overallScore < currentSettings.minOverallScore
+        const meetsRejectionRules = (
+          (currentSettings.rejectReasons.skillsMismatch && hasSkillData && skillsMatch < currentSettings.minSkillsMatch) ||
+          (currentSettings.rejectReasons.insufficientExperience && hasExperienceData && experienceMatch < currentSettings.minExperienceMatch) ||
+          (hasSkillData && hasExperienceData && overallScore < currentSettings.minOverallScore) ||
+          (currentSettings.rejectReasons.educationGap && hasEducationData && educationMatch === 0) ||
+          (currentSettings.rejectReasons.locationMismatch && hasLocationData && locationMatch === 0)
         );
+        const shouldReject = currentSettings.autoReject && meetsRejectionRules;
 
         let rejectionReason = null;
-        if (shouldReject) {
-          if (skillsMatch < settings.minSkillsMatch) rejectionReason = 'skillsMismatch';
-          else if (experienceMatch < settings.minExperienceMatch) rejectionReason = 'insufficientExperience';
+        if (meetsRejectionRules) {
+          if (skillsMatch < currentSettings.minSkillsMatch) rejectionReason = 'skillsMismatch';
+          else if (experienceMatch < currentSettings.minExperienceMatch) rejectionReason = 'insufficientExperience';
         }
 
         return {
@@ -130,6 +214,14 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           name: app.candidateName || 'Unknown Candidate',
           email: app.candidateEmail,
           status: shouldReject ? 'auto-rejected' : app.status || 'pending',
+          originalStatus: app.status || 'pending',
+          wouldBeRejected: meetsRejectionRules,
+          hasSkillData,
+          hasExperienceData,
+          hasEducationData,
+          hasLocationData,
+          educationMatch,
+          locationMatch,
           reason: rejectionReason,
           skillsMatch,
           experienceMatch,
@@ -142,7 +234,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       setCandidateDetails(processedCandidates);
 
       const totalApps = processedCandidates.length;
-      const wouldReject = processedCandidates.filter((c: any) => c.status === 'auto-rejected').length;
+      const wouldReject = processedCandidates.filter((c: any) => c.wouldBeRejected).length;
       const skillsIssues = processedCandidates.filter((c: any) => c.reason === 'skillsMismatch').length;
       const experienceIssues = processedCandidates.filter((c: any) => c.reason === 'insufficientExperience').length;
 
@@ -164,26 +256,25 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   const calculateSkillsMatch = (application: any): number => {
     // Use backend-computed aiAnalysis only when it has a real non-zero, in-range score
     const aiSkills = application.aiAnalysis?.skillsScore;
-    if (typeof aiSkills === 'number' && aiSkills > 0) {
+    if (typeof aiSkills === 'number' && aiSkills >= 0) {
       return Math.min(100, Math.max(0, Math.round(aiSkills)));
     }
 
     const jobData = application._jobData || {};
-    const candidateSkills = (Array.isArray(application.skills) ? application.skills :
-      Array.isArray(application.resumeSkills) ? application.resumeSkills :
-      Array.isArray(application.candidateSkills) ? application.candidateSkills :
-      Array.isArray(application.candidateProfile?.skills) ? application.candidateProfile.skills : [])
-      .map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
+    const candidateSkills = toList(application.skills).length ? toList(application.skills)
+      : toList(application.resumeSkills).length ? toList(application.resumeSkills)
+        : toList(application.candidateSkills).length ? toList(application.candidateSkills)
+          : toList(application.candidateProfile?.skills);
+    const normalizedCandidateSkills = candidateSkills.map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
 
     const rawJobSkills = jobData.skills || jobData.requiredSkills || [];
-    const requiredSkills = (Array.isArray(rawJobSkills) ? rawJobSkills : String(rawJobSkills).split(','))
-      .map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
+    const requiredSkills = toList(rawJobSkills).map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
 
-    if (requiredSkills.length === 0) return candidateSkills.length >= 10 ? 90 : Math.round((candidateSkills.length / 10) * 90);
-    if (candidateSkills.length === 0) return 0;
+    if (requiredSkills.length === 0) return normalizedCandidateSkills.length >= 10 ? 90 : Math.round((normalizedCandidateSkills.length / 10) * 90);
+    if (normalizedCandidateSkills.length === 0) return 0;
 
     const matched = requiredSkills.filter(req =>
-      candidateSkills.some((cs: string) => cs.includes(req) || req.includes(cs))
+      normalizedCandidateSkills.some((cs: string) => cs.includes(req) || req.includes(cs))
     ).length;
     return Math.round((matched / requiredSkills.length) * 100);
   };
@@ -191,7 +282,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   const calculateExperienceMatch = (application: any): number => {
     // Use backend-computed aiAnalysis only when it has a real non-zero, in-range score
     const aiExp = application.aiAnalysis?.experienceScore;
-    if (typeof aiExp === 'number' && aiExp > 0) {
+    if (typeof aiExp === 'number' && aiExp >= 0) {
       return Math.min(100, Math.max(0, Math.round(aiExp)));
     }
 
@@ -216,6 +307,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     return Math.max(0, Math.round((candidateYears / minExp) * 70));
   };
 
+  const toList = (value: any): string[] => {
+    if (Array.isArray(value)) return value.map(item => String(item).trim()).filter(Boolean);
+    if (typeof value === 'string') return value.split(',').map(item => item.trim()).filter(Boolean);
+    if (value && typeof value === 'object') return Object.values(value).map(item => String(item).trim()).filter(Boolean);
+    return [];
+  };
+
   const showCandidateList = (type: string) => {
     let candidates: any[] = [];
     let title = '';
@@ -226,8 +324,8 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         title = 'All Applications';
         break;
       case 'auto-rejected':
-        candidates = candidateDetails.filter((c: any) => c.status === 'auto-rejected');
-        title = 'Auto-Rejected Candidates';
+        candidates = candidateDetails.filter((c: any) => c.wouldBeRejected);
+        title = settings.autoReject ? 'Auto-Rejected Candidates' : 'Candidates Below Threshold';
         break;
       case 'skills':
         candidates = candidateDetails.filter((c: any) => c.reason === 'skillsMismatch');
@@ -244,6 +342,8 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   };
 
   const handleSettingChange = (key: string, value: any) => {
+    dirtyRef.current = true;
+    setIsDirty(true);
     setSettings(prev => ({
       ...prev,
       [key]: value
@@ -251,6 +351,8 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   };
 
   const handleReasonChange = (reason: string, enabled: boolean) => {
+    dirtyRef.current = true;
+    setIsDirty(true);
     setSettings(prev => ({
       ...prev,
       rejectReasons: {
@@ -261,28 +363,43 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const employerEmail = user.email;
-      if (!employerEmail) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login first." } })); return; }
+      if (!employerEmail) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login first." } })); setIsSaving(false); return; }
 
       const url = `${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}`;
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...settings, employerEmail })
       });
 
       if (response.ok) {
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'AI auto-rejection settings saved. These will apply when you run AI Auto-Shortlist on applications.' } }));
+        const result = await response.json().catch(() => ({}));
+        const savedSettings = result.settings || settings;
+        const mergedSettings = {
+          ...settings,
+          ...savedSettings,
+          rejectReasons: { ...settings.rejectReasons, ...(savedSettings.rejectReasons || {}) }
+        };
+        setSettings(mergedSettings);
+        dirtyRef.current = false;
+        setIsDirty(false);
+        localStorage.setItem(getSettingsCacheKey(employerEmail), JSON.stringify(mergedSettings));
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'AI auto-rejection settings saved. New and existing applications will be evaluated.' } }));
+        await loadCandidateData(mergedSettings);
       } else {
-        throw new Error('API save failed');
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Could not save AI rejection settings');
       }
-    } catch {
-      localStorage.setItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`, JSON.stringify(settings));
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Settings saved locally." } }));
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: (error as Error).message || 'Could not save AI rejection settings', type: 'error' } }));
+      setIsSaving(false);
+      return;
     }
-    await loadCandidateData(settings);
+    setIsSaving(false);
     if (onSave) onSave(settings);
   };
 
@@ -451,11 +568,11 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             <h3 className="text-sm font-medium text-gray-900">Rejection Analytics Preview</h3>
           </div>
           <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2 py-1 rounded-full font-medium">
-            📄 Preview only — no applications changed
+            {isDirty ? 'Unsaved changes — preview updates live' : settings.autoReject ? 'Automation enabled — saved rules apply to pending and new applications' : 'Preview only — no applications changed'}
           </span>
         </div>
         <p className="text-xs text-gray-500 mb-3">
-          Shows how many candidates <strong>would be flagged</strong> if you run AI Auto-Shortlist with current settings. Click a card to see who.
+          Shows screening results for all company applications. Click a card to see the candidates.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div 
@@ -472,7 +589,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             className="cursor-pointer hover:bg-white p-2 rounded transition-colors"
             onClick={() => showCandidateList('auto-rejected')}
           >
-            <span className="text-gray-500">Would Be Flagged</span>
+            <span className="text-gray-500">{settings.autoReject ? 'Auto-Rejected' : 'Would Be Rejected'}</span>
             <div className="font-semibold text-orange-600 flex items-center">
               {analytics.autoRejected}
               <Eye className="w-3 h-3 ml-1 text-gray-400" />
@@ -505,11 +622,12 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       <div className="flex justify-end">
         <button
           onClick={handleSave}
+          disabled={isSaving}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
           title="Save auto-rejection settings"
         >
           <Save className="w-4 h-4 mr-2" />
-          Save Settings
+          {isSaving ? 'Saving…' : 'Save Settings'}
         </button>
       </div>
 
@@ -520,7 +638,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             <div className="flex items-center justify-between p-6 border-b">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{modalData.type}</h3>
-                <p className="text-xs text-orange-600 mt-1">Preview only — these candidates have NOT been rejected. Run AI Auto-Shortlist in Application Management to take action.</p>
+                <p className="text-xs text-orange-600 mt-1">{settings.autoReject ? 'Candidates below the saved thresholds are automatically rejected.' : 'Preview only — candidates are not changed until automation is enabled and saved.'}</p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -548,7 +666,10 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
                           </div>
                           <div className="min-w-0">
                             <h4 className="font-medium text-gray-900 text-sm">{candidate.name}</h4>
-                            <p className="text-xs text-blue-700 font-semibold truncate">📋 {candidate.jobTitle || 'Unknown Position'}</p>
+                            <p className="flex items-center gap-1 text-xs text-blue-700 font-semibold truncate">
+                              <Briefcase className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <span className="truncate">{candidate.jobTitle || 'Unknown Position'}</span>
+                            </p>
                             <p className="text-xs text-gray-500 truncate">{candidate.email}</p>
                             <p className="text-xs text-gray-400">Applied: {new Date(candidate.appliedAt).toLocaleDateString()}</p>
                           </div>
@@ -556,16 +677,28 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
                         <div className="flex flex-wrap gap-3 sm:gap-4">
                           <div>
                             <div className="text-xs text-gray-500">Skills Match</div>
-                            <div className={`font-semibold text-sm ${candidate.skillsMatch >= 60 ? 'text-green-600' : 'text-red-600'}`}>{candidate.skillsMatch}%</div>
+                            <div className={`font-semibold text-sm ${!candidate.hasSkillData ? 'text-gray-500' : candidate.skillsMatch >= settings.minSkillsMatch ? 'text-green-600' : 'text-red-600'}`}>{candidate.hasSkillData ? `${candidate.skillsMatch}%` : 'N/A'}</div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500">Experience</div>
-                            <div className={`font-semibold text-sm ${candidate.experienceMatch >= 80 ? 'text-green-600' : 'text-red-600'}`}>{candidate.experienceMatch}%</div>
+                            <div className={`font-semibold text-sm ${!candidate.hasExperienceData ? 'text-gray-500' : candidate.experienceMatch >= settings.minExperienceMatch ? 'text-green-600' : 'text-red-600'}`}>{candidate.hasExperienceData ? `${candidate.experienceMatch}%` : 'N/A'}</div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500">Preview Status</div>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${candidate.status === 'auto-rejected' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
-                              {candidate.status === 'auto-rejected' ? '⚠️ Would be flagged' : '✅ Passes threshold'}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              candidate.wouldBeRejected
+                                ? 'bg-orange-100 text-orange-800'
+                                : !candidate.hasSkillData || !candidate.hasExperienceData
+                                  ? 'bg-gray-100 text-gray-700'
+                                  : 'bg-green-100 text-green-800'
+                            }`}>
+                              {candidate.wouldBeRejected ? (
+                                <><AlertTriangle className="h-3 w-3" aria-hidden="true" />{settings.autoReject ? 'Flagged for rejection' : 'Would be flagged'}</>
+                              ) : !candidate.hasSkillData || !candidate.hasExperienceData ? (
+                                <><Info className="h-3 w-3" aria-hidden="true" />Not evaluated — missing data</>
+                              ) : (
+                                <><CheckCircle className="h-3 w-3" aria-hidden="true" />Meets criteria</>
+                              )}
                             </span>
                           </div>
                         </div>

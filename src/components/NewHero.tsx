@@ -30,8 +30,8 @@ function RobotCanvas() {
     camera.lookAt(0, 1.40, 0);
 
     let renderer: THREE.WebGLRenderer;
-    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
-    catch { return; }
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); }
+    catch (error) { console.error('Zync robot WebGL setup failed', error); return; }
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
@@ -202,7 +202,8 @@ function RobotCanvas() {
         action.timeScale = 0.65;
         action.play();
       }
-    }, undefined, () => {
+    }, undefined, (error) => {
+      console.error('Zync robot model loading failed', error);
       if (!disposed) setReady(false);
       stopRender?.();
       stopRender = undefined;

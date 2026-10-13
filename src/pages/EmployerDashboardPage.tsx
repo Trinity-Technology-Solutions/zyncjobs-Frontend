@@ -24,7 +24,7 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
-import { formatInterviewDate, formatInterviewTime } from '../utils/interviewScheduleUtils';
+import { formatInterviewDate, formatInterviewTime, hasInterviewMeetingWindowEnded } from '../utils/interviewScheduleUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
@@ -978,7 +978,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   };
 
   const renderNavigationCard = (isMobile = false) => (
-      <div role="navigation" aria-label="Employer workspace navigation" className="employer-navigation-card rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div role="navigation" aria-label="Employer workspace navigation" className="employer-navigation-card employer-sidebar rounded-xl border border-slate-200 bg-white overflow-hidden">
             {/* Profile header - Enhanced */}
             <div className="employer-sidebar-profile px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -1035,7 +1035,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
         {/* Profile Strength bar */}
-        <div className="px-4 sm:px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0]">
+        <div className="employer-sidebar-profile-strength px-4 sm:px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs text-slate-700 font-semibold tracking-wide">
               Profile Strength
@@ -1065,7 +1065,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
             {/* Role badge for team members */}
             {teamRole && (
-              <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
+              <div className="employer-sidebar-role mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-full bg-blue-500/60 flex items-center justify-center flex-shrink-0">
                   <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -1158,7 +1158,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </nav>
 
             {/* Logout Button */}
-            <div className="px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
+            <div className="employer-sidebar-logout px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
               <button
                 onClick={() => {
                   if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
@@ -1358,15 +1358,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Main Grid: Col 1 is Navigation Card, Col 2-4 is Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3.5 sm:pt-4 pb-8 sm:pb-12">
+      <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 pt-3.5 sm:pt-4 pb-8 sm:pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 lg:gap-6 items-start">
-          {/* Desktop Navigation Column */}
-          <div className="hidden lg:block lg:col-span-1 sticky top-4">
+          {/* Desktop navigation stays flush to the viewport beside the dashboard. */}
+          <div className="employer-dashboard-sidebar-shell hidden lg:block lg:col-span-1">
             {renderNavigationCard(false)}
           </div>
 
         {/* Dashboard Content */}
-        <div className="lg:col-span-3 pt-0 pb-2 min-w-0">
+        <div className="lg:col-span-4 pt-0 pb-2 min-w-0">
           <div className="employer-section-content portal-dashboard-content px-3 sm:px-4 lg:px-6" data-section={activeMenu}>
           {activeMenu === 'dashboard' ? (
             <>
@@ -2140,7 +2140,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               <div><span className="employer-interview-detail-label">Candidate email</span><span className="employer-interview-email">{interview.candidateEmail || 'Not provided'}</span></div>
                             </div>
 
-                            {interview.meetingLink && (
+                            {interview.meetingLink && hasInterviewMeetingWindowEnded(interview) ? (
+                              <p className="mb-3 text-xs font-medium text-slate-500">This interview’s meeting window has ended.</p>
+                            ) : interview.meetingLink && (
                               <div className="employer-interview-meeting-actions mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
                                   href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/host`}

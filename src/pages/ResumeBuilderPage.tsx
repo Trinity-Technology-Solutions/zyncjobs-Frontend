@@ -42,6 +42,9 @@ import {
   formatEducationDateGrade,
   formatGrade,
 } from '../utils/educationFormatter';
+import { prepareResumeContent } from '../utils/prepareResumeContent';
+import { apiFetch } from '../api/apiFetch';
+import { API_ENDPOINTS } from '../config/env';
 
 interface Props {
   onNavigate?: (page: string) => void;
@@ -229,6 +232,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   // Resume versioning with per-version data persistence
   const VERSIONS_KEY = 'zyncjobs-resume-versions';
   const VERSION_DATA_PREFIX = 'zyncjobs-resume-v-';
+  const ACTIVE_VERSION_KEY = 'zyncjobs-resume-active-version';
   
   const getSavedVersions = (): string[] => {
     try { return JSON.parse(localStorage.getItem(VERSIONS_KEY) || '[]'); } catch { return []; }
@@ -253,17 +257,19 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       .map((c: any) => (typeof c === 'string' ? c : c?.title))
       .filter(Boolean);
     const savedVersions = getSavedVersions();
-    const merged = [...new Set([...savedVersions, ...courseVersions])];
+    const activeSavedVersion = localStorage.getItem(ACTIVE_VERSION_KEY);
+    const merged = [...new Set([...savedVersions, ...courseVersions, ...(activeSavedVersion ? [activeSavedVersion] : [])])];
     const initial = merged.length > 0 ? merged : ['Master Resume'];
     return initial;
   });
-  const [activeVersion, setActiveVersion] = useState<string>('Master Resume');
+  const [activeVersion, setActiveVersion] = useState<string>(() => localStorage.getItem(ACTIVE_VERSION_KEY) || 'Master Resume');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'offline' | 'syncing'>('saved');
   const [showNewVersionModal, setShowNewVersionModal] = useState(false);
   const [newVersionName, setNewVersionName] = useState('');
 
   // On mount, load active version data
   useEffect(() => {
+    localStorage.setItem(ACTIVE_VERSION_KEY, activeVersion);
     const saved = loadVersionData(activeVersion);
     if (saved && JSON.stringify(saved) !== JSON.stringify(data)) {
       if (Array.isArray(saved.education)) {
@@ -606,7 +612,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'File size exceeds the maximum allowed limit of 5 MB.' } }));
       return;
     }
-    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const extension = `.${file.name.split('.').pop()?.toLowerCase() || ''}`;
+    const isPdf = file.type === 'application/pdf' || extension === '.pdf';
     if (isPdf) {
       const buf = await file.slice(0, 5).arrayBuffer();
       const header = new Uint8Array(buf);
@@ -618,28 +625,22 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     }
     setImportLoading(true);
     try {
-      // Get AI token
-      const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
-      });
-      let access_token: string | null = null;
-      if (tokenRes.ok) {
-        const tokenData = await tokenRes.json();
-        access_token = tokenData.access_token;
-      }
-
-      // Use parse-upload endpoint â€” backend handles OCR + LLM parsing, always fresh (no cache)
       const formData = new FormData();
-      formData.append('file', file);
-      const headers: Record<string, string> = {};
-      if (access_token) headers['Authorization'] = `Bearer ${access_token}`;
-      const resumeRes = await fetch(`${AI_BASE}/ai/resume/parse-upload`, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
+      const useBackendExtractor = ['.doc', '.jpg', '.jpeg', '.png'].includes(extension);
+      formData.append(useBackendExtractor ? 'resume' : 'file', file);
+      const resumeRes = useBackendExtractor
+        ? await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, { method: 'POST', body: formData })
+        : await (async () => {
+            const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
+            });
+            const tokenData = tokenRes.ok ? await tokenRes.json() : {};
+            const headers: Record<string, string> = {};
+            if (tokenData.access_token) headers.Authorization = `Bearer ${tokenData.access_token}`;
+            return fetch(`${AI_BASE}/ai/resume/parse-upload`, { method: 'POST', headers, body: formData });
+          })();
       if (!resumeRes.ok) {
         const errText = await resumeRes.text().catch(() => '');
         let errMsg = `Parse failed (${resumeRes.status})`;
@@ -648,8 +649,21 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       }
       const resumeData = await resumeRes.json();
       if (!resumeData.success) throw new Error(resumeData.error || 'Parse failed');
-      const parsed = resumeData.parsed || {};
+      const parsed = resumeData.parsed || resumeData.profileData || {};
       if (parsed?.error) throw new Error(parsed.error);
+
+      const parsedExperience = parsed.workExperiences || parsed.experience;
+      const parsedEducation = parsed.educations || parsed.education;
+      const hasParsedContent = Boolean(
+        parsed.name || parsed.email || parsed.phone || parsed.location || parsed.summary ||
+        (Array.isArray(parsed.skills) && parsed.skills.length) ||
+        (Array.isArray(parsedExperience) && parsedExperience.length) ||
+        (Array.isArray(parsedEducation) && parsedEducation.length) ||
+        (Array.isArray(parsed.projects) && parsed.projects.length)
+      );
+      if (!hasParsedContent) {
+        throw new Error('We could not extract readable resume details from this file. Try a clearer image or a DOC/DOCX/PDF with selectable text.');
+      }
 
       if (parsed.name) { updatePersonalInfo('name', parsed.name); update('resumeName', `${parsed.name}'s Resume`); }
       if (parsed.email) updatePersonalInfo('email', parsed.email);
@@ -673,8 +687,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           year: c.date || c.year || '',
         })));
       }
-      if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
-        update('education', normalizeEducationItems(parsed.educations));
+      if (Array.isArray(parsedEducation) && parsedEducation.length > 0) {
+        update('education', normalizeEducationItems(parsedEducation));
       }
       if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
         update('projects', parsed.projects.map((p: any) => ({
@@ -688,13 +702,13 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             : p.description ? [p.description] : [],
         })));
       }
-      if (Array.isArray(parsed.workExperiences) && parsed.workExperiences.length > 0) {
-        update('experience', parsed.workExperiences.map((w: any) => ({
+      if (Array.isArray(parsedExperience) && parsedExperience.length > 0) {
+        update('experience', parsedExperience.map((w: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
           title: w.jobTitle || w.title || w.role || '',
           company: w.company || w.organization || '',
           location: w.location || '',
-          duration: w.date || w.duration || `${w.startDate || ''} â€“ ${w.endDate || 'Present'}`.trim(),
+          duration: w.date || w.duration || `${w.startDate || ''} - ${w.endDate || 'Present'}`.trim(),
           current: !!(w.current || w.currentlyWorking || w.endDate === 'Present'),
           bullets: Array.isArray(w.descriptions) ? w.descriptions
             : Array.isArray(w.bulletPoints) ? w.bulletPoints
@@ -711,7 +725,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       if (e?.message?.includes('Failed to fetch') || e?.name === 'TypeError') {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
       } else {
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: e?.message || 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: e?.message || 'Unable to read this resume. Please upload a valid PDF, DOC, DOCX, JPG, or PNG file.' } }));
       }
     } finally {
       setImportLoading(false);
@@ -753,9 +767,16 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const downloadPDF = async () => {
+    const candidateName = data.personalInfo?.name?.trim();
+    const hasContact = Boolean(data.personalInfo?.email?.trim() || data.personalInfo?.phone?.trim());
+    if (!candidateName || !hasContact) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Add your name and at least one contact detail (email or phone) before downloading. These are required for a complete, readable resume.' } }));
+      return;
+    }
     setPdfLoading(true);
     try {
-      const name = (data.personalInfo?.name || '').trim() || 'Resume';
+      const exportData = prepareResumeContent(data);
+      const name = (exportData.personalInfo?.name || '').trim() || 'Resume';
       const { pdf } = await import('@react-pdf/renderer');
       const { default: ResumePDFDocument } = await import('../components/resume-builder/ResumePDFDocument');
       const blob = await pdf(<ResumePDFDocument data={data} />).toBlob();
@@ -776,31 +797,31 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     try {
       const name = (data.personalInfo?.name || '').trim() || 'Resume';
       const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = await import('docx');
-      const n = data.personalInfo;
-      const hidden = data.hiddenSections || [];
+      const n = exportData.personalInfo;
+      const hidden = exportData.hiddenSections || [];
 
       // Apply hiddenSections â€” mirrors ResumeTemplate / ResumePDFDocument logic
-      const visibleSummary    = hidden.includes('summary')      ? '' : (Array.isArray(data.summary) ? data.summary.join(' ') : data.summary || '');
-      const visibleSkills     = hidden.includes('skills')       ? [] : data.skills;
-      const visibleExp        = hidden.includes('experience')   ? [] : data.experience;
-      const visibleEdu        = hidden.includes('education')    ? [] : data.education;
-      const visibleCerts      = hidden.includes('certs')        ? [] : data.certifications;
-      const visibleProjects   = hidden.includes('projects')     ? [] : data.projects;
-      const visibleLangs      = hidden.includes('languages')    ? [] : data.languages;
-      const visibleAchieve    = hidden.includes('achievements') ? [] : (data.achievements || []);
-      const visibleAwards     = hidden.includes('awards')       ? [] : (data.awards || []);
-      const visibleCustom     = hidden.includes('custom')       ? [] : (data.customSections || []);
+      const visibleSummary    = hidden.includes('summary')      ? '' : exportData.summary;
+      const visibleSkills     = hidden.includes('skills')       ? [] : exportData.skills;
+      const visibleExp        = hidden.includes('experience')   ? [] : exportData.experience;
+      const visibleEdu        = hidden.includes('education')    ? [] : exportData.education;
+      const visibleCerts      = hidden.includes('certs')        ? [] : exportData.certifications;
+      const visibleProjects   = hidden.includes('projects')     ? [] : exportData.projects;
+      const visibleLangs      = hidden.includes('languages')    ? [] : exportData.languages;
+      const visibleAchieve    = hidden.includes('achievements') ? [] : (exportData.achievements || []);
+      const visibleAwards     = hidden.includes('awards')       ? [] : (exportData.awards || []);
+      const visibleCustom     = hidden.includes('custom')       ? [] : (exportData.customSections || []);
 
       const tmpl = data.template || 'classic';
 
       // Template-specific heading style
-      const hdrColor = tmpl === 'professional' ? '1e293b' : tmpl === 'executive' ? '1a1a1a' : '333333';
+      const hdrColor = (tmpl === 'professional' || tmpl === 'classic' || tmpl === 'executive') ? '17376B' : '333333';
       const hdrSize  = tmpl === 'compact' ? 22 : 24;
       const nameSize = tmpl === 'compact' ? 36 : tmpl === 'executive' ? 44 : 40;
-      const nameAlign = (tmpl === 'executive' || tmpl === 'minimal') ? AlignmentType.CENTER : AlignmentType.LEFT;
-      const contactAlign = (tmpl === 'executive' || tmpl === 'minimal') ? AlignmentType.CENTER : AlignmentType.LEFT;
-      const skillSep = tmpl === 'compact' ? ' | ' : tmpl === 'minimal' ? ', ' : '  Â·  ';
-      const expSep   = tmpl === 'compact' ? ' | ' : ', ';
+      const nameAlign = (tmpl === 'classic' || tmpl === 'executive' || tmpl === 'minimal') ? AlignmentType.CENTER : AlignmentType.LEFT;
+      const contactAlign = (tmpl === 'classic' || tmpl === 'executive' || tmpl === 'minimal') ? AlignmentType.CENTER : AlignmentType.LEFT;
+      const skillSep = (tmpl === 'classic' || tmpl === 'compact' || tmpl === 'minimal') ? ' | ' : '  |  ';
+      const expSep   = (tmpl === 'classic' || tmpl === 'compact') ? ' | ' : ', ';
 
       const mkHdr = (text: string) => new Paragraph({
         children: [new TextRun({ text, bold: true, size: hdrSize, color: hdrColor })],
@@ -812,10 +833,11 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         new Paragraph({ children: [new TextRun({ text, size: tmpl === 'compact' ? 18 : 20, ...opts })], spacing: { after: tmpl === 'compact' ? 40 : 60 } });
 
       const mkBullet = (text: string) =>
-        new Paragraph({ children: [new TextRun({ text, size: tmpl === 'compact' ? 18 : 20 })], bullet: { level: 0 }, spacing: { after: tmpl === 'compact' ? 30 : 40 } });
+        new Paragraph({ children: [new TextRun({ text: text.replace(/^[\s>*\u2022-]+/, ''), size: tmpl === 'compact' ? 18 : 20 })], bullet: { level: 0 }, spacing: { after: tmpl === 'compact' ? 30 : 40 } });
 
       const children: any[] = [
-        new Paragraph({ children: [new TextRun({ text: n.name || '', bold: true, size: nameSize })], alignment: nameAlign, spacing: { after: 60 } }),
+        new Paragraph({ children: [new TextRun({ text: n.name || '', bold: true, size: nameSize, color: hdrColor })], alignment: nameAlign, spacing: { before: tmpl === 'classic' ? 80 : 0, after: 60 }, ...(tmpl === 'classic' ? { border: { top: { style: BorderStyle.DOUBLE, size: 8, color: hdrColor, space: 6 }, bottom: { style: BorderStyle.DOUBLE, size: 8, color: hdrColor, space: 6 } } } : {}) }),
+        ...(data.targetRole ? [new Paragraph({ children: [new TextRun({ text: data.targetRole, size: 20, color: '52677E' })], alignment: nameAlign, spacing: { after: 60 } })] : []),
         new Paragraph({
           children: [new TextRun({ text: [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  '), size: 18, color: '555555' })],
           alignment: contactAlign, spacing: { after: 120 },
@@ -825,19 +847,19 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       // Section order mirrors template section ordering in ResumeTemplate.tsx
       const addSummary = () => {
         if (!visibleSummary) return;
-        const label = tmpl === 'executive' ? 'Executive Summary' : tmpl === 'minimal' ? 'About' : 'Professional Summary';
+        const label = 'Professional Summary';
         children.push(mkHdr(label));
         children.push(mkPara(visibleSummary));
       };
       const addSkills = () => {
         if (!visibleSkills.length) return;
-        const label = tmpl === 'executive' ? 'Areas of Expertise' : tmpl === 'professional' ? 'Skills' : 'Skills';
+        const label = tmpl === 'executive' ? 'Skills' : tmpl === 'classic' ? 'Core Competencies' : 'Skills';
         children.push(mkHdr(label));
         children.push(mkPara(visibleSkills.join(skillSep)));
       };
       const addExperience = () => {
         if (!visibleExp.length) return;
-        const label = tmpl === 'executive' ? 'Career History' : 'Experience';
+        const label = (tmpl === 'executive' || tmpl === 'classic') ? 'Professional Experience' : 'Experience';
         children.push(mkHdr(label));
         visibleExp.forEach(exp => {
           children.push(new Paragraph({
@@ -1532,6 +1554,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                         Object.keys(saved).forEach((k) => update(k as any, saved[k]));
                       }
                       setActiveVersion(v);
+                      localStorage.setItem(ACTIVE_VERSION_KEY, v);
                     }}
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3
                       ${v === activeVersion ? 'text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -1581,6 +1604,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                                 update('targetRole', newVersionName.trim());
                               }
                               setActiveVersion(newVersionName.trim());
+                              localStorage.setItem(ACTIVE_VERSION_KEY, newVersionName.trim());
                               setShowNewVersionModal(false);
                               setNewVersionName('');
                             }

@@ -55,12 +55,12 @@ const DUMMY: ResumeData = {
 };
 
 const TEMPLATES = [
-  { id: 'classic',      name: 'Classic',      desc: 'Centered header, bold section rules.', badge: 'Best for ATS', badgeColor: 'bg-blue-500', goalHint: 'experienced' },
-  { id: 'modern',       name: 'Modern',       desc: 'Left-aligned name, thin rule divider.', badge: 'Best for Startups', badgeColor: 'bg-purple-500', goalHint: 'first-job' },
-  { id: 'minimal',      name: 'Minimal',      desc: 'Two-column label sidebar, clean serif.', badge: 'Best for Designers', badgeColor: 'bg-teal-500', goalHint: 'internship' },
-  { id: 'executive',    name: 'Executive',    desc: 'Double-rule header, formal serif.', badge: 'Best for Managers', badgeColor: 'bg-amber-600', goalHint: 'executive' },
-  { id: 'compact',      name: 'Compact',      desc: 'Dense layout, fits more content.', badge: 'Experienced Pros', badgeColor: 'bg-rose-500', goalHint: 'career-switch' },
-  { id: 'professional', name: 'Professional', desc: 'Dark sidebar with contact & skills.', badge: 'Best for Consulting', badgeColor: 'bg-indigo-500', goalHint: 'experienced' },
+  { id: 'classic',      name: 'Classic',      desc: 'Formal centered header with traditional, easy-to-scan sections.', badge: 'Best for ATS', badgeColor: 'bg-blue-500', goalHint: 'experienced' },
+  { id: 'modern',       name: 'Modern',       desc: 'Contemporary left-aligned layout with a crisp accent rule.', badge: 'Best for Startups', badgeColor: 'bg-purple-500', goalHint: 'first-job' },
+  { id: 'minimal',      name: 'Minimal',      desc: 'Quiet monochrome styling with generous space and simple headings.', badge: 'ATS Friendly', badgeColor: 'bg-teal-500', goalHint: 'internship' },
+  { id: 'executive',    name: 'Executive',    desc: 'Polished leadership layout with a strong nameplate and clear career history.', badge: 'Best for Managers', badgeColor: 'bg-amber-600', goalHint: 'executive' },
+  { id: 'compact',      name: 'Compact',      desc: 'Space-efficient single column for detailed career histories.', badge: 'Experienced Pros', badgeColor: 'bg-rose-500', goalHint: 'career-switch' },
+  { id: 'professional', name: 'Professional', desc: 'Two-column layout with contact and skills in a dark sidebar.', badge: 'Best for Consulting', badgeColor: 'bg-indigo-500', goalHint: 'experienced' },
 ] as const;
 
 type TemplateId = typeof TEMPLATES[number]['id'];
@@ -68,6 +68,11 @@ type TemplateId = typeof TEMPLATES[number]['id'];
 export default function TemplateSelection() {
   const { data, update } = useResumeStore();
   const goal = data.goal || '';
+  const hasResumeContent = Boolean(
+    data.personalInfo.name || data.personalInfo.email || data.personalInfo.phone ||
+    data.summary || data.experience.length || data.education.length || data.skills.length ||
+    data.projects.length || data.certifications.length
+  );
 
   const ordered = goal
     ? [...TEMPLATES].sort((a, b) => {
@@ -82,14 +87,18 @@ export default function TemplateSelection() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Choose a Resume Template</h2>
         <p className="text-gray-500 text-sm">All 6 templates are ATS-optimized — clean layouts that pass applicant tracking systems.</p>
-        <p className="text-xs text-gray-400 mt-1">You can change your template at any time.</p>
+        <p className="text-xs text-gray-400 mt-1">Each card previews your resume in that layout. You can change your template at any time.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {ordered.map(t => {
           const isSelected = data.template === t.id;
           const isRecommended = goal && t.goalHint === goal;
-          const previewData: ResumeData = { ...DUMMY, template: t.id };
+          // Preview the candidate's current content in every design. Use sample
+          // content only before they've entered any resume details.
+          const previewData: ResumeData = hasResumeContent
+            ? { ...data, template: t.id }
+            : { ...DUMMY, template: t.id };
           return (
             <button
               key={t.id}
