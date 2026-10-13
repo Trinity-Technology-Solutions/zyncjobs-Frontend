@@ -39,18 +39,37 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
 
   if (!isOpen || !candidate) return null;
 
-  const name = profile?.fullName || profile?.name || candidate?.fullName || candidate?.name || 'Anonymous';
+  const toDisplayText = (value: any): string => {
+    if (value == null) return '';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (Array.isArray(value)) return value.map(toDisplayText).filter(Boolean).join(', ');
+    if (typeof value === 'object') {
+      // Profile APIs can return populated resume entries instead of plain strings.
+      // Pick the human-readable fields so React never receives the raw object.
+      const title = value.name || value.certificationName || value.skill || value.language || value.jobTitle || value.title || value.degree || value.designation;
+      const organization = value.provider || value.issuer || value.company || value.school || value.college || value.organization;
+      const date = value.date || value.year || value.issuedDate || value.startDate;
+      return [toDisplayText(title), toDisplayText(organization), toDisplayText(date)].filter(Boolean).join(' · ');
+    }
+    return '';
+  };
 
   const parseList = (val: any): string[] => {
     if (!val) return [];
-    if (Array.isArray(val)) return val.filter(Boolean);
+    if (Array.isArray(val)) return val.map(toDisplayText).filter(Boolean);
     if (typeof val === 'string' && val.trim()) {
-      try { const p = JSON.parse(val); if (Array.isArray(p)) return p.filter(Boolean); } catch {}
+      try { const p = JSON.parse(val); if (Array.isArray(p)) return p.map(toDisplayText).filter(Boolean); } catch {}
       const sep = val.includes('\n') ? '\n' : ',';
       return val.split(sep).map((s: string) => s.trim()).filter(Boolean);
     }
+    if (typeof val === 'object') {
+      const text = toDisplayText(val);
+      return text ? [text] : [];
+    }
     return [];
   };
+
+  const name = toDisplayText(profile?.fullName || profile?.name || candidate?.fullName || candidate?.name) || 'Anonymous';
 
   const skills = parseList(profile?.skills);
   const languages = parseList(profile?.languages);
@@ -109,16 +128,16 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
                   <span className="bg-green-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">#OpenToWork</span>
                 )}
               </div>
-              <p className="text-indigo-200 text-sm mt-0.5">{profile?.title || profile?.jobTitle || profile?.roleTitle || 'Professional'}</p>
+              <p className="text-indigo-200 text-sm mt-0.5">{toDisplayText(profile?.title || profile?.jobTitle || profile?.roleTitle) || 'Professional'}</p>
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                 {profile?.location && (
-                  <span className="flex items-center gap-1 text-white/80 text-xs"><MapPin className="w-3 h-3" />{profile.location}</span>
+                  <span className="flex items-center gap-1 text-white/80 text-xs"><MapPin className="w-3 h-3" />{toDisplayText(profile.location)}</span>
                 )}
                 {totalExp && (
-                  <span className="flex items-center gap-1 text-white/80 text-xs"><Briefcase className="w-3 h-3" />{totalExp}</span>
+                  <span className="flex items-center gap-1 text-white/80 text-xs"><Briefcase className="w-3 h-3" />{toDisplayText(totalExp)}</span>
                 )}
                 {visibilityStatus && (
-                  <span className="flex items-center gap-1 text-white/80 text-xs capitalize"><Globe className="w-3 h-3" />{visibilityStatus.replace('-', ' ')}</span>
+                  <span className="flex items-center gap-1 text-white/80 text-xs capitalize"><Globe className="w-3 h-3" />{toDisplayText(visibilityStatus).replace('-', ' ')}</span>
                 )}
               </div>
             </div>
@@ -141,7 +160,7 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
                     <div className="mt-0.5 flex-shrink-0">{card.icon}</div>
                     <div className="min-w-0">
                       <p className="text-xs text-gray-500">{card.label}</p>
-                      <p className="text-sm font-medium text-gray-800 truncate">{card.value}</p>
+                      <p className="text-sm font-medium text-gray-800 truncate">{toDisplayText(card.value)}</p>
                     </div>
                   </div>
                 ))}
@@ -154,7 +173,7 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
                 <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
                   <Users className="w-4 h-4 text-indigo-500" /> Profile Summary
                 </h4>
-                <p className="text-sm text-gray-600 bg-indigo-50 rounded-xl px-4 py-3 leading-relaxed">{summary}</p>
+                <p className="text-sm text-gray-600 bg-indigo-50 rounded-xl px-4 py-3 leading-relaxed">{toDisplayText(summary)}</p>
               </div>
             )}
 
@@ -187,8 +206,8 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
                         <Briefcase className="w-4 h-4 text-indigo-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{emp.designation || 'Role'}</p>
-                        <p className="text-xs text-gray-600">{emp.companyName}</p>
+                        <p className="text-sm font-semibold text-gray-900">{toDisplayText(emp.designation || emp.jobTitle || emp.title) || 'Role'}</p>
+                        <p className="text-xs text-gray-600">{toDisplayText(emp.companyName || emp.company)}</p>
                         {(emp.startMonth || emp.startYear) && (
                           <p className="text-xs text-gray-400 mt-0.5">
                             {[emp.startMonth, emp.startYear].filter(Boolean).join(' ')} —{' '}
@@ -196,7 +215,7 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
                           </p>
                         )}
                         {emp.description && (
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{emp.description}</p>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{toDisplayText(emp.description)}</p>
                         )}
                       </div>
                     </div>
@@ -216,10 +235,10 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
                     <GraduationCap className="w-4 h-4 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{edu.degree}</p>
-                    <p className="text-xs text-gray-600">{edu.college}</p>
-                    {edu.passingYear && <p className="text-xs text-gray-400 mt-0.5">Graduated {edu.passingYear}</p>}
-                    {edu.percentage && <p className="text-xs text-gray-400">Score: {edu.percentage}</p>}
+                    <p className="text-sm font-semibold text-gray-900">{toDisplayText(edu.degree)}</p>
+                    <p className="text-xs text-gray-600">{toDisplayText(edu.college || edu.school || edu.university)}</p>
+                    {edu.passingYear && <p className="text-xs text-gray-400 mt-0.5">Graduated {toDisplayText(edu.passingYear)}</p>}
+                    {edu.percentage && <p className="text-xs text-gray-400">Score: {toDisplayText(edu.percentage)}</p>}
                   </div>
                 </div>
               </div>

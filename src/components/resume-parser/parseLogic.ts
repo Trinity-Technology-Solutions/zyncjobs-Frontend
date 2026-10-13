@@ -29,35 +29,6 @@ async function hashText(text: string): Promise<string> {
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function mergeWorkExperiences(local: ParsedResume['workExperiences'], ai: ParsedResume['workExperiences']): ParsedResume['workExperiences'] {
-  const merged = local.map(item => ({ ...item, descriptions: [...(item.descriptions || [])] }));
-  for (const item of ai) {
-    const match = merged.find(entry => {
-      const sameTitle = entry.jobTitle && item.jobTitle && entry.jobTitle.toLowerCase() === item.jobTitle.toLowerCase();
-      const sameCompany = entry.company && item.company && entry.company.toLowerCase() === item.company.toLowerCase();
-      return sameTitle && sameCompany || sameCompany && (!entry.jobTitle || !item.jobTitle) || sameTitle && (!entry.company || !item.company);
-    });
-    if (!match) { merged.push(item); continue; }
-    match.jobTitle ||= item.jobTitle;
-    match.company ||= item.company;
-    match.location ||= item.location;
-    match.date ||= item.date;
-    match.descriptions = [...new Set([...match.descriptions, ...(item.descriptions || [])])];
-  }
-  return merged;
-}
-
-function mergeProjects(local: NonNullable<ParsedResume['projects']>, ai: NonNullable<ParsedResume['projects']>): NonNullable<ParsedResume['projects']> {
-  const merged = local.map(item => ({ ...item, descriptions: [...(item.descriptions || (item.description ? [item.description] : []))] }));
-  for (const item of ai) {
-    const match = merged.find(entry => entry.name.toLowerCase() === item.name.toLowerCase());
-    if (!match) { merged.push(item); continue; }
-    match.date ||= item.date;
-    match.descriptions = [...new Set([...(match.descriptions || []), ...(item.descriptions || []), ...(item.description ? [item.description] : [])])];
-  }
-  return merged;
-}
-
 // ─── Known institution keywords ───────────────────────────────────────────────
 const INSTITUTION_KEYWORDS = /\b(university|college|institute|school|academy|polytechnic|iit|nit|licet|loyola|icam|matriculation|higher secondary|secondary)\b/i;
 
@@ -65,13 +36,13 @@ const INSTITUTION_KEYWORDS = /\b(university|college|institute|school|academy|pol
 const DEGREE_KEYWORDS = /\b(b\.?tech|b\.?e|b\.?sc|b\.?com|b\.?a|m\.?tech|m\.?e|m\.?sc|mba|m\.?a|ph\.?d|bachelor|master|diploma|sslc|hsc|10th|12th|standard)\b/i;
 
 // ─── Section heading detector ─────────────────────────────────────────────────
-const HEADING_PATTERN = /^(work\s+experience|professional\s+experience|experience|employment|work\s+history|education|academic|qualification|skills|technical\s+skills|key\s+skills|core\s+skills|projects?|personal\s+projects?|academic\s+projects?|certifications?|certificates?|awards?|achievements?|languages?|interests?|hobbies|references?|contact|internship|training|summary|objective|profile|about(\s+me)?|extra.?curricular|extracurricular|hackathons?|short\s+courses?|competitions?|workshops?|volunteer|publications?|research|tools?|soft\s+skills?)s?$/i;
+const HEADING_PATTERN = /^(work\s+experience|professional\s+experience|experience|employment|work\s+history|education|academic|qualification|skills|strengths|technical\s+skills|key\s+skills|core\s+skills|projects?|personal\s+projects?|academic\s+projects?|certifications?|certificates?|awards?|achievements?|languages?|interests?|hobbies|references?|contact|internship|training|professional\s+summary|profile\s+summary|summary|objective|profile|about(\s+me)?|extra.?curricular|extracurricular|hackathons?|short\s+courses?|competitions?|workshops?|volunteer|publications?|research|tools?|soft\s+skills?)s?$/i;
 
 const SECTION_HEADINGS = new Set([
-  'about me','about','summary','objective','profile','overview',
+  'about me','about','summary','professional summary','profile summary','objective','profile','overview',
   'experience','work experience','employment','work history','professional experience',
   'education','academic background','qualifications',
-  'skills','technical skills','key skills','core competencies','competencies',
+  'skills','strengths','technical skills','key skills','core competencies','competencies',
   'projects','personal projects','academic projects',
   'certifications','certificates','awards','achievements','accomplishments',
   'languages','interests','hobbies','references','contact','contact information',
@@ -197,7 +168,7 @@ function parseResumeLocally(text: string): ParsedResume {
     return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
   });
   // Also extract from skills section — split by colons, commas, pipes, bullets, newlines
-  const skillsSection = extractSection(lines, /^(key\s+|technical\s+|core\s+|hard\s+|soft\s+|professional\s+)?skills?(\s+&\s+\w+)?$/i);
+  const skillsSection = extractSection(lines, /^(key\s+|technical\s+|core\s+|hard\s+|soft\s+|professional\s+)?(skills?|strengths)(\s+&\s+\w+)?$/i);
   const skillsFromSection = skillsSection
     .join('\n')
     .split(/[,|•\n\/:\t]|\s{2,}/)
@@ -455,7 +426,7 @@ function parseResumeLocally(text: string): ParsedResume {
   }
 
   // Summary
-  const summarySection = extractSection(lines, /^(summary|objective|profile|about(\s+me)?)$/i);
+  const summarySection = extractSection(lines, /^(summary|professional\s+summary|profile\s+summary|career\s+summary|objective|career\s+objective|profile|about(\s+me)?)$/i);
   const summary = summarySection.join(' ').trim();
 
   // Certifications — each entry must look like a real cert name (not a sentence fragment)
@@ -583,7 +554,7 @@ export async function parseResumeFromText(
 
   try {
     const textHash = await hashText(text);
-    const cKey = cacheKey('resume-parse-v18', textHash);
+    const cKey = cacheKey('resume-parse-v19', textHash);
     const cached = getCached<ParsedResume>(cKey);
     if (cached) { onStatus?.('ai'); return cached; }
 
@@ -743,11 +714,15 @@ export async function parseResumeFromText(
         ])].map(s => ({ skill: s })),
       },
       // Work: local preferred (structured), AI fills gaps only
-      workExperiences: mergeWorkExperiences(localResult.workExperiences, fixedAiWork),
+      workExperiences: localResult.workExperiences.length
+        ? localResult.workExperiences
+        : fixedAiWork,
       // Education: local first, AI fallback
       educations: cleanLocalEdu.length > 0 ? cleanLocalEdu : aiEdu,
       // Projects: AI if valid (2+ word names), else local
-      projects: mergeProjects(localResult.projects || [], aiProjects),
+      projects: localResult.projects?.length
+        ? localResult.projects
+        : aiProjects,
       summary: (p.summary || '').trim() || localResult.summary || '',
       competitions: p.competitions?.length ? p.competitions : (localResult.competitions || []),
       certifications: p.certifications?.length

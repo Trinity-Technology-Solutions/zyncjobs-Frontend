@@ -1869,7 +1869,13 @@ html, body {
 .resume-parser-panels { align-items: stretch; gap: 24px; }
 .resume-parser-panels > .bg-white { border-color: #dce5f1; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px #172b4d05; }
 .resume-parser-panels h2 { font-size: 20px; font-weight: 600; color: #172b4d; }
-.resume-parser-results { display: flex; flex-direction: column; min-width: 0; overflow: visible; }
+.resume-parser-results { display: flex; flex-direction: column; min-width: 0; overflow: hidden; align-self: start; }
+.resume-parser-results-scroll { min-width: 0; max-height: min(72vh, 760px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: 8px; }
+.resume-parser-results-scroll:focus-visible { outline: 2px solid #245be0; outline-offset: 2px; }
+.resume-parser-results-inner { min-width: 520px; }
+.resume-parser-results-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
+.resume-parser-results-scroll::-webkit-scrollbar-thumb { background: #b8c5d8; border: 2px solid #f9fafb; border-radius: 999px; }
+.resume-parser-results-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
 .resume-parser-empty { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 150px; }
 /* Builder controls only: these rules do not style the generated resume document. */
 .resume-builder-toolbar { min-height: 58px; padding: 10px 16px; gap: 10px; flex-wrap: wrap; border-color: #dce5f1; }

@@ -103,6 +103,7 @@ function RobotCanvas() {
       const w = window.innerWidth;
       const isMobile = w < 768;
       const isTablet = w >= 768 && w < 1024;
+      const isLargeScreen = w >= 1440;
 
       let targetHeight = 5.6;
       if (isMobile) {

@@ -9,7 +9,6 @@ import {
   Eye, EyeOff, Upload,
 } from 'lucide-react';
 
-const AI_BASE = import.meta.env.VITE_AI_API_URL || '/api/ai-proxy';
 import TemplateSelection from '../components/resume-builder/TemplateSelection';
 import PersonalInfoStep from '../components/resume-builder/PersonalInfoStep';
 import SummaryStep from '../components/resume-builder/SummaryStep';
@@ -626,21 +625,11 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     setImportLoading(true);
     try {
       const formData = new FormData();
-      const useBackendExtractor = ['.doc', '.jpg', '.jpeg', '.png'].includes(extension);
-      formData.append(useBackendExtractor ? 'resume' : 'file', file);
-      const resumeRes = useBackendExtractor
-        ? await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, { method: 'POST', body: formData })
-        : await (async () => {
-            const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
-            });
-            const tokenData = tokenRes.ok ? await tokenRes.json() : {};
-            const headers: Record<string, string> = {};
-            if (tokenData.access_token) headers.Authorization = `Bearer ${tokenData.access_token}`;
-            return fetch(`${AI_BASE}/ai/resume/parse-upload`, { method: 'POST', headers, body: formData });
-          })();
+      formData.append('resume', file);
+      const resumeRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
+        method: 'POST',
+        body: formData,
+      });
       if (!resumeRes.ok) {
         const errText = await resumeRes.text().catch(() => '');
         let errMsg = `Parse failed (${resumeRes.status})`;
