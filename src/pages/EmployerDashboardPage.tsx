@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2, X } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2 } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -8,7 +8,6 @@ import {
 import { API_ENDPOINTS } from '../config/constants';
 import config from '../config/env';
 import { io } from 'socket.io-client';
-import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import { apiFetch } from '../api/apiFetch';
 import CandidateCredentialing from '../components/CandidateCredentialing';
@@ -25,7 +24,7 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
-import { formatInterviewDate, formatInterviewTime } from '../utils/interviewScheduleUtils';
+import { formatInterviewDate, formatInterviewTime, hasInterviewMeetingWindowEnded } from '../utils/interviewScheduleUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
@@ -79,17 +78,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const canPostJobs = isOwner || isRecruiter;
   const canManageApplications = isOwner || isRecruiter;
   const canInviteMembers = isOwner;
-  const canViewAnalytics = true; // all roles
-  const canAccessTeam = isOwner;
-  const canAccessSettings = isOwner;
   const canAccessCredentialing = isOwner;
-  const canAccessAIRejection = isOwner;
-  const canAccessSavedCandidates = isOwner || isRecruiter;
-  const canAccessCandidateRanking = isOwner || isRecruiter;
-  const canAccessAIRecruiter = isOwner || isRecruiter;
   const canDeleteRecords = isOwner || isRecruiter;
-  const [companyWebsite, setCompanyWebsite] = useState('');
-  const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
 
@@ -169,6 +159,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterJob, setAppFilterJob] = useState('all');
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
+  const [profileApplication, setProfileApplication] = useState<any>(null);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [closingJobId, setClosingJobId] = useState<string | null>(null);
@@ -986,51 +977,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     setAccessDeniedModal({ show: true, feature, requiredRole });
   };
 
-  const renderNavigationCard = (isMobile = false) => {
-    const displayName = companyName && companyName !== 'Company' ? companyName :
-      user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
-      user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
-      'Company';
-
-    const navItems = [
-      { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
-      { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
-      { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
-      { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
-      { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
-      { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
-      { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
-      { key: 'ats-dashboard',    label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => withRoleCheck('Recruiter Analytics', 'Recruiter', () => onNavigate('ats-dashboard')), external: true, show: true },
-      { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
-      { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
-      { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
-      { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
-      { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
-      { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
-    ];
-
-  return (
-    <div className="portal-employer-dashboard bg-gray-50 flex" style={{height: `calc(100dvh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
-      {/* Error Display */}
-      {error && (
-        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
-          <div className="flex items-start">
-            <span className="mr-2 mt-0.5 text-sm">⚠️</span>
-            <div className="flex-1">
-              <div className="font-medium text-sm">Dashboard Loading Issue</div>
-              <div className="text-xs sm:text-sm mt-1">{error}</div>
-            </div>
-            <button onClick={() => setError(null)} className="ml-2 sm:ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">&times;</button>
-          </div>
-        </div>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" style={{top: `${headerHeight}px`}} onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar — fixed height, independent scroll */}
-      <div role="navigation" aria-label="Employer workspace navigation" className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{top: `${headerHeight}px`, width: '280px', height: `calc(100dvh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth'}}>
+  const renderNavigationCard = (isMobile = false) => (
+      <div role="navigation" aria-label="Employer workspace navigation" className="employer-navigation-card employer-sidebar rounded-xl border border-slate-200 bg-white overflow-hidden">
             {/* Profile header - Enhanced */}
             <div className="employer-sidebar-profile px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -1077,7 +1025,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 {/* Close button — mobile only */}
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="lg:hidden flex-shrink-0 text-white/70 hover:text-white p-1 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  className={`${isMobile ? 'flex' : 'hidden'} flex-shrink-0 text-white/70 hover:text-white p-1 rounded-lg hover:bg-blue-700/50 transition-colors`}
                   aria-label="Close menu"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1086,24 +1034,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-[#1e3a8a] text-sm leading-tight truncate">{employerName}</p>
-              <p className="text-xs text-slate-500 font-medium truncate mt-0.5 leading-snug">
-                {displayName}
-              </p>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border mt-1 ${
-                teamRole === 'Owner' || !teamRole ? 'bg-slate-100 text-[#1e3a8a] border-slate-200' :
-                teamRole === 'Recruiter' ? 'bg-slate-50 text-[#1e3a8a] border-slate-200' :
-                'bg-slate-100 text-slate-600 border-slate-200'
-              }`}>
-                {teamRole === 'Owner' || !teamRole ? 'Admin / Owner' : teamRole}
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* Profile Strength bar */}
-        <div className="px-4 sm:px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0]">
+        <div className="employer-sidebar-profile-strength px-4 sm:px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs text-slate-700 font-semibold tracking-wide">
               Profile Strength
@@ -1133,7 +1065,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
             {/* Role badge for team members */}
             {teamRole && (
-              <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
+              <div className="employer-sidebar-role mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-full bg-blue-500/60 flex items-center justify-center flex-shrink-0">
                   <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -1201,7 +1133,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   try {
                     const userId = user.id || user._id;
                     if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
-                    const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
                     });
@@ -1227,7 +1158,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </nav>
 
             {/* Logout Button */}
-            <div className="px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
+            <div className="employer-sidebar-logout px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
               <button
                 onClick={() => {
                   if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
@@ -1239,11 +1170,54 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </button>
             </div>
       </div>
+
+  );
+
+  if (viewingCandidateId) {
+    return (
+      <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
+        <CandidateProfileView
+          candidateId={viewingCandidateId}
+          onNavigate={onNavigate}
+          application={profileApplication}
+          onViewApplicationResume={profileApplication ? () => {
+            setViewingCandidateId(null);
+            setSelectedResumeAppId(profileApplication._id || profileApplication.id || null);
+            setSelectedResumeUrl(profileApplication.resumeUrl || null);
+            setSelectedResumeCandidateName(profileApplication.candidateName || null);
+            setSelectedResumeCandidateEmail(profileApplication.candidateEmail || null);
+            setShowResumeModal(true);
+          } : undefined}
+          onScheduleInterview={profileApplication && canManageApplications ? () => {
+            setViewingCandidateId(null);
+            setSelectedApplication(profileApplication);
+            setShowScheduleModal(true);
+          } : undefined}
+          onBack={() => { setViewingCandidateId(null); setProfileApplication(null); setActiveMenu('applications'); }}
+          onLogout={onLogout}
+        />
+      </div>
     );
   }
 
+  return (
+    <div className="portal-employer-dashboard bg-gray-50" style={{ minHeight: `calc(100dvh - ${headerHeight}px)` }}>
+      {/* Error Display */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
+          <div className="flex items-start">
+            <span className="mr-2 mt-0.5 text-sm">⚠️</span>
+            <div className="flex-1">
+              <div className="font-medium text-sm">Dashboard Loading Issue</div>
+              <div className="text-xs sm:text-sm mt-1">{error}</div>
+            </div>
+            <button onClick={() => setError(null)} className="ml-2 sm:ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">&times;</button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content — offset by sidebar width on desktop, independent scroll */}
-      <div className="portal-dashboard-main flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
+      <div className="portal-dashboard-main bg-gray-50 min-w-0" style={{ scrollBehavior: 'smooth' }}>
 {/* Top bar with Back Button */}
         <div className="portal-dashboard-toolbar flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
@@ -1384,15 +1358,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Main Grid: Col 1 is Navigation Card, Col 2-4 is Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3.5 sm:pt-4 pb-8 sm:pb-12">
+      <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8 pt-3.5 sm:pt-4 pb-8 sm:pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 lg:gap-6 items-start">
-          {/* Desktop Navigation Column */}
-          <div className="hidden lg:block lg:col-span-1 sticky top-4">
+          {/* Desktop navigation stays flush to the viewport beside the dashboard. */}
+          <div className="employer-dashboard-sidebar-shell hidden lg:block lg:col-span-1">
             {renderNavigationCard(false)}
           </div>
 
         {/* Dashboard Content */}
-        <div className="pt-0 pb-2 flex-1 min-w-0">
+        <div className="lg:col-span-4 pt-0 pb-2 min-w-0">
           <div className="employer-section-content portal-dashboard-content px-3 sm:px-4 lg:px-6" data-section={activeMenu}>
           {activeMenu === 'dashboard' ? (
             <>
@@ -1446,7 +1420,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   const strokeDash = fillRatio * circumference;
                   const numVal = parseInt(stat.value) || 0;
                   const displayVal = numVal >= 1000 ? `${(numVal/1000).toFixed(1)}K` : stat.value;
-                  const StatIcon = stat.icon;
+                  const bgGradients = ['from-white to-blue-50', 'from-white to-indigo-50', 'from-white to-slate-50', 'from-white to-blue-50'];
+                  const borderColors = ['border-t-blue-500', 'border-t-indigo-500', 'border-t-slate-500', 'border-t-blue-500'];
+                  const ringColor = '#2563eb';
 
                   return (
                     <div key={index} className={`employer-metric-card bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
@@ -1621,6 +1597,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     )}
                                   </div>
                                 </div>
+                                {canPostJobs && job.jobData && job.jobData.status !== 'closed' && <button type="button" disabled={closingJobId === (job.jobData.id || job.jobData._id)} onClick={() => closeJob(job.jobData.id || job.jobData._id)} className="text-xs text-slate-500 hover:text-red-600 mb-3 disabled:opacity-50">{closingJobId === (job.jobData.id || job.jobData._id) ? 'Closing...' : 'Close job'}</button>}
                                 {/* Progress bar */}
                                 <div className="flex items-center gap-2.5">
                                     <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -2009,6 +1986,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
                                 sessionStorage.setItem('viewCandidateId', String(cid));
                                 sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
+                                setProfileApplication(application);
                                 setViewingCandidateId(String(cid));
                               }}
                               className="flex-1 sm:flex-none sm:w-full bg-white border border-slate-200 text-[#1e3a8a] hover:bg-slate-50 px-2.5 py-2 rounded-lg font-semibold transition-colors text-xs whitespace-nowrap shadow-sm text-center"
@@ -2162,7 +2140,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               <div><span className="employer-interview-detail-label">Candidate email</span><span className="employer-interview-email">{interview.candidateEmail || 'Not provided'}</span></div>
                             </div>
 
-                            {interview.meetingLink && (
+                            {interview.meetingLink && hasInterviewMeetingWindowEnded(interview) ? (
+                              <p className="mb-3 text-xs font-medium text-slate-500">This interview’s meeting window has ended.</p>
+                            ) : interview.meetingLink && (
                               <div className="employer-interview-meeting-actions mb-3 inline-flex flex-wrap items-center gap-2">
                                 <a
                                   href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/host`}
@@ -2674,6 +2654,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         </div>
       </div>
 
+      </div>
+
       {/* Mobile / Tablet Drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -2953,7 +2935,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   const [inviteSent, setInviteSent] = React.useState(false);
   const [inviting, setInviting] = React.useState(false);
   const [inviteError, setInviteError] = React.useState('');
-  const [inviteToken, setInviteToken] = React.useState('');
+  const [, setInviteToken] = React.useState('');
   const [inviteCredentials, setInviteCredentials] = React.useState<{ email: string; password: string; role: string } | null>(null);
   const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const closeConfirm = () => setConfirmDialog(c => ({ ...c, isOpen: false }));

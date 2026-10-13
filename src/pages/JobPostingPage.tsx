@@ -157,7 +157,6 @@ const extractExperienceFromText = (text: string): string => {
 };
 
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode = 'manual', parsedData }) => {
-  const [currentStep, setCurrentStep] = useState(1);
   const { jobTitles: jobTitleOptions } = useJobTitles();
 
   // Check for edit mode data — set by Job Management edit button.
@@ -166,6 +165,15 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const editJob = editJobRaw ? (() => { try { return JSON.parse(editJobRaw); } catch { return null; } })() : null;
   const isEditMode = !!editJob;
   const editJobId = editJob?._id || editJob?.id;
+  const draftStorageKey = `job-posting-draft:${user?.email || 'unknown'}:${editJobId || 'new'}`;
+  const storedDraft = (() => {
+    try { return JSON.parse(localStorage.getItem(draftStorageKey) || 'null'); }
+    catch { return null; }
+  })();
+  const [currentStep, setCurrentStep] = useState(() => {
+    const step = Number(storedDraft?.currentStep);
+    return Number.isInteger(step) && step >= 1 && step <= 7 ? step : 1;
+  });
 
   // Helper to extract salary values from job data
   const getSalaryMin = (job: any): string => {
@@ -181,7 +189,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     return parts ? parts[2] : '';
   };
 
-  const [jobData, setJobData] = useState<JobData>({
+  const [jobData, setJobData] = useState<JobData>(() => {
+    const initial: JobData = {
     jobTitle: editJob?.jobTitle || editJob?.title || parsedData?.jobTitle || '',
     locationType: editJob?.locationType || (() => {
       const loc = parsedData?.jobLocation || '';
@@ -415,6 +424,12 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     companyId: '',
     companyTagline: editJob?.companyTagline || editJob?.tagline || parsedData?.tagline || parsedData?.companyTagline || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.tagline || ''; } catch { return ''; } })() || (user?.tagline || ''),
     jobHeaderImage: editJob?.jobHeaderImage || ''
+    };
+    return {
+      ...initial,
+      ...(editJob?.postingDetails && typeof editJob.postingDetails === 'object' ? editJob.postingDetails : {}),
+      ...(storedDraft?.jobData && typeof storedDraft.jobData === 'object' ? storedDraft.jobData : {}),
+    };
   });
 
   const [notification, setNotification] = useState<{
@@ -444,6 +459,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const [langInput, setLangInput] = useState('');
 
   const [salaryModified, setSalaryModified] = useState(() => {
+    if (typeof storedDraft?.salaryModified === 'boolean') return storedDraft.salaryModified;
     const max = getSalaryMax(editJob) || parsedData?.maxSalary || parsedData?.salary?.max;
     // Modified if range has both values, OR if only max is set (Maximum amount / upto)
     return !!(max && parseInt(String(max)) > 0);
@@ -523,8 +539,109 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const jobDataRef = React.useRef(jobData);
   useEffect(() => { jobDataRef.current = jobData; }, [jobData]);
 
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'saving' | 'saved' | 'error'>('saved');
+  const autoSaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveRequest = React.useRef<Promise<void> | null>(null);
+  const autoSaveMounted = React.useRef(false);
+  const discardDraft = React.useRef(false);
+
+  // Keep every form field and the current step locally so a browser refresh
+  // restores an in-progress post or edit instead of reverting to old values.
+  useEffect(() => {
+    if (discardDraft.current) return;
+    try {
+      localStorage.setItem(draftStorageKey, JSON.stringify({
+        editJobId: editJobId || null,
+        jobData,
+        currentStep,
+        salaryModified,
+        updatedAt: Date.now(),
+      }));
+    } catch { /* Keep editing if storage is unavailable or full. */ }
+  }, [draftStorageKey, editJobId, jobData, currentStep, salaryModified]);
+
+  // Existing jobs are also saved to the API automatically after the user
+  // pauses editing. New jobs remain drafts until the user chooses Post Job.
+  useEffect(() => {
+    if (!isEditMode || !editJobId) return;
+    if (!autoSaveMounted.current) {
+      autoSaveMounted.current = true;
+      return;
+    }
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+
+    // Do not send temporarily incomplete required fields while the user edits.
+    if (!jobData.jobTitle.trim() || !jobData.companyName.trim() || !jobData.jobLocation.trim() || !jobData.jobDescription.trim()) {
+      setAutoSaveStatus('saved');
+      return;
+    }
+
+    setAutoSaveStatus('saving');
+    autoSaveTimer.current = setTimeout(() => {
+      const workSetting = /^remote$/i.test(jobData.locationType) ? 'Remote'
+        : /^hybrid$/i.test(jobData.locationType) ? 'Hybrid' : 'On-site';
+      const languages = Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [];
+      const payload = {
+        jobTitle: jobData.jobTitle.trim(),
+        company: jobData.companyName.trim(),
+        companyLogo: jobData.companyLogo || '',
+        companyTagline: jobData.companyTagline || '',
+        companyId: jobData.companyId || undefined,
+        location: jobData.jobLocation.trim(),
+        locationType: jobData.locationType || '',
+        workSetting,
+        jobType: jobData.jobType[0] || 'Full-time',
+        description: jobData.jobDescription,
+        requirements: jobData.requirements.filter(Boolean).join('\n'),
+        responsibilities: jobData.responsibilities.filter(Boolean).join('\n'),
+        skills: jobData.skills,
+        goodToHaveSkills: jobData.goodToHaveSkills,
+        salaryMin: parseSalaryNumber(jobData.minSalary),
+        salaryMax: jobData.payType === 'Exact amount' ? parseSalaryNumber(jobData.minSalary) : parseSalaryNumber(jobData.maxSalary),
+        currency: jobData.currency,
+        payRate: jobData.payRate,
+        payType: jobData.payType,
+        jobCategory: jobData.jobCategory,
+        experienceRange: jobData.experienceRange,
+        languages,
+        country: jobData.country,
+        urgentNote: jobData.urgentNote,
+        nationalityRestriction: jobData.nationalityRestriction,
+        jobHeaderImage: jobData.jobHeaderImage,
+        postingDetails: jobData,
+      };
+
+      autoSaveRequest.current = apiFetch(`${API_ENDPOINTS.JOBS}/${editJobId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).then(response => {
+          setAutoSaveStatus(response.ok ? 'saved' : 'error');
+        }).catch(() => {
+          setAutoSaveStatus('error');
+        });
+    }, 700);
+
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [jobData, isEditMode, editJobId]);
+
   const updateJobData = (field: keyof JobData, value: any) => {
-    setJobData(prev => ({ ...prev, [field]: value }));
+    const next = { ...jobDataRef.current, [field]: value };
+    jobDataRef.current = next;
+    setJobData(next);
+    if (!discardDraft.current) {
+      try {
+        localStorage.setItem(draftStorageKey, JSON.stringify({
+          editJobId: editJobId || null,
+          jobData: next,
+          currentStep,
+          salaryModified,
+          updatedAt: Date.now(),
+        }));
+      } catch { /* Keep editing if storage is unavailable or full. */ }
+    }
   };
   useEffect(() => {
     const fetchCompanyLogo = async () => {
@@ -3401,6 +3518,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       return;
     }
 
+    // Let an already-started autosave finish before the final explicit save,
+    // and cancel a pending debounce so an older payload cannot overwrite it.
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    if (autoSaveRequest.current) await autoSaveRequest.current;
+
     // Validate salary range: max must not be lower than min
     if (salaryModified && jobData.payType === 'Range' && jobData.minSalary && jobData.maxSalary) {
       const minNum = parseSalaryNumber(jobData.minSalary);
@@ -3511,6 +3633,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       employerName: user.name,
       employerCompany: user?.companyName || jobData.companyName || '',
       employerId: user.employerId || 'EID0001',
+      companyId: jobData.companyId || undefined,
       positionId: generatePositionId(jobData.companyName || user?.companyName || ''),
       jobCategory: jobData.jobCategory || '',
       locationType: jobData.locationType || '',
@@ -3520,7 +3643,8 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       country: jobData.country || '',
       urgentNote: jobData.urgentNote?.trim() || '',
       nationalityRestriction: jobData.nationalityRestriction || '',
-      jobHeaderImage: finalBannerImage
+      jobHeaderImage: finalBannerImage,
+      postingDetails: jobData
     };
     
     console.log('Posting job for user:', user.email);
@@ -3539,6 +3663,8 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       
       if (response.ok) {
         const result = await response.json();
+        discardDraft.current = true;
+        localStorage.removeItem(draftStorageKey);
         sessionStorage.removeItem('editJobData');
         localStorage.removeItem('editJobData');
         setNotification({
@@ -3684,6 +3810,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                 {currentStep === 7 && 'Review'}
               </h1>
               <p>{currentStep === 1 ? 'Start with the role, location and experience requirements.' : currentStep === 3 ? 'Define the employment type and how candidates will work.' : currentStep === 4 ? 'Help candidates understand the compensation and benefits.' : currentStep === 5 ? 'Set the skills and qualifications needed for this role.' : currentStep === 6 ? 'Give candidates a clear picture of the role and responsibilities.' : 'Check your job details before publishing.'}</p>
+              <p className="mt-2 text-xs text-gray-500" aria-live="polite">
+                {isEditMode
+                  ? autoSaveStatus === 'saving' ? 'Saving changes…' : autoSaveStatus === 'error' ? 'Autosave failed. Your draft is saved in this browser; use Update Job to retry.' : 'Changes saved automatically'
+                  : 'Draft saved automatically in this browser'}
+              </p>
               {currentStep === 1 && parsedData && (
                 <span className="text-sm text-green-600 ml-2">AI Parsed</span>
               )}

@@ -450,10 +450,12 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     if (cur !== newStatus) updateStatus(String(active.id), newStatus);
   };
 
+  const [profileApplication, setProfileApplication] = useState<any>(null);
   const onViewProfile = (application: any) => {
     const cid = application.candidateEmail || application.candidateId || '';
     if (!cid) { alert('No candidate info found.'); return; }
     sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName, email: application.candidateEmail, phone: application.candidatePhone, skills: application.skills || [] }));
+    setProfileApplication(application);
     setViewingCandidateId(cid);
   };
 
@@ -480,11 +482,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   return (
     <div className="application-management-page min-h-screen bg-gray-100">
       {viewingCandidateId && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
+        <div className="application-profile-overlay fixed inset-0 z-40 overflow-y-auto bg-white">
           <CandidateProfileView
             candidateId={viewingCandidateId}
             onNavigate={onNavigate}
-            onBack={() => setViewingCandidateId(null)}
+            onLogout={onLogout}
+            application={profileApplication}
+            onViewApplicationResume={() => { if (profileApplication) onViewResume(profileApplication); }}
+            onScheduleInterview={isViewer ? undefined : () => { if (profileApplication) onScheduleInterview(profileApplication); }}
+            onBack={() => { setViewingCandidateId(null); setProfileApplication(null); }}
           />
         </div>
       )}

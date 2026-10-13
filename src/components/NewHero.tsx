@@ -30,10 +30,10 @@ function RobotCanvas() {
     camera.lookAt(0, 1.40, 0);
 
     let renderer: THREE.WebGLRenderer;
-    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
-    catch { return; }
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); }
+    catch (error) { console.error('Zync robot WebGL setup failed', error); return; }
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
@@ -192,15 +192,18 @@ function RobotCanvas() {
       }
 
       robotGroup.add(model);
+      renderer.render(scene, camera);
       setReady(size.y > 0);
 
       // Setup baked animations if they exist
       if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(model);
         const action = mixer.clipAction(gltf.animations[0]);
+        action.timeScale = 0.65;
         action.play();
       }
-    }, undefined, () => {
+    }, undefined, (error) => {
+      console.error('Zync robot model loading failed', error);
       if (!disposed) setReady(false);
       stopRender?.();
       stopRender = undefined;
@@ -217,12 +220,12 @@ function RobotCanvas() {
     // ── CURSOR TRACKING ───────────────────────────────────────────────────────
     const onMove = (e: MouseEvent) => {
       const rect = mount.getBoundingClientRect();
-      const nx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-      const ny = ((e.clientY - rect.top)  / rect.height) * 2 - 1;
+      const nx = THREE.MathUtils.clamp(((e.clientX - rect.left) / rect.width) * 2 - 1, -1, 1);
+      const ny = THREE.MathUtils.clamp(((e.clientY - rect.top) / rect.height) * 2 - 1, -1, 1);
       
       // Calculate target rotations based on cursor
-      tgtYaw   =  nx * (Math.PI / 8);
-      tgtPitch =  ny * (Math.PI / 12);
+      tgtYaw   = nx * 0.28;
+      tgtPitch = ny * 0.16;
 
       isIdle = false;
       clearTimeout(idleTimer);
@@ -247,7 +250,7 @@ function RobotCanvas() {
       }
 
       // Smooth interpolation for head motion
-      const hf = 1 - Math.pow(1 - 0.15, dt);
+      const hf = 1 - Math.pow(1 - 0.055, dt);
       headYaw   += (tgtYaw   - headYaw)   * hf;
       headPitch += (tgtPitch - headPitch) * hf;
 
@@ -285,12 +288,9 @@ function RobotCanvas() {
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
     };
-    const controller = new AbortController();
-    // Vite returns HTML for missing public assets; keep the vector fallback in that case.
-    fetch('/cute_robot.glb', { method: 'HEAD', signal: controller.signal }).then(response => {
-      if (!disposed && response.ok && !response.headers.get('content-type')?.includes('text/html')) stopRender = startRenderer();
-    }).catch(() => { /* The branded fallback remains visible. */ });
-    return () => { disposed = true; controller.abort(); stopRender?.(); };
+    // Request the model directly; a separate HEAD request delayed every refresh.
+    stopRender = startRenderer();
+    return () => { disposed = true; stopRender?.(); };
   }, []);
 
   return (

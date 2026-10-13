@@ -14,6 +14,10 @@ interface CandidateProfileViewProps {
   onNavigate: (page: string) => void;
   onBack: () => void;
   onLogout?: () => void;
+  application?: any;
+  onViewApplicationResume?: () => void;
+  onScheduleInterview?: () => void;
+
 }
 
 // Safely convert any value to a displayable string — never throws
@@ -113,7 +117,7 @@ function firstBool(...vals: unknown[]): boolean {
   return false;
 }
 
-const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack, onLogout }) => {
+const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack, onLogout, application, onViewApplicationResume, onScheduleInterview }) => {
   const [searchParams] = useSearchParams();
   const [candidate, setCandidate] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -369,26 +373,27 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
 
   return (
-    <div className="min-h-screen bg-[#f0f2f7]">
+    <div className="employer-candidate-profile min-h-screen bg-[#f0f2f7]">
       <Header onNavigate={onNavigate} user={currentUser} onLogout={onLogout} />
       {/* Sticky back bar */}
-      <div className="bg-white border-b portal-page-sticky sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-3">
-          <BackButton onClick={handleBack} />
+      <div className="candidate-profile-backbar bg-white border-b">
+        <div className="portal-page-container py-3">
+          <button type="button" onClick={handleBack} className="candidate-profile-return"><span aria-hidden="true">&larr;</span>{application ? 'Back to applications' : 'Back to candidates'}</button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+      <div className="candidate-profile-workspace portal-page-container">
+
 
         {/* ── Hero card ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="candidate-identity-card bg-white overflow-hidden">
           {/* Banner */}
-          <div className="h-32 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500" />
+
 
           {/* Avatar + name row */}
-          <div className="px-4 sm:px-8 pb-6">
+          <div className="candidate-identity-layout">
             {/* Avatar */}
-            <div className="-mt-12 mb-4">
+            <div className="candidate-identity-avatar">
               <div className="relative inline-block">
                 {candidate.profilePhoto ? (
                   <img src={candidate.profilePhoto} alt={candidate.name}
@@ -408,35 +413,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
               </div>
             </div>
 
-            {/* Action buttons — full width row below avatar on mobile */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {candidate.email && (
-                <button onClick={() => setShowMessage(true)}
-                  className="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm flex-1 min-w-[120px] min-h-[40px]">
-                  <MessageCircle className="w-4 h-4 flex-shrink-0" />Send Message
-                </button>
-              )}
-              {candidate.resumeUrl && (
-                <button
-                  onClick={handleDownloadResume}
-                  disabled={downloadingResume}
-                  className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[100px] min-h-[40px] disabled:opacity-50">
-                  {downloadingResume ? (
-                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                  ) : (
-                    <Download className="w-4 h-4 flex-shrink-0" />
-                  )}
-                  Resume
-                </button>
-              )}
-              {candidate.email && (
-                <a href={`mailto:${candidate.email}`}
-                  className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[80px] min-h-[40px]">
-                  <Mail className="w-4 h-4 flex-shrink-0" />Email
-                </a>
-              )}
-            </div>
-
+            <div className="candidate-identity-details">
             {/* Name + status */}
             <h1 className="text-2xl font-bold text-gray-900 mb-1">{candidate.name}</h1>
             {candidate.title && <p className="text-gray-500 text-sm mb-2">{candidate.title}</p>}
@@ -479,15 +456,20 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                 </span>
               )}
             </div>
+            </div>
           </div>
         </div>
 
+        <div className="candidate-profile-main candidate-profile-sheet">
+        <nav className="candidate-profile-section-nav" aria-label="Profile sections">
+          {[['Summary', candidate.profileSummary], ['Skills', candidate.skills?.length], ['Employment', candidate.employment?.length], ['Education', candidate.education]].filter(([, value]) => !!value).map(([label]) => <a key={String(label)} href={`#candidate-section-${String(label).toLowerCase()}`}>{String(label)}</a>)}
+        </nav>
         {/* ── Section cards ── */}
         {candidate.profileSummary && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
             <div className="flex items-center gap-2 mb-3 text-blue-500">
               <User className="w-4 h-4" />
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Profile Summary</h2>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide" id="candidate-section-summary">Profile Summary</h2>
             </div>
             <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{candidate.profileSummary}</p>
           </div>
@@ -497,7 +479,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
             <div className="flex items-center gap-2 mb-4 text-indigo-500">
               <Star className="w-4 h-4" />
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Skills</h2>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide" id="candidate-section-skills">Skills</h2>
             </div>
             <div className="flex flex-wrap gap-2">
               {candidate.skills.map((skill: string, i: number) => (
@@ -511,7 +493,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
             <div className="flex items-center gap-2 mb-3 text-orange-500">
               <Briefcase className="w-4 h-4" />
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Employment</h2>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide" id="candidate-section-employment">Employment</h2>
             </div>
             <div className="space-y-4">
               {candidate.employment.map((emp: any, idx: number) => (
@@ -525,7 +507,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
             <div className="flex items-center gap-2 mb-3 text-green-500">
               <GraduationCap className="w-4 h-4" />
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Education</h2>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide" id="candidate-section-education">Education</h2>
             </div>
             <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{candidate.education}</p>
           </div>
@@ -618,6 +600,27 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           </div>
         )}
 
+        </div>
+        <aside className="candidate-profile-context">
+          <h2>{application ? 'Application details' : 'Candidate contact'}</h2>
+          {application ? <>
+            <p className="candidate-context-role">{application.jobTitle || 'Applied role'}</p>
+            <dl>
+              <div><dt>Status</dt><dd>{safeStr(application.status || 'pending').replaceAll('_', ' ')}</dd></div>
+              {(application.appliedDate || application.createdAt || application.appliedAt) && <div><dt>Applied on</dt><dd>{new Date(application.appliedDate || application.createdAt || application.appliedAt).toLocaleDateString('en-GB')}</dd></div>}
+            </dl>
+            {onViewApplicationResume && <button type="button" onClick={onViewApplicationResume}><Download size={16} />View submitted resume</button>}
+            {onScheduleInterview && <button type="button" onClick={onScheduleInterview}><Clock size={16} />Schedule interview</button>}
+            <p className="candidate-context-note">Application actions apply to this job. The main profile shows the candidate's current information.</p>
+          </> : <>
+            <p className="candidate-context-note">Review this profile and contact the candidate to discuss a suitable role.</p>
+            {candidate.email && <button type="button" onClick={() => setShowMessage(true)}><MessageCircle size={16} />Send message</button>}
+            {candidate.email && <a href={`mailto:${candidate.email}`}><Mail size={16} />Email candidate</a>}
+            {candidate.resumeUrl && <button type="button" disabled={downloadingResume} onClick={handleDownloadResume}><Download size={16} />Download current resume</button>}
+          </>}
+          {application && candidate.resumeUrl && <button type="button" disabled={downloadingResume} onClick={handleDownloadResume}><Download size={16} />Current profile resume</button>}
+          {application && candidate.email && <button type="button" onClick={() => setShowMessage(true)}><MessageCircle size={16} />Message candidate</button>}
+        </aside>
       </div>
 
       {showMessage && candidate.email && (

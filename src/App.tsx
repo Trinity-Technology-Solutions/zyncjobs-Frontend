@@ -1,3 +1,5 @@
+import useHomeMotion from './hooks/useHomeMotion';
+import { getEmployerReturnPath } from './utils/employerReturnPath';
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from './components/Header';
@@ -39,6 +41,7 @@ const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage')
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
+const EmployerPlansPage = lazy(() => import('./pages/EmployerPlansPage'));
 
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
@@ -257,6 +260,7 @@ function getInitialUser(): UserType | null {
 }
 
 function App() {
+  useHomeMotion();
   const navigate = useNavigate();
   const location = useLocation();
   useAnalytics();
@@ -805,7 +809,9 @@ function App() {
               ) : (
               <div className="zync-home min-h-screen bg-white overflow-x-clip">
                 <Header {...nav} />
-                <NewHero onNavigate={handleNavigation} />
+                <div className="home-first-screen">
+                  <NewHero onNavigate={handleNavigation} />
+                </div>
                 <CompanyCarousel />
                 <LatestJobs onNavigate={handleNavigation} user={user} />
                 <HowItWorks onNavigate={handleNavigation} />
@@ -841,7 +847,7 @@ function App() {
               userLoading
                 ? <LoadingFallback />
                 : user
-                  ? <Navigate to="/dashboard" replace />
+                  ? <Navigate to={getEmployerReturnPath(location.state)} replace />
                   : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
                     onShowNotification={(n: { message: string; type: 'success' | 'error' | 'info' }) => showNotification(n.message, n.type)} />
             } />
@@ -866,6 +872,7 @@ function App() {
             <Route path="/company-profile" element={<Navigate to="/dashboard" replace />} />
             <Route path="/company-view" element={<Navigate to="/companies" replace />} />
             <Route path="/employers" element={<EmployersPage {...nav} />} />
+            <Route path="/employer-plans" element={<EmployerPlansPage {...nav} />} />
 
             <Route path="/job-hunting" element={<Navigate to="/job-listings" replace />} />
             <Route path="/job-role" element={<Navigate to="/job-listings" replace />} />

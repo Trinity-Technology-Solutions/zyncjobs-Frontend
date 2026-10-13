@@ -67,6 +67,7 @@ function convertTextItemsToText(items: { text: string; x: number; y: number; pag
 interface ResumeParserProps {
   onNavigate?: (page: string, data?: any) => void;
   user?: any;
+  guide?: ReactNode;
 }
 
 const emptyResume: ParsedResume = {
@@ -165,15 +166,19 @@ function ParsedResultsTable({ resume }: { resume: ParsedResume }) {
         <SectionCard title="Education" icon={<SvgIcon name="edu" />}>
           <div className="space-y-3">
             {resume.educations.map((edu: any, i: number) => {
-              const isSchool = /\b(sslc|hsc|10th|12th|matriculation|higher secondary|secondary school|school)\b/i.test(edu.degree + ' ' + edu.school);
-              const gpaLabel = isSchool ? 'Percentage' : /\b(cgpa|gpa)\b/i.test(String(edu.gpa)) ? 'CGPA' : (String(edu.gpa || '').includes('%') ? 'Percentage' : 'GPA/CGPA');
+              const educationLabel = `${edu.degree || ''} ${edu.school || ''}`;
+              const hasSchoolLevel = /\b(sslc|hsc|10th|12th|matriculation|higher secondary|secondary school|class\s*(?:x|xii|10|12))\b/i.test(educationLabel);
+              const hasCollegeDegree = /\b(b\.?sc|m\.?sc|b\.?tech|m\.?tech|b\.?e|m\.?e|bachelor|master|mba|bca|mca|phd|diploma)\b/i.test(edu.degree || '');
+              const isSchool = hasSchoolLevel && !hasCollegeDegree;
+              const gpaLabel = isSchool ? 'Percentage' : /\b(cgpa)\b/i.test(String(edu.gpa)) ? 'CGPA' : /\b(gpa)\b/i.test(String(edu.gpa)) ? 'GPA' : (String(edu.gpa || '').includes('%') ? 'Percentage' : 'GPA/CGPA');
               const gpaDisplay = String(edu.gpa || '').replace(/[^\d.%]/g, '') + (String(edu.gpa || '').includes('%') ? '' : (isSchool ? '%' : ''));
               return (
                 <div key={i} className={`${i > 0 ? 'pt-3 border-t border-gray-100' : ''}`}>
-                  <div className="font-medium text-gray-900 text-sm">{edu.school || '—'}</div>
-                  {edu.degree && <div className="text-blue-600 text-xs font-medium mt-0.5">{edu.degree}</div>}
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400">{isSchool ? 'School' : 'College / University'}</div>
+                  <div className="font-medium text-gray-900 text-sm">{edu.school || 'Institution needs review'}</div>
+                  {edu.degree && <div className="text-blue-600 text-xs font-medium mt-0.5">{isSchool ? 'Grade / Class: ' : 'Degree: '}{edu.degree}</div>}
                   <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
-                    {edu.date && <span><SvgIcon name="calendar" className="w-3.5 h-3.5 inline mr-0.5" />{isSchool ? 'Year' : 'Year'}: {edu.date}</span>}
+                    {edu.date && <span><SvgIcon name="calendar" className="w-3.5 h-3.5 inline mr-0.5" />Year: {edu.date}</span>}
                     {edu.gpa && <span><SvgIcon name="starSmall" className="w-3.5 h-3.5 inline mr-0.5 text-yellow-500" />{gpaLabel}: {gpaDisplay}</span>}
                   </div>
                 </div>
@@ -193,15 +198,15 @@ function ParsedResultsTable({ resume }: { resume: ParsedResume }) {
                   <div>
                     <div className="font-medium text-gray-900 text-sm">{exp.jobTitle || '—'}</div>
                     <div className="text-blue-600 text-xs font-medium">{exp.company}</div>
+                    {exp.location && <div className="text-xs text-gray-500">{exp.location}</div>}
                   </div>
                   {exp.date && <span className="text-xs text-gray-400 whitespace-nowrap shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{exp.date}</span>}
                 </div>
                 {exp.descriptions?.length > 0 && (
                   <ul className="mt-2 space-y-1">
-                    {exp.descriptions.slice(0, 3).map((d: string, j: number) => (
+                    {exp.descriptions.map((d: string, j: number) => (
                       <li key={j} className="text-xs text-gray-600 flex gap-1.5"><span className="text-gray-300 shrink-0">•</span>{d}</li>
                     ))}
-                    {exp.descriptions.length > 3 && <li className="text-xs text-gray-400">+{exp.descriptions.length - 3} more</li>}
                   </ul>
                 )}
               </div>
@@ -220,7 +225,7 @@ function ParsedResultsTable({ resume }: { resume: ParsedResume }) {
                 {proj.date && <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-0.5"><SvgIcon name="calendar" className="w-3.5 h-3.5" />{proj.date}</div>}
                 {(proj.descriptions?.length > 0 || proj.description) && (
                   <ul className="mt-1.5 space-y-1">
-                    {(proj.descriptions?.length > 0 ? proj.descriptions : [proj.description]).slice(0, 2).map((d: string, j: number) => (
+                    {(proj.descriptions?.length > 0 ? proj.descriptions : [proj.description]).map((d: string, j: number) => (
                       <li key={j} className="text-xs text-gray-600 flex gap-1.5"><span className="text-gray-300 shrink-0">•</span>{d}</li>
                     ))}
                   </ul>
@@ -300,7 +305,7 @@ function ParsedResultsTable({ resume }: { resume: ParsedResume }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {}) {
+export default function ResumeParser({ onNavigate, user, guide }: ResumeParserProps = {}) {
   const [fileUrl, setFileUrl] = useState('');
   const [currentFileName, setCurrentFileName] = useState('');
   const uploadedFileRef = useRef<File | null>(null);
@@ -528,7 +533,10 @@ useEffect(() => {
         </p>
       </div>
 
-      <div className="resume-parser-panels grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="candidate-parser-layout resume-parser-body">
+        {guide}
+        <div className="candidate-parser-content">
+        <div className="resume-parser-panels grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Upload Section */}
         <div className="resume-tool-panel bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -624,7 +632,7 @@ useEffect(() => {
         </div>
 
         {/* Results Section */}
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: '90vh' }}>
+        <div className="resume-parser-results bg-gray-50 rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900">Parsed Information</h2>
             {aiStatus && (
@@ -653,7 +661,7 @@ useEffect(() => {
           )}
 
           {!parsing && !isFileUploaded && !parseError && (
-            <p className="text-gray-400 text-sm text-center py-8">Upload a PDF, DOCX, or image resume to see parsed information here.</p>
+            <p className="resume-parser-empty text-gray-400 text-sm text-center py-8">Upload a PDF, DOCX, or image resume to see parsed information here.</p>
           )}
           
           {/* Matching Score for Employers */}
@@ -750,6 +758,8 @@ useEffect(() => {
             </div>
           )}
           <ParsedResultsTable resume={resume} />
+        </div>
+        </div>
         </div>
       </div>
       

@@ -33,7 +33,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
   const today = new Date();
   const [formData, setFormData] = useState({
     round: 'HR', scheduledDate: '', duration: 60,
-    type: 'video', meetingLink: '', location: '', notes: '', interviewer: ''
+    type: 'video', meetingLink: '', hostMeetingLink: '', location: '', notes: '', interviewer: ''
   });
   const [dateValue, setDateValue] = useState('');
   const [timeValue, setTimeValue] = useState('10:00');
@@ -54,7 +54,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
   // Any schedule change invalidates a previously generated meeting's calendar time.
   useEffect(() => {
     const scheduledDate = dateValue && timeValue ? `${dateValue}T${timeValue}` : '';
-    setFormData(prev => prev.scheduledDate === scheduledDate ? prev : { ...prev, scheduledDate, meetingLink: '' });
+    setFormData(prev => prev.scheduledDate === scheduledDate ? prev : { ...prev, scheduledDate, meetingLink: '', hostMeetingLink: '' });
     setMeetGenerated(false); setMeetFallback(false);
   }, [dateValue, timeValue]);
 
@@ -131,9 +131,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
       });
       const result = await res.json();
       const joinUrl = result.meeting?.join_url || result.meeting?.joinUrl || result.meeting?.meetLink || result.meeting?.hangoutLink;
+      const hostUrl = result.meeting?.host_url || result.meeting?.start_url || joinUrl;
       if (res.ok && result.success && joinUrl) {
         if (isMeetingLinkForPlatform(platform, joinUrl)) {
-          setFormData(prev => ({ ...prev, meetingLink: joinUrl }));
+          setFormData(prev => ({ ...prev, meetingLink: joinUrl, hostMeetingLink: hostUrl }));
           setMeetGenerated(true); setMeetFallback(!!result.fallback);
           if (platform === 'googlemeet') setGoogleConnected(true);
         } else {
@@ -168,7 +169,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
           jobId: application.jobId?._id || application.jobId?.id || (typeof application.jobId === 'string' ? application.jobId : undefined), round: formData.round,
           interviewer: formData.interviewer, scheduledDate: new Date(formData.scheduledDate).toISOString(),
           duration: formData.duration, type: formData.type === 'googlemeet' ? 'video' : formData.type,
-          meetingLink: formData.meetingLink, location: formData.location, notes: formData.notes
+          meetingLink: formData.meetingLink, hostMeetingLink: formData.hostMeetingLink, location: formData.location, notes: formData.notes
         })
       });
       const result = await response.json();
@@ -179,19 +180,19 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-slate-950/55 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="schedule-interview-title" className="bg-white rounded-2xl w-full max-w-2xl max-h-[min(92vh,900px)] flex flex-col overflow-hidden shadow-2xl ring-1 ring-black/5">
 
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+        <div className="flex justify-between items-center gap-4 px-5 py-4 sm:px-7 sm:py-5 border-b border-gray-100 shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Schedule Interview</h2>
+            <h2 id="schedule-interview-title" className="text-xl font-bold text-gray-900">Schedule Interview</h2>
             <p className="text-sm text-gray-500 mt-0.5">{application.candidateName} · {application.jobId?.jobTitle || application.jobId?.title}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-5 sm:p-7 space-y-5 overflow-y-auto min-h-0">
           {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
 
           {/* Round */}
@@ -203,7 +204,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 const isSelected = formData.round === round;
                 return (
                   <button key={round} type="button" disabled={isScheduled || meetLoading || loading}
-                    onClick={() => { setFormData(prev => ({ ...prev, round, meetingLink: '' })); setMeetGenerated(false); }}
+                    onClick={() => { setFormData(prev => ({ ...prev, round, meetingLink: '', hostMeetingLink: '' })); setMeetGenerated(false); }}
                     className={`py-2.5 px-1 rounded-xl text-xs font-semibold border-2 transition-all ${
                       isScheduled ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed line-through'
                       : isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
@@ -257,7 +258,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <div className="relative">
               <select
                 disabled={meetLoading || loading} value={String(formData.duration)}
-                onChange={e => { setFormData(prev => ({ ...prev, duration: parseInt(e.target.value, 10), meetingLink: '' })); setMeetGenerated(false); }}
+                onChange={e => { setFormData(prev => ({ ...prev, duration: parseInt(e.target.value, 10), meetingLink: '', hostMeetingLink: '' })); setMeetGenerated(false); }}
                 className={selectClass}>
                 {DURATION_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -273,7 +274,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <div className="relative">
               <select
                 disabled={meetLoading || loading} value={formData.type}
-                onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '', location: '' }))}
+                onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '', hostMeetingLink: '', location: '' }))}
                 className={selectClass}>
                 {TYPE_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -320,7 +321,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
               {meetGenerated && !meetFallback && <p className="text-xs text-green-600 font-medium mb-2">✓ {meetPlatform === 'zoom' ? 'Zoom' : 'Google Meet'} link created successfully</p>}
               {meetGenerated && meetFallback && <p className="text-xs text-amber-700 font-medium mb-2">⚠ Fallback link returned — verify or paste manually.</p>}
               <input type="url" value={formData.meetingLink}
-                onChange={e => { setFormData(prev => ({ ...prev, meetingLink: e.target.value })); setMeetGenerated(false); }}
+                onChange={e => { setFormData(prev => ({ ...prev, meetingLink: e.target.value, hostMeetingLink: '' })); setMeetGenerated(false); }}
                 placeholder="Or paste any meeting link here..." className={inputClass} />
             </div>
           )}
@@ -350,7 +351,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-6 pt-0">
+        <div className="flex gap-3 px-5 pb-5 pt-3 sm:px-7 sm:pb-6 border-t border-gray-100 bg-white shrink-0">
           <button onClick={onClose} disabled={loading}
             className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
             Cancel

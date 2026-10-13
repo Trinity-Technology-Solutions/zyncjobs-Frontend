@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
-  X, Search, User, UserCircle, Building, ChevronDown, Settings, 
+  X, Search, UserCircle, ChevronDown, Settings, 
   FileText, Sparkles, Bell, LogOut, ChevronRight, Briefcase, PlusCircle, LayoutDashboard,
   Menu 
 } from 'lucide-react';
-import JobAlertBadge from './JobAlertBadge';
 import { useJobAlertStore } from '../hooks/useJobAlertStore';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
@@ -63,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     if (!user) return <button type="button" className="portal-notification-bell" aria-label="Sign in to view notifications" onClick={() => onNavigate?.(isEmployerContext ? 'employer-login' : 'login')}><Bell size={23} strokeWidth={1.5} aria-hidden="true" /></button>;
     return null;
   };
-  const [isScrolled, setIsScrolled] = useState(true); // Default to light header
+  const isScrolled = true; // Default to light header
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
@@ -71,6 +70,29 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const currentPath = location.pathname;
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  useEffect(() => {
+    setIsHeaderVisible(true);
+    const positions = new WeakMap<EventTarget, number>();
+    let frame = 0;
+    const onScroll = (event: Event) => {
+      const target = event.target;
+      if (!target) return;
+      const isDocument = target === document;
+      const element = target instanceof HTMLElement ? target : null;
+      if (!isDocument && (!element || !element.closest('#main-content, .employer-candidate-profile'))) return;
+      if (element?.closest('.zync-site-header, .zync-chat-window, [role="dialog"]')) return;
+      const y = isDocument ? window.scrollY : element!.scrollTop;
+      const previous = positions.get(target) ?? 0;
+      if (Math.abs(y - previous) < 8 && y > 80) return;
+      positions.set(target, y);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setIsHeaderVisible(y < 80 || y < previous));
+    };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => { document.removeEventListener('scroll', onScroll, true); cancelAnimationFrame(frame); };
+  }, [location.pathname, location.search]);
+
 
   // Keep --header-h CSS custom property accurately synced with the actual header height
   useEffect(() => {
@@ -791,8 +813,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   return (
     <>
       <header
-        className="zync-site-header fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out"
-        style={{ transform: isHeaderVisible ? 'translateY(0)' : 'translateY(-100%)' }}
+        className="zync-site-header fixed top-0 left-0 right-0 z-50"
+        data-scroll-hidden={!isHeaderVisible && !isMenuOpen && !isDropdownOpen}
+        style={{ transform: isHeaderVisible || isMenuOpen || isDropdownOpen ? 'translateY(0)' : 'translateY(-100%)' }}
       >
       <div
         className="portal-header-surface w-full border-b transition-colors duration-200"
@@ -1091,6 +1114,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </header>
 

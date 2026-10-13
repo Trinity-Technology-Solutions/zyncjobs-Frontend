@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import React from 'react';
 import ResumeParserComponent from '../components/resume-parser/page';
 import Header from '../components/Header';
@@ -21,7 +22,11 @@ const ResumeParserPage: React.FC<ResumeParserPageProps> = ({ onNavigate, user, o
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
           />
         </div>
-        <ResumeParserComponent onNavigate={onNavigate} user={user} />
+        <ResumeParserComponent
+          onNavigate={onNavigate}
+          user={user}
+          guide={<CandidateFeatureGuide feature="parser" />}
+        />
       </div>
     </div>
   );

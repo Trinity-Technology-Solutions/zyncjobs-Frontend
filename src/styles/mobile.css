@@ -1009,9 +1009,6 @@ html, body {
 .portal-employer-dashboard .employer-notification-list > div.border-b { padding: 18px 20px; border-color: #e8edf5; }
 .portal-employer-dashboard .employer-notification-list h4 { font-size: 13px; color: #172b4d; line-height: 1.5; }
 .portal-employer-dashboard .employer-notification-list p { font-size: 12px; line-height: 1.7; color: #64748b; }
-@media (min-width: 1024px) {
-  .portal-employer-dashboard .portal-dashboard-main { padding-left: 280px; }
-}
 @media (max-width: 767px) {
   .portal-employer-dashboard .portal-dashboard-toolbar { padding-block: 16px; margin-bottom: 20px; }
   .portal-employer-dashboard .portal-dashboard-content h1 { font-size: 24px; }
@@ -1024,6 +1021,43 @@ html, body {
 .portal-employer-dashboard .employer-sidebar-profile > div > .relative > div { width: 52px; height: 52px; }
 .portal-employer-dashboard .employer-sidebar nav > button.text-red-300 { color: #fca5a5; }
 .portal-employer-dashboard .employer-sidebar nav > button.text-red-300:hover { background: #ffffff0c; color: #fecaca; }
+/* Desktop employer workspace: flush left navigation and a full-width content area. */
+@media (min-width: 1024px) {
+  .portal-employer-dashboard .employer-dashboard-sidebar-shell {
+    position: fixed;
+    z-index: 40;
+    top: var(--header-h, 92px);
+    bottom: 0;
+    left: 0;
+    width: 285px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #496184 transparent;
+    transition: top .5s cubic-bezier(.22,.61,.36,1);
+  }
+  .portal-employer-dashboard .employer-dashboard-sidebar-shell > .employer-sidebar {
+    min-height: 100%;
+    border-radius: 0;
+    border-top: 0;
+    border-bottom: 0;
+  }
+  .portal-employer-dashboard .portal-dashboard-main {
+    padding-left: 285px;
+  }
+  .portal-employer-dashboard > .w-full.max-w-none {
+    width: calc(100% - 285px);
+    max-width: none;
+    margin-left: 285px;
+    padding-left: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  body:has(.zync-site-header[data-scroll-hidden="true"]) .portal-employer-dashboard .employer-dashboard-sidebar-shell {
+    top: 0;
+  }
+}
 /* Interview management: candidate identity, schedule details and actions have clear hierarchy. */
 .portal-employer-dashboard .employer-interviews-heading { margin-bottom: 24px; }
 .portal-employer-dashboard .employer-interviews-heading h1 { margin-bottom: 6px; }
@@ -1832,9 +1866,11 @@ html, body {
 .resume-analyzer-input button.bg-green-600 { background: #245be0; border-radius: 7px; min-height: 44px; }
 .resume-analyzer-input > .flex > button { border-radius: 6px; }
 .resume-parser-workspace { width: 100%; }
-.resume-parser-panels { align-items: start; gap: 24px; }
+.resume-parser-panels { align-items: stretch; gap: 24px; }
 .resume-parser-panels > .bg-white { border-color: #dce5f1; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px #172b4d05; }
 .resume-parser-panels h2 { font-size: 20px; font-weight: 600; color: #172b4d; }
+.resume-parser-results { display: flex; flex-direction: column; min-width: 0; overflow: visible; }
+.resume-parser-empty { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 150px; }
 /* Builder controls only: these rules do not style the generated resume document. */
 .resume-builder-toolbar { min-height: 58px; padding: 10px 16px; gap: 10px; flex-wrap: wrap; border-color: #dce5f1; }
 .resume-builder-toolbar button { border-radius: 6px; min-height: 32px; }
@@ -2956,3 +2992,321 @@ html, body {
 .bulk-import-page .feature-sidebar-main { min-width:0; }
 .bulk-import-page .feature-sidebar-main > .space-y-6 > .bg-white { border-color:#e1e7f0; box-shadow:none; border-radius:14px; }
 @media(max-width:639px) { .bulk-import-heading { padding:14px 16px; } }
+
+.business-segments-grid { align-items:stretch; }
+.business-segments-grid > div { height:100%; }
+.business-segment-card { height:100%; display:flex; flex-direction:column; padding:30px; border:1px solid #dde5f2; border-radius:18px; background:linear-gradient(160deg,#f7faff 0%,#fff 45%); box-shadow:0 4px 18px #233b6005; transition:border-color .2s,box-shadow .2s; }
+.business-segment-card:hover { border-color:#b6c8e7; box-shadow:0 8px 26px #233b600c; }
+.business-segment-featured { background:linear-gradient(160deg,#f1f0ff 0%,#fff 45%); border-color:#d8d6ee; }
+.business-segment-top { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+.business-segment-icon { width:54px; height:54px; border-radius:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.business-segment-label { font-size:11px; font-weight:600; color:#73839b; letter-spacing:.4px; }
+.business-segment-card h3 { font-size:22px; font-weight:700; color:#223b60; line-height:1.4; min-height:62px; letter-spacing:-.3px; }
+.business-segment-tagline { font-size:14px; color:#75849b; margin-top:8px; line-height:1.6; }
+.business-segment-divider { height:1px; background:#e9eef5; margin:22px 0; }
+.business-segment-card ul { display:flex; flex-direction:column; gap:16px; flex:1; padding:0; margin:0 0 28px; list-style:none; }
+.business-segment-card li { display:flex; align-items:flex-start; gap:10px; color:#61748e; font-size:13px; line-height:1.8; }
+.business-segment-card li svg { color:#4479b4; margin-top:4px; }
+.business-segment-card button { display:flex; align-items:center; justify-content:space-between; width:100%; padding:13px 16px; border:1px solid #d7e2f4; border-radius:9px; color:#245be0; background:#f2f6fe; font-size:13px; font-weight:600; }
+.business-segment-featured button { background:#245be0; border-color:#245be0; color:white; }
+.business-segment-card button:hover { filter:brightness(.97); }
+@media(max-width:639px) { .business-segment-card { padding:24px; } .business-segment-card h3 { min-height:0; font-size:21px; } }
+
+.employer-candidate-profile { background:#f5f7fb; }
+.application-profile-overlay .employer-candidate-profile { padding-top:var(--header-h,86px); }
+.candidate-profile-workspace { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; padding-block:24px 40px; align-items:start; }
+.candidate-profile-main { min-width:0; }
+.candidate-profile-main > .bg-white { border:1px solid #e1e7f0; border-radius:14px; box-shadow:none; }
+.candidate-profile-cover { height:96px; background:linear-gradient(110deg,#dce7fc,#eee9fb); }
+.candidate-profile-main h1 { font-size:30px; letter-spacing:-.5px; line-height:1.3; }
+.candidate-profile-main h2 { text-transform:none; letter-spacing:0; font-size:18px; }
+.candidate-profile-main > div:not(:first-child) { padding:24px; }
+.candidate-profile-context { padding:24px; border:1px solid #dfe6f1; border-radius:14px; background:#fff; }
+.candidate-profile-context h2 { font-size:19px; color:#253c5e; font-weight:600; margin-bottom:16px; }
+.candidate-context-role { font-size:16px; font-weight:600; color:#2b476e; line-height:1.5; margin-bottom:20px; }
+.candidate-profile-context dl { display:grid; gap:16px; margin-bottom:24px; }
+.candidate-profile-context dt { font-size:12px; color:#7d8ba0; margin-bottom:5px; }
+.candidate-profile-context dd { color:#344c6c; font-size:14px; text-transform:capitalize; }
+.candidate-profile-context button,.candidate-profile-context a { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:12px; border-radius:8px; border:1px solid #dce5f4; color:#245be0; font-size:13px; margin-top:10px; background:#f6f9ff; }
+.candidate-context-note { font-size:12px; line-height:1.8; color:#7c8ba1; margin-top:16px; }
+@media(max-width:900px) { .candidate-profile-workspace { grid-template-columns:1fr; } .candidate-profile-context { grid-row:1; } }
+
+/* Recruiter profile: compact identity and an editorial details column. */
+.candidate-identity-card { border:1px solid #dfe6f0; border-radius:12px; padding:30px; }
+.candidate-identity-layout { display:flex; align-items:flex-start; gap:24px; }
+.candidate-identity-avatar { flex-shrink:0; margin:0; padding-top:4px; }
+.candidate-identity-avatar img,.candidate-identity-avatar > div > div { width:88px; height:88px; box-shadow:none; border:1px solid #dde5f1; }
+.candidate-identity-details { flex:1; min-width:0; }
+.candidate-identity-details h1 { font-size:28px; margin:0 0 6px; color:#203755; }
+.candidate-identity-details > p { font-size:15px; line-height:1.6; color:#697b93; }
+.candidate-identity-details > .flex { border-top:1px solid #edf0f5; padding-top:16px; margin-top:8px; gap:12px 22px; }
+.candidate-identity-details > .flex > span { background:transparent; border:0; padding:0; color:#687b94; font-size:13px; overflow-wrap:anywhere; }
+.candidate-profile-section-nav { display:flex; flex-wrap:wrap; gap:24px; padding:14px 24px; background:white; border:1px solid #e1e7f0; border-radius:10px; }
+.candidate-profile-section-nav a { color:#657992; font-size:13px; font-weight:500; }
+.candidate-profile-section-nav a:hover { color:#245be0; }
+.candidate-profile-main h2[id] { scroll-margin-top:calc(var(--header-h,86px) + 24px); }
+.candidate-profile-main > div:not(:first-child) { padding:26px; border-radius:12px; }
+.candidate-profile-main h2 { font-size:17px; font-weight:600; color:#253b5a; }
+.candidate-profile-main > div > .flex:first-child { margin-bottom:18px; }
+.candidate-profile-main .bg-blue-50 { background:#f3f6fb; border-color:#e1e7f1; color:#496384; }
+.candidate-profile-main .text-sm.leading-relaxed { font-size:14px; line-height:1.9; color:#65768d; }
+.candidate-profile-context { border-radius:12px; padding:24px; }
+.candidate-profile-context h2 { padding-bottom:16px; border-bottom:1px solid #edf0f5; font-size:17px; }
+.candidate-profile-context button:first-of-type { background:#245be0; border-color:#245be0; color:white; }
+.candidate-profile-context button:disabled { opacity:.5; cursor:wait; }
+.candidate-profile-context .candidate-context-note { margin-bottom:18px; }
+@media(max-width:639px) { .candidate-identity-card { padding:22px; } .candidate-identity-layout { gap:16px; } .candidate-identity-avatar img,.candidate-identity-avatar > div > div { width:64px; height:64px; } .candidate-identity-details h1 { font-size:23px; } .candidate-profile-section-nav { gap:18px; padding:14px 18px; } }
+
+/* Candidate dossier: one identity header and one continuous profile sheet. */
+.candidate-profile-workspace { max-width:1360px; gap:24px; padding-top:28px; }
+.candidate-profile-workspace > .candidate-identity-card { grid-column:1/-1; padding:32px 36px; border-radius:14px; background:linear-gradient(105deg,#fff 65%,#f3f6fc); }
+.candidate-identity-layout { align-items:center; gap:28px; }
+.candidate-identity-details h1 { font-size:34px; font-weight:700; color:#183251; }
+.candidate-identity-details > p { font-size:16px; }
+.candidate-identity-details > .flex { border-top:0; padding-top:8px; margin-top:4px; }
+.candidate-profile-sheet { background:#fff; border:1px solid #e0e6ef; border-radius:14px; overflow:hidden; }
+.candidate-profile-sheet > .candidate-profile-section-nav { border:0; border-bottom:1px solid #e7ecf4; border-radius:0; padding:20px 32px; gap:30px; background:#fbfcfe; }
+.candidate-profile-sheet > .candidate-profile-section-nav a { font-size:14px; color:#4a6381; }
+.candidate-profile-sheet > div.bg-white { border:0; border-bottom:1px solid #edf0f5; border-radius:0; margin:0; padding:28px 32px; background:transparent; }
+.candidate-profile-sheet > div.bg-white:last-child { border-bottom:0; }
+.candidate-profile-sheet h2 { font-size:19px; letter-spacing:-.2px; }
+.candidate-profile-sheet h2 + p,.candidate-profile-sheet p.whitespace-pre-line { font-size:15px; line-height:1.9; }
+.candidate-profile-sheet > div > .flex:first-child > svg { color:#7a8ea8; }
+.candidate-profile-sheet .bg-blue-50 { background:#f5f7fa; color:#4c617a; border-color:#e5eaf1; border-radius:20px; padding:7px 12px; font-size:12px; }
+.candidate-profile-workspace > .candidate-profile-context { padding:26px; background:white; border-radius:14px; }
+.candidate-profile-workspace > .candidate-profile-context h2 { font-size:18px; color:#263e5d; }
+@media(max-width:900px) { .candidate-profile-workspace > .candidate-profile-context { grid-row:auto; } }
+@media(max-width:639px) { .candidate-profile-workspace > .candidate-identity-card { padding:24px 20px; } .candidate-identity-layout { gap:16px; align-items:flex-start; } .candidate-identity-details h1 { font-size:26px; } .candidate-profile-sheet > div.bg-white { padding:24px 20px; } .candidate-profile-sheet > .candidate-profile-section-nav { padding:16px 20px; gap:20px; } }
+
+@media(min-width:1024px) { .zync-site-header .portal-header-actions > .portal-notifications { margin-right:16px; margin-left:8px; } }
+
+/* Profile overlays need their own offset for the fixed site header. */
+.fixed > .employer-candidate-profile { padding-top:var(--header-h,86px); }
+.candidate-profile-return { display:inline-flex; align-items:center; gap:10px; color:#426086; font-size:13px; font-weight:500; padding:10px 0; }
+.candidate-profile-return:hover { color:#245be0; }
+
+.employer-home #request-callback { scroll-margin-top:calc(var(--header-h,86px) + 20px); }
+.employer-home button[type=submit]:disabled { cursor:wait; opacity:.6; }
+
+.employer-public-plans { padding:56px 0; background:white; scroll-margin-top:calc(var(--header-h,86px) + 20px); }
+.public-hiring-plan-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; }
+.public-hiring-plan { display:flex; flex-direction:column; padding:28px; border:1px solid #dee6f2; border-radius:16px; background:#fff; }
+.public-hiring-plan:nth-child(2) { background:#f8faff; border-color:#cfdcf3; }
+.public-plan-icon { width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:12px; color:#245be0; background:#edf3ff; margin-bottom:20px; }
+.public-hiring-plan h3 { font-size:21px; font-weight:600; color:#233b60; margin-bottom:10px; }
+.public-hiring-plan > p { color:#72839a; font-size:14px; line-height:1.8; }
+.public-hiring-plan ul { display:flex; flex-direction:column; gap:14px; margin:24px 0; padding:0; flex:1; list-style:none; }
+.public-hiring-plan li { display:flex; gap:10px; align-items:flex-start; font-size:13px; color:#536c8c; line-height:1.7; }
+.public-hiring-plan li svg { flex-shrink:0; margin-top:3px; color:#3e8e80; }
+.public-plan-pricing { border-top:1px solid #e7ecf4; padding-top:20px; font-size:16px; font-weight:600; color:#2b4264; }
+.public-plan-pricing span { display:block; font-size:11px; font-weight:400; line-height:1.7; color:#7b8ba0; margin-top:5px; }
+.public-hiring-plan button { display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding:13px 16px; border-radius:8px; background:#245be0; color:white; font-size:13px; font-weight:600; }
+.public-plans-note { margin-top:22px; color:#7b8ba0; font-size:12px; text-align:center; line-height:1.8; }
+@media(max-width:900px) { .public-hiring-plan-grid { grid-template-columns:1fr; } .employer-public-plans { padding:36px 0; } }
+
+.hiring-plans-page { background:#f6f8fc; }
+.hiring-plans-page .employer-public-plans { padding:24px 0 56px; background:transparent; }
+.hiring-plans-back { padding-top:26px; }
+.hiring-plans-back button { display:flex; align-items:center; gap:8px; color:#637b98; font-size:13px; }
+.hiring-plans-page-heading { text-align:center; margin:16px auto 40px; max-width:720px; }
+.hiring-plans-page-heading > span { color:#245be0; font-size:11px; letter-spacing:1.7px; font-weight:600; }
+.hiring-plans-page-heading h1 { margin:14px 0; color:#203755; font-size:clamp(30px,4vw,44px); line-height:1.2; font-weight:700; letter-spacing:-.8px; }
+.hiring-plans-page-heading p { font-size:15px; line-height:1.8; color:#72839a; }
+.hiring-plans-page .public-hiring-plan { box-shadow:0 6px 20px #20375505; }
+
+.company-logo-track { display:flex; width:max-content; animation:zync-company-loop 42s linear infinite; will-change:transform; }
+.company-logo-group { display:flex; align-items:center; flex-shrink:0; gap:36px; padding-right:36px; }
+.company-logo-item { width:128px; flex:0 0 128px; }
+@keyframes zync-company-loop { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+@media(max-width:639px) { .company-logo-group { gap:24px; padding-right:24px; } .company-logo-item { width:96px; flex-basis:96px; } }
+
+
+.zync-home .home-company-strip .company-logo-track { animation:zync-company-loop 42s linear infinite !important; }
+
+
+/* Home-page reveal and bounded pointer tilt; native scrolling remains intact. */
+.home-motion-reveal { opacity:0; translate:0 26px; transition:opacity .65s ease, translate .75s cubic-bezier(.2,.65,.3,1); }
+.home-motion-reveal.home-motion-visible { opacity:1; translate:0 0; }
+.home-motion-card { transform:perspective(1000px) rotateX(var(--motion-rx,0deg)) rotateY(var(--motion-ry,0deg)); transition:transform .2s ease, box-shadow .2s ease; }
+@media(prefers-reduced-motion:reduce) { .home-motion-reveal { opacity:1; translate:none; transition:none; } .home-motion-card { transform:none; transition:none; } }
+
+@media(prefers-reduced-motion:no-preference) {
+ .home-motion-visible :is(.business-segments-grid,.employer-offerings-grid) > div { animation:home-card-enter .6s ease both; }
+ .home-motion-visible :is(.business-segments-grid,.employer-offerings-grid) > div:nth-child(2) { animation-delay:.08s; }
+ .home-motion-visible :is(.business-segments-grid,.employer-offerings-grid) > div:nth-child(3) { animation-delay:.16s; }
+ .home-motion-visible .employer-offerings-grid > div:nth-child(n+4) { animation-delay:.24s; }
+}
+@keyframes home-card-enter { from { opacity:0; translate:0 14px; } to { opacity:1; translate:0 0; } }
+
+/* Explicitly requested home motion stays enabled for these scoped elements. */
+:is(.zync-home,.employer-home) .home-motion-reveal { opacity:0; translate:0 44px; transition:opacity .8s ease,translate .9s cubic-bezier(.2,.65,.3,1) !important; }
+:is(.zync-home,.employer-home) .home-motion-reveal.home-motion-visible { opacity:1; translate:0 0; }
+:is(.zync-home,.employer-home) .home-motion-card { transform:perspective(1000px) rotateX(var(--motion-rx,0deg)) rotateY(var(--motion-ry,0deg)); transition:transform .25s ease,box-shadow .25s ease !important; }
+
+/* Candidate home: a white canvas with restrained mint and blue light. */
+.zync-home .home-existing-hero { background:radial-gradient(ellipse at 82% 28%,#edf5ff 0,transparent 48%),radial-gradient(ellipse at 14% 12%,#f0faf7 0,transparent 42%),#fff; }
+.zync-home .home-existing-hero .hero-main-copy h1 { color:#193252; }
+.zync-home .home-existing-hero .hero-main-copy h1 .text-blue-600,.zync-home .home-existing-hero .hero-main-copy > .text-blue-600 { color:#245be0; }
+.zync-home .home-existing-hero .hero-main-copy > p { color:#6b7f99; }
+.zync-home .home-existing-hero .hero-popular-searches > span { color:#7387a1; }
+.zync-home .home-existing-hero .hero-search-chips button { color:#597397; border-color:#dfe7f2; background:#ffffffc9; }
+.zync-home .home-existing-hero .hero-search-chips button:hover { color:#245be0; border-color:#bdd0f1; background:#f1f6ff; }
+.zync-home .home-existing-hero .home-existing-search { box-shadow:0 8px 28px #264c8008; }
+.zync-home .home-company-strip { background:#fff; border:0; }
+.zync-home .home-company-strip p { color:#7d8fa8; }
+.zync-home .company-marquee-edge-left { background:linear-gradient(90deg,#fff,transparent); }
+.zync-home .company-marquee-edge-right { background:linear-gradient(270deg,#fff,transparent); }
+
+/* Reference-inspired pastel hero: mint above, coral and periwinkle below. */
+.zync-home .home-existing-hero {
+ background:linear-gradient(90deg,#ffffff16 0%,#ffffff16 14%,#ffffff40 14%,#ffffff40 28%,#ffffff08 28%,#ffffff08 42%,#ffffff35 42%,#ffffff35 56%,#ffffff08 56%,#ffffff08 70%,#ffffff30 70%,#ffffff30 84%,#ffffff08 84%),radial-gradient(ellipse at 0% 100%,#ffb5b5 0%,transparent 66%),radial-gradient(ellipse at 100% 100%,#beccef 0%,transparent 65%),linear-gradient(120deg,#e4faf5 0%,#d9f5ef 55%,#e4eefb 100%);
+ border-radius:0 0 64px 64px;
+}
+.zync-home .home-existing-hero > .absolute.inset-0 { display:none; }
+.zync-home .home-existing-hero .hero-main-copy h1 { color:#183454; }
+.zync-home .home-existing-hero .hero-main-copy h1 .text-blue-600 { color:#0967ee; }
+.zync-home .home-existing-hero .hero-main-copy > p { color:#435b77; }
+.zync-home .home-existing-hero .hero-search-chips button { background:#ffffff70; border-color:#ffffffa8; color:#405f85; }
+@media(max-width:639px) { .zync-home .home-existing-hero { border-radius:0 0 32px 32px; } }
+
+/* Candidate hero fills the first viewport below the fixed header. */
+.zync-home .home-existing-hero { min-height:calc(100svh - var(--header-h,86px)); display:flex; align-items:center; }
+.zync-home .home-existing-hero > .relative.z-10 { width:100%; }
+@media(max-width:767px) { .zync-home .home-existing-hero { padding-block:20px; } }
+
+/* Hero and company logos share one first-screen canvas. */
+.zync-home .home-first-screen {
+ background:linear-gradient(90deg,#ffffff16 0%,#ffffff16 14%,#ffffff40 14%,#ffffff40 28%,#ffffff08 28%,#ffffff08 42%,#ffffff35 42%,#ffffff35 56%,#ffffff08 56%,#ffffff08 70%,#ffffff30 70%,#ffffff30 84%,#ffffff08 84%),radial-gradient(ellipse at 0% 100%,#ffb5b5 0%,transparent 66%),radial-gradient(ellipse at 100% 100%,#beccef 0%,transparent 65%),linear-gradient(120deg,#e4faf5 0%,#d9f5ef 55%,#e4eefb 100%);
+ min-height:calc(100svh - var(--header-h,86px)); display:flex; flex-direction:column; border-radius:0 0 64px 64px; overflow:hidden;
+}
+.zync-home .home-first-screen .home-existing-hero { background:transparent; min-height:0; border-radius:0; flex:1; }
+.zync-home .home-first-screen .home-company-strip { background:transparent; padding-top:20px; padding-bottom:32px; flex-shrink:0; }
+.zync-home .home-first-screen .home-company-strip p { margin-bottom:24px; color:#59718f; }
+.zync-home .home-first-screen .company-marquee-edge { display:none; }
+@media(max-width:639px) { .zync-home .home-first-screen { border-radius:0 0 32px 32px; } }
+
+.zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,86px)); }
+
+/* Keep the trusted-company heading with its logos below the hero fold. */
+.zync-home .home-first-screen + .home-company-strip { margin-top:48px; }
+@media(max-width:639px) { .zync-home .home-first-screen + .home-company-strip { margin-top:32px; } }
+
+.zync-home .home-company-strip p { font-size:16px; font-weight:600; letter-spacing:1.5px; }
+@media(max-width:639px) { .zync-home .home-company-strip p { font-size:14px; } }
+
+/* Zync palette within the approved soft, banded hero treatment. */
+.zync-home .home-first-screen {
+ background:linear-gradient(90deg,#ffffff12 0%,#ffffff12 14%,#ffffff38 14%,#ffffff38 28%,#ffffff08 28%,#ffffff08 42%,#ffffff30 42%,#ffffff30 56%,#ffffff08 56%,#ffffff08 70%,#ffffff28 70%,#ffffff28 84%,#ffffff08 84%),radial-gradient(ellipse at 0% 100%,#e1e8fc 0%,transparent 65%),radial-gradient(ellipse at 100% 100%,#c6d7fa 0%,transparent 65%),linear-gradient(120deg,#f8faff 0%,#edf3ff 55%,#e6edfb 100%);
+}
+
+/* Light final call-to-action with blue shading concentrated along the bottom. */
+.zync-home .home-final-cta.illustrated-candidate-cta { background:radial-gradient(ellipse at 0% 115%,#85b8ff 0,transparent 53%),radial-gradient(ellipse at 100% 115%,#85b8ff 0,transparent 53%),linear-gradient(180deg,#f7faff 0%,#f2f7ff 68%,#d9eaff 100%); color:#203755; padding-block:64px; }
+.zync-home .home-final-cta .candidate-opportunity-copy h2 { color:#245be0; }
+.zync-home .home-final-cta .candidate-opportunity-copy p { color:#667e9a; }
+.zync-home .home-final-cta .candidate-opportunity-copy button:first-child { background:#245be0; color:#fff; border-color:#245be0; box-shadow:0 5px 16px #245be01a; }
+.zync-home .home-final-cta .candidate-opportunity-copy button:last-child { background:#ffffffad; color:#245be0; border-color:#b6cae8; }
+.zync-home .home-final-cta .candidate-opportunity-copy svg.text-green-400 { color:#258477; }
+
+/* Wide downward section divider with a softly shaded triangular edge. */
+.zync-home .home-final-cta.illustrated-candidate-cta { padding-top:150px; }
+.zync-home .home-final-cta.illustrated-candidate-cta::before { content:""; position:absolute; top:0; left:0; right:0; height:94px; background:linear-gradient(180deg,#fff 0%,#fff 48%,#e0e9f6 100%); clip-path:polygon(0 0,100% 0,100% 12%,50% 100%,0 12%); pointer-events:none; z-index:0; }
+@media(max-width:639px) { .zync-home .home-final-cta.illustrated-candidate-cta { padding-top:100px; } .zync-home .home-final-cta.illustrated-candidate-cta::before { height:56px; } }
+
+.employer-home.employer-home .employer-final-cta { position:relative; background:radial-gradient(ellipse at 0% 115%,#85b8ff 0,transparent 53%),radial-gradient(ellipse at 100% 115%,#85b8ff 0,transparent 53%),linear-gradient(180deg,#f7faff 0%,#f2f7ff 68%,#d9eaff 100%); color:#203755; padding-top:150px; padding-bottom:64px; }
+.employer-home.employer-home .employer-final-cta::before { content:""; position:absolute; top:0; left:0; right:0; height:94px; background:linear-gradient(180deg,#fff 0%,#fff 48%,#e0e9f6 100%); clip-path:polygon(0 0,100% 0,100% 12%,50% 100%,0 12%); pointer-events:none; z-index:0; }
+.employer-home.employer-home .employer-final-cta > .absolute { display:none; }
+.employer-home.employer-home .employer-final-cta h2 { color:#245be0; }
+.employer-home.employer-home .employer-final-cta p { color:#667e9a; }
+.employer-home.employer-home .employer-final-cta button:first-child { background:#245be0; color:#fff; border-color:#245be0; }
+.employer-home.employer-home .employer-final-cta button:last-child { background:#ffffffad; color:#245be0; border-color:#b6cae8; }
+@media(max-width:639px) { .employer-home.employer-home .employer-final-cta { padding-top:100px; } .employer-home.employer-home .employer-final-cta::before { height:56px; } }
+
+/* First-screen hero ends in a wide, softly shaded downward point. */
+.zync-home .home-first-screen { position:relative; border-radius:0; padding-bottom:70px; clip-path:polygon(0 0,100% 0,100% calc(100% - 70px),50% 100%,0 calc(100% - 70px)); }
+.zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,86px) - 70px); }
+.zync-home .home-first-screen::after { content:""; position:absolute; bottom:0; left:0; right:0; height:110px; background:linear-gradient(180deg,transparent,#e8f1ffb0); pointer-events:none; }
+@media(max-width:639px) { .zync-home .home-first-screen { padding-bottom:36px; clip-path:polygon(0 0,100% 0,100% calc(100% - 36px),50% 100%,0 calc(100% - 36px)); } .zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,74px) - 36px); } }
+
+.zync-home .home-categories .interactive-category-card { border:1px solid #8cabff; border-radius:16px; padding:26px; background:#fff; box-shadow:inset 0 0 0 6px #f5f8ff; min-height:240px; }
+.zync-home .home-categories .interactive-category-card:is(:hover,:active,:focus-visible) { background:linear-gradient(135deg,#3469e4,#2147c6); border-color:#245be0; box-shadow:inset 0 0 0 6px #ffffff18; transform:none; }
+.zync-home .home-categories .interactive-category-card:is(:hover,:active,:focus-visible) :is(h3,p,span,svg) { color:#fff; }
+.zync-home .home-categories .interactive-category-card:is(:hover,:active,:focus-visible) .border-t { border-color:#ffffff30; }
+.zync-home .home-categories .interactive-category-card:is(:hover,:active,:focus-visible) .w-12 { background:#ffffff18; border-color:#ffffff35; color:#fff; }
+.zync-home .home-categories .interactive-category-card:is(:hover,:active,:focus-visible) .w-8 { background:transparent; color:#fff; }
+
+.candidate-feature-guide { --guide-tone:#3764b5; display:flex; align-items:center; gap:24px; padding:24px; margin-bottom:24px; border:1px solid #dfe8f5; border-radius:16px; background:linear-gradient(115deg,#f1f6ff,#fbfcff); }
+.candidate-guide-art { flex:0 0 145px; color:var(--guide-tone); display:flex; flex-direction:column; align-items:center; gap:16px; padding:12px; }
+.candidate-guide-copy { min-width:0; }
+.candidate-guide-copy h2 { color:#253c5d; font-size:19px; font-weight:600; line-height:1.4; margin-bottom:8px; }
+.candidate-guide-copy p { color:#72839a; font-size:13px; line-height:1.8; max-width:780px; }
+.candidate-guide-copy ol { display:flex; flex-wrap:wrap; gap:10px 26px; list-style:decimal inside; margin-top:14px; font-size:11px; color:var(--guide-tone); }
+.guide-milestones { display:flex; gap:16px; border-top:2px dashed #bacfed; padding-top:8px; }
+.guide-milestones span { border-radius:50%; width:24px; height:24px; background:white; display:grid; place-items:center; font-size:11px; }
+.guide-chart { display:flex; align-items:flex-end; gap:10px; border-bottom:1px solid #bfcee5; padding:0 12px; }
+.guide-chart span { width:20px; border-radius:5px 5px 0 0; background:var(--guide-tone); opacity:.5; }
+.guide-document { background:white; padding:12px; border:1px solid #dce5f2; border-radius:7px; width:100px; }
+.guide-document i { display:block; height:4px; border-radius:4px; background:#dce5f2; margin-bottom:7px; }
+.guide-document i:nth-child(2) { width:65%; }
+.guide-skill-pills { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+.guide-skill-pills span { background:white; padding:6px 10px; font-size:10px; border-radius:6px; border:1px solid #dce5f2; }
+.candidate-guide-roadmap { flex-direction:row-reverse; background:#f4f2fc; --guide-tone:#7960b7; }
+.candidate-guide-salary { background:#eff8f5; --guide-tone:#348b7b; }
+.candidate-guide-parser { flex-direction:row-reverse; background:#eff7fc; --guide-tone:#377e9a; }
+.resume-analyzer-workspace > .candidate-feature-guide { grid-column:1/-1; margin-bottom:0; }
+@media(max-width:639px) { .candidate-feature-guide { padding:18px; gap:14px; } .candidate-guide-art { flex-basis:65px; padding:0; } .candidate-guide-copy h2 { font-size:16px; } .guide-document { width:65px; } .guide-skill-pills,.guide-milestones { display:none; } .candidate-guide-copy ol { flex-direction:column; gap:7px; } }
+
+/* Candidate guides occupy different, useful positions within each tool. */
+.candidate-matches-layout { display:grid; grid-template-columns:minmax(0,1fr) 290px; gap:24px; align-items:start; }
+.candidate-matches-content,.candidate-parser-content { min-width:0; }
+.candidate-parser-layout { display:grid; grid-template-columns:260px minmax(0,1fr); gap:24px; align-items:start; }
+.candidate-matches-layout > .candidate-feature-guide,.candidate-parser-layout > .candidate-feature-guide,.skill-gap-setup > .candidate-feature-guide { flex-direction:column; align-items:flex-start; gap:18px; padding:24px; margin:0; }
+.candidate-matches-layout .candidate-guide-art,.candidate-parser-layout .candidate-guide-art,.skill-gap-setup .candidate-guide-art { flex-basis:auto; width:100%; align-items:flex-start; padding:0; }
+.candidate-matches-layout .candidate-guide-copy h2,.candidate-parser-layout .candidate-guide-copy h2 { font-size:22px; }
+.candidate-matches-layout .candidate-guide-copy ol,.candidate-parser-layout .candidate-guide-copy ol,.skill-gap-setup .candidate-guide-copy ol { flex-direction:column; gap:10px; }
+.skill-gap-setup > .candidate-feature-guide { margin-bottom:20px; background:#f6f9ff; }
+.roadmap-setup > .candidate-feature-guide { margin:22px 0 0; padding:18px 0 0; border:0; border-top:1px solid #e5e9f3; background:transparent; border-radius:0; flex-direction:column; align-items:flex-start; gap:12px; }
+.roadmap-setup .candidate-guide-art { flex-basis:auto; flex-direction:row; padding:0; }
+.roadmap-setup .candidate-guide-copy h2 { font-size:16px; }
+.roadmap-setup .candidate-guide-copy ol { flex-direction:column; gap:8px; }
+.resume-analyzer-results > .candidate-feature-guide { padding:20px; margin-bottom:18px; flex-direction:row-reverse; }
+.resume-analyzer-results .candidate-guide-art { flex-basis:85px; padding:0; }
+.candidate-guide-salary { margin-top:28px; border:0; border-left:4px solid #76b7a7; border-radius:0 12px 12px 0; }
+@media(max-width:1100px) { .candidate-parser-layout { grid-template-columns:1fr; } .candidate-parser-layout > .candidate-feature-guide { flex-direction:row; } .candidate-parser-layout .candidate-guide-art { width:auto; flex-basis:100px; } }
+@media(max-width:900px) { .candidate-matches-layout { grid-template-columns:1fr; } .candidate-matches-layout > .candidate-feature-guide { margin-top:16px; } }
+@media(max-width:639px) { .candidate-parser-layout > .candidate-feature-guide { flex-direction:column; } .candidate-parser-layout .candidate-guide-art { flex-basis:auto; } }
+
+/* First-screen hero uses a straight bottom with softly rounded corners. */
+.zync-home .home-first-screen { clip-path:none; border-radius:0 0 72px 72px; padding-bottom:0; }
+.zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,86px)); }
+@media(max-width:639px) { .zync-home .home-first-screen { clip-path:none; border-radius:0 0 36px 36px; padding-bottom:0; } .zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,74px)); } }
+
+/* One shared footer palette; no hard divider between the page and footer. */
+:root { --footer-top-shade:#e4efff; }
+.portal-footer.portal-footer { background:linear-gradient(180deg,var(--footer-top-shade) 0%,#f2f7ff 38%,#fff 100%); border:0; box-shadow:none; color:#203755; }
+.portal-footer .portal-footer-bottom { border:0; }
+.portal-footer .portal-footer-brand > p,.portal-footer .portal-footer-links button,.portal-footer .portal-footer-bottom button { color:#607894; }
+.portal-footer .portal-footer-socials > a { background:#ffffffa6; }
+.zync-home .home-final-cta.illustrated-candidate-cta::after,.employer-home.employer-home .employer-final-cta::after { content:""; position:absolute; left:0; right:0; bottom:0; height:110px; background:linear-gradient(180deg,transparent,var(--footer-top-shade)); z-index:0; pointer-events:none; }
+.zync-home .home-final-cta.illustrated-candidate-cta,.employer-home.employer-home .employer-final-cta { border-bottom:0; box-shadow:none; margin-bottom:0; }
+
+/* Shared footer: aligned reading width, tighter rhythm and balanced employer columns. */
+.portal-footer .portal-footer-container { max-width:1480px; margin-inline:auto; padding-inline:32px; }
+.portal-footer .portal-footer-main { min-height:0; padding-block:40px 28px; gap:48px; align-items:start; }
+.portal-footer .portal-footer-brand > img { display:block; height:42px; max-width:170px; margin:0 0 18px; }
+.portal-footer .portal-footer-brand > p { max-width:340px; font-size:14px; line-height:1.8; margin-bottom:18px; }
+.portal-footer .portal-footer-links { gap:28px; }
+.portal-footer .portal-footer-links h4 { margin:0 0 16px; font-size:15px; line-height:1.5; }
+.portal-footer .portal-footer-links ul { display:grid; gap:12px; }
+.portal-footer .portal-footer-links li { margin:0; }
+.portal-footer .portal-footer-links button { font-size:13px; line-height:1.5; padding:0; }
+.portal-footer .portal-footer-bottom { padding-block:18px 24px; }
+.portal-footer.portal-footer-employer .portal-footer-main { grid-template-columns:minmax(240px,1.1fr) minmax(0,1.9fr); gap:80px; }
+.portal-footer.portal-footer-employer .portal-footer-links { grid-template-columns:repeat(2,minmax(0,1fr)); gap:48px; }
+@media(max-width:900px) { .portal-footer .portal-footer-main,.portal-footer.portal-footer-employer .portal-footer-main { grid-template-columns:1fr; gap:28px; } .portal-footer .portal-footer-container { padding-inline:24px; } }
+@media(max-width:639px) { .portal-footer .portal-footer-container { padding-inline:20px; } .portal-footer .portal-footer-main { padding-block:32px 20px; } .portal-footer.portal-footer-employer .portal-footer-links { gap:24px; } }
+
+.zync-site-header { transition:transform .5s cubic-bezier(.22,.61,.36,1); }
+.zync-site-header:focus-within { transform:translateY(0) !important; }
+.zync-site-header[data-scroll-hidden=true] { pointer-events:none; }
+.zync-site-header[data-scroll-hidden=true]:focus-within { pointer-events:auto; }
+@media(prefers-reduced-motion:reduce) { .zync-site-header { transition:none; } }

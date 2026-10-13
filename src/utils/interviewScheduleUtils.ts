@@ -63,6 +63,16 @@ export const formatInterviewTime = (interview: InterviewLike): string => {
   return 'Time TBD';
 };
 
+export const hasInterviewMeetingWindowEnded = (interview: InterviewLike & { duration?: number }, now = Date.now()): boolean => {
+  const raw = interview.scheduledDate || interview.interviewDate || interview.date;
+  if (!raw) return false;
+  const start = new Date(raw).getTime();
+  if (!Number.isFinite(start)) return false;
+  const durationMinutes = Number(interview.duration) > 0 ? Number(interview.duration) : 60;
+  const closesAt = start + (durationMinutes + 15) * 60_000;
+  return now > closesAt;
+};
+
 // Always route through the backend join endpoint — this enforces the time-window
 // expiry check server-side. Direct meet.google.com / zoom.us links bypass expiry.
 export const getInterviewJoinUrl = (interview: InterviewLike & { _id?: string; id?: string }): string | null => {

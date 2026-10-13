@@ -7,6 +7,7 @@ import {
   formatEducationMeta,
   formatGrade,
 } from '../../utils/educationFormatter';
+import { prepareResumeContent } from '../../utils/prepareResumeContent';
 function SummaryContent({ summary, style }: { summary: any; style?: React.CSSProperties }) {
   const points: string[] = Array.isArray(summary)
     ? summary.filter(Boolean)
@@ -28,12 +29,13 @@ const s = { fontFamily: 'Arial, sans-serif', fontSize: 13, color: '#111', lineHe
 // ─── 1. CLASSIC ───────────────────────────────────────────────────────────────
 // Clean, modern layout with proper hierarchy — ATS-safe
 const ClassicTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ ...s, padding: '36px 40px' }}>
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a' }}>
+  <div style={{ ...s, fontFamily: 'Georgia, serif', padding: '36px 44px' }}>
+    <div style={{ textAlign: 'center', marginBottom: 16 }}>
+      <div style={{ fontSize: 23, fontWeight: 700, color: '#17376b', letterSpacing: 0.4 }}>
         {data.personalInfo.name || 'Your Name'}
       </div>
-      <div style={{ fontSize: 12, color: '#555', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: '0 12px' }}>
+      {data.targetRole && <div style={{ fontSize: 11, color: '#52677e', marginTop: 2 }}>{data.targetRole}</div>}
+      <div style={{ borderTop: '2px solid #17376b', borderBottom: '1px solid #17376b', padding: '5px 0', marginTop: 7, fontSize: 11, color: '#445267', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '2px 10px' }}>
         {data.personalInfo.email && <span>{data.personalInfo.email}</span>}
         {data.personalInfo.phone && <span>{data.personalInfo.phone}</span>}
         {data.personalInfo.location && <span>{data.personalInfo.location}</span>}
@@ -43,18 +45,18 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
     </div>
     {[
       data.summary && { label: 'Professional Summary', content: <SummaryContent summary={data.summary} /> },
-      (data.skills || []).length > 0 && { label: 'Core Competencies', content: <p style={{ margin: 0, fontSize: 12, color: '#333' }}>{data.skills.join('  ·  ')}</p> },
+      (data.skills || []).length > 0 && { label: 'Core Competencies', content: <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '3px 12px', fontSize: 12, color: '#333' }}>{data.skills.map((skill, index) => <span key={index}>{skill}</span>)}</div> },
       (data.experience || []).length > 0 && {
         label: 'Experience', content: (
           <>{data.experience.map(exp => (
             <div key={exp.id} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a' }}>{exp.title}{exp.company ? `, ${exp.company}` : ''}</span>
+                <span style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a' }}>{exp.title}{exp.company ? `  |  ${exp.company}` : ''}</span>
                 <span style={{ fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>{exp.duration}</span>
               </div>
               <ul style={{ margin: '5px 0 0 16px', padding: 0 }}>
                 {exp.bullets.filter(b => b.trim()).map((b, i) => (
-                  <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
                 ))}
               </ul>
             </div>
@@ -136,7 +138,7 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
             {p.url && <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 2 }}>{p.url}</div>}
             <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
               {p.bullets.filter(b => b.trim()).map((b, i) => (
-                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 2, lineHeight: 1.45 }}>{b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
               ))}
             </ul>
           </div>
@@ -153,17 +155,18 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
 );
 
 // ─── 2. MODERN ────────────────────────────────────────────────────────────────
-// Clean two-tone header, thin rule, compact sections
+// Teal accent header gives the modern template its own visual identity.
 const ModernTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ ...s, padding: '32px 38px' }}>
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>{data.personalInfo.name || 'Your Name'}</div>
-      <div style={{ fontSize: 12, color: '#666', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: '0 10px' }}>
+  <div style={{ ...s, padding: '34px 40px', color: '#172b3a' }}>
+    <div style={{ marginBottom: 16, background: '#effaf8', borderLeft: '5px solid #0f9f91', padding: '12px 15px' }}>
+      <div style={{ fontSize: 23, fontWeight: 700, color: '#123b48' }}>{data.personalInfo.name || 'Your Name'}</div>
+      {data.targetRole && <div style={{ fontSize: 12, color: '#0f766e', fontWeight: 600, marginTop: 2 }}>{data.targetRole}</div>}
+      <div style={{ fontSize: 11, color: '#526b75', marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '0 10px' }}>
         {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).map((item, i) => (
           <span key={i}>{item}{i < [data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).length - 1 ? ' ·' : ''}</span>
         ))}
       </div>
-      <div style={{ borderBottom: '1px solid #ccc', marginTop: 10 }} />
+      <div style={{ borderBottom: '1px solid #99d7ce', marginTop: 8 }} />
     </div>
     {data.summary && (
       <Section label="Summary"><SummaryContent summary={data.summary} /></Section>
@@ -256,7 +259,7 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
             {p.url && <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 2 }}>{p.url}</div>}
             <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
               {p.bullets.filter(b => b.trim()).map((b, i) => (
-                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 2, lineHeight: 1.45 }}>{b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
               ))}
             </ul>
           </div>
@@ -270,17 +273,17 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
 // ─── 3. MINIMAL ───────────────────────────────────────────────────────────────
 // Ultra-clean, lots of whitespace, small caps labels
 const MinimalTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ ...s, fontFamily: 'Georgia, serif', padding: '38px 42px' }}>
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 24, fontWeight: 400, letterSpacing: 2, textTransform: 'uppercase', color: '#1a1a1a' }}>
+  <div style={{ ...s, fontFamily: 'Arial, sans-serif', padding: '38px 42px' }}>
+    <div style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '2px solid #222' }}>
+      <div style={{ fontSize: 25, fontWeight: 700, letterSpacing: 0.2, color: '#1a1a1a' }}>
         {data.personalInfo.name || 'Your Name'}
       </div>
-      <div style={{ fontSize: 12, color: '#777', marginTop: 6, letterSpacing: 0.5 }}>
+      <div style={{ fontSize: 11, color: '#555', marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
         {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('   ·   ')}
       </div>
     </div>
     {[
-      data.summary && { label: 'About', body: <SummaryContent summary={data.summary} style={{ color: '#333' }} /> },
+      data.summary && { label: 'Professional Summary', body: <SummaryContent summary={data.summary} style={{ color: '#333' }} /> },
       (data.skills || []).length > 0 && { label: 'Skills', body: <p style={{ margin: 0, fontSize: 12, color: '#444' }}>{data.skills.join(', ')}</p> },
       (data.experience || []).length > 0 && {
         label: 'Experience', body: (
@@ -387,52 +390,54 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
         label: sec.heading, body: <p style={{ margin: 0, fontSize: 12, color: '#444', whiteSpace: 'pre-wrap' }}>{sec.content}</p>
       })) || []),
     ].filter(Boolean).map((sec: any, i) => (
-      <div key={i} style={{ marginBottom: 18, display: 'flex', gap: 28 }}>
-        <div style={{ width: 100, flexShrink: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#999', paddingTop: 3 }}>
+      <div key={i} style={{ marginBottom: 15 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#333', paddingBottom: 4, borderBottom: '1px solid #ccc', marginBottom: 7 }}>
           {sec.label}
         </div>
-        <div style={{ flex: 1, borderTop: '1px solid #e0e0e0', paddingTop: 5 }}>{sec.body}</div>
+        <div>{sec.body}</div>
       </div>
     ))}
   </div>
 );
 
 // ─── 4. EXECUTIVE ─────────────────────────────────────────────────────────────
-// Double-rule header, formal serif, strong hierarchy
+// Premium leadership layout with a dark nameplate and restrained gold accent.
 const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ ...s, fontFamily: 'Georgia, serif', padding: '32px 38px' }}>
-    <div style={{ textAlign: 'center', borderTop: '2px double #1a1a1a', borderBottom: '2px double #1a1a1a', padding: '10px 0', marginBottom: 20 }}>
-      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#1a1a1a' }}>
-        {data.personalInfo.name || 'Your Name'}
+  <div style={{ ...s, fontFamily: 'Arial, sans-serif', padding: '34px 42px', color: '#182230' }}>
+    <div style={{ background: '#183451', padding: '16px 18px 13px', marginBottom: 17, borderBottom: '4px solid #c49a54' }}>
+      <div style={{ fontSize: 23, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+        {(data.personalInfo.name || 'Your Name').toLocaleUpperCase()}
       </div>
-      <div style={{ fontSize: 12, color: '#666', marginTop: 5, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0 8px' }}>
-        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('  ·  ')}
+      {data.targetRole && <div style={{ fontSize: 11, color: '#e7d6b8', marginTop: 3, marginBottom: 7, letterSpacing: 0.4 }}>{data.targetRole}</div>}
+      <div style={{ fontSize: 10, color: '#e1e8ef', paddingTop: 6, borderTop: '1px solid #58718a', display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).map((value, index) => <span key={index}>{value}</span>)}
       </div>
     </div>
+
     {data.summary && (
-      <ExecSection label="Executive Summary">
+      <ExecSection label="Professional Summary">
         <SummaryContent summary={data.summary} />
       </ExecSection>
     )}
     {(data.skills || []).length > 0 && (
-      <ExecSection label="Areas of Expertise">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px 8px' }}>
-          {data.skills.map((sk, i) => <span key={i} style={{ fontSize: 12, color: '#444' }}>▸ {sk}</span>)}
+      <ExecSection label="Skills">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '4px 12px' }}>
+          {data.skills.map((sk, i) => <span key={i} style={{ fontSize: 12, color: '#444', overflowWrap: 'anywhere' }}>{sk}</span>)}
         </div>
       </ExecSection>
     )}
     {(data.experience || []).length > 0 && (
-      <ExecSection label="Career History">
+      <ExecSection label="Professional Experience">
         {data.experience.map(exp => (
           <div key={exp.id} style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1a' }}>{exp.title}</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: '#182230' }}>{exp.title}</span>
               <span style={{ fontSize: 12, color: '#777' }}>{exp.duration}</span>
             </div>
-            {exp.company && <div style={{ fontSize: 12, fontStyle: 'italic', color: '#555', marginBottom: 3 }}>{exp.company}</div>}
+            {(exp.company || exp.location) && <div style={{ fontSize: 11, color: '#66778a', marginTop: 1 }}>{[exp.company, exp.location].filter(Boolean).join('  |  ')}</div>}
             <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
               {exp.bullets.filter(b => b.trim()).map((b, i) => (
-                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>▸ {b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
               ))}
             </ul>
           </div>
@@ -440,7 +445,7 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
       </ExecSection>
     )}
     {(data.education || []).length > 0 && (
-      <ExecSection label="Education & Credentials">
+      <ExecSection label="Education">
         {data.education.map(edu => {
           const institution = formatEducationSubtitle(edu);
           const degree = formatEducationDegreeLabel(edu);
@@ -504,7 +509,7 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
             {p.url && <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 2 }}>{p.url}</div>}
             <ul style={{ margin: '3px 0 0 18px', padding: 0 }}>
               {p.bullets.filter(b => b.trim()).map((b, i) => (
-                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 2, lineHeight: 1.45 }}>▸ {b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
               ))}
             </ul>
           </div>
@@ -713,7 +718,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
               {exp.company && <div style={{ fontSize: 12, color: '#555', marginBottom: 3 }}>{exp.company}</div>}
               <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                 {exp.bullets.filter(b => b.trim()).map((b, i) => (
-                  <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
                 ))}
               </ul>
             </div>
@@ -732,7 +737,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
               {p.url && <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 2 }}>{p.url}</div>}
               <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
                 {p.bullets.filter(b => b.trim()).map((b, i) => (
-                  <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 2, lineHeight: 1.45 }}>{b}</li>
+                <li key={i} style={{ fontSize: 12, color: '#444', marginBottom: 3, lineHeight: 1.45 }}>{b}</li>
                 ))}
               </ul>
             </div>
@@ -785,7 +790,7 @@ const Section = ({ label, children }: { label: string; children: React.ReactNode
 
 const ExecSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div style={{ marginBottom: 14 }}>
-    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, borderBottom: '1px solid #888', paddingBottom: 3 }}>{label}</div>
+    <div style={{ fontSize: 12, fontWeight: 700, color: '#244a73', marginBottom: 6, borderBottom: '1px solid #aab8c7', paddingBottom: 3 }}>{label}</div>
     {children}
   </div>
 );
@@ -880,7 +885,7 @@ export default function ResumeTemplate({ data, scale = 1 }: Props) {
   } : {};
   // Hide sections that user has toggled off
   const hidden = data.hiddenSections || [];
-  const filtered: ResumeData = {
+  const filtered = prepareResumeContent({
     ...data,
     experience: hidden.includes('experience') ? [] : data.experience,
     education: hidden.includes('education') ? [] : data.education,
@@ -892,7 +897,7 @@ export default function ResumeTemplate({ data, scale = 1 }: Props) {
     summary: hidden.includes('summary') ? '' : data.summary,
     awards: hidden.includes('awards') ? [] : data.awards,
     customSections: hidden.includes('custom') ? [] : data.customSections,
-  };
+  });
   const inner = (() => {
     switch (data.template) {
       case 'modern':       return <ModernTemplate data={filtered} />;

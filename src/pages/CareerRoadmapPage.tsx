@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import { useState, useEffect } from 'react';
 import { Target, TrendingUp, ChevronRight, BookOpen, Zap, RotateCcw, DollarSign, BarChart2, Sparkles, Award } from 'lucide-react';
 import { AIFeatureLoader } from '../components/AIProgressLoader';
@@ -303,6 +304,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
 
       <div className="portal-page-container py-8 w-full flex-1">
 
+
         <div className="roadmap-workspace">
         {/* Input Form */}
         <div className="roadmap-setup career-panel bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -358,6 +360,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
               <><Zap className="w-4 h-4" /> Generate My Career Roadmap</>
             )}
           </button>
+          <CandidateFeatureGuide feature="roadmap" />
         </div>
 
           <div className="roadmap-results">

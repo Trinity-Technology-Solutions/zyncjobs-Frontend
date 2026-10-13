@@ -1,3 +1,5 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getEmployerReturnPath } from '../utils/employerReturnPath';
 import React, { useState } from 'react';
 import { Eye, EyeOff, Search, BarChart2, Shield, AlertTriangle, KeyRound } from 'lucide-react';
 import { authAPI } from '../api/auth';
@@ -15,6 +17,10 @@ interface EmployerLoginPageProps {
 }
 
 const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLogin, onShowNotification }) => {
+  const loginLocation = useLocation();
+  const navigate = useNavigate();
+  const returnPath = getEmployerReturnPath(loginLocation.state);
+  const finishLogin = () => navigate(returnPath, { replace: true });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -86,7 +92,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         return;
       }
 
-      onNavigate('dashboard');
+      finishLogin();
       if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome back! Login successful.' });
     } catch (err) {
       const errData = (err as any)?.response?.data || err;
@@ -121,7 +127,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         body: JSON.stringify({ newPassword })
       });
       if (res.ok) {
-        onNavigate('dashboard');
+        finishLogin();
         if (onShowNotification) onShowNotification({ type: 'success', message: 'Password updated! Welcome to your dashboard.' });
       } else {
         setChangePwMsg('Failed to update password. You can change it later in Settings.');
@@ -173,7 +179,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
               {changePwMsg && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{changePwMsg}</p>}
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { onNavigate('dashboard'); if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome! You can change your password later in Settings.' }); }}
+              <button onClick={() => { finishLogin(); if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome! You can change your password later in Settings.' }); }}
                 className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm hover:bg-gray-50">Skip for now</button>
               <button onClick={handleChangePassword} disabled={changePwLoading || !newPassword || !confirmNewPw}
                 className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">

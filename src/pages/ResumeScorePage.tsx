@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import { useState, useRef } from 'react';
 import { Upload, CheckCircle, XCircle, AlertCircle, Loader, BarChart3, Target, TrendingUp, Award } from 'lucide-react';
 import BackButton from '../components/BackButton';
@@ -152,6 +153,7 @@ const analyze = async () => {
       <div className="resume-analyzer-page min-h-screen bg-gray-50">
         <div className="resume-tool-page-heading portal-page-container"><BackButton fallback="/resume-studio" className="mb-5" /><div><p className="resume-tool-page-eyebrow">RESUME ANALYZER</p><h1>Understand your resume strengths</h1><p>Review your ATS score, identify missing keywords, and get practical improvements.</p></div></div>
         <div className="portal-page-container resume-analyzer-workspace py-6">
+
           {/* Input Card */}
           <div className="resume-analyzer-input resume-tool-panel bg-white rounded-xl border border-gray-200 p-5">
             {/* Mode Toggle */}
@@ -215,6 +217,7 @@ const analyze = async () => {
           </div>
 
           <div className="resume-analyzer-results">
+          <CandidateFeatureGuide feature="analyzer" />
           {!result && !loading && <div className="resume-analysis-placeholder"><BarChart3 size={34} aria-hidden="true" /><h2>Your resume insights will appear here</h2><p>Upload a resume or paste its text, then select Analyze Resume to get your report.</p></div>}
           {/* Results */}
           {result && (

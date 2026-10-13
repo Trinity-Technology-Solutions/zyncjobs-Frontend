@@ -111,7 +111,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
                     handleCategoryClick(cat);
                   }
                 }}
-                className="group relative bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 select-none"
+                className="interactive-category-card group relative bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 select-none"
               >
                 <div>
                   {/* Top Row: Icon and subtle arrow indicator */}

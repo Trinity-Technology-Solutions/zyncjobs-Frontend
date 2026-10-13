@@ -1,3 +1,4 @@
+import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import React, { useState, useEffect } from 'react';
 import { Search, CheckCircle, XCircle, BookOpen, TrendingUp, Loader, Zap, Brain, Target } from 'lucide-react';
 import { AIFeatureLoader } from '../components/AIProgressLoader';
@@ -204,9 +205,11 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
 
         <div className="portal-page-container max-w-6xl mx-auto px-4 py-4">
 
+
           <div className="skill-gap-workspace">
           {/* Skills and job selection */}
           <div className="skill-gap-setup">
+          <CandidateFeatureGuide feature="skills" />
 
             {/* Your Skills */}
             <div className="career-panel bg-white rounded-xl border border-gray-200 p-4">

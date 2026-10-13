@@ -59,7 +59,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   ];
 
   return (
-    <footer className="portal-footer" role="contentinfo" aria-label="Site footer">
+    <footer className={`portal-footer ${isEmployer ? 'portal-footer-employer' : 'portal-footer-candidate'}`} role="contentinfo" aria-label="Site footer">
       <div className="portal-footer-container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="portal-footer-main">
         <div className="portal-footer-brand">

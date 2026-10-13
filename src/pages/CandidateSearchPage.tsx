@@ -328,6 +328,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         <CandidateProfileView
           candidateId={viewingCandidateId}
           onNavigate={onNavigate}
+          onLogout={onLogout}
           onBack={() => { setViewingCandidateId(null); fetchCandidates(); }}
         />
       </div>
