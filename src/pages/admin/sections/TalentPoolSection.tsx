@@ -6,6 +6,7 @@ import { apiFetch } from '../../../api/apiFetch';
 import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 import ConfirmModal from '../../../components/ConfirmModal';
 import TalentPoolSubmissionModal from './TalentPoolSubmissionModal';
+import { loadAllTalentCandidates } from '../../../services/talentPoolCandidates';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
@@ -296,8 +297,12 @@ interface ProcessingState {
   savedAt: number;
 }
 
+// Survives section navigation, but resets on a real browser reload.
+let activeTalentUpload = false;
+
 function saveProcessingState(state: Omit<ProcessingState, 'savedAt'>) {
   localStorage.setItem(PROCESSING_KEY, JSON.stringify({ ...state, savedAt: Date.now() }));
+  window.dispatchEvent(new Event('zync:talent-upload-progress'));
 }
 
 function loadProcessingState(): ProcessingState | null {
@@ -320,11 +325,12 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
-  const [backgroundProcessing, setBackgroundProcessing] = useState(false);
+  const [interrupted, setInterrupted] = useState(false);
+  const [processedCount, setProcessedCount] = useState(0);
   const [processingStatus, setProcessingStatus] = useState<string>('');
 
   const addFiles = (incoming: FileList | null) => {
-    if (!incoming) return;
+    if (!incoming || uploading) return;
     const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
     const allowedExt = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.webp'];
     const filtered = Array.from(incoming).filter(f =>
@@ -334,7 +340,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
       const names = new Set(prev.map(f => f.name));
       return [...prev, ...filtered.filter(f => !names.has(f.name))];
     });
-    setDone(false); setProgress(0); setResults([]); setErrors(0);
+    setDone(false); setProgress(0); setResults([]); setErrors(0); setInterrupted(false); setProcessedCount(0);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -371,16 +377,40 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
     setCurrentChunk(saved.currentChunk || 0);
     setTotalChunks(saved.totalChunks || 0);
     setErrors(saved.errors || 0);
-    if (saved.done) {
+    setProcessedCount(saved.processed || 0);
+    if (activeTalentUpload) {
+      setUploading(true);
+      setProcessingStatus(saved.status);
+    } else if (saved.done) {
       setDone(true);
       localStorage.removeItem(PROCESSING_KEY);
     } else if (saved.isProcessing) {
       // Was mid-processing when page was refreshed — show interrupted warning
-      setBackgroundProcessing(true);
-      setProcessingStatus(`⚠️ Processing was interrupted at chunk ${saved.currentChunk}/${saved.totalChunks}. ${saved.processed} resumes were saved before refresh.`);
+      setInterrupted(true);
+      setProcessingStatus(`The previous upload stopped at batch ${saved.currentChunk} of ${saved.totalChunks}. ${saved.processed} resumes were saved. Re-select the remaining files to continue.`);
+      saveProcessingState({ ...saved, isProcessing: false, status: 'Interrupted' });
+    } else if (!saved.done && saved.status === 'Interrupted') {
+      setInterrupted(true);
+      setProcessingStatus(`The previous upload stopped at batch ${saved.currentChunk} of ${saved.totalChunks}. ${saved.processed} resumes were saved. Re-select the remaining files to continue.`);
     }
   }, []);
 
+  useEffect(() => {
+    const syncProgress = () => {
+      const saved = loadProcessingState();
+      if (!saved) return;
+      setUploading(activeTalentUpload);
+      setProgress(saved.progress);
+      setCurrentChunk(saved.currentChunk);
+      setTotalChunks(saved.totalChunks);
+      setProcessedCount(saved.processed);
+      setErrors(saved.errors);
+      setDone(saved.done);
+      if (activeTalentUpload) { setInterrupted(false); setProcessingStatus(saved.status); }
+    };
+    window.addEventListener('zync:talent-upload-progress', syncProgress);
+    return () => window.removeEventListener('zync:talent-upload-progress', syncProgress);
+  }, []);
 
   const handleRetryFailed = () => {
     if (!failedFiles.length) return;
@@ -395,8 +425,13 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
   };
 
   const handleProcess = async (filesToProcess = files) => {
-    if (!filesToProcess.length) return;
+    if (!filesToProcess.length || uploading || activeTalentUpload) return;
+    activeTalentUpload = true;
+    try {
     setUploading(true);
+    setInterrupted(false);
+    setProcessedCount(0);
+    setProcessingStatus('Preparing resume upload...');
     setProgress(0);
     setDone(false);
     setResults([]);
@@ -420,6 +455,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
     for (let i = 0; i < chunkList.length; i++) {
       setCurrentChunk(i + 1);
       const chunk = chunkList[i];
+      setProcessingStatus(`Uploading batch ${i + 1} of ${total} (${chunk.length} files)...`);
       
       // Track File objects that fail so we can retry them
       const chunkFailedFiles: File[] = [];
@@ -452,6 +488,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
       });
       
       if (successfulUploads.length > 0) {
+        setProcessingStatus(`Parsing ${successfulUploads.length} resumes in batch ${i + 1} of ${total}...`);
         // Send S3 URLs to backend for processing
         const fd = new FormData();
         successfulUploads.forEach(upload => {
@@ -498,6 +535,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
       localStorage.setItem('talentPool_failedNames', JSON.stringify(newFailedNames));
       const pct = Math.round(((i + 1) / total) * 100);
       const processedCount = allResults.filter((r: any) => r.status === 'ok').length;
+      setProcessedCount(processedCount);
       setProgress(pct);
       setResults([...allResults]);
       setErrors(errCount);
@@ -514,43 +552,61 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
     }
 
     const finalProcessed = allResults.filter((r: any) => r.status === 'ok').length;
+    activeTalentUpload = false;
     saveProcessingState({ isProcessing: false, done: true, progress: 100, status: 'Complete', currentChunk: total, totalChunks: total, processed: finalProcessed, errors: errCount });
     setUploading(false);
     setDone(true);
-    setBackgroundProcessing(false);
+    setInterrupted(false);
     onUploadDone();
+    } catch (cause) {
+      setInterrupted(true);
+      setProcessingStatus(cause instanceof Error ? `Upload stopped: ${cause.message}. Re-select the remaining files to retry.` : 'Upload stopped. Re-select the remaining files to retry.');
+    } finally {
+      activeTalentUpload = false;
+      setUploading(false);
+      window.dispatchEvent(new Event('zync:talent-upload-progress'));
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Background Processing Status */}
-      {backgroundProcessing && (
-        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-4">
+      {/* An interrupted upload is not an active background job. */}
+      {interrupted && !uploading && (
+        <div role="status" className="bg-amber-900/20 border border-amber-600/50 rounded-xl p-4 text-amber-600">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={22} className="shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="font-semibold text-sm">Upload interrupted</p><p className="text-sm mt-1">{processingStatus}</p></div>
+            <button type="button" aria-label="Dismiss interrupted upload" onClick={() => { setInterrupted(false); localStorage.removeItem(PROCESSING_KEY); }}><X size={18} /></button>
+          </div>
+        </div>
+      )}
+      {uploading && (
+        <div role="status" aria-live="polite" className="bg-blue-900/10 border border-blue-500/40 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <Loader2 size={24} aria-hidden="true" className="shrink-0 animate-spin text-blue-500" />
               <div>
-                <p className="text-blue-300 font-semibold text-sm">Background Processing Active</p>
-                <p className="text-blue-400/70 text-xs">{processingStatus}</p>
+                <p className="text-blue-500 font-semibold text-sm">Processing resumes</p>
+                <p className="text-blue-500 text-sm mt-1">{processingStatus}</p>
               </div>
             </div>
             <span className="text-blue-300 text-sm font-medium">{progress}%</span>
           </div>
-          <div className="w-full bg-blue-900/50 rounded-full h-2">
+          <div role="progressbar" aria-label="Resume processing progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="w-full bg-blue-500/15 rounded-full h-2">
             <div 
               className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-blue-400/60 text-xs mt-2">
-            ⚡ Processing continues in background. You can navigate to other sections and return later.
+          <p className="text-blue-500 text-xs mt-2">
+            {processedCount} parsed · {errors} failed. Keep this page open until processing finishes.
           </p>
         </div>
       )}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Files Selected', val: files.length },
-          { label: 'Processed',      val: (done || backgroundProcessing) ? (results.filter((r:any) => r.status === 'ok').length || loadProcessingState()?.processed || 0) : 0 },
+          { label: 'Processed',      val: processedCount },
           { label: 'Errors',         val: errors },
         ].map(({ label, val }) => (
           <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
@@ -644,20 +700,6 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
         </div>
       )}
 
-      {/* Progress Bar */}
-      {uploading && (
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs text-gray-400">
-            <span>Chunk {currentChunk}/{totalChunks} — {Math.min(currentChunk * CHUNK, files.length)} of {files.length} files...</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="w-full bg-gray-800 rounded-full h-3">
-            <div className="bg-gradient-to-r from-blue-600 to-orange-500 h-3 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
-          <p className="text-xs text-gray-600">Uploading to S3 and parsing {CHUNK} files per batch — AI processing each resume...</p>
-        </div>
-      )}
-
       {/* Persistent failed files panel — survives refresh */}
       {!done && failedFileNames.length > 0 && (
         <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-3 space-y-2">
@@ -680,7 +722,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
       {done && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 bg-emerald-900/30 border border-emerald-700/50 text-emerald-400 rounded-xl px-4 py-3 text-sm">
-            ✅ {results.filter((r:any) => r.status === 'ok').length} resumes parsed. {errors > 0 ? `${errors} failed.` : ''} Go to "Extracted Candidates" tab.
+            <Check size={18} className="shrink-0" /> {processedCount} resumes parsed. {errors > 0 ? `${errors} failed.` : ''} Go to "Extracted Candidates" tab.
           </div>
           {failedFiles.length > 0 && (
             <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-3 space-y-2">
@@ -710,7 +752,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
         disabled={!files.length || uploading}
         className="w-full py-3 bg-gradient-to-r from-blue-600 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        <Upload className="w-5 h-5" />
+        {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
         {uploading
           ? `Processing chunk ${currentChunk}/${totalChunks} — ${progress}%`
           : `Process ${files.length} Resume(s)`
@@ -722,8 +764,11 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
 
 /* ─── 2. Extracted Candidates Page ──────────────────────────── */
 function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTracker }: { lastUploadAt: number; onUnauthorized: () => void; recruiterName: string; onOpenTracker?: () => void }) {
-  const previousData = useRef<string | null>(null);
   const fetchVersion = useRef(0);
+  const candidateRequest = useRef<AbortController | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
   const [trackerCandidates, setTrackerCandidates] = useState<any[]>([]);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -801,15 +846,19 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
 
   const fetchCandidates = () => {
     const version = ++fetchVersion.current;
-    apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    candidateRequest.current?.abort();
+    const controller = new AbortController();
+    candidateRequest.current = controller;
+    setLoadError('');
+    loadAllTalentCandidates(async (page, limit) => {
+        const r = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}?page=${page}&limit=${limit}`, { signal: controller.signal });
+        if (r.status === 401) onUnauthorized();
+        if (!r.ok) throw new Error('Unable to load all Talent Pool candidates. Please retry.');
         return r.json();
       })
       .then(d => {
         if (version !== fetchVersion.current) return;
-        if (!Array.isArray(d) && !Array.isArray(d?.candidates)) throw new Error('Invalid Talent Pool response');
-        const records = (Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ 
+        const records = d.map((c: any) => ({
         ...c, 
         id: c.id || c._id,
         // Ensure all parsed JSON fields are arrays
@@ -822,25 +871,18 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
         languages: Array.isArray(c.languages) ? c.languages : (c.languages || '').split(',').map((s: string) => s.trim()).filter(Boolean),
         awards: parseJSON(c.awards),
       }));
-        const canonical = (value: unknown): unknown => {
-          if (Array.isArray(value)) return value.map(canonical);
-          if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
-          return value;
-        };
-        const fingerprint = JSON.stringify(canonical([...records].sort((a, b) => String(a.id).localeCompare(String(b.id)))));
-        const changed = previousData.current !== null && previousData.current !== fingerprint;
-        previousData.current = fingerprint;
         setCandidates(records);
-        if (changed) window.dispatchEvent(new CustomEvent('zync:talent-pool-updated', { detail: Date.now() }));
+        setSelected(previous => new Set([...previous].filter(id => records.some(candidate => candidate.id === id))));
+        window.dispatchEvent(new CustomEvent('zync:talent-pool-updated', { detail: Date.now() }));
       })
-      .catch((err) => console.error('ExtractedPage fetch error:', err))
-      .finally(() => setLoading(false));
+      .catch((err) => { if (version === fetchVersion.current && !controller.signal.aborted) setLoadError(err instanceof Error ? err.message : 'Unable to load candidates.'); })
+      .finally(() => { if (version === fetchVersion.current) setLoading(false); });
   };
 
   useEffect(() => {
     const refresh = () => fetchCandidates();
     window.addEventListener('zync:talent-pool-refresh', refresh);
-    return () => window.removeEventListener('zync:talent-pool-refresh', refresh);
+    return () => { window.removeEventListener('zync:talent-pool-refresh', refresh); candidateRequest.current?.abort(); fetchVersion.current++; };
   }, []);
 
   // Load on mount + re-fetch whenever a new upload completes
@@ -866,11 +908,20 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
       (c.location || '').toLowerCase().includes(search.toLowerCase());
   });
 
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleCandidates = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const allVisibleSelected = visibleCandidates.length > 0 && visibleCandidates.every(candidate => selected.has(candidate.id));
+
   const toggleSelect = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const toggleAll = () =>
-    setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
+  const toggleAll = () => setSelected(previous => {
+    const next = new Set(previous);
+    visibleCandidates.forEach(candidate => { if (allVisibleSelected) next.delete(candidate.id); else next.add(candidate.id); });
+    return next;
+  });
 
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
@@ -916,6 +967,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
     <>
     {trackerCandidates.length > 0 && <TalentPoolSubmissionModal candidates={trackerCandidates} recruiterName={recruiterName} onUnauthorized={onUnauthorized} onClose={() => setTrackerCandidates([])} onOpenTracker={onOpenTracker} onCreated={ids => setSelected(previous => new Set([...previous].filter(id => !ids.includes(id))))} />}
     <div className="space-y-4">
+      {loadError && <div role="alert" className="rounded-lg border border-red-700 bg-red-900/20 p-3 text-sm text-red-300">{loadError} {candidates.length > 0 && 'Showing the last loaded data.'}<button type="button" onClick={fetchCandidates} className="ml-3 underline">Retry</button></div>}
       {/* Processing active banner */}
       {isProcessing && (
         <div className="flex items-center gap-3 bg-blue-900/30 border border-blue-700/50 rounded-xl px-4 py-3">
@@ -1034,7 +1086,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
           onClick={toggleAll}
           className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          {selected.size === filtered.length && filtered.length > 0 ? '☑️ Deselect All' : '☐ Select All'}
+          {allVisibleSelected ? 'Deselect page' : 'Select page'}
         </button>
         {selected.size > 0 && (
           <>
@@ -1073,7 +1125,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
             <thead>
               <tr className="text-gray-400 border-b border-gray-800 bg-gray-800/50">
                 <th className="px-4 py-3">
-                  <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0}
+                  <input type="checkbox" aria-label="Select candidates on this page" checked={allVisibleSelected}
                     onChange={toggleAll} className="accent-blue-500" />
                 </th>
                 <th className="text-left px-4 py-3 font-medium">Name</th>
@@ -1101,7 +1153,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
                 <tr><td colSpan={11} className="text-center text-gray-500 py-10 text-sm">
                   {isProcessing ? '⏳ Parsing resumes... candidates will appear shortly.' : 'No candidates found.'}
                 </td></tr>
-              ) : filtered.map(c => (
+              ) : visibleCandidates.map(c => (
                 <tr key={c.id} className={`border-b border-gray-800 hover:bg-gray-800/40 transition-colors ${selected.has(c.id) ? 'bg-blue-900/10' : ''}`}>
                   <td className="px-4 py-3">
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} className="accent-blue-500" />
@@ -1162,6 +1214,15 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
           </table>
         </div>
       </div>
+
+      {!loading && <nav aria-label="Candidate pages" className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-400">
+        <span role="status">Showing {filtered.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} matching candidates ({candidates.length} total){selected.size > 0 ? ` · ${selected.size} selected across pages` : ''}</span>
+        <div className="flex items-center gap-3">
+          <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="rounded-lg border border-gray-700 px-3 py-2 disabled:opacity-40">Previous</button>
+          <span>Page {currentPage} of {pageCount}</span>
+          <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} className="rounded-lg border border-gray-700 px-3 py-2 disabled:opacity-40">Next</button>
+        </div>
+      </nav>}
 
       {/* View Candidate Profile Modal - Full parsed data like Recruiter Search */}
       {viewCandidate && (

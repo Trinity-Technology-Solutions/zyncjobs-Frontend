@@ -37,6 +37,7 @@ export interface ResumeAIExecuteRequest {
   action: string;
   content: string;
   experienceId?: string;
+  context?: Record<string, unknown>;
 }
 
 export interface ResumeAIExecuteResponse {
@@ -73,20 +74,46 @@ function buildContext(): string {
 function buildQuery(section: string, action: string, content: string): string {
   const resumeContext = buildContext();
   const fullContent = resumeContext ? `${resumeContext}\n\nSection content:\n${content}` : content;
-  const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
+  if (section === 'skills' && action === 'analyze_gap') {
+    return `Analyze the candidate's skill gaps for the exact target role using the resume evidence below. Return only a JSON object in this exact shape: {"missing_skills":[{"skill":"Docker"}]}. The missing_skills value must always be an array and may be empty. Include up to 8 concise skills only if each is genuinely relevant to this role and not already demonstrated in the candidate's listed skills, experience, or projects. Treat equivalent terms as the same skill (for example, REST and REST APIs). Do not infer skills solely from a job title. Never return generic terms, years of experience, duties, recommendations, explanations, or interview questions. Do not recommend skills unrelated to the role just to fill the list. If there are no reliable gaps, return {"missing_skills":[]}.\n\nCandidate evidence:\n${fullContent}`;
+  }
+  if (section === 'cover_letter' && action === 'generate') {
+    return `Write a complete, ready-to-send cover letter for the candidate and job below. The candidate is applying for the named job; do not write instructions about generating a letter. Start with "Dear Hiring Team," and finish with "Sincerely," followed by the candidate's name. Use 3-4 short paragraphs and the requested tone. Mention the exact job title and company. Use only the candidate details supplied; do not invent company facts, achievements, experience length, or qualifications. If experience is limited, present the candidate's education, projects, and documented skills honestly. Return only the letter, with no heading, labels, analysis, or prompt text.\n\nCandidate and job details:\n${fullContent}`;
+  }
   if (section === 'summary' && action === 'generate') {
     return `You are a professional resume writer. Write exactly 3 different professional summary options for the candidate profile below.
 
 RULES:
 - Each option must be 2-3 sentences
 - Use the EXACT job role specified in the profile — do NOT substitute or invent a different role
-- Reference the candidate's actual skills, experience, and achievements
+- Tailor the emphasis to the selected role, but mention only tools, skills, responsibilities, employers, achievements, or years explicitly present in the candidate profile
+- Never invent experience duration, seniority, employers, metrics, accomplishments, technologies, or qualifications
+- If the profile does not show direct experience in the selected role, describe the candidate as targeting that role and connect only documented skills or transferable experience
+- Avoid generic claims such as "proven track record" unless the profile supports them
 - Start each with a strong action-oriented opening
 - No placeholders like [X] or [Y], no labels, no markdown
 - Separate each option with "---" on its own line
 - Return ONLY the 3 options, nothing else
 
 Candidate Profile:
+${content}`;
+  }
+  if (section === 'resume' && action === 'optimize') {
+    return `Optimize the candidate's resume for the TARGET JOB below. The job description describes the job they want; it is not evidence about their past experience.
+
+ACCURACY RULES:
+- Use the explicit Role/Job Title in the job description as the target role, if present. Do not silently replace it with another role.
+- Candidate experience titles, employers, dates, responsibilities, achievements, and tools are factual. Preserve past job titles and employers; never turn a Frontend Developer or QA Engineer role into Backend Developer (or any other target title).
+- Tailor the summary to the target job using documented transferable skills. Do not claim the candidate is an experienced [target role] unless their supplied experience supports that claim.
+- Rewrite bullets only from facts in the corresponding supplied experience. Preserve responsibility and scope. Never invent technologies, duties, project work, metrics, or achievements.
+- Return keywords only if they are already evidenced in the candidate's skills, experience, projects, education, or certifications. Never add unsupported JD requirements as candidate skills.
+- If the JD asks for undocumented skills or experience, do not write them into the resume; mention them as gaps in improvements.
+- Return ONLY valid JSON: {"target_role":"role from JD or empty string","optimized_summary":"...","keywords":["..."],"optimized_bullets":["..."],"improvements":["..."]}. Keep optimized_bullets in the same order and count as the first experience entry's original bullets. No markdown or extra text.
+
+Candidate profile (source of truth for candidate facts):
+${resumeContext || '(No additional profile context supplied)'}
+
+Job description and resume evidence:
 ${content}`;
   }
   const actionMap: Record<string, string> = {
@@ -110,6 +137,8 @@ ${content}`;
 function extractResultText(result: Record<string, any> | null | undefined): string {
   if (!result) return '';
   if (typeof result === 'string') return result;
+  if (Array.isArray(result)) return JSON.stringify(result);
+  if (Array.isArray(result.missing_skills)) return JSON.stringify(result);
   if (result.reply) return result.reply;
   if (result.summary) return result.summary;
   if (result.result && typeof result.result === 'string') return result.result;
@@ -131,7 +160,9 @@ function extractSuggestionData(result: Record<string, any> | null | undefined): 
   return [];
 }
 
-const AI_TIMEOUT = 60000; // 60s — Ollama needs time for large resumes
+// Local Ollama can need over a minute for full-resume analysis, especially if
+// the skill-gap brain has to retry an invalid JSON response once.
+const AI_TIMEOUT = 180000;
 
 export async function executeResumeAI(
   request: ResumeAIExecuteRequest
@@ -160,6 +191,7 @@ export async function executeResumeAI(
           action: request.action,
           content: request.content,
           experienceId: request.experienceId,
+          ...request.context,
         },
       }),
     });

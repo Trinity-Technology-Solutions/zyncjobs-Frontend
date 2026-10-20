@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Loader2, CheckCircle, BookOpen, ExternalLink } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
@@ -26,29 +26,19 @@ const SKILL_COURSES: Record<string, { name: string; hours: string; platform: str
   'Leadership': { name: 'Leadership Principles', hours: '8h', platform: 'Coursera', url: 'https://www.coursera.org/learn/leadership' },
 };
 
-const COMMON_SKILLS_BY_ROLE: Record<string, string[]> = {
-  'Software Engineer': ['Python', 'Java', 'System Design', 'SQL', 'Docker', 'AWS', 'Agile', 'Microservices', 'CI/CD', 'Data Structures'],
-  'Frontend Developer': ['React', 'TypeScript', 'JavaScript', 'CSS', 'HTML', 'GraphQL', 'Webpack', 'Jest', 'Responsive Design', 'Git'],
-  'Backend Developer': ['Node.js', 'Python', 'Java', 'SQL', 'Docker', 'AWS', 'Redis', 'Microservices', 'CI/CD', 'System Design'],
-  'Full Stack Developer': ['React', 'Node.js', 'TypeScript', 'SQL', 'Docker', 'AWS', 'MongoDB', 'GraphQL', 'CI/CD', 'Git'],
-  'DevOps Engineer': ['Docker', 'Kubernetes', 'AWS', 'Terraform', 'CI/CD', 'Python', 'Linux', 'Ansible', 'Monitoring', 'Git'],
-  'Data Engineer': ['Python', 'SQL', 'Spark', 'Airflow', 'AWS', 'Kafka', 'Hadoop', 'Snowflake', 'Data Modeling', 'ETL'],
-  'Data Scientist': ['Python', 'Machine Learning', 'SQL', 'Statistics', 'TensorFlow', 'R', 'Data Visualization', 'Deep Learning', 'NLP', 'Tableau'],
-  'AI Engineer': ['Python', 'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'NLP', 'Computer Vision', 'Docker', 'AWS', 'MLOps'],
-  'Product Manager': ['Agile', 'SQL', 'Analytics', 'User Research', 'Roadmapping', 'A/B Testing', 'JIRA', 'Stakeholder Management', 'Strategy', 'Wireframing'],
-  'UI/UX Designer': ['Figma', 'User Research', 'Wireframing', 'Prototyping', 'Design Systems', 'Accessibility', 'Usability Testing', 'Responsive Design', 'HTML/CSS', 'Motion Design'],
-  'QA Engineer': ['Selenium', 'Jest', 'Cypress', 'API Testing', 'SQL', 'CI/CD', 'Test Automation', 'JIRA', 'Agile', 'Performance Testing'],
-  'Mobile Developer': ['React Native', 'Flutter', 'Swift', 'Kotlin', 'iOS', 'Android', 'REST APIs', 'Firebase', 'Git', 'CI/CD'],
-  'Cloud Engineer': ['AWS', 'Azure', 'GCP', 'Terraform', 'Kubernetes', 'Docker', 'CI/CD', 'Python', 'Networking', 'Security'],
-  'Security Engineer': ['Penetration Testing', 'SIEM', 'Firewalls', 'Python', 'Cryptography', 'Compliance', 'Incident Response', 'AWS Security', 'Linux', 'Vulnerability Assessment'],
-  'Machine Learning Engineer': ['Python', 'TensorFlow', 'PyTorch', 'MLOps', 'Docker', 'AWS', 'SQL', 'Feature Engineering', 'Model Deployment', 'Kubernetes'],
-};
-
-// Fuzzy-match a typed role to the closest key in COMMON_SKILLS_BY_ROLE
-function matchRole(role: string): string | null {
-  const r = role.toLowerCase();
-  const keys = Object.keys(COMMON_SKILLS_BY_ROLE);
-  return keys.find(k => r.includes(k.toLowerCase()) || k.toLowerCase().includes(r)) || null;
+function normalizeSkill(value: string): string {
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const aliases: Record<string, string> = {
+    rest: 'rest api',
+    'rest apis': 'rest api',
+    'restful api': 'rest api',
+    'restful apis': 'rest api',
+    js: 'javascript',
+    ts: 'typescript',
+    'ci cd': 'cicd',
+    'data structures algorithms': 'data structures and algorithms',
+  };
+  return aliases[normalized] || normalized;
 }
 
 // Build a Google search URL for learning a skill
@@ -60,6 +50,7 @@ export default function SkillGapLearning() {
   const { data, update } = useResumeStore();
   const [targetRole, setTargetRole] = useState(data.targetRole || '');
   const [missingSkills, setMissingSkills] = useState<string[]>([]);
+  const [analysisError, setAnalysisError] = useState('');
   const [loading, setLoading] = useState(false);
   const [learning, setLearning] = useState<Record<string, boolean>>({});
   const [inProgress, setInProgress] = useState<string[]>(() => {
@@ -70,52 +61,76 @@ export default function SkillGapLearning() {
   });
 
   const analyzeGap = async () => {
-    const role = targetRole.trim() || data.targetRole || 'Software Engineer';
+    const role = targetRole.trim() || data.targetRole || '';
+    if (!role) return;
     setLoading(true);
-    const existing = new Set(data.skills.map(s => s.toLowerCase()));
-    const missing: string[] = [];
-
-    // 1. Static lookup — exact then fuzzy match
-    const matchedKey = COMMON_SKILLS_BY_ROLE[role] ? role : matchRole(role);
-    if (matchedKey) {
-      COMMON_SKILLS_BY_ROLE[matchedKey]
-        .filter(s => !existing.has(s.toLowerCase()))
-        .forEach(s => missing.push(s));
-    }
-
-    // 2. Always call AI — pass skills and role separately so backend uses them correctly
+    setAnalysisError('');
+    const existing = new Set(data.skills.map(normalizeSkill));
+    setMissingSkills([]);
+    // Ask the AI to compare the exact target role with the candidate's resume evidence.
+    let customRoleAnalysisFailed = false;
+    let failureMessage = '';
     try {
+      const experience = data.experience.flatMap(item => [item.title, item.company, ...item.bullets]).filter(Boolean).join('\n');
+      const projects = data.projects.flatMap(item => [item.name, item.role, ...item.bullets]).filter(Boolean).join('\n');
+      const education = data.education.map(item => [item.degree, item.fieldOfStudy, item.institution].filter(Boolean).join(' - ')).join('\n');
       const res = await executeResumeAI({
         section: 'skills',
-        action: 'find_missing',
-        content: data.skills.join(', ') || 'none',
-        experienceId: role, // carries role to backend via context.experienceId
+        action: 'analyze_gap',
+        content: `Target role: ${role}\nCurrent skills: ${data.skills.join(', ') || '(none listed)'}\nExperience:\n${experience || '(none listed)'}\nProjects:\n${projects || '(none listed)'}\nEducation:\n${education || '(none listed)'}`,
+        context: {
+          target_role: role,
+          current_role: data.experience[0]?.title || '',
+          current_skills: data.skills,
+          experience_evidence: experience,
+          project_evidence: projects,
+          education_evidence: education,
+        },
       });
-      if (res.result) {
-        const aiSkills = res.result
-          .split(',')
-          .map((s: string) => s.trim()
-            .replace(/^[-•*\d.]+\s*/g, '')  // strip bullets/numbers
-            .replace(/^(target role|current skills|missing skills|role|skills)[:\s]*/gi, '') // strip labels
-          )
-          .filter((s: string) =>
-            s.length > 1 &&
-            s.length <= 40 &&           // reject long sentences
-            !s.includes(' - ') &&        // reject descriptive phrases
-            !s.toLowerCase().includes('familiarity') &&
-            !s.toLowerCase().includes('experience with') &&
-            !s.toLowerCase().includes('knowledge of') &&
-            !s.toLowerCase().includes('proficiency') &&
-            !s.toLowerCase().includes('understanding of') &&
-            !existing.has(s.toLowerCase())
-          );
-        aiSkills.forEach((s: string) => {
-          if (!missing.map(m => m.toLowerCase()).includes(s.toLowerCase())) missing.push(s);
-        });
+      const raw = (res.result || '').replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+      let result: unknown;
+      try { result = JSON.parse(raw); } catch { result = null; }
+      const proposed: unknown[] = Array.isArray(result)
+        ? result
+        : result && typeof result === 'object' && Array.isArray((result as { missing_skills?: unknown[] }).missing_skills)
+          ? (result as { missing_skills: unknown[] }).missing_skills
+          : [];
+      const hasValidResponse = Array.isArray(result)
+        || Boolean(result && typeof result === 'object' && Array.isArray((result as { missing_skills?: unknown[] }).missing_skills));
+      const rejectGeneric = /\b(?:years? of experience|generate|screening questions?|evaluate|various|specific|frameworks?|platforms?|practices?|knowledge of|familiarity with|understanding of|proficiency in|responsibilities|requirements)\b/i;
+      const accepted = proposed
+        .map(item => typeof item === 'string'
+          ? item
+          : item && typeof item === 'object' && typeof (item as { skill?: unknown }).skill === 'string'
+            ? (item as { skill: string }).skill
+            : '')
+        .map(skill => skill.trim().replace(/^[\u2022*-]+\s*/, '').replace(/^['"`]|['"`]$/g, '').trim())
+        .filter(skill => skill.length >= 2 && skill.length <= 40 && skill.split(/\s+/).length <= 5
+          && !rejectGeneric.test(skill) && !/[!?;:]|\b(?:and|or|to|with)\s*$/i.test(skill)
+          && !existing.has(normalizeSkill(skill)))
+        .filter((skill, index, all) => all.findIndex(item => item.toLowerCase() === skill.toLowerCase()) === index)
+        .slice(0, 10);
+      customRoleAnalysisFailed = result !== null && typeof result === 'object'
+        && (result as { analysis_available?: boolean }).analysis_available === false
+        || !hasValidResponse || (proposed.length > 0 && accepted.length === 0);
+      if (customRoleAnalysisFailed) {
+        failureMessage = 'The AI could not complete a reliable skill-gap analysis. Check that the local AI service is running, then try Analyze again.';
       }
-    } catch { /* use static results */ }
+      setMissingSkills(accepted);
+    } catch (error) {
+      customRoleAnalysisFailed = true;
+      setMissingSkills([]);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        failureMessage = 'The AI analysis took too long to finish. The local model may still be processing; please try Analyze again.';
+      } else {
+        const detail = error instanceof Error ? error.message.trim() : '';
+        failureMessage = detail
+          ? `AI request failed: ${detail.slice(0, 180)}`
+          : 'The AI service could not complete the analysis. Check that it is running, then try Analyze again.';
+      }
+    }
 
-    setMissingSkills([...new Set(missing)].slice(0, 10));
+    setAnalysisError(customRoleAnalysisFailed ? failureMessage : '');
     setLoading(false);
   };
 
@@ -168,11 +183,13 @@ export default function SkillGapLearning() {
         </button>
       </div>
 
+      {analysisError && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{analysisError}</p>}
+
       {/* Results */}
       {missingSkills.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-700">Missing Skills for <span className="text-purple-600">{targetRole || data.targetRole || 'Software Engineer'}</span></p>
+            <p className="text-sm font-semibold text-gray-700">AI-identified skill gaps for <span className="text-purple-600">{targetRole || data.targetRole}</span></p>
             <p className="text-xs text-gray-500">{missingSkills.filter(s => completed.includes(s)).length}/{missingSkills.length} completed</p>
           </div>
 
@@ -235,7 +252,7 @@ export default function SkillGapLearning() {
         </div>
       )}
 
-      {!loading && missingSkills.length === 0 && targetRole && (
+      {!loading && !analysisError && missingSkills.length === 0 && targetRole && (
         <div className="text-center py-12 border-2 border-dashed border-green-200 rounded-xl bg-green-50/50">
           <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
           <p className="text-sm font-semibold text-green-700">No critical gaps found!</p>

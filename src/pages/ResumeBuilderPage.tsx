@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Save, Undo2, Redo2, Download, FileText, Briefcase, GraduationCap,
   User, Sparkles, Award, FolderOpen, Wrench, ChevronLeft, ChevronRight,
@@ -42,6 +42,7 @@ import {
   formatGrade,
 } from '../utils/educationFormatter';
 import { prepareResumeContent } from '../utils/prepareResumeContent';
+import { formatExperienceDuration } from '../utils/experienceDateUtils';
 import { apiFetch } from '../api/apiFetch';
 import { API_ENDPOINTS } from '../config/env';
 
@@ -336,8 +337,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               company: e.companyName || e.company || '',
               location: e.location || '',
               duration: e.currentlyWorking
-                ? `${e.startMonth || ''} ${e.startYear || ''} â€“ Present`
-                : `${e.startMonth || ''} ${e.startYear || ''} â€“ ${e.endMonth || ''} ${e.endYear || ''}`,
+                ? `${e.startMonth || ''} ${e.startYear || ''} – Present`
+                : `${e.startMonth || ''} ${e.startYear || ''} – ${e.endMonth || ''} ${e.endYear || ''}`,
+              startMonth: e.startMonth || '', startYear: e.startYear || '',
+              endMonth: e.endMonth || '', endYear: e.endYear || '',
               current: !!e.currentlyWorking,
               bullets: e.description ? [e.description] : [''],
             }));
@@ -359,7 +362,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               board: '',
               institution: ec.college || '',
               location: '',
-              duration: ec.passingYear ? (ec.startYear ? `${ec.startYear} â€“ ${ec.passingYear}` : String(ec.passingYear)) : '',
+              duration: ec.passingYear ? (ec.startYear ? `${ec.startYear} – ${ec.passingYear}` : String(ec.passingYear)) : '',
               grade: ec.percentage ? (String(ec.percentage).includes('%') || String(ec.percentage).toLowerCase().includes('cgpa') ? String(ec.percentage) : `${ec.percentage}%`) : '',
             });
           }
@@ -492,7 +495,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const candidateEmail = data.personalInfo.email || '';
       const jobTitle = selectedJob.title || selectedJob.jobTitle || '';
       const candidateSkills = data.skills;
-      const expText = data.experience.map(e => `${e.title} at ${e.company}${e.duration ? ` (${e.duration})` : ''}`).join('; ');
+      const expText = data.experience.map(e => `${e.title} at ${e.company}${formatExperienceDuration(e) ? ` (${formatExperienceDuration(e)})` : ''}`).join('; ');
       const eduText = data.education.map(e => formatEducationSummary(e)).join('; ');
       if (candidateEmail) {
         try {
@@ -563,7 +566,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         setSubmitError(msg);
       }
     } catch (e: any) {
-      setSubmitError(e?.message || 'Network error â€” could not reach server');
+      setSubmitError(e?.message || 'Network error — could not reach server');
     } finally { setApplying(false); }
   };
 
@@ -654,33 +657,19 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         throw new Error('We could not extract readable resume details from this file. Try a clearer image or a DOC/DOCX/PDF with selectable text.');
       }
 
-      if (parsed.name) { updatePersonalInfo('name', parsed.name); update('resumeName', `${parsed.name}'s Resume`); }
-      if (parsed.email) updatePersonalInfo('email', parsed.email);
-      if (parsed.phone) updatePersonalInfo('phone', parsed.phone);
-      if (parsed.location) updatePersonalInfo('location', parsed.location);
-      if (parsed.linkedin) updatePersonalInfo('linkedin', parsed.linkedin);
-      if (parsed.summary) update('summary', parsed.summary);
-
       const allSkills = [
         ...(Array.isArray(parsed.skills) ? parsed.skills : []),
         ...(Array.isArray(parsed.softSkills) ? parsed.softSkills : []),
         ...(Array.isArray(parsed.tools) ? parsed.tools : []),
-      ];
-      if (allSkills.length > 0) update('skills', allSkills);
-
-      if (Array.isArray(parsed.certifications) && parsed.certifications.length > 0) {
-        update('certifications', parsed.certifications.map((c: any) => ({
+      ].filter((skill): skill is string => typeof skill === 'string' && Boolean(skill.trim()));
+      const certifications = Array.isArray(parsed.certifications) ? parsed.certifications.map((c: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          name: c.name || c.title || '',
-          issuer: c.provider || c.issuer || c.organization || '',
-          year: c.date || c.year || '',
-        })));
-      }
-      if (Array.isArray(parsedEducation) && parsedEducation.length > 0) {
-        update('education', normalizeEducationItems(parsedEducation));
-      }
-      if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
-        update('projects', parsed.projects.map((p: any) => ({
+          name: typeof c === 'string' ? c : c.name || c.title || '',
+          issuer: typeof c === 'string' ? '' : c.provider || c.issuer || c.organization || '',
+          year: typeof c === 'string' ? '' : c.date || c.year || '',
+        })) : [];
+      const education = Array.isArray(parsedEducation) ? normalizeEducationItems(parsedEducation) : [];
+      const projects = Array.isArray(parsed.projects) ? parsed.projects.map((p: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
           name: p.name || p.title || '',
           role: p.role || '',
@@ -689,10 +678,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           bullets: Array.isArray(p.descriptions) ? p.descriptions
             : Array.isArray(p.bullets) ? p.bullets
             : p.description ? [p.description] : [],
-        })));
-      }
-      if (Array.isArray(parsedExperience) && parsedExperience.length > 0) {
-        update('experience', parsedExperience.map((w: any) => ({
+        })) : [];
+      const experience = Array.isArray(parsedExperience) ? parsedExperience.map((w: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
           title: w.jobTitle || w.title || w.role || '',
           company: w.company || w.organization || '',
@@ -703,8 +690,46 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             : Array.isArray(w.bulletPoints) ? w.bulletPoints
             : Array.isArray(w.bullets) ? w.bullets
             : w.description ? [w.description] : [],
-        })));
-      }
+        })) : [];
+
+      // A new import replaces the previous resume's content. Merging only
+      // non-empty parser fields leaves old skills/experience behind and can
+      // produce a PDF that combines two different candidates' resumes.
+      update('personalInfo', {
+        name: parsed.name || '',
+        email: parsed.email || '',
+        phone: parsed.phone || '',
+        location: parsed.location || '',
+        linkedin: parsed.linkedin || '',
+        portfolio: parsed.portfolio || parsed.website || '',
+      });
+      update('resumeName', parsed.name ? `${parsed.name}'s Resume` : file.name.replace(/\.[^.]+$/, '') || 'My Resume');
+      update('summary', parsed.summary || '');
+      update('skills', allSkills);
+      update('certifications', certifications);
+      update('education', education);
+      update('projects', projects);
+      update('experience', experience);
+      update('awards', Array.isArray(parsed.awards) ? parsed.awards.map((award: any, index: number) => ({
+        id: award.id || `${Date.now()}award${index}`,
+        title: typeof award === 'string' ? award : award.title || '',
+        issuer: typeof award === 'string' ? '' : award.issuer || '',
+        year: typeof award === 'string' ? '' : award.year || '',
+        description: typeof award === 'string' ? '' : award.description || '',
+      })) : []);
+      update('languages', Array.isArray(parsed.languages) ? parsed.languages.map((language: any, index: number) => ({
+        id: language.id || `${Date.now()}lang${index}`,
+        language: typeof language === 'string' ? language : language.language || language.name || '',
+        proficiency: typeof language === 'string' ? 'Intermediate' as const : language.proficiency || 'Intermediate',
+      })) : []);
+      update('achievements', Array.isArray(parsed.achievements) ? parsed.achievements.map((achievement: any, index: number) => ({
+        id: achievement.id || `${Date.now()}achievement${index}`,
+        title: typeof achievement === 'string' ? achievement : achievement.title || '',
+        description: typeof achievement === 'string' ? '' : achievement.description || '',
+      })) : []);
+      update('customSections', []);
+      update('hiddenSections', []);
+      update('targetRole', '');
 
       touchSave();
       pushHistory();
@@ -768,11 +793,11 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const name = (exportData.personalInfo?.name || '').trim() || 'Resume';
       const { pdf } = await import('@react-pdf/renderer');
       const { default: ResumePDFDocument } = await import('../components/resume-builder/ResumePDFDocument');
-      const blob = await pdf(<ResumePDFDocument data={data} />).toBlob();
+      const blob = await pdf(<ResumePDFDocument data={exportData} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = `${name}.pdf`; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       console.error('PDF generation failed:', e);
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'PDF generation failed. Please try again.' } }));
@@ -789,7 +814,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const n = exportData.personalInfo;
       const hidden = exportData.hiddenSections || [];
 
-      // Apply hiddenSections â€” mirrors ResumeTemplate / ResumePDFDocument logic
+      // Apply hiddenSections — mirrors ResumeTemplate / ResumePDFDocument logic
       const visibleSummary    = hidden.includes('summary')      ? '' : exportData.summary;
       const visibleSkills     = hidden.includes('skills')       ? [] : exportData.skills;
       const visibleExp        = hidden.includes('experience')   ? [] : exportData.experience;
@@ -854,7 +879,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           children.push(new Paragraph({
             children: [
               new TextRun({ text: `${exp.title}${exp.company ? `${expSep}${exp.company}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 }),
-              new TextRun({ text: exp.duration ? `  |  ${exp.duration}` : '', color: '777777', size: 18 }),
+              new TextRun({ text: formatExperienceDuration(exp) ? `  |  ${formatExperienceDuration(exp)}` : '', color: '777777', size: 18 }),
             ],
             spacing: { after: 40 },
           }));
@@ -873,13 +898,13 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const addCerts = () => {
         if (!visibleCerts.length) return;
         children.push(mkHdr('Certifications'));
-        visibleCerts.forEach(c => children.push(mkPara(`${c.name}${c.issuer ? ` â€” ${c.issuer}` : ''}${c.year ? `  (${c.year})` : ''}`)));
+        visibleCerts.forEach(c => children.push(mkPara(`${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.year ? `  (${c.year})` : ''}`)));
       };
       const addProjects = () => {
         if (!visibleProjects.length) return;
         children.push(mkHdr('Projects'));
         visibleProjects.forEach(p => {
-          children.push(new Paragraph({ children: [new TextRun({ text: `${p.name}${p.role ? ` â€” ${p.role}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 })], spacing: { after: 40 } }));
+          children.push(new Paragraph({ children: [new TextRun({ text: `${p.name}${p.role ? ` — ${p.role}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 })], spacing: { after: 40 } }));
           if (p.url) children.push(mkPara(p.url, { color: '2563eb' }));
           p.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
         });
@@ -904,7 +929,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         visibleAwards.forEach((a: any) => {
           children.push(new Paragraph({
             children: [
-              new TextRun({ text: `${a.title}${a.issuer ? ` â€” ${a.issuer}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 }),
+              new TextRun({ text: `${a.title}${a.issuer ? ` — ${a.issuer}` : ''}`, bold: true, size: tmpl === 'compact' ? 18 : 20 }),
               new TextRun({ text: a.year ? `  (${a.year})` : '', color: '777777', size: 18 }),
             ],
             spacing: { after: 40 },
@@ -919,7 +944,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         });
       };
 
-      // Section ordering per template â€” mirrors ResumeTemplate.tsx section order
+      // Section ordering per template — mirrors ResumeTemplate.tsx section order
       switch (tmpl) {
         case 'professional':
           // professional: summary + experience + projects in main; skills/edu/certs in sidebar
@@ -1017,7 +1042,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                         <p className="text-sm font-semibold text-gray-900 truncate">{job.title || job.jobTitle || 'Untitled'}</p>
                         {isApplied && <span className="text-[10px] text-green-600 font-medium shrink-0">Applied </span>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">{job.company || job.companyName || ''} Â· {job.location || ''}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{job.company || job.companyName || ''} · {job.location || ''}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
                       {jobSkills.length > 0 && (
@@ -1161,7 +1186,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           {selectedJob && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
               <p className="text-sm font-semibold text-gray-900">{selectedJob.title || selectedJob.jobTitle}</p>
-              <p className="text-xs text-gray-500">{selectedJob.company || ''} Â· {selectedJob.location || ''}</p>
+              <p className="text-xs text-gray-500">{selectedJob.company || ''} · {selectedJob.location || ''}</p>
             </div>
           )}
 
@@ -1169,7 +1194,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           <div className="p-4 border border-gray-200 rounded-xl space-y-2">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" /> Resume</p>
             <div className="text-xs text-gray-600 space-y-1">
-              <p>{data.personalInfo.name || 'Your Name'} Â· {data.personalInfo.email} Â· {data.personalInfo.phone}</p>
+              <p>{data.personalInfo.name || 'Your Name'} · {data.personalInfo.email} · {data.personalInfo.phone}</p>
               {data.skills.length > 0 && <p>Skills: {data.skills.slice(0, 10).join(', ')}</p>}
               {data.experience.length > 0 && <p>Experience: {data.experience.map(e => `${e.title} at ${e.company}`).join(', ')}</p>}
             </div>
@@ -1403,7 +1428,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </div>
       </div>
 
-      {/* AI Interview mode â€” replaces 3-column layout */}
+      {/* AI Interview mode — replaces 3-column layout */}
       {aiMode ? (
         <AIInterviewStep onComplete={() => setAiMode(false)} />
       ) : (
@@ -1667,7 +1692,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               </div>
             ) : (
               <div className="flex flex-col">
-                {/* Step navigation bar â€” above the form */}
+                {/* Step navigation bar — above the form */}
                 <div className="flex items-center justify-between px-4 py-3 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm sticky top-0 z-10">
                   <button
                     onClick={() => setActiveIdPersisted(orderedNav[Math.max(0, activeIdx - 1)].id)}
@@ -1793,7 +1818,7 @@ function sanitizeText(s: any): string {
 
 function buildResumeHTML(data: ResumeData): string {
   const n = data.personalInfo;
-  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${sanitizeText(e.title)}</b> at <b>${sanitizeText(e.company)}</b>${e.duration ? ` â€” ${sanitizeText(e.duration)}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${sanitizeText(e.title)}</b> at <b>${sanitizeText(e.company)}</b>${formatExperienceDuration(e) ? ` — ${sanitizeText(formatExperienceDuration(e))}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
   const edu = data.education.map(e => {
     const institution = sanitizeText(formatEducationSubtitle(e));
     const degree = sanitizeText(formatEducationDegreeLabel(e));
@@ -1801,7 +1826,7 @@ function buildResumeHTML(data: ResumeData): string {
     return `<div style="margin-bottom:8px">` +
       `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
         `<b>${institution || degree}</b>` +
-        (e.duration ? `<span style="color:#6b7280;font-size:12px">${sanitizeText(e.duration)}</span>` : '') +
+        (formatExperienceDuration(e) ? `<span style="color:#6b7280;font-size:12px">${sanitizeText(formatExperienceDuration(e))}</span>` : '') +
       `</div>` +
       `<div style="display:flex;justify-content:space-between;align-items:baseline;color:#4b5563;font-size:13px">` +
         `<span>${institution ? degree : ''}${meta ? ` (${meta})` : ''}</span>` +
@@ -1810,8 +1835,8 @@ function buildResumeHTML(data: ResumeData): string {
       (e.description ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;white-space:pre-line">${sanitizeText(e.description)}</div>` : '') +
     `</div>`;
   }).join('');
-  const certs = data.certifications.map(c => `<div>${sanitizeText(c.name)} â€” ${sanitizeText(c.issuer)}${c.year ? ` (${sanitizeText(c.year)})` : ''}</div>`).join('');
-  const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${sanitizeText(p.name)}</b>${p.role ? ` â€” ${sanitizeText(p.role)}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const certs = data.certifications.map(c => `<div>${sanitizeText(c.name)} — ${sanitizeText(c.issuer)}${c.year ? ` (${sanitizeText(c.year)})` : ''}</div>`).join('');
+  const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${sanitizeText(p.name)}</b>${p.role ? ` — ${sanitizeText(p.role)}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
   const langs = data.languages.map(l => `<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px">${sanitizeText(l.language)} (${sanitizeText(l.proficiency)})</span>`).join('');
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${n.name || 'Resume'}</title>
@@ -1827,7 +1852,7 @@ function buildResumeHTML(data: ResumeData): string {
   .skill-tag{display:inline-block;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px;border:1px solid #bfdbfe}
 </style></head><body>
 <h1>${n.name || ''}</h1>
-<div class="contact">${[n.email, n.phone, n.location].filter(Boolean).join(' Â· ')}${n.linkedin ? ' Â· ' + n.linkedin : ''}${n.portfolio ? ' Â· ' + n.portfolio : ''}</div>
+<div class="contact">${[n.email, n.phone, n.location].filter(Boolean).join(' · ')}${n.linkedin ? ' · ' + n.linkedin : ''}${n.portfolio ? ' · ' + n.portfolio : ''}</div>
 ${data.summary ? `<div class="section"><div class="section-title">Professional Summary</div><p style="font-size:13px;margin:0">${data.summary}</p></div>` : ''}
 ${exp ? `<div class="section"><div class="section-title">Experience</div>${exp}</div>` : ''}
 ${edu ? `<div class="section"><div class="section-title">Education</div>${edu}</div>` : ''}

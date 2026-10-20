@@ -1215,7 +1215,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
         
         {activeTab === 'recommended' ? (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Recommended Jobs for You</h2>
             <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} onNavigate={onNavigate} />
           </div>

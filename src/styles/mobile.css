@@ -1867,12 +1867,13 @@ html, body {
 .resume-analyzer-input > .flex > button { border-radius: 6px; }
 .resume-parser-workspace { width: 100%; }
 .resume-parser-panels { align-items: stretch; gap: 24px; }
+@media (min-width: 1024px) { .resume-parser-panels { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); } }
 .resume-parser-panels > .bg-white { border-color: #dce5f1; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px #172b4d05; }
 .resume-parser-panels h2 { font-size: 20px; font-weight: 600; color: #172b4d; }
 .resume-parser-results { display: flex; flex-direction: column; min-width: 0; overflow: hidden; align-self: start; }
 .resume-parser-results-scroll { min-width: 0; max-height: min(72vh, 760px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: 8px; }
 .resume-parser-results-scroll:focus-visible { outline: 2px solid #245be0; outline-offset: 2px; }
-.resume-parser-results-inner { min-width: 520px; }
+.resume-parser-results-inner { width: 100%; min-width: 0; overflow-wrap: anywhere; }
 .resume-parser-results-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
 .resume-parser-results-scroll::-webkit-scrollbar-thumb { background: #b8c5d8; border: 2px solid #f9fafb; border-radius: 999px; }
 .resume-parser-results-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -3316,3 +3317,77 @@ html, body {
 .zync-site-header[data-scroll-hidden=true] { pointer-events:none; }
 .zync-site-header[data-scroll-hidden=true]:focus-within { pointer-events:auto; }
 @media(prefers-reduced-motion:reduce) { .zync-site-header { transition:none; } }
+
+/* Find Jobs: neutral, compact job-board styling inspired by familiar listings layouts. */
+.job-search-page { background:#fff; color:#172b4d; }
+.job-search-page > .relative { background:#f8f9fb; border-color:#e5e7eb; }
+.job-search-hero { max-width:1360px; padding:32px 32px 24px; }
+.job-search-intro { text-align:center; margin-bottom:16px; }
+.job-search-intro h1 { color:#172b4d; font-size:clamp(26px,2.6vw,34px); font-weight:650; letter-spacing:-.55px; line-height:1.25; }
+.job-search-intro > p { margin:0 auto 14px; padding:0; max-width:760px; color:#64748b; }
+.job-search-intro > span { color:#245be0; }
+.job-search-trust { justify-content:center; margin:0 0 16px; gap:8px 18px; }
+.job-search-trust > span { color:#64748b; }
+.job-search-tabs { justify-content:center; margin-bottom:12px; }
+.job-search-tabs button[aria-pressed="true"] { border-color:#d5deea; color:#245be0; }
+.job-search-form-surface { border-color:#dce2ea; border-radius:10px; box-shadow:0 2px 8px #172b4d06; }
+.job-search-layout { gap:22px; }
+.job-search-filter-rail { position:relative; }
+.job-search-filter-rail > div { background:#fff; border-color:#f0f1f3; border-radius:12px; box-shadow:0 2px 14px #172b4d06; }
+.job-search-filter-rail > div > .p-6 + .p-6 { border-top:1px solid #edf0f4; }
+.job-search-filter-rail h3,.job-search-filter-rail h4 { color:#243858; }
+.job-search-filter-rail label { color:#475569; }
+.job-search-results { min-width:0; }
+.job-results-toolbar { min-height:46px; margin-bottom:12px; padding:0 2px; }
+.job-search-card { padding:18px 22px; border-color:#e1e5eb; border-radius:12px; box-shadow:0 1px 3px #172b4d05; }
+.job-search-card:hover { border-color:#c5d1e0; box-shadow:0 4px 14px #172b4d0a; }
+.job-search-card h3 > button { color:#172b4d; font-size:18px; line-height:1.4; margin-bottom:2px; }
+.job-search-card .job-card-metadata { margin-bottom:10px; }
+.job-search-card .job-card-metadata > div { background:#f5f6f8; }
+.job-search-card .job-card-metadata > div:has(.text-green-700) { background:#f0fdf4; }
+.job-search-card .bg-gray-50.p-3 { background:#f8f9fb; border-color:#e4e8ee; border-left-width:2px; }
+.job-search-card .job-card-actions { border-color:#edf0f4; padding-top:12px; margin-top:0; }
+@media(max-width:767px) {
+  .job-search-hero { padding:24px 20px 20px; }
+  .job-search-intro { text-align:center; }
+  .job-search-trust { justify-content:center; }
+  .job-search-tabs { justify-content:center; }
+  .job-search-card { padding:17px; }
+}
+
+/* Shared page canvas for all routed pages except the candidate and employer home screens. */
+main.site-content-shell { min-height:calc(100vh - var(--header-h, 86px)); background:#f5f6f8; color:#172b4d; }
+main.site-content-shell > div:first-child:not(.zync-home):not(.employer-home):not(.job-search-page) { background-color:#f5f6f8 !important; background-image:none !important; }
+main.site-content-shell :is(.career-panel, .portal-card, .dashboard-card, .company-directory-card, .companies-filter-panel) {
+  border-color:#edf0f3;
+  box-shadow:0 2px 14px #172b4d06;
+}
+main.site-content-shell :is(
+  .bg-white.border.rounded-lg,
+  .bg-white.border.rounded-xl,
+  .bg-white.border.rounded-2xl,
+  .border.bg-white.rounded-lg,
+  .border.bg-white.rounded-xl,
+  .border.bg-white.rounded-2xl,
+  .bg-white.rounded-lg.border,
+  .bg-white.rounded-xl.border,
+  .bg-white.rounded-2xl.border,
+  .rounded-lg.border.bg-white,
+  .rounded-xl.border.bg-white,
+  .rounded-2xl.border.bg-white
+) { border-color:#edf0f3; box-shadow:0 2px 14px #172b4d06; }
+main#main-content.site-content-shell :is(div, article, section):is(
+  .bg-white.rounded-lg,
+  .bg-white.rounded-xl,
+  .bg-white.rounded-2xl,
+  .rounded-lg.bg-white,
+  .rounded-xl.bg-white,
+  .rounded-2xl.bg-white
+) { background-color:#fff; border:1px solid #edf0f3; border-radius:12px; box-shadow:0 2px 14px #172b4d06; }
+main#main-content.site-content-shell .saved-jobs-page :is(div, article, section).my-jobs-content { background:transparent !important; border:0; border-radius:0; box-shadow:none; padding-inline:0; }
+main.site-content-shell .portal-job-card.portal-job-card { border-color:#eff1f4; box-shadow:0 2px 16px #172b4d08; }
+main.site-content-shell .portal-job-card.portal-job-card:hover { border-color:#e4e8ee; box-shadow:0 5px 20px #172b4d0d; }
+main.site-content-shell .job-search-card { border-radius:14px; }
+main.site-content-shell .job-search-card .bg-gray-50.p-3 { background:transparent; border:0; padding:0; }
+main.site-content-shell :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { border-color:#d8dee8; }
+main.site-content-shell :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):focus { border-color:#245be0; }

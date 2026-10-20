@@ -381,7 +381,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
             </select>
           </label>
           <label className="text-xs text-gray-400 flex-1">Search submissions
-            <input type="search" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search ID, candidate, contact, email, recruiter, skill?" className={`${filterInputCls} w-full mt-1`} />
+            <input type="search" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder={searchColumn === 'all' ? 'Search across all columns...' : `Search ${SEARCH_COLUMNS.find(([key]) => key === searchColumn)?.[1] || 'submissions'}...`} className={`${filterInputCls} w-full mt-1`} />
           </label>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -492,7 +492,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
                       placeholder="Email" className={inputCls} />
                   </td>
                   <td className={`${cellCls} min-w-[100px]`}>
-                    <span className="text-gray-300" title="Automatically set when created; cannot be edited">{row.recruiterName?.trim() && row.recruiterName.trim() !== '?' ? row.recruiterName : '_'}</span>
+                    <span className="text-gray-300" title="Set when created; cannot be edited">{row.recruiterName?.trim() && row.recruiterName.trim() !== '?' ? row.recruiterName : '_'}</span>
                   </td>
                   <td className={`${cellCls} w-32`}>
                     <div className="relative">
@@ -511,7 +511,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
                     </div>
                   </td>
                   <td className={`${cellCls} w-28`}>
-                    <span className="text-gray-300 whitespace-nowrap" title="Automatically set when created; cannot be edited">{row.submittedDate?.trim() && row.submittedDate.trim() !== '?' ? toDisplay(row.submittedDate) : '_'}</span>
+                    <span className="text-gray-300 whitespace-nowrap" title="Set when created; cannot be edited">{row.submittedDate?.trim() && row.submittedDate.trim() !== '?' ? toDisplay(row.submittedDate) : '_'}</span>
                   </td>
                   <td className={`${cellCls} w-28`}>
                     <input

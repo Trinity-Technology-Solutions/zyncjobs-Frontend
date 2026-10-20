@@ -8,6 +8,7 @@ import {
   formatGrade,
 } from '../../utils/educationFormatter';
 import { prepareResumeContent } from '../../utils/prepareResumeContent';
+import { formatExperienceDuration } from '../../utils/experienceDateUtils';
 function SummaryContent({ summary, style }: { summary: any; style?: React.CSSProperties }) {
   const points: string[] = Array.isArray(summary)
     ? summary.filter(Boolean)
@@ -52,7 +53,7 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
             <div key={exp.id} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a' }}>{exp.title}{exp.company ? `  |  ${exp.company}` : ''}</span>
-                <span style={{ fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>{exp.duration}</span>
+                <span style={{ fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>{formatExperienceDuration(exp)}</span>
               </div>
               <ul style={{ margin: '5px 0 0 16px', padding: 0 }}>
                 {exp.bullets.filter(b => b.trim()).map((b, i) => (
@@ -182,7 +183,7 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
           <div key={exp.id} style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a' }}>{exp.title}</span>
-              <span style={{ fontSize: 12, color: '#777' }}>{exp.duration}</span>
+              <span style={{ fontSize: 12, color: '#777' }}>{formatExperienceDuration(exp)}</span>
             </div>
             {exp.company && <div style={{ fontSize: 12, color: '#555', marginBottom: 3 }}>{exp.company}</div>}
             <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
@@ -291,7 +292,7 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
             <div key={exp.id} style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{exp.title}{exp.company ? ` — ${exp.company}` : ''}</span>
-                <span style={{ fontSize: 12, color: '#999' }}>{exp.duration}</span>
+                <span style={{ fontSize: 12, color: '#999' }}>{formatExperienceDuration(exp)}</span>
               </div>
               <ul style={{ margin: '5px 0 0 16px', padding: 0 }}>
                 {exp.bullets.filter(b => b.trim()).map((b, i) => (
@@ -432,7 +433,7 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
           <div key={exp.id} style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontWeight: 700, fontSize: 13, color: '#182230' }}>{exp.title}</span>
-              <span style={{ fontSize: 12, color: '#777' }}>{exp.duration}</span>
+              <span style={{ fontSize: 12, color: '#777' }}>{formatExperienceDuration(exp)}</span>
             </div>
             {(exp.company || exp.location) && <div style={{ fontSize: 11, color: '#66778a', marginTop: 1 }}>{[exp.company, exp.location].filter(Boolean).join('  |  ')}</div>}
             <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
@@ -546,7 +547,7 @@ const CompactTemplate = ({ data }: { data: ResumeData }) => (
           <div key={exp.id} style={{ marginBottom: 7 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontWeight: 600, color: '#1a1a1a' }}>{exp.title}{exp.company ? ` | ${exp.company}` : ''}</span>
-              <span style={{ color: '#777' }}>{exp.duration}</span>
+              <span style={{ color: '#777' }}>{formatExperienceDuration(exp)}</span>
             </div>
             <ul style={{ margin: '3px 0 0 14px', padding: 0 }}>
               {exp.bullets.filter(b => b.trim()).map((b, i) => (
@@ -713,7 +714,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
             <div key={exp.id} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontWeight: 600, fontSize: 13, color: '#1a1a1a' }}>{exp.title}</span>
-                <span style={{ fontSize: 12, color: '#777' }}>{exp.duration}</span>
+                <span style={{ fontSize: 12, color: '#777' }}>{formatExperienceDuration(exp)}</span>
               </div>
               {exp.company && <div style={{ fontSize: 12, color: '#555', marginBottom: 3 }}>{exp.company}</div>}
               <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>

@@ -271,7 +271,10 @@ function App() {
   const [user, setUser] = useState<UserType | null>(getInitialUser);
   const loginTimestamp = React.useRef<number>(0);
   const isHomePage = location.pathname === '/' && user?.type !== 'employer';
+  const isEmployerHomePage = location.pathname === '/' && user?.type === 'employer';
   const isAdminPage = location.pathname.startsWith('/admin');
+  const useSharedPageShell = !isHomePage && !isEmployerHomePage;
+  const useHeaderOffset = useSharedPageShell && !isAdminPage;
   // If we already have user from localStorage and no refresh token, skip loading state
   const [userLoading, setUserLoading] = useState(() => {
     const hasRefreshToken = !!tokenStorage.getRefresh();
@@ -800,7 +803,7 @@ function App() {
       <BackToTop />
 
       <Suspense fallback={<LoadingFallback />}>
-        <main id="main-content" className={isHomePage || isAdminPage ? '' : 'has-header-offset pt-[74px] sm:pt-[82px] lg:pt-[86px]'}>
+        <main id="main-content" className={`${useSharedPageShell ? 'site-content-shell' : ''} ${useHeaderOffset ? 'has-header-offset pt-[74px] sm:pt-[82px] lg:pt-[86px]' : ''}`}>
           <Routes>
             {/* -- Public home -- */}
             <Route path="/" element={
@@ -869,7 +872,16 @@ function App() {
             <Route path="/companies" element={<CompaniesPage {...nav} />} />
             <Route path="/company-details" element={<CompanyDetailsPage {...nav} />} />
             <Route path="/company-jobs" element={<Navigate to="/companies" replace />} />
-            <Route path="/company-profile" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/company-profile" element={
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+                <CompanyDetailsPage {...nav} />
+              </AuthGuard>
+            } />
+            <Route path="/company-review" element={
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+                <CompanyDetailsPage {...nav} />
+              </AuthGuard>
+            } />
             <Route path="/company-view" element={<Navigate to="/companies" replace />} />
             <Route path="/employers" element={<EmployersPage {...nav} />} />
             <Route path="/employer-plans" element={<EmployerPlansPage {...nav} />} />

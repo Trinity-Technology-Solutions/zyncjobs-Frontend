@@ -3,7 +3,8 @@ import { Plus, Trash2, Sparkles, Loader2, Check, X, Copy } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 import { ph } from '../../utils/goalPlaceholders';
-import { validateJobTitle, validateOrgName, validateDuration } from '../../utils/resumeFieldValidators';
+import { validateJobTitle, validateOrgName } from '../../utils/resumeFieldValidators';
+import { formatExperienceDateParts, formatExperienceDuration, getExperienceDateParts } from '../../utils/experienceDateUtils';
 import ValidatedInput from './ValidatedInput';
 
 export default function ExperienceStep() {
@@ -22,6 +23,16 @@ export default function ExperienceStep() {
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const prevTitles = useRef<Record<string, string>>({});
   const MAX_AUTO_BULLETS = 6;
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1949 + 5 }, (_, index) => String(currentYear + 4 - index));
+  const months = [['01', 'January'], ['02', 'February'], ['03', 'March'], ['04', 'April'], ['05', 'May'], ['06', 'June'], ['07', 'July'], ['08', 'August'], ['09', 'September'], ['10', 'October'], ['11', 'November'], ['12', 'December']];
+  const updateExperienceDate = (expId: string, field: 'startMonth' | 'startYear' | 'endMonth' | 'endYear', value: string) => {
+    const exp = data.experience.find(item => item.id === expId);
+    if (!exp) return;
+    const parts = { ...getExperienceDateParts(exp), [field]: value };
+    updateExperience(expId, field, value);
+    updateExperience(expId, 'duration', formatExperienceDateParts(parts, exp.current));
+  };
 
   const isDuplicate = (candidate: string, existing: string[]): boolean => {
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
@@ -98,30 +109,29 @@ export default function ExperienceStep() {
     setAiLoading(`${expId}-${bIdx}`);
     setAiError('');
     try {
-      const res = await executeResumeAI({ section: 'experience', action: 'improve', content: text, experienceId: expId });
-      
-      // Check if the suggestion would be a duplicate
-      const cleaned = res.result || '';
-      if (cleaned && cleaned.trim().length > 0) {
-        const existingBullets = data.experience.find(e => e.id === expId)?.bullets || [];
-        const normalizedText = text.trim().toLowerCase();
-        const normalizedSuggestion = cleaned.trim().toLowerCase();
-        
-        // Check if suggestion is too similar to existing bullet
-        const isSimilar = existingBullets.some(bullet => {
-          const normBullet = bullet.toLowerCase();
-          const similarityScore = (normBullet.length * normalizedSuggestion.length) > 0 && 
-            (Math.min(normBullet.length, normalizedSuggestion.length) / Math.max(normBullet.length, normalizedSuggestion.length)) > 0.7;
-          return similarityScore || normalizedText.includes(normBullet.substring(0, Math.min(20, normBullet.length)));        });
-        
-        if (!isSimilar && normalizedText !== normalizedSuggestion) {
-          setSuggestion({ expId, bIdx, suggested: cleaned });
-        } else {
-          setSuggestion(null); // Skip if too similar
-        }
+      const res = await executeResumeAI({
+        section: 'experience',
+        action: 'improve',
+        content: `Rewrite this resume bullet to make it clearer, more specific, and professionally phrased. Keep the same factual meaning. Do not invent tools, metrics, outcomes, or responsibilities. Return only the rewritten bullet.\n\nBullet: ${text}`,
+        experienceId: expId,
+      });
+      const cleaned = (res.result || '').replace(/^[\u2022*-]+\s*/, '').replace(/^['"`]|['"`]$/g, '').trim();
+      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+      if (!cleaned || cleaned.length < 8 || normalize(cleaned) === normalize(text)) {
+        throw new Error('AI did not produce a revised bullet. Please try again.');
       }
-    } catch {
-      setAiError('AI service is currently unavailable. Try again in a moment or enhance the bullet manually with action verbs and metrics.');
+
+      // Do not compare against this same bullet: a faithful rewrite is expected
+      // to retain its meaning and will naturally look similar to the original.
+      const otherBullets = (data.experience.find(e => e.id === expId)?.bullets || [])
+        .filter((_, index) => index !== bIdx)
+        .map(normalize);
+      if (otherBullets.includes(normalize(cleaned))) {
+        throw new Error('AI returned a bullet that already appears elsewhere in this experience. Please try again.');
+      }
+      setSuggestion({ expId, bIdx, suggested: cleaned });
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'Could not rewrite this bullet. Please try again.');
     } finally {
       setAiLoading(null);
     }
@@ -165,6 +175,10 @@ export default function ExperienceStep() {
       updateExperience(newId, 'company', exp.company);
       updateExperience(newId, 'location', exp.location || '');
       updateExperience(newId, 'duration', exp.duration);
+      updateExperience(newId, 'startMonth', exp.startMonth || '');
+      updateExperience(newId, 'startYear', exp.startYear || '');
+      updateExperience(newId, 'endMonth', exp.endMonth || '');
+      updateExperience(newId, 'endYear', exp.endYear || '');
       updateExperience(newId, 'current', exp.current);
       updateExperience(newId, 'bullets', [...exp.bullets]);
     }
@@ -219,7 +233,7 @@ export default function ExperienceStep() {
                       <>Experience {idx + 1}</>
                     )}
                   </h3>
-                  {exp.duration && <p className="text-[11px] text-gray-400 mt-0.5">{exp.duration}</p>}
+                  {formatExperienceDuration(exp) && <p className="text-[11px] text-gray-400 mt-0.5">{formatExperienceDuration(exp)}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => generateBullets(exp.id)} disabled={aiLoading === exp.id || !exp.title || !exp.company}
@@ -266,25 +280,41 @@ export default function ExperienceStep() {
                     onCommit={(v) => updateExperience(exp.id, 'location', v)}
                     placeholder="Enter your city and country"
                   />
-                  <ValidatedInput
-                    id={`exp-duration-${exp.id}`}
-                    label="Duration"
-                    required
-                    value={exp.duration}
-                    onCommit={(v) => updateExperience(exp.id, 'duration', v)}
-                    validator={validateDuration}
-                    placeholder="Enter start and end date"
-                  />
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id={`current-${exp.id}`} checked={exp.current}
-                      onChange={(e) => {
-                        updateExperience(exp.id, 'current', e.target.checked);
-                        if (e.target.checked && !exp.duration?.toLowerCase().includes('present')) {
-                          const start = exp.duration?.split('–')[0]?.trim() || exp.duration?.split('-')[0]?.trim() || '';
-                          updateExperience(exp.id, 'duration', start ? `${start} – Present` : 'Present');
-                        }
-                      }}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Employment dates</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="block text-[11px] text-gray-400 mb-1">Start date</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select aria-label="Start month (optional)" value={getExperienceDateParts(exp).startMonth} onChange={event => updateExperienceDate(exp.id, 'startMonth', event.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                            <option value="">Month</option>{months.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                          <select aria-label="Start year" value={getExperienceDateParts(exp).startYear} onChange={event => updateExperienceDate(exp.id, 'startYear', event.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                            <option value="">Year</option>{years.map(year => <option key={year} value={year}>{year}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="block text-[11px] text-gray-400 mb-1">End date</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select aria-label="End month (optional)" disabled={exp.current} value={exp.current ? '' : getExperienceDateParts(exp).endMonth} onChange={event => updateExperienceDate(exp.id, 'endMonth', event.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white disabled:bg-gray-50 disabled:text-gray-400 focus:ring-2 focus:ring-blue-500">
+                            <option value="">Month</option>{months.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                          <select aria-label="End year" disabled={exp.current} value={exp.current ? '' : getExperienceDateParts(exp).endYear} onChange={event => updateExperienceDate(exp.id, 'endYear', event.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white disabled:bg-gray-50 disabled:text-gray-400 focus:ring-2 focus:ring-blue-500">
+                            <option value="">Year</option>{years.map(year => <option key={year} value={year}>{year}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-gray-400">Month is optional. Leave it blank when your resume only lists years.</p>
+                  </div>
+                  <div className="flex items-center gap-2 md:col-span-2">
+                    <input type="checkbox" id={`current-${exp.id}`} checked={exp.current} onChange={(event) => {
+                      updateExperience(exp.id, 'current', event.target.checked);
+                      const parts = getExperienceDateParts(exp);
+                      updateExperience(exp.id, 'duration', formatExperienceDateParts(parts, event.target.checked));
+                      if (event.target.checked) { updateExperience(exp.id, 'endMonth', ''); updateExperience(exp.id, 'endYear', ''); }
+                    }} className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
                     <label htmlFor={`current-${exp.id}`} className="text-sm text-gray-600">Currently working here</label>
                   </div>
                 </div>
@@ -424,7 +454,7 @@ export default function ExperienceStep() {
                             </div>
                           ) : (
                             <button onClick={() => improveBullet(exp.id, bIdx, bullet)}
-                              disabled={aiLoading === `${exp.id}-${bIdx}` || !bullet.trim()}
+                              disabled={!!aiLoading || !bullet.trim()}
                               className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded disabled:opacity-30 transition-colors" title="Improve with AI">
                               {aiLoading === `${exp.id}-${bIdx}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                             </button>

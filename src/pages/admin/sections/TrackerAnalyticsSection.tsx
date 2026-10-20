@@ -53,6 +53,11 @@ function getDateRange(range: DateRange, customFrom: string, customTo: string): {
   return null;
 }
 
+function recruiterDisplayName(name?: string | null) {
+  const value = name?.trim();
+  return value && value !== '?' ? value : '_';
+}
+
 function exportCSV(rows: DrillRow[], recruiterName: string) {
   const headers = ['Sub ID', 'Candidate', 'Job Role', 'Company', 'Status', 'Date', 'Source'];
   const lines = [headers.join(','), ...rows.map(r =>
@@ -81,7 +86,7 @@ function exportAnalyticsCSV(data: Analytics, range: DateRange) {
     '',
     '"Recruiter","Total","Submitted","Shortlisted","Rejected","Today"',
     ...data.recruiterStats.map(r =>
-      `"${r.name}","${r.total}","${r.submitted}","${r.shortlisted}","${r.rejected}","${r.today_count}"`
+      `"${recruiterDisplayName(r.name)}","${r.total}","${r.submitted}","${r.shortlisted}","${r.rejected}","${r.today_count}"`
     ),
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -171,10 +176,10 @@ function DrillDownModal({ recruiterName, dateParams, onClose }: {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center">
-              <span className="text-white text-sm font-bold">{recruiterName[0]?.toUpperCase()}</span>
+              <span className="text-white text-sm font-bold">{recruiterDisplayName(recruiterName)[0].toUpperCase()}</span>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">{recruiterName}</h3>
+              <h3 className="text-sm font-semibold text-white">{recruiterDisplayName(recruiterName)}</h3>
               <p className="text-xs text-gray-500">{rows.length} submissions</p>
             </div>
           </div>
@@ -498,8 +503,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
                 </thead>
                 <tbody className="divide-y divide-gray-800/60">
                   {recruiterStats.map((r, i) => {
-                    const recruiterName = r.name?.trim();
-                    const displayName = recruiterName && recruiterName !== '?' ? recruiterName : '_';
+                    const displayName = recruiterDisplayName(r.name);
                     const rate = Number(r.total) > 0 ? Math.round((Number(r.shortlisted) / Number(r.total)) * 100) : 0;
                     const rankCls = i === 0 ? 'text-yellow-400 bg-yellow-900/30' : i === 1 ? 'text-gray-300 bg-gray-700/50' : i === 2 ? 'text-orange-400 bg-orange-900/30' : 'text-gray-500 bg-gray-800/50';
                     return (

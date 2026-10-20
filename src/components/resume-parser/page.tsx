@@ -906,8 +906,19 @@ useEffect(() => {
                     const extractYear = (s: string) => String(s || '').match(/\d{4}/)?.[0] || '';
 
                     // Skills — always use parsed skills if available
-                    const parsedSkills = resume.skills.featuredSkills.map((s: any) => s.skill).filter(Boolean);
-                    const skills = parsedSkills.length > 0 ? parsedSkills : (currentUser.skills || []);
+                    const parsedSkills = [
+                      ...resume.skills.featuredSkills.map((s: any) => s.skill),
+                      ...(Array.isArray(r.softSkills) ? r.softSkills : []),
+                      ...(Array.isArray(r.tools) ? r.tools : []),
+                    ].filter((skill: any) => typeof skill === 'string' && skill.trim());
+                    const seenSkillKeys = new Set<string>();
+                    const uniqueParsedSkills = parsedSkills.filter((skill: string) => {
+                      const key = skill.trim().toLowerCase();
+                      if (seenSkillKeys.has(key)) return false;
+                      seenSkillKeys.add(key);
+                      return true;
+                    });
+                    const skills = uniqueParsedSkills.length > 0 ? uniqueParsedSkills : (currentUser.skills || []);
 
                     // Employment — always use parsed if available
                     const employment = resume.workExperiences.length > 0
@@ -923,18 +934,46 @@ useEffect(() => {
                           };
                         })
                       : (currentUser.employment || []);
+                    const internships = Array.isArray(r.internships) && r.internships.length > 0
+                      ? r.internships.map((item: any) => {
+                          const dates = String(item.date || '').split(/\s*[-–]\s*/);
+                          return {
+                            companyName: item.company || item.companyName || '',
+                            designation: item.jobTitle || item.title || item.role || '',
+                            description: Array.isArray(item.descriptions) ? item.descriptions.join('\n') : (item.description || ''),
+                            startYear: extractYear(item.startDate || dates[0] || ''),
+                            endYear: extractYear(item.endDate || dates[1] || ''),
+                            currentlyWorking: /present|current/i.test(item.endDate || dates[1] || ''),
+                          };
+                        })
+                      : (currentUser.internships || []);
 
-                    // Education — always use parsed if available
-                    const firstEdu = resume.educations[0] as any;
-                    const educationCollege = firstEdu
-                      ? {
-                          college: firstEdu.college || firstEdu.school || '',
-                          degree: firstEdu.degree || '',
-                          passingYear: extractYear(firstEdu.date || firstEdu.year || ''),
-                          courseType: 'Full Time',
-                          percentage: firstEdu.gpa || firstEdu.percentage || '',
-                        }
-                      : (currentUser.educationCollege || {});
+                    // Put each parsed education record in the matching profile field.
+                    const educationRows = Array.isArray(resume.educations) ? resume.educations : [];
+                    const educationText = (entry: any) => `${entry?.degree || ''} ${entry?.school || ''}`;
+                    const class12 = educationRows.find((entry: any) => /\b(hsc|12th|class\s*x\s*ii|higher secondary|senior secondary|puc)\b/i.test(educationText(entry)));
+                    const class10 = educationRows.find((entry: any) => /\b(sslc|ssc|10th|class\s*x\b|matriculation|secondary school)\b/i.test(educationText(entry)));
+                    const college = educationRows.find((entry: any) => entry !== class12 && entry !== class10);
+                    const educationCollege = college ? {
+                      college: college.school || college.college || '',
+                      degree: college.degree || '',
+                      passingYear: extractYear(college.date || college.year || ''),
+                      courseType: 'Full Time',
+                      percentage: college.gpa || college.percentage || '',
+                    } : (currentUser.educationCollege || {});
+                    const educationClass12 = class12 ? {
+                      school: class12.school || '',
+                      board: class12.board || class12.school || '',
+                      stream: class12.fieldOfStudy || '',
+                      passingYear: extractYear(class12.date || class12.year || ''),
+                      percentage: class12.percentage || class12.gpa || '',
+                    } : (currentUser.educationClass12 || {});
+                    const educationClass10 = class10 ? {
+                      school: class10.school || '',
+                      board: class10.board || class10.school || '',
+                      passingYear: extractYear(class10.date || class10.year || ''),
+                      percentage: class10.percentage || class10.gpa || '',
+                    } : (currentUser.educationClass10 || {});
 
                     // Projects — always use parsed if available
                     const projects = r.projects?.length > 0
@@ -962,9 +1001,14 @@ useEffect(() => {
                       profileSummary: r.summary?.trim() || currentUser.profileSummary || '',
                       skills,
                       employment,
+                      internships,
                       educationCollege,
+                      educationClass12,
+                      educationClass10,
                       projects,
                       certifications,
+                      languages: Array.isArray(r.languages) && r.languages.length ? r.languages : (currentUser.languages || []),
+                      awards: Array.isArray(r.awards) && r.awards.length ? r.awards : (currentUser.awards || ''),
                       email: currentUser.email,
                     };
 

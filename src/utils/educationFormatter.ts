@@ -47,27 +47,40 @@ export function createDefaultEducationItem(level: EducationLevel = 'ug'): Educat
  * Deterministically classifies an education level from degree/qualification string and optional institution string.
  * Used at ingestion boundaries (resume parser, profile prefill, legacy migration).
  */
-export function classifyEducationLevel(degreeStr?: string, institutionStr?: string): EducationLevel {
-  const text = `${degreeStr || ''} ${institutionStr || ''}`.trim().toLowerCase();
-  if (!text) return 'ug';
+function inferEducationLevel(degreeStr?: string, institutionStr?: string): EducationLevel | undefined {
+  const degree = (degreeStr || '').trim().toLowerCase();
+  const institution = (institutionStr || '').trim().toLowerCase();
+  if (!degree && !institution) return undefined;
+
+  // A credential label is more specific than the institution name. In particular,
+  // schools often use "Higher Secondary School" as their name for both class 10 and 12.
+  const degreeLevel = inferEducationLevelFromText(degree);
+  if (degreeLevel) return degreeLevel;
+
+  return inferEducationLevelFromText(institution);
+}
+
+function inferEducationLevelFromText(text: string): EducationLevel | undefined {
+  if (!text) return undefined;
+
+  // Check higher secondary before generic secondary patterns: "Higher Secondary
+  // School" contains the latter phrase as a substring.
+  if (/\b(12th|class\s*x\s*ii\b|hsc\b|higher\s*secondary|intermediate|pre-university|puc\b|senior\s*secondary|junior\s*college)\b/i.test(text)) {
+    return '12th';
+  }
 
   // 10th / Secondary patterns
   if (/\b(10th|class\s*x\b|ssc\b|sslc\b|matric\b|matriculation|secondary\s*school|high\s*school\s*leaving)\b/i.test(text)) {
     return '10th';
   }
 
-  // 12th / Higher Secondary patterns
-  if (/\b(12th|class\s*x\s*ii\b|hsc\b|higher\s*secondary|intermediate|pre-university|puc\b|senior\s*secondary|junior\s*college)\b/i.test(text)) {
-    return '12th';
-  }
-
   // PG / Master / Doctorate patterns
-  if (/\b(m\.|m\.tech|m\.e\b|m\.sc|mca\b|mba\b|m\.com|m\.s\b|ma\b|ph\.?d|master|masters|doctorate|postgraduate|post\s*graduate)\b/i.test(text)) {
+  if (/\b(m\s*\.\s*tech|m\s*\.\s*e\b|m\s*\.\s*sc|mca\b|mba\b|m\s*\.\s*com|m\s*\.\s*s\b|m\s*\.\s*a\b|master(?:'s|s)?|doctorate|ph\.?d|postgraduate|post\s*graduate)\b/i.test(text)) {
     return 'pg';
   }
 
   // UG / Bachelor patterns
-  if (/\b(b\.|b\.tech|b\.e\b|b\.sc|bca\b|bba\b|b\.com|b\.a\b|bachelor|bachelors|undergraduate|under\s*graduate|b\.des|b\.arch|b\.pharm)\b/i.test(text)) {
+  if (/\b(b\s*\.\s*tech|b\s*\.\s*e\b|b\s*\.\s*sc|bca\b|bba\b|b\s*\.\s*com|b\s*\.\s*a\b|bachelor(?:'s|s)?|undergraduate|under\s*graduate|b\s*\.\s*des|b\s*\.\s*arch|b\s*\.\s*pharm)\b/i.test(text)) {
     return 'ug';
   }
 
@@ -76,7 +89,11 @@ export function classifyEducationLevel(degreeStr?: string, institutionStr?: stri
     return 'other';
   }
 
-  return 'ug';
+  return undefined;
+}
+
+export function classifyEducationLevel(degreeStr?: string, institutionStr?: string): EducationLevel {
+  return inferEducationLevel(degreeStr, institutionStr) || 'ug';
 }
 
 /**
@@ -101,7 +118,8 @@ export function normalizeEducationItems(rawItems: any[]): EducationItem[] {
 
     const ug = typeof item.ugDegree === 'string' ? item.ugDegree.trim() : '';
     const pg = typeof item.pgDegree === 'string' ? item.pgDegree.trim() : '';
-    const rawDeg = typeof item.degree === 'string' ? item.degree.trim() : (typeof item.qualification === 'string' ? item.qualification.trim() : '');
+    const rawDeg = [item.degree, item.qualification, item.ugDegree, item.pgDegree, item.education, item.class, item.gradeLevel]
+      .find(value => typeof value === 'string' && value.trim())?.trim() || '';
     const institution = typeof item.institution === 'string' ? item.institution.trim() : (typeof item.school === 'string' ? item.school.trim() : (typeof item.college === 'string' ? item.college.trim() : ''));
     const location = typeof item.location === 'string' ? item.location.trim() : '';
     const duration = typeof item.duration === 'string' ? item.duration.trim() : (typeof item.date === 'string' ? item.date.trim() : (item.year ? String(item.year).trim() : ''));
@@ -176,12 +194,18 @@ export function normalizeEducationItems(rawItems: any[]): EducationItem[] {
       continue;
     }
 
-    // Case 4: Record with level already set
-    if (item.level && ['10th', '12th', 'ug', 'pg', 'other'].includes(item.level)) {
+    // Parser-provided levels can be generic or stale. Prefer a clear credential signal
+    // (e.g. HSC, B.Tech, MBA) so the builder selects the matching level-specific form.
+    const inferredLevel = inferEducationLevel(rawDeg || ug || pg, institution);
+    const suppliedLevel = ['10th', '12th', 'ug', 'pg', 'other'].includes(item.level) ? item.level as EducationLevel : undefined;
+    const resolvedLevel = inferredLevel || suppliedLevel || 'ug';
+
+    // Case 4: Record with a level already set, corrected when degree text is more specific.
+    if (suppliedLevel || inferredLevel) {
       result.push({
         id: item.id || (Date.now().toString() + i),
-        level: item.level as EducationLevel,
-        degree: rawDeg || (item.level === '10th' ? '10th / Secondary' : item.level === '12th' ? '12th / Higher Secondary' : ''),
+        level: resolvedLevel,
+        degree: rawDeg || (resolvedLevel === '10th' ? '10th / Secondary' : resolvedLevel === '12th' ? '12th / Higher Secondary' : ''),
         fieldOfStudy,
         board,
         institution,
@@ -195,12 +219,12 @@ export function normalizeEducationItems(rawItems: any[]): EducationItem[] {
 
     // Case 5: Record with degree/school but unclassified level (from parser, profile, or custom)
     const effectiveDegree = rawDeg || ug || pg || '';
-    const inferredLevel = classifyEducationLevel(effectiveDegree, institution);
+    const fallbackLevel = classifyEducationLevel(effectiveDegree, institution);
 
     result.push({
       id: item.id || (Date.now().toString() + i),
-      level: inferredLevel,
-      degree: effectiveDegree || (inferredLevel === '10th' ? '10th / Secondary' : inferredLevel === '12th' ? '12th / Higher Secondary' : ''),
+      level: fallbackLevel,
+      degree: effectiveDegree || (fallbackLevel === '10th' ? '10th / Secondary' : fallbackLevel === '12th' ? '12th / Higher Secondary' : ''),
       fieldOfStudy,
       board,
       institution,
@@ -209,6 +233,37 @@ export function normalizeEducationItems(rawItems: any[]): EducationItem[] {
       grade,
       description,
     });
+  }
+
+  // If both school records name the same Higher Secondary School and their
+  // qualification labels have already been reduced to generic defaults, use the
+  // completion years to distinguish the earlier 10th record from the later 12th.
+  // Explicit labels such as SSLC/HSC remain authoritative.
+  const schoolGroups = new Map<string, EducationItem[]>();
+  for (const item of result) {
+    const institutionKey = item.institution.trim().toLowerCase().replace(/\s+/g, ' ');
+    const genericDegree = !item.degree.trim() || /^(10th\s*\/\s*secondary|12th\s*\/\s*higher\s*secondary)$/i.test(item.degree.trim());
+    if (!institutionKey || !/higher\s*secondary/i.test(item.institution) || !genericDegree || !['10th', '12th'].includes(item.level)) continue;
+    const group = schoolGroups.get(institutionKey) || [];
+    group.push(item);
+    schoolGroups.set(institutionKey, group);
+  }
+
+  const completionYear = (item: EducationItem): number => {
+    const years = item.duration.match(/\b(?:19|20)\d{2}\b/g);
+    return years?.length ? Number(years[years.length - 1]) : 0;
+  };
+  for (const group of schoolGroups.values()) {
+    if (group.length < 2) continue;
+    const dated = group.map(item => ({ item, year: completionYear(item) })).filter(entry => entry.year > 0);
+    if (dated.length < 2 || new Set(dated.map(entry => entry.year)).size < 2) continue;
+    dated.sort((a, b) => a.year - b.year);
+    const earliest = dated[0].item;
+    const latest = dated[dated.length - 1].item;
+    earliest.level = '10th';
+    earliest.degree = '10th / Secondary';
+    latest.level = '12th';
+    latest.degree = '12th / Higher Secondary';
   }
 
   return result;

@@ -978,7 +978,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   };
 
   const renderNavigationCard = (isMobile = false) => (
-      <div role="navigation" aria-label="Employer workspace navigation" className="employer-navigation-card employer-sidebar rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div role="navigation" aria-label="Employer workspace navigation" className="employer-navigation-card employer-sidebar rounded-xl border border-[#263d60] bg-[#172b4d] overflow-hidden">
             {/* Profile header - Enhanced */}
             <div className="employer-sidebar-profile px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -1087,6 +1087,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <nav className="py-4 flex flex-col px-3 space-y-1">
               {([
                 { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
+                { key: 'company-profile',   label: 'Company Profile',        icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => {
+                  const profile = companyProfile || {};
+                  const storedUser = user || {};
+                  const ownCompanyName = profile.name || profile.companyName || companyName || storedUser.companyName || storedUser.company || storedUser.organizationName;
+                  if (!ownCompanyName || ownCompanyName === 'Company') {
+                    showToast('Your company profile is not available yet. Please complete your company profile first.', 'info');
+                    return;
+                  }
+                  localStorage.setItem('selectedCompany', JSON.stringify({
+                    ...storedUser,
+                    ...profile,
+                    _id: profile._id || profile.id || storedUser.companyId,
+                    name: ownCompanyName,
+                    companyName: ownCompanyName,
+                    logo: profile.logo || profile.companyLogo || companyLogo || storedUser.companyLogo,
+                  }));
+                  onNavigate('company-profile');
+                }, external: true, show: true },
                 { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
                 { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
                 { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
@@ -3420,3 +3438,4 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
 };
 
 export default EmployerDashboardPage;
+

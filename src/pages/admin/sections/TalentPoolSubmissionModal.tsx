@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Loader2, X } from 'lucide-react';
 import { apiFetch } from '../../../api/apiFetch';
 import { API_ENDPOINTS } from '../../../config/env';
+import { isDuplicateSubmission, isSameCandidate, type SubmissionIdentity } from '../../../utils/submissionDuplicates';
 
 interface Candidate { id: string; name: string; email?: string; phone?: string; resumeOriginalName?: string; resumeFile?: string }
 interface TransferResult {
@@ -20,6 +21,10 @@ interface Props {
 const statuses = ['Submitted', 'Feedback', 'Shortlisted', 'Rejected', 'Screening', 'Not Relevant'];
 const sources = ['Internal DB', 'LinkedIn', 'Naukri', 'Indeed', 'Monster', 'Shine', 'TimesJobs', 'ZipRecruiter', 'Glassdoor', 'Foundit', 'Hirist', 'Internshala', 'Referral', 'Walk-in', 'Other'];
 const fieldClass = 'w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 export default function TalentPoolSubmissionModal({ candidates, recruiterName, onClose, onUnauthorized, onCreated, onOpenTracker }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -27,22 +32,40 @@ export default function TalentPoolSubmissionModal({ candidates, recruiterName, o
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<TransferResult | null>(null);
-  const [details, setDetails] = useState({ clientName: '', skillRole: '', recruiterName, source: 'Internal DB', submittedDate: new Date().toISOString().slice(0, 10), interviewDate: '', status: 'Submitted' });
+  const [details, setDetails] = useState({ clientName: '', skillRole: '', recruiterName, source: 'Internal DB', submittedDate: localToday(), interviewDate: '', status: 'Submitted' });
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submitting.current || result) return;
+    if (!candidates.length || candidates.length > 100) { setError('Select between 1 and 100 parsed candidates.'); return; }
+    const submissionDetails = { ...details, clientName: details.clientName.trim(), skillRole: details.skillRole.trim(), recruiterName: details.recruiterName.trim() };
+    if (!submissionDetails.clientName || !submissionDetails.skillRole) { setError('Enter a client and job.'); return; }
+    if (details.interviewDate && details.interviewDate < details.submittedDate) { setError('Interview date cannot be before the submitted date.'); return; }
     submitting.current = true; setBusy(true); setError('');
     try {
+      const existingResponse = await apiFetch(API_ENDPOINTS.TRACKER_ROWS);
+      if (existingResponse.status === 401) { onUnauthorized(); return; }
+      if (!existingResponse.ok) throw new Error('Unable to check existing submissions. Please retry.');
+      const existing: SubmissionIdentity[] = await existingResponse.json();
+      if (!Array.isArray(existing)) throw new Error('Unable to check existing submissions. Please retry.');
+      const duplicates: TransferResult['duplicates'] = [];
+      const eligible: Candidate[] = [];
+      for (const candidate of candidates) {
+        if (existing.some(row => isDuplicateSubmission(candidate, row, submissionDetails.clientName, submissionDetails.skillRole))
+          || eligible.some(other => other.id === candidate.id || isSameCandidate(candidate, other))) {
+          duplicates.push({ candidateId: candidate.id, name: candidate.name || 'Unnamed candidate' });
+        } else eligible.push(candidate);
+      }
+      if (!eligible.length) { setResult({ created: [], duplicates, invalid: [] }); return; }
       const response = await apiFetch(`${API_ENDPOINTS.TRACKER_ROWS}/from-talent-pool`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName: details.clientName, skillRole: details.skillRole, source: details.source, interviewDate: details.interviewDate, status: details.status, candidateIds: candidates.map(candidate => candidate.id) }),
+        body: JSON.stringify({ clientName: submissionDetails.clientName, skillRole: submissionDetails.skillRole, source: details.source, status: details.status, interviewDate: details.interviewDate, candidateIds: eligible.map(candidate => candidate.id) }),
       });
       if (response.status === 401) { onUnauthorized(); return; }
       const data = await response.json();
       if (!response.ok && ![409, 422].includes(response.status)) throw new Error(data.error || 'Unable to send candidates.');
       if (!Array.isArray(data.created) || !Array.isArray(data.duplicates) || !Array.isArray(data.invalid)) throw new Error(data.error || 'Unexpected response from Submission Tracker.');
-      setResult(data);
+      setResult({ ...data, duplicates: [...duplicates, ...data.duplicates] });
       if (data.created.length) {
         onCreated(data.created.map((row: { talentCandidateId: string }) => row.talentCandidateId));
         window.dispatchEvent(new Event('zync:tracker-updated'));
@@ -68,15 +91,15 @@ export default function TalentPoolSubmissionModal({ candidates, recruiterName, o
         <fieldset disabled={busy} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {([['clientName', 'Client / HR'], ['skillRole', 'Job / requisition title or ID']] as const).map(([key, label]) => <label key={key} className="text-sm">{label}<input required maxLength={255} value={details[key]} onChange={event => setDetails({ ...details, [key]: event.target.value })} className={`${fieldClass} mt-1`} /></label>)}
           <label className="text-sm">Source<select required value={details.source} onChange={event => setDetails({ ...details, source: event.target.value })} className={`${fieldClass} mt-1`}>{sources.map(source => <option key={source}>{source}</option>)}</select></label>
-          <label className="text-sm">Recruiter<input readOnly value={recruiterName || 'Logged-in user'} className={`${fieldClass} mt-1 text-gray-400`} /></label>
-          <label className="text-sm">Submitted date<input readOnly type="date" value={details.submittedDate} className={`${fieldClass} mt-1 text-gray-400`} /><span className="block text-xs text-gray-400 mt-1">Automatically confirmed by the server when saved.</span></label>
+          <label className="text-sm">Recruiter<input readOnly value={recruiterName || 'Logged-in user'} className={`${fieldClass} mt-1 text-gray-400`} /><span className="block text-xs text-gray-400 mt-1">Assigned from your account when saved.</span></label>
+          <label className="text-sm">Submitted date<input readOnly type="date" value={details.submittedDate} className={`${fieldClass} mt-1 text-gray-400`} /><span className="block text-xs text-gray-400 mt-1">Automatically set by the server when saved.</span></label>
           <label className="text-sm">Interview date (optional)<input type="date" min={details.submittedDate} value={details.interviewDate} onChange={event => setDetails({ ...details, interviewDate: event.target.value })} className={`${fieldClass} mt-1`} /></label>
           <label className="text-sm">Status<select required value={details.status} onChange={event => setDetails({ ...details, status: event.target.value })} className={`${fieldClass} mt-1`}>{statuses.map(status => <option key={status}>{status}</option>)}</select></label>
         </fieldset>
         {error && <p role="alert" className="text-sm text-red-300 mt-4">{error}</p>}
         <p className="text-xs text-gray-400 mt-4">These submission details apply to all {candidates.length} selected candidate(s). Use the same client and job identifier for duplicate checks.</p>
         {candidates.length > 100 && <p role="alert" className="text-sm text-amber-300 mt-3">Select at most 100 candidates per submission batch.</p>}
-        <button type="submit" disabled={busy || candidates.length > 100} className="mt-5 flex items-center justify-center gap-2 w-full rounded-lg bg-blue-600 py-3 text-white disabled:opacity-50">{busy ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : 'Send to Submission Tracker'}</button>
+        <button type="submit" disabled={busy || !candidates.length || candidates.length > 100} className="mt-5 flex items-center justify-center gap-2 w-full rounded-lg bg-blue-600 py-3 text-white disabled:opacity-50">{busy ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : 'Send to Submission Tracker'}</button>
       </form>}
     </dialog>
   );

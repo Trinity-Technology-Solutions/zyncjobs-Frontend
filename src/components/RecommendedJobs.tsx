@@ -319,34 +319,36 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   }
 
   return (
-    <div>
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:gap-6">
+      <aside className="space-y-4">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4 mb-4">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">Explore opportunities</p>
+            <h2 className="text-xl font-bold leading-tight text-gray-900 mb-2">
               {resumeSkills && resumeSkills.length > 0 ? 'Recommended Jobs for You' : 'Latest Jobs'}
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm leading-relaxed text-gray-600">
               {resumeSkills && resumeSkills.length > 0
                 ? 'Based on your skills and preferences • Updated daily'
                 : 'Most recently posted jobs • Update your profile for personalized recommendations'}
             </p>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>
-            <div className="text-xs text-gray-500">Jobs Found</div>
+          <div className="shrink-0 rounded-xl border border-blue-100 bg-white/90 px-3 py-2 text-center shadow-sm">
+            <div className="text-xl font-bold leading-none text-blue-600">{jobs.length}</div>
+            <div className="mt-1 text-[10px] font-medium text-gray-500">jobs</div>
           </div>
         </div>
       </div>
 
       {/* Skills Match Summary */}
       {resumeSkills && resumeSkills.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Your Skills Profile</h3>
-          <div className="flex flex-wrap gap-2 mb-3">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">Matching your skills</h3>
+          <div className="mb-3 flex flex-wrap gap-1.5">
             {resumeSkills.slice(0, 8).map((skillObj, idx) => (
-              <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+              <span key={idx} className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">
                 {skillObj.skill}
               </span>
             ))}
@@ -354,18 +356,25 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               <span className="text-sm text-gray-500">+{resumeSkills.length - 8} more skills</span>
             )}
           </div>
-          <p className="text-sm text-gray-600">
-            We're matching jobs based on these skills from your profile. Update your skills to get better recommendations.
+          <p className="text-xs leading-relaxed text-gray-500">
+            Recommendations use the skills listed on your profile. Keep them current for better matches.
           </p>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">Filter Jobs</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
+            <h3 className="text-base font-semibold text-gray-900">Filter jobs</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Narrow results by salary and employment type.</p>
+          </div>
+          <span className="self-start sm:self-auto rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+            {filteredJobs.length} of {jobs.length} jobs
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          <div className="min-w-0">
             <AutocompleteCombobox
               label="Salary Range"
               value={filters.salaryRange}
@@ -380,8 +389,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               placeholder="Select salary range"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
+          <div className="min-w-0">
             <AutocompleteCombobox
               label="Job Type"
               value={filters.jobType}
@@ -399,27 +407,104 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               placeholder="Select job type"
             />
           </div>
-          <div className="flex items-end">
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Actions</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setFilters({ salaryRange: '', jobType: '' })}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Clear Filters
-                </button>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm text-blue-700 font-medium">
-                  {filteredJobs.length} of {jobs.length} jobs
-                </div>
-              </div>
-            </div>
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setFilters({ salaryRange: '', jobType: '' })}
+              disabled={!filters.salaryRange && !filters.jobType}
+              className="w-full min-h-[46px] rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Clear filters
+            </button>
           </div>
         </div>
       </div>
 
+      {/* Job Search Tips */}
+      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <Lightbulb className="h-4 w-4 text-amber-500" /> Job Search Tips
+        </h3>
+        <ul className="space-y-2.5">
+          {[
+            'Update your profile regularly to get better job matches',
+            'Add relevant skills and certifications to your resume',
+            'Save interesting jobs to apply later',
+            'Apply within 24–48 hours for better response rates',
+            'Customize your cover letter for each application',
+            'Follow up on applications after a week',
+          ].map(tip => (
+            <li key={tip} className="flex items-start gap-2 text-xs leading-relaxed text-gray-600">
+              <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <span>{tip}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Job Market Insights */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <BarChart3 className="h-4 w-4 text-blue-600" /> Job Market Insights
+        </h3>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-blue-50 p-2.5 text-center">
+            <div className="text-lg font-bold text-blue-700">{jobs.length}</div>
+            <div className="text-[10px] leading-tight text-gray-600">Active jobs</div>
+          </div>
+          <div className="rounded-xl bg-emerald-50 p-2.5 text-center">
+            <div className="text-lg font-bold text-emerald-700">
+              {Math.round((filteredJobs.filter(j => (j.matchPercentage ?? 0) > 70).length / Math.max(filteredJobs.length, 1)) * 100)}%
+            </div>
+            <div className="text-[10px] leading-tight text-gray-600">High match</div>
+          </div>
+          <div className="rounded-xl bg-violet-50 p-2.5 text-center">
+            <div className="text-lg font-bold text-violet-700">
+              {filteredJobs.filter(j => j.createdAt && (Date.now() - new Date(j.createdAt).getTime()) < 7 * 24 * 3600000).length}
+            </div>
+            <div className="text-[10px] leading-tight text-gray-600">New this week</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Popular Skills Section */}
+      {resumeSkills && resumeSkills.length > 0 && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <Flame className="h-4 w-4 text-orange-500" /> Trending Skills
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              'React', 'Node.js', 'Python', 'AWS', 'Docker', 'Kubernetes', 'TypeScript', 'MongoDB',
+              'PostgreSQL', 'Redis', 'GraphQL', 'Next.js', 'Vue.js', 'Angular', 'Spring Boot', 'Django'
+            ].slice(0, 8).map((skill, idx) => {
+              const isUserSkill = resumeSkills.some(s => s.skill.toLowerCase().includes(skill.toLowerCase()));
+              return (
+                <span key={idx} className={`truncate rounded-lg border px-2 py-1.5 text-xs ${
+                  isUserSkill ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-gray-200 bg-gray-50 text-gray-600'
+                }`}>
+                  {skill}{isUserSkill && <CheckCircle className="ml-1 inline h-3 w-3 text-emerald-600" />}
+                </span>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-gray-500">Green skills are already on your profile.</p>
+        </div>
+      )}
+      </aside>
+
+      <section className="min-w-0" aria-label="Job results">
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Available opportunities</h3>
+          <p className="mt-0.5 text-xs text-gray-500">Browse roles that fit your next move.</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          {filteredJobs.length} results
+        </span>
+      </div>
       {/* Jobs List */}
-      <div className="space-y-3 -mx-1">
+      <div className="space-y-3">
         {filteredJobs.length === 0 ? (
           <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300 mx-1">
             <p className="text-gray-500">No jobs match your filters.</p>
@@ -470,15 +555,15 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
             })() : '';
 
             return (
-              <div key={jobId} className="portal-job-card portal-job-card-framed relative bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all overflow-hidden group mx-1">
+              <div key={jobId} className="portal-job-card portal-job-card-framed relative bg-white border border-gray-200 rounded-2xl hover:border-blue-300 hover:shadow-md transition-all overflow-hidden group">
 
                 {/* Blue left border strip */}
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600" />
 
-                <div className="pl-4 pr-4 pt-3 pb-2">
+                <div className="pl-5 pr-4 py-4 sm:pl-6 sm:pr-5">
 
                   {/* Row 1: Logo + Company name — left | Applied/Save/ViewDetails — right */}
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div className="flex-1 min-w-0 pr-2">
                       {/* Company logo + name */}
                       <div className="flex items-center gap-3 mb-1.5">
@@ -537,7 +622,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                     </div>
 
                     {/* Right side buttons — stacked like job search page */}
-                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[110px]">
+                    <div className="flex w-full shrink-0 flex-row items-center gap-2 sm:w-auto sm:min-w-[118px] sm:flex-col sm:items-stretch">
                       {job.matchPercentage > 0 && (
                         <span className="text-xs font-bold bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-full text-center">
                           {job.matchPercentage}% Match
@@ -565,101 +650,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           })
         )}
       </div>
-
-      {/* Job Search Tips */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Lightbulb className="w-5 h-5 text-yellow-500" />
-          Job Search Tips
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-              <span className="text-sm text-gray-700">Update your profile regularly to get better job matches</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-              <span className="text-sm text-gray-700">Add relevant skills and certifications to your resume</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-              <span className="text-sm text-gray-700">Save interesting jobs to apply later</span>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-              <span className="text-sm text-gray-700">Apply within 24-48 hours for better response rates</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-              <span className="text-sm text-gray-700">Customize your cover letter for each application</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-              <span className="text-sm text-gray-700">Follow up on applications after a week</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Job Market Insights */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-blue-500" />
-          Job Market Insights
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>
-            <div className="text-sm text-gray-600">Active Jobs</div>
-          </div>
-          <div className="bg-green-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {Math.round((filteredJobs.filter(j => (j.matchPercentage ?? 0) > 70).length / Math.max(filteredJobs.length, 1)) * 100)}%
-            </div>
-            <div className="text-sm text-gray-600">High Match Rate</div>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-purple-600">
-              {filteredJobs.filter(j => j.createdAt && (Date.now() - new Date(j.createdAt).getTime()) < 48 * 3600000).length}
-            </div>
-            <div className="text-sm text-gray-600">New This Week</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Popular Skills Section */}
-      {resumeSkills && resumeSkills.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-500" />
-            Trending Skills in Your Field
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              'React', 'Node.js', 'Python', 'AWS', 'Docker', 'Kubernetes', 'TypeScript', 'MongoDB',
-              'PostgreSQL', 'Redis', 'GraphQL', 'Next.js', 'Vue.js', 'Angular', 'Spring Boot', 'Django'
-            ].slice(0, 12).map((skill, idx) => {
-              const isUserSkill = resumeSkills.some(s => s.skill.toLowerCase().includes(skill.toLowerCase()));
-              return (
-                <div key={idx} className={`p-2 rounded-lg text-center text-sm ${
-                  isUserSkill 
-                    ? 'bg-green-100 text-green-800 border border-green-200' 
-                    : 'bg-gray-100 text-gray-700 border border-gray-200'
-                }`}>
-                  {skill}
-                  {isUserSkill && <CheckCircle className="w-3 h-3 ml-1 text-green-600" />}
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-gray-500 mt-3">
-            <CheckCircle className="w-3 h-3 text-green-600" /> Skills you have • Gray skills are trending in the market
-          </p>
-        </div>
-      )}
+      </section>
     </div>
   );
 };

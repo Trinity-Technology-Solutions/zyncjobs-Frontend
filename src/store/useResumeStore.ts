@@ -2,6 +2,23 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { normalizeEducationItems, createDefaultEducationItem } from '../utils/educationFormatter';
 
+function repairResumeTextEncoding<T>(value: T): T {
+  if (typeof value === 'string') {
+    return value
+      .replace(/\u00e2\u20ac\u201c/g, '\u2013')
+      .replace(/\u00e2\u20ac\u201d/g, '\u2014')
+      .replace(/\u00e2\u20ac\u00a2/g, '\u2022')
+      .replace(/\u00c2\u00b7/g, '\u00b7') as T;
+  }
+  if (Array.isArray(value)) return value.map(repairResumeTextEncoding) as T;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, repairResumeTextEncoding(item)])
+    ) as T;
+  }
+  return value;
+}
+
 export interface PersonalInfo {
   name: string;
   email: string;
@@ -17,6 +34,10 @@ export interface ExperienceItem {
   company: string;
   location: string;
   duration: string;
+  startMonth?: string;
+  startYear?: string;
+  endMonth?: string;
+  endYear?: string;
   current: boolean;
   bullets: string[];
 }
@@ -177,11 +198,11 @@ export const useResumeStore = create<ResumeStore>()(
       canRedo: false,
 
       update: <K extends keyof ResumeData>(field: K, value: ResumeData[K]) =>
-        set((s: ResumeStore) => ({ data: { ...s.data, [field]: value } })),
+        set((s: ResumeStore) => ({ data: { ...s.data, [field]: repairResumeTextEncoding(value) } })),
 
       updatePersonalInfo: (field: keyof PersonalInfo, value: string) =>
         set((s: ResumeStore) => ({
-          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
+          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: repairResumeTextEncoding(value) } },
         })),
 
       addExperience: () =>
@@ -199,7 +220,7 @@ export const useResumeStore = create<ResumeStore>()(
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
-            experience: s.data.experience.map((e: ExperienceItem) => (e.id === id ? { ...e, [field]: value } : e)),
+            experience: s.data.experience.map((e: ExperienceItem) => (e.id === id ? { ...e, [field]: repairResumeTextEncoding(value) } : e)),
           },
         })),
 
@@ -223,7 +244,7 @@ export const useResumeStore = create<ResumeStore>()(
         set((s: ResumeStore) => ({
           data: {
             ...s.data,
-            education: s.data.education.map((e: EducationItem) => (e.id === id ? { ...e, [field]: value } : e)),
+            education: s.data.education.map((e: EducationItem) => (e.id === id ? { ...e, [field]: repairResumeTextEncoding(value) } : e)),
           },
         })),
 
@@ -393,7 +414,7 @@ export const useResumeStore = create<ResumeStore>()(
     {
       name: 'zyncjobs-resume-builder',
       merge: (persisted: any, current: any) => {
-        const mergedData = { ...defaultData, ...(persisted?.data || {}), ...current.data };
+        const mergedData = repairResumeTextEncoding({ ...defaultData, ...(persisted?.data || {}), ...current.data });
         if (Array.isArray(mergedData.education)) {
           mergedData.education = normalizeEducationItems(mergedData.education);
         }
