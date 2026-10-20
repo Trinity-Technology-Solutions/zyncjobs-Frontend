@@ -103,6 +103,7 @@ function RobotCanvas() {
       const w = window.innerWidth;
       const isMobile = w < 768;
       const isTablet = w >= 768 && w < 1024;
+      const isLargeScreen = w >= 1440;
 
       let targetHeight = 5.6;
       if (isMobile) {
@@ -115,7 +116,9 @@ function RobotCanvas() {
         targetHeight = 5.6;
       }
 
-      camera.lookAt(0, isMobile || isTablet ? 0.9 : targetHeight / 2 - 2.20, 0);
+      // Center the camera on the scaled model above the floor. The old desktop
+      // target sat too low, so the robot's head was outside the WebGL frame.
+      camera.lookAt(0, targetHeight / 2 - 1.1, 0);
       // Leave room for the antenna as the original head follows the pointer.
       camera.zoom = isMobile ? 1 : 0.92;
       camera.updateProjectionMatrix();

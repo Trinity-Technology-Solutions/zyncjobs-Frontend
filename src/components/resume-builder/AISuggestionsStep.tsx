@@ -68,18 +68,28 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
     setError('');
     setSuccess('');
     try {
-      const bullets = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim()));
+      const experienceContext = data.experience.map((e, index) => {
+        const bullets = e.bullets.filter((b) => b.trim());
+        return [
+          `Experience ${index + 1}: ${e.title || 'Untitled role'} at ${e.company || 'Unspecified employer'}`,
+          e.duration ? `Dates: ${e.duration}` : '',
+          bullets.length ? `Original achievements (preserve these facts):\n${bullets.map((bullet, bulletIndex) => `${bulletIndex + 1}. ${bullet}`).join('\n')}` : '',
+        ].filter(Boolean).join('\n');
+      });
       const resumeText = [
-        data.targetRole ? `Target Role: ${data.targetRole}` : '',
-        data.summary ? `Summary: ${data.summary}` : '',
-        bullets.length ? `Bullets:\n${bullets.join('\n')}` : '',
+        data.targetRole ? `Candidate's stated target role: ${data.targetRole}` : '',
+        data.summary ? `Current summary (candidate evidence): ${data.summary}` : '',
+        experienceContext.length ? `WORK EXPERIENCE — preserve every role title and employer:\n${experienceContext.join('\n\n')}` : '',
         data.skills.length ? `Skills: ${data.skills.join(', ')}` : '',
+        data.projects.length ? `Projects:\n${data.projects.map((p) => `${p.name}${p.role ? ` (${p.role})` : ''}: ${(p.bullets || []).filter(Boolean).join('; ')}`).join('\n')}` : '',
+        data.education.length ? `Education: ${data.education.map((e) => `${e.degree} at ${e.institution}`).join('; ')}` : '',
         goal ? `Career Goal: ${goal}` : '',
       ].filter(Boolean).join('\n');
+      const firstExperienceBullets = data.experience[0]?.bullets.filter((b) => b.trim()) || [];
       const res = await executeResumeAI({
         section: 'resume',
         action: 'optimize',
-        content: `Job Description:\n${jdText}\n---\nResume:\n${resumeText}`,
+        content: `TARGET JOB DESCRIPTION (requirements only; not candidate experience):\n${jdText}\n\nCANDIDATE RESUME (source of truth):\n${resumeText}\n\nThe first experience entry has ${firstExperienceBullets.length} existing achievement bullets. If returning optimized_bullets, return exactly ${firstExperienceBullets.length} bullets in the same order, rewriting only those facts.`,
       });
       // Parse structured JSON response from backend
       let parsed: any = null;
@@ -87,17 +97,12 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
       if (parsed && (parsed.keywords || parsed.optimized_summary)) {
         setOptimizationResult(parsed);
       } else {
-        // Fallback: extract keywords from JD locally
-        const words = jdText.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/);
-        const stop = new Set(['the','and','or','for','with','that','this','are','you','will','have','from','to','a','an','in','of','on','at','is','be','as','by','experience','work','team']);
-        const freq: Record<string,number> = {};
-        words.forEach(w => { const c = w.toLowerCase(); if (c.length > 3 && !stop.has(c)) freq[c] = (freq[c]||0)+1; });
-        const keywords = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([w])=>w.charAt(0).toUpperCase()+w.slice(1));
         setOptimizationResult({
-          keywords,
+          target_role: '',
+          keywords: [],
           optimized_summary: '',
           optimized_bullets: [],
-          improvements: [`Add these JD keywords to your skills: ${keywords.slice(0,4).join(', ')}`, 'Quantify achievements with numbers and percentages', 'Start every bullet with a strong past-tense action verb'],
+          improvements: ['The AI could not return a reliable, structured optimization. Please try again; your resume has not been changed.'],
         });
       }
     } catch {

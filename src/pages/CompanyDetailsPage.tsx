@@ -106,6 +106,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'reviews'>(() => {
+    if (window.location.pathname === '/company-review') return 'reviews';
     const saved = sessionStorage.getItem('companyDetailsTab');
     sessionStorage.removeItem('companyDetailsTab');
     return (saved as 'overview' | 'jobs' | 'reviews') || 'overview';
@@ -188,9 +189,28 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   useEffect(() => {
     const loadCompanyData = async () => {
       const savedCompany = localStorage.getItem('selectedCompany');
-      if (savedCompany) {
+      const employerCompany = isEmployer && user ? {
+        ...user,
+        name: user.companyName || user.company || user.organizationName,
+        companyName: user.companyName || user.company || user.organizationName,
+        logo: user.companyLogo || user.logo,
+        website: user.companyWebsite || user.website,
+        location: user.companyLocation || user.headquarters || user.location,
+      } : null;
+      if (savedCompany || employerCompany?.name) {
         try {
-          const companyData = JSON.parse(savedCompany);
+          const companyData = isEmployer && employerCompany?.name
+            ? employerCompany
+            : savedCompany ? JSON.parse(savedCompany) : employerCompany;
+          if (!companyData?.name) {
+            setLoading(false);
+            return;
+          }
+          // Seed the selected company so refreshes and company sub-features
+          // continue to use the employer's own profile.
+          if (isEmployer && employerCompany?.name) {
+            localStorage.setItem('selectedCompany', JSON.stringify(companyData));
+          }
           
           // Fetch real company data from API
           await fetchRealCompanyData(companyData.name || companyData._id);
@@ -229,7 +249,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       setLoading(false);
     };
     loadCompanyData();
-  }, []);
+  }, [isEmployer, user]);
   
   // Fetch real company data from API
   const fetchRealCompanyData = async (companyId: string) => {

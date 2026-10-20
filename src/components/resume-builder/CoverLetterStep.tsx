@@ -24,6 +24,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
   };
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generationNotice, setGenerationNotice] = useState('');
 
   // Auto-fill from selected job
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
     if (!company.trim() || !jobTitle.trim()) { setError('Enter company name and job title first'); return; }
     setLoading(true);
     setError('');
+    setGenerationNotice('');
     try {
       const summaryVal = Array.isArray(data.summary)
         ? (data.summary as string[]).join(' ')
@@ -51,14 +53,17 @@ export default function CoverLetterStep({ selectedJob }: Props) {
       const result = await executeResumeAI({
         section: 'cover_letter',
         action: 'generate',
-        content: `cover letter: generate for ${jobTitle} at ${company}. candidate_name: ${data.personalInfo.name}, tone: ${tone}, summary: ${summaryVal}, experience: ${expText}, skills: ${data.skills.slice(0, 8).join(', ')}`,
+        content: `Job title: ${jobTitle}\nCompany: ${company}\nCandidate name: ${data.personalInfo.name || 'Candidate'}\nRequested tone: ${tone}\nProfessional summary: ${summaryVal || '(not provided)'}\nRelevant experience: ${expText || '(not provided)'}\nDocumented skills: ${data.skills.slice(0, 8).join(', ') || '(not provided)'}`,
       });
 
-      const text = result.result || '';
-
-      const finalLetter = (text && text.length > 100)
+      const text = (result.result || '').trim();
+      const usable = text.length > 100
+        && /^dear\b/i.test(text)
+        && !/cover letter\s*:|generate for\b|candidate_name\s*:|requested tone\s*:/i.test(text);
+      const finalLetter = usable
         ? text
         : buildFallback(data.personalInfo.name, jobTitle, company, summaryVal, expText, data.skills, tone);
+      if (!usable) setGenerationNotice('The AI did not return a complete letter, so we created a draft from the resume details instead.');
       setLetter(finalLetter);
       persist({ letter: finalLetter, company, jobTitle, tone });
     } catch {
@@ -68,6 +73,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
         data.skills, tone);
       setLetter(fb);
       persist({ letter: fb, company, jobTitle, tone });
+      setGenerationNotice('AI is unavailable right now, so we created a draft from the resume details instead.');
     } finally {
       setLoading(false);
     }
@@ -124,6 +130,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
+      {generationNotice && <p role="status" className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{generationNotice}</p>}
 
       <button
         onClick={generate}
@@ -154,18 +161,17 @@ export default function CoverLetterStep({ selectedJob }: Props) {
 }
 
 function buildFallback(name: string, jobTitle: string, company: string, summary: string, exp: string, skills: string[], tone: string): string {
-  const greeting = tone === 'enthusiastic' ? 'I am thrilled to apply' : tone === 'concise' ? 'I am applying' : 'I am writing to express my interest in applying';
+  const greeting = tone === 'enthusiastic' ? 'I am excited to apply' : tone === 'concise' ? 'I am applying' : 'I am writing to apply';
+  const evidence = [exp ? `My background includes ${exp}.` : '', skills.length ? `My documented skills include ${skills.slice(0, 5).join(', ')}.` : ''].filter(Boolean).join(' ');
   return `Dear Hiring Manager,
 
 ${greeting} for the ${jobTitle} position at ${company}.
 
-${summary || `As an experienced professional, I bring a strong background in ${skills.slice(0, 3).join(', ')}.`}
+${summary || evidence || `I am interested in bringing my background and willingness to learn to this role.`}
 
-${exp ? `My experience includes ${exp}, where I consistently delivered high-quality results.` : ''}
+${summary && evidence ? evidence : ''}
 
-I am particularly drawn to ${company} because of its commitment to innovation and excellence. My skills in ${skills.slice(0, 4).join(', ')} align well with the requirements of this role.
-
-I would welcome the opportunity to discuss how my background can contribute to ${company}'s continued success.
+I would welcome the opportunity to discuss how my background may fit the needs of the ${jobTitle} role at ${company}.
 
 Thank you for your consideration.
 

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { ResumeData } from '../../store/useResumeStore';
 import {
@@ -8,8 +8,9 @@ import {
   formatGrade,
 } from '../../utils/educationFormatter';
 import { prepareResumeContent } from '../../utils/prepareResumeContent';
+import { formatExperienceDuration } from '../../utils/experienceDateUtils';
 
-// Built-in PDF standard fonts â€” no network fetch, no CDN dependency.
+// Built-in PDF standard fonts — no network fetch, no CDN dependency.
 // Helvetica/Helvetica-Bold are embedded in @react-pdf/pdfkit and resolved
 // via the STANDARD_FONTS branch in @react-pdf/font, bypassing fetch().
 Font.register({
@@ -17,6 +18,16 @@ Font.register({
   fonts: [
     { src: 'Helvetica',      fontWeight: 400 },
     { src: 'Helvetica-Bold', fontWeight: 700 },
+  ],
+});
+
+// Classic preview uses Georgia. Times is the closest built-in PDF serif and
+// keeps the exported document's font metrics close without loading web fonts.
+Font.register({
+  family: 'ResumeGeorgia',
+  fonts: [
+    { src: 'Times-Roman', fontWeight: 400 },
+    { src: 'Times-Bold', fontWeight: 700 },
   ],
 });
 
@@ -31,10 +42,10 @@ const base = StyleSheet.create({
 });
 
 function Bullet({ text, color }: { text: string; color?: string }) {
-  const cleanText = text.replace(/^[\s>*â€¢-]+/, '').trim();
+  const cleanText = text.replace(/^[\s>*•-]+/, '').trim();
   return (
     <View style={base.bullet}>
-      <Text style={base.bulletDot}>â€¢</Text>
+      <Text style={base.bulletDot}>•</Text>
       <Text style={[base.bulletText, color ? { color } : {}]}>{cleanText}</Text>
     </View>
   );
@@ -58,14 +69,14 @@ function applyHidden(data: ResumeData): ResumeData {
 }
 
 // Keep generated PDFs readable in standard PDF viewers and extractable by ATS parsers.
-// Imported text can contain double-encoded punctuation (for example "Ã¢â‚¬â€œ") which
-// otherwise appears literally in the PDF and damages section/date parsing.
+// Imported text can contain mis-encoded punctuation, which should not leak into the PDF.
 function sanitizePdfValue(value: any): any {
   if (typeof value === 'string') {
     return value
-      .replace(/Ã¢â‚¬â€œ|Ã¢â‚¬â€|Ã¢â‚¬\u0093|Ã¢â‚¬\u0094/g, '-')
-      .replace(/Ã¢â‚¬Â¢|\u2022/g, '-')
-      .replace(/Ã‚Â·|\u00b7/g, '|')
+      .replace(/\u00e2\u20ac\u201c/g, '-')
+      .replace(/\u00e2\u20ac\u201d/g, '-')
+      .replace(/\u00e2\u20ac\u00a2|\u2022/g, '-')
+      .replace(/\u00c2\u00b7|\u00b7/g, '|')
       .replace(/[\u2012-\u2015]/g, '-')
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u201c\u201d]/g, '"')
@@ -77,42 +88,41 @@ function sanitizePdfValue(value: any): any {
   }
   return value;
 }
-
 function normSummary(s: string | string[]): string {
   return Array.isArray(s) ? s.join(' ') : s || '';
 }
 
 // â”€â”€â”€ CLASSIC
 const cs = StyleSheet.create({
-  page:   { fontFamily: 'Helvetica', fontSize: 10, color: '#202a38', paddingTop: 36, paddingBottom: 38, paddingHorizontal: 44, lineHeight: 1.45 },
-  header: { alignItems: 'center', marginBottom: 12 },
-  name:   { fontSize: 22, fontWeight: 700, color: '#17376b', letterSpacing: 0.5, marginBottom: 2 },
-  role:   { fontSize: 9.5, color: '#52677e', marginBottom: 6 },
-  rule:   { height: 1.2, backgroundColor: '#17376b', marginBottom: 2 },
-  ruleThin:{ height: 0.6, backgroundColor: '#17376b', marginBottom: 6 },
-  contact:{ fontSize: 9, color: '#445267', textAlign: 'center' },
-  secHdr: { fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', borderBottomWidth: 0.7, borderBottomColor: '#91a1b5', paddingBottom: 3, marginBottom: 5, marginTop: 9, letterSpacing: 0.6, color: '#17376b' },
+  // Preview dimensions are CSS pixels while PDF uses points (1pt = 1.333px).
+  // Convert the Classic template's sizing so both render at the same scale.
+  page:   { fontFamily: 'ResumeGeorgia', fontSize: 9.75, color: '#111', paddingTop: 27, paddingBottom: 27, paddingHorizontal: 33, lineHeight: 1.5 },
+  header: { alignItems: 'center', marginBottom: 0 },
+  name:   { fontFamily: 'ResumeGeorgia', fontSize: 17.25, fontWeight: 700, color: '#17376b', letterSpacing: 0.3, lineHeight: 1.25 },
+  role:   { fontSize: 8.25, color: '#52677e', marginTop: 1.5 },
+  contactWrap: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', borderTopWidth: 1.5, borderBottomWidth: 0.75, borderColor: '#17376b', paddingVertical: 3.75, marginTop: 5.25 },
+  contactPart: { fontSize: 8.25, color: '#445267', marginHorizontal: 7.5 },
+  secHdr: { fontSize: 9, fontWeight: 700, textTransform: 'none', borderBottomWidth: 0.75, borderBottomColor: '#d0d0d0', paddingBottom: 3, marginBottom: 6, marginTop: 12, letterSpacing: 0.2, color: '#333' },
   muted:  { color: '#777', fontSize: 9 },
   skills: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 2 },
-  skill:  { width: '50%', fontSize: 9.3, color: '#36475a', paddingRight: 10, marginBottom: 3 },
-  jobTitle:{ flex: 1, fontSize: 10, fontWeight: 700, color: '#202a38' },
+  skill:  { width: '50%', fontSize: 9, color: '#333', paddingRight: 9, marginBottom: 2.25 },
+  jobTitle:{ flex: 1, fontSize: 9.75, fontWeight: 700, color: '#1a1a1a' },
 });
 
 function ClassicPDF({ d }: { d: ResumeData }) {
   const n = d.personalInfo;
-  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  ');
+  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean);
   const summary = normSummary(d.summary);
   return (
     <Page size="A4" style={cs.page}>
       <View style={cs.header}>
         <Text style={cs.name}>{n.name || ''}</Text>
         {d.targetRole ? <Text style={cs.role}>{d.targetRole}</Text> : null}
-        <View style={{ width: '100%' }}><View style={cs.rule} /><View style={cs.ruleThin} /></View>
-        <Text style={cs.contact}>{contact}</Text>
+        <View style={cs.contactWrap}>{contact.map((part, i) => <Text key={i} style={cs.contactPart}>{part}</Text>)}</View>
       </View>
       {summary ? (
         <View><Text style={cs.secHdr}>Professional Summary</Text>
-          <Text style={{ fontSize: 9.5, color: '#333', marginBottom: 4 }}>{summary}</Text>
+          <Text style={{ fontSize: 9, color: '#111', marginBottom: 3 }}>{summary}</Text>
         </View>
       ) : null}
       {d.skills.length > 0 && (
@@ -126,7 +136,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
             <View key={e.id} style={base.mb8} wrap={false}>
               <View style={base.row}>
                 <Text style={cs.jobTitle}>{e.title}{e.company ? `  |  ${e.company}` : ''}</Text>
-                {e.duration ? <Text style={cs.muted}>{e.duration}</Text> : null}
+                {formatExperienceDuration(e) ? <Text style={cs.muted}>{formatExperienceDuration(e)}</Text> : null}
               </View>
               {e.location ? <Text style={{ fontSize: 9, color: '#66778a', marginTop: 1 }}>{e.location}</Text> : null}
               {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} />)}
@@ -148,7 +158,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
                   <Text style={cs.muted}>{edu.duration}</Text>
                 </View>
                 <View style={base.row}>
-                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? '  â€”  ' + meta : ''}</Text>
+                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? '  —  ' + meta : ''}</Text>
                   {grade ? <Text style={cs.muted}>{grade}</Text> : null}
                 </View>
                 {edu.description ? <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -161,7 +171,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
         <View><Text style={cs.secHdr}>Certifications</Text>
           {d.certifications.map(c => (
             <View key={c.id} style={[base.row, base.mb4]}>
-              <Text>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
+              <Text>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
               <Text style={cs.muted}>{c.year}</Text>
             </View>
           ))}
@@ -171,7 +181,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
         <View><Text style={cs.secHdr}>Awards</Text>
           {d.awards.map((a: any) => (
             <View key={a.id} style={[base.row, base.mb4]}>
-              <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
+              <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
               <Text style={cs.muted}>{a.year}</Text>
             </View>
           ))}
@@ -182,7 +192,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
           {d.projects.map(p => (
             <View key={p.id} style={base.mb8}>
               <View style={base.row}>
-                <Text style={base.bold}>{p.name}{p.role ? ' â€” ' + p.role : ''}</Text>
+                <Text style={base.bold}>{p.name}{p.role ? ' — ' + p.role : ''}</Text>
                 <Text style={cs.muted}>{p.duration}</Text>
               </View>
               {p.url ? <Text style={{ fontSize: 9, color: '#2563eb', marginBottom: 2 }}>{p.url}</Text> : null}
@@ -193,7 +203,7 @@ function ClassicPDF({ d }: { d: ResumeData }) {
       )}
       {d.languages.length > 0 && (
         <View><Text style={cs.secHdr}>Languages</Text>
-          <View style={cs.skills}>{d.skills.map((skill, i) => <Text key={i} style={cs.skill}>{skill}</Text>)}</View>
+          <View style={cs.skills}>{d.languages.map((language, i) => <Text key={language.id || i} style={cs.skill}>{language.language} ({language.proficiency})</Text>)}</View>
         </View>
       )}
       {d.achievements?.length > 0 && (
@@ -249,7 +259,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
       ) : null}
       {d.skills.length > 0 && (
         <View><Text style={ms.secHdr}>Skills</Text>
-          <Text style={ms.skills}>{d.skills.join(' Â· ')}</Text>
+          <Text style={ms.skills}>{d.skills.join(' · ')}</Text>
         </View>
       )}
       {d.experience.length > 0 && (
@@ -258,7 +268,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
             <View key={e.id} style={base.mb8}>
               <View style={base.row}>
                 <Text style={[base.bold, { flex: 1 }]}>{e.title}</Text>
-                <Text style={ms.muted}>{e.duration}</Text>
+                <Text style={ms.muted}>{formatExperienceDuration(e)}</Text>
               </View>
               {e.company ? <Text style={{ fontSize: 9.5, color: '#555', marginBottom: 2 }}>{e.company}</Text> : null}
               {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} />)}
@@ -280,7 +290,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
                   <Text style={ms.muted}>{edu.duration}</Text>
                 </View>
                 <View style={base.row}>
-                  <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' Â· ' + meta : ''}</Text>
+                  <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' · ' + meta : ''}</Text>
                   {grade ? <Text style={ms.muted}>{grade}</Text> : null}
                 </View>
                 {edu.description ? <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -293,7 +303,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
         <View><Text style={ms.secHdr}>Certifications</Text>
           {d.certifications.map(c => (
             <View key={c.id} style={[base.row, base.mb4]}>
-              <Text>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
+              <Text>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
               <Text style={ms.muted}>{c.year}</Text>
             </View>
           ))}
@@ -303,7 +313,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
         <View><Text style={ms.secHdr}>Awards</Text>
           {d.awards.map((a: any) => (
             <View key={a.id} style={[base.row, base.mb4]}>
-              <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
+              <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
               <Text style={ms.muted}>{a.year}</Text>
             </View>
           ))}
@@ -326,7 +336,7 @@ function ModernPDF({ d }: { d: ResumeData }) {
       )}
       {d.languages.length > 0 && (
         <View><Text style={ms.secHdr}>Languages</Text>
-          <Text style={ms.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join(' Â· ')}</Text>
+          <Text style={ms.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join(' · ')}</Text>
         </View>
       )}
       {d.achievements?.length > 0 && (
@@ -361,7 +371,7 @@ const mns = StyleSheet.create({
 
 function MinimalPDF({ d }: { d: ResumeData }) {
   const n = d.personalInfo;
-  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('   Â·   ');
+  const contact = [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('   ·   ');
   const summary = normSummary(d.summary);
   const sections: Array<{ label: string; body: React.ReactNode }> = [];
   if (summary) sections.push({ label: 'Professional Summary', body: <Text style={{ fontSize: 9.5, color: '#333' }}>{summary}</Text> });
@@ -371,8 +381,8 @@ function MinimalPDF({ d }: { d: ResumeData }) {
       {d.experience.map(e => (
         <View key={e.id} style={base.mb8}>
           <View style={base.row}>
-            <Text style={base.bold}>{e.title}{e.company ? ' â€” ' + e.company : ''}</Text>
-            <Text style={mns.muted}>{e.duration}</Text>
+            <Text style={base.bold}>{e.title}{e.company ? ' — ' + e.company : ''}</Text>
+            <Text style={mns.muted}>{formatExperienceDuration(e)}</Text>
           </View>
           {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} color="#555" />)}
         </View>
@@ -393,7 +403,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
               <Text style={mns.muted}>{edu.duration}</Text>
             </View>
             <View style={base.row}>
-              <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' â€” ' + meta : ''}</Text>
+              <Text style={{ fontSize: 9, color: '#444' }}>{inst ? deg : ''}{meta ? ' — ' + meta : ''}</Text>
               {grade ? <Text style={mns.muted}>{grade}</Text> : null}
             </View>
             {edu.description ? <Text style={{ fontSize: 8.5, color: '#666', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -405,7 +415,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
   if (d.certifications.length > 0) sections.push({ label: 'Certifications', body: (
     <View>{d.certifications.map(c => (
       <View key={c.id} style={[base.row, base.mb4]}>
-        <Text style={{ fontSize: 9.5, color: '#444' }}>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
+        <Text style={{ fontSize: 9.5, color: '#444' }}>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
         <Text style={mns.muted}>{c.year}</Text>
       </View>
     ))}</View>
@@ -414,7 +424,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
     <View>{d.awards.map((a: any) => (
       <View key={a.id} style={base.mb4}>
         <View style={base.row}>
-          <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
+          <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
           <Text style={mns.muted}>{a.year}</Text>
         </View>
         {a.description ? <Text style={{ fontSize: 9, color: '#777' }}>{a.description}</Text> : null}
@@ -425,7 +435,7 @@ function MinimalPDF({ d }: { d: ResumeData }) {
     <View>{d.projects.map(p => (
       <View key={p.id} style={base.mb8}>
         <View style={base.row}>
-          <Text style={base.bold}>{p.name}{p.role ? ' â€” ' + p.role : ''}</Text>
+          <Text style={base.bold}>{p.name}{p.role ? ' — ' + p.role : ''}</Text>
           <Text style={mns.muted}>{p.duration}</Text>
         </View>
         {p.url ? <Text style={{ fontSize: 9, color: '#666', marginBottom: 2 }}>{p.url}</Text> : null}
@@ -496,7 +506,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
       ) : null}
       {d.skills.length > 0 && (
         <View><Text style={es.secHdr}>Skills</Text>
-          <View style={es.skills}>{d.skills.map((skill, i) => <Text key={i} style={es.skill}>â€¢ {skill}</Text>)}</View>
+          <View style={es.skills}>{d.skills.map((skill, i) => <Text key={i} style={es.skill}>• {skill}</Text>)}</View>
         </View>
       )}
       {d.experience.length > 0 && (
@@ -505,10 +515,10 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
             <View key={e.id} style={base.mb8} wrap={false}>
               <View style={base.row}>
                 <Text style={es.jobTitle}>{e.title}</Text>
-                {e.duration ? <Text style={es.muted}>{e.duration}</Text> : null}
+                {formatExperienceDuration(e) ? <Text style={es.muted}>{formatExperienceDuration(e)}</Text> : null}
               </View>
               {(e.company || e.location) ? <Text style={es.employer}>{[e.company, e.location].filter(Boolean).join('  |  ')}</Text> : null}
-              {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b.replace(/^[\s>*â€¢-]+/, '')} />)}
+              {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b.replace(/^[\s>*•-]+/, '')} />)}
             </View>
           ))}
         </View>
@@ -527,7 +537,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
                   <Text style={es.muted}>{edu.duration}</Text>
                 </View>
                 <View style={base.row}>
-                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? ' Â· ' + meta : ''}</Text>
+                  <Text style={{ fontSize: 9, color: '#333' }}>{inst ? deg : ''}{meta ? ' · ' + meta : ''}</Text>
                   {grade ? <Text style={es.muted}>{grade}</Text> : null}
                 </View>
                 {edu.description ? <Text style={{ fontSize: 8.5, color: '#555', marginTop: 2 }}>{edu.description}</Text> : null}
@@ -540,7 +550,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
         <View><Text style={es.secHdr}>Certifications</Text>
           {d.certifications.map(c => (
             <View key={c.id} style={[base.row, base.mb4]}>
-              <Text>{c.name}{c.issuer ? ' â€” ' + c.issuer : ''}</Text>
+              <Text>{c.name}{c.issuer ? ' — ' + c.issuer : ''}</Text>
               <Text style={es.muted}>{c.year}</Text>
             </View>
           ))}
@@ -550,7 +560,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
         <View><Text style={es.secHdr}>Awards & Recognition</Text>
           {d.awards.map((a: any) => (
             <View key={a.id} style={[base.row, base.mb4]}>
-              <Text style={base.bold}>{a.title}{a.issuer ? ' â€” ' + a.issuer : ''}</Text>
+              <Text style={base.bold}>{a.title}{a.issuer ? ' — ' + a.issuer : ''}</Text>
               <Text style={es.muted}>{a.year}</Text>
             </View>
           ))}
@@ -573,7 +583,7 @@ function ExecutivePDF({ d }: { d: ResumeData }) {
       )}
       {d.languages.length > 0 && (
         <View><Text style={es.secHdr}>Languages</Text>
-          <Text style={es.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join('  Â·  ')}</Text>
+          <Text style={es.skills}>{d.languages.map(l => l.language + ' (' + l.proficiency + ')').join('  ·  ')}</Text>
         </View>
       )}
       {d.achievements?.length > 0 && (
@@ -633,7 +643,7 @@ function CompactPDF({ d }: { d: ResumeData }) {
             <View key={e.id} style={{ marginBottom: 5 }}>
               <View style={base.row}>
                 <Text style={[base.bold, { flex: 1 }]}>{e.title}{e.company ? ' | ' + e.company : ''}</Text>
-                <Text style={cps.muted}>{e.duration}</Text>
+                <Text style={cps.muted}>{formatExperienceDuration(e)}</Text>
               </View>
               {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} />)}
             </View>
@@ -822,7 +832,7 @@ function ProfessionalPDF({ d }: { d: ResumeData }) {
                 <View key={e.id} style={base.mb8}>
                   <View style={base.row}>
                     <Text style={[base.bold, { flex: 1 }]}>{e.title}</Text>
-                    <Text style={ps.mMuted}>{e.duration}</Text>
+                    <Text style={ps.mMuted}>{formatExperienceDuration(e)}</Text>
                   </View>
                   {e.company ? <Text style={{ fontSize: 9.5, color: '#555', marginBottom: 2 }}>{e.company}</Text> : null}
                   {e.bullets.filter(b => b.trim()).map((b, i) => <Bullet key={i} text={b} />)}

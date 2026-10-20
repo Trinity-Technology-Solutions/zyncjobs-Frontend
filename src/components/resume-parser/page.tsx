@@ -18,7 +18,7 @@ import { updateUserInStorage } from '../../utils/userStorage';
 // ── Column-aware PDF text extractor ─────────────────────────────────────────
 // For 2-column resumes, groups items by column (left/right) using X midpoint,
 // then outputs left column fully before right column so section headings stay intact.
-function convertTextItemsToText(items: { text: string; x: number; y: number; page: number }[]): string {
+function convertTextItemsToText(items: { text: string; x: number; y: number; page: number; width?: number; height?: number }[]): string {
   if (!items.length) return '';
 
   // Group by page
@@ -30,6 +30,47 @@ function convertTextItemsToText(items: { text: string; x: number; y: number; pag
 
   const pageTexts: string[] = [];
 
+  const reconstructLines = (source: typeof items) => {
+    const heights = source.map(item => item.height || 0).filter(height => height > 0).sort((a, b) => a - b);
+    const medianHeight = heights.length ? heights[Math.floor(heights.length / 2)] : 10;
+    const baselineTolerance = Math.max(1.5, Math.min(3.5, medianHeight * 0.28));
+    const sorted = [...source].sort((a, b) => b.y - a.y || a.x - b.x);
+    const lines: { y: number; items: typeof items }[] = [];
+
+    for (const item of sorted) {
+      let line = lines.find(candidate => Math.abs(candidate.y - item.y) <= baselineTolerance);
+      if (!line) {
+        line = { y: item.y, items: [] };
+        lines.push(line);
+      }
+      line.items.push(item);
+      line.y = line.items.reduce((sum, part) => sum + part.y, 0) / line.items.length;
+    }
+
+    return lines
+      .sort((a, b) => b.y - a.y)
+      .map(line => {
+        const fragments = [...line.items].sort((a, b) => a.x - b.x);
+        let text = '';
+        let previous: (typeof fragments)[number] | undefined;
+        for (const fragment of fragments) {
+          const currentText = fragment.text.replace(/\s+/g, ' ').trim();
+          if (!currentText) continue;
+          if (previous && text) {
+            const gap = fragment.x - (previous.x + (previous.width || 0));
+            const noSpaceBefore = /^[,.;:!?%)\]}]/.test(currentText);
+            const noSpaceAfter = /(?:-|\/|\(|\[|\{)$/.test(text);
+            const threshold = Math.max(1, Math.min(4, Math.min(previous.height || medianHeight, fragment.height || medianHeight) * 0.16));
+            if (!noSpaceBefore && !noSpaceAfter && gap > threshold && !/\s$/.test(text)) text += ' ';
+          }
+          text += currentText;
+          previous = fragment;
+        }
+        return text.trim();
+      })
+      .filter(Boolean);
+  };
+
   for (const [, pageItems] of [...pages.entries()].sort((a, b) => a[0] - b[0])) {
     const xs = pageItems.map(i => i.x);
     const minX = Math.min(...xs);
@@ -39,24 +80,19 @@ function convertTextItemsToText(items: { text: string; x: number; y: number; pag
     // Detect if truly 2-column: check if items are spread across both halves
     const leftItems = pageItems.filter(i => i.x < midX);
     const rightItems = pageItems.filter(i => i.x >= midX);
-    // Sort both by Y before gap detection
-    const sortByY = (a: typeof items[0], b: typeof items[0]) => b.y - a.y;
-    leftItems.sort(sortByY);
-    rightItems.sort(sortByY);
     // Two-column: both sides have content AND there's a clear horizontal gap
-    const leftMaxX = leftItems.length ? Math.max(...leftItems.map(i => i.x + ((i as any).width ?? 0))) : 0;
+    const leftMaxX = leftItems.length ? Math.max(...leftItems.map(i => i.x + (i.width ?? 0))) : 0;
     const rightMinX = rightItems.length ? Math.min(...rightItems.map(i => i.x)) : 0;
     const gap = rightMinX - leftMaxX;
     const pageWidth = maxX - minX;
     const isTwoColumn = leftItems.length > 5 && rightItems.length > 5 && gap > pageWidth * 0.05;
 
     if (isTwoColumn) {
-      const leftText = leftItems.map(i => i.text).join('\n');
-      const rightText = rightItems.map(i => i.text).join('\n');
+      const leftText = reconstructLines(leftItems).join('\n');
+      const rightText = reconstructLines(rightItems).join('\n');
       pageTexts.push(leftText + '\n' + rightText);
     } else {
-      // Single column — sort top-to-bottom
-      pageTexts.push(pageItems.sort((a, b) => b.y - a.y).map(i => i.text).join('\n'));
+      pageTexts.push(reconstructLines(pageItems).join('\n'));
     }
   }
 
@@ -643,6 +679,9 @@ useEffect(() => {
               </span>
             )}
           </div>
+
+          <div className="resume-parser-results-scroll" tabIndex={0} aria-label="Parsed resume details; scroll to view all fields">
+            <div className="resume-parser-results-inner">
           
           {parsing && (
             <AIProgressLoader fileName={currentFileName} />
@@ -758,6 +797,8 @@ useEffect(() => {
             </div>
           )}
           <ParsedResultsTable resume={resume} />
+            </div>
+          </div>
         </div>
         </div>
         </div>
@@ -865,8 +906,19 @@ useEffect(() => {
                     const extractYear = (s: string) => String(s || '').match(/\d{4}/)?.[0] || '';
 
                     // Skills — always use parsed skills if available
-                    const parsedSkills = resume.skills.featuredSkills.map((s: any) => s.skill).filter(Boolean);
-                    const skills = parsedSkills.length > 0 ? parsedSkills : (currentUser.skills || []);
+                    const parsedSkills = [
+                      ...resume.skills.featuredSkills.map((s: any) => s.skill),
+                      ...(Array.isArray(r.softSkills) ? r.softSkills : []),
+                      ...(Array.isArray(r.tools) ? r.tools : []),
+                    ].filter((skill: any) => typeof skill === 'string' && skill.trim());
+                    const seenSkillKeys = new Set<string>();
+                    const uniqueParsedSkills = parsedSkills.filter((skill: string) => {
+                      const key = skill.trim().toLowerCase();
+                      if (seenSkillKeys.has(key)) return false;
+                      seenSkillKeys.add(key);
+                      return true;
+                    });
+                    const skills = uniqueParsedSkills.length > 0 ? uniqueParsedSkills : (currentUser.skills || []);
 
                     // Employment — always use parsed if available
                     const employment = resume.workExperiences.length > 0
@@ -882,18 +934,46 @@ useEffect(() => {
                           };
                         })
                       : (currentUser.employment || []);
+                    const internships = Array.isArray(r.internships) && r.internships.length > 0
+                      ? r.internships.map((item: any) => {
+                          const dates = String(item.date || '').split(/\s*[-–]\s*/);
+                          return {
+                            companyName: item.company || item.companyName || '',
+                            designation: item.jobTitle || item.title || item.role || '',
+                            description: Array.isArray(item.descriptions) ? item.descriptions.join('\n') : (item.description || ''),
+                            startYear: extractYear(item.startDate || dates[0] || ''),
+                            endYear: extractYear(item.endDate || dates[1] || ''),
+                            currentlyWorking: /present|current/i.test(item.endDate || dates[1] || ''),
+                          };
+                        })
+                      : (currentUser.internships || []);
 
-                    // Education — always use parsed if available
-                    const firstEdu = resume.educations[0] as any;
-                    const educationCollege = firstEdu
-                      ? {
-                          college: firstEdu.college || firstEdu.school || '',
-                          degree: firstEdu.degree || '',
-                          passingYear: extractYear(firstEdu.date || firstEdu.year || ''),
-                          courseType: 'Full Time',
-                          percentage: firstEdu.gpa || firstEdu.percentage || '',
-                        }
-                      : (currentUser.educationCollege || {});
+                    // Put each parsed education record in the matching profile field.
+                    const educationRows = Array.isArray(resume.educations) ? resume.educations : [];
+                    const educationText = (entry: any) => `${entry?.degree || ''} ${entry?.school || ''}`;
+                    const class12 = educationRows.find((entry: any) => /\b(hsc|12th|class\s*x\s*ii|higher secondary|senior secondary|puc)\b/i.test(educationText(entry)));
+                    const class10 = educationRows.find((entry: any) => /\b(sslc|ssc|10th|class\s*x\b|matriculation|secondary school)\b/i.test(educationText(entry)));
+                    const college = educationRows.find((entry: any) => entry !== class12 && entry !== class10);
+                    const educationCollege = college ? {
+                      college: college.school || college.college || '',
+                      degree: college.degree || '',
+                      passingYear: extractYear(college.date || college.year || ''),
+                      courseType: 'Full Time',
+                      percentage: college.gpa || college.percentage || '',
+                    } : (currentUser.educationCollege || {});
+                    const educationClass12 = class12 ? {
+                      school: class12.school || '',
+                      board: class12.board || class12.school || '',
+                      stream: class12.fieldOfStudy || '',
+                      passingYear: extractYear(class12.date || class12.year || ''),
+                      percentage: class12.percentage || class12.gpa || '',
+                    } : (currentUser.educationClass12 || {});
+                    const educationClass10 = class10 ? {
+                      school: class10.school || '',
+                      board: class10.board || class10.school || '',
+                      passingYear: extractYear(class10.date || class10.year || ''),
+                      percentage: class10.percentage || class10.gpa || '',
+                    } : (currentUser.educationClass10 || {});
 
                     // Projects — always use parsed if available
                     const projects = r.projects?.length > 0
@@ -921,9 +1001,14 @@ useEffect(() => {
                       profileSummary: r.summary?.trim() || currentUser.profileSummary || '',
                       skills,
                       employment,
+                      internships,
                       educationCollege,
+                      educationClass12,
+                      educationClass10,
                       projects,
                       certifications,
+                      languages: Array.isArray(r.languages) && r.languages.length ? r.languages : (currentUser.languages || []),
+                      awards: Array.isArray(r.awards) && r.awards.length ? r.awards : (currentUser.awards || ''),
                       email: currentUser.email,
                     };
 

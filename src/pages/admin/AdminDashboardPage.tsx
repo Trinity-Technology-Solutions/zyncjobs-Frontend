@@ -554,7 +554,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                activeNav === 'gdpr' ? 'GDPR Dashboard' : activeNav}
             </h1>
             <BackendStatusIndicator className="hidden sm:flex" showDetails={false} />
-            {displayedUpdatedAt && <time dateTime={new Date(displayedUpdatedAt).toISOString()} title={`${activeNav === 'talent' ? 'Last detected Talent Pool update' : 'Last successful data refresh'}: ${new Date(displayedUpdatedAt).toLocaleString()}`} className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</time>}
+            {displayedUpdatedAt && <time dateTime={new Date(displayedUpdatedAt).toISOString()} title={`${activeNav === 'talent' ? 'Last successful Talent Pool refresh' : 'Last successful data refresh'}: ${new Date(displayedUpdatedAt).toLocaleString()}`} className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</time>}
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
             <button onClick={() => { if (activeNav === "talent") window.dispatchEvent(new Event("zync:talent-pool-refresh")); else void loadOverview(); }} disabled={activeNav !== "talent" && loading}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Loader2, X, Check, ChevronRight, AlertTriangle, Lightbulb } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Sparkles, X, Check, ChevronRight, AlertTriangle, Lightbulb, Loader2 } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
@@ -9,236 +9,286 @@ interface Suggestion {
   severity: 'error' | 'warning' | 'info';
   message: string;
   fix: string;
-  fixed?: boolean;
+}
+
+const ACTION_VERB = /^(?:led|built|designed|developed|improved|enhanced|strengthened|boosted|increased|reduced|managed|delivered|implemented|optimized|optimised|spearheaded|engineered|created|launched|architected|analyzed|analysed|tested|supported|maintained|coordinated|automated|resolved|conducted|performed|wrote|configured|deployed|collaborated|assisted|streamlined|transformed|accelerated|integrated|established|executed|generated|secured|monitored|migrated|refactored|trained|authored|administered|facilitated|negotiated|organized|organised|planned|produced|reviewed|validated|troubleshot|upgraded|utilized|utilised|contributed|implemented|responsible for)\b/i;
+
+const startsWithActionVerb = (bullet: string) => ACTION_VERB.test(bullet.trim().replace(/^[\u2022*-]+\s*/, ''));
+
+function analyzeResume(data: any): Suggestion[] {
+  const issues: Suggestion[] = [];
+  const summary = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : String(data.summary || '');
+  const skills: string[] = Array.isArray(data.skills)
+    ? data.skills.filter((skill: unknown) => typeof skill === 'string' && skill.trim())
+    : [];
+  const experiences = Array.isArray(data.experience) ? data.experience : [];
+  const bullets = experiences.flatMap((entry: any) =>
+    Array.isArray(entry.bullets)
+      ? entry.bullets.filter((bullet: unknown) => typeof bullet === 'string' && bullet.trim())
+      : []
+  );
+  const education = Array.isArray(data.education) ? data.education : [];
+  const projects = Array.isArray(data.projects) ? data.projects : [];
+
+  if (!summary.trim()) {
+    issues.push({ id: 'summary-missing', section: 'summary', severity: 'error', message: 'Professional summary is missing', fix: 'Add a short summary based on your actual experience and skills.' });
+  } else if (summary.trim().length < 60) {
+    issues.push({ id: 'summary-short', section: 'summary', severity: 'warning', message: 'Professional summary is very short', fix: 'Add relevant details about your background, strengths, and target role.' });
+  }
+
+  if (skills.length < 5) {
+    issues.push({ id: 'skills-few', section: 'skills', severity: 'warning', message: `Your resume lists ${skills.length} skill${skills.length === 1 ? '' : 's'}`, fix: 'Review the Skills section and add relevant skills you actually have.' });
+  }
+
+  const hasExperience = experiences.some((entry: any) =>
+    entry.title?.trim() || entry.company?.trim() || entry.bullets?.some((bullet: string) => bullet.trim())
+  );
+  if (!hasExperience && !projects.length) {
+    issues.push({ id: 'experience-missing', section: 'experience', severity: 'info', message: 'No experience or projects are listed', fix: 'Add relevant employment, internships, volunteering, or projects if applicable.' });
+  }
+
+  const incompleteExperienceCount = experiences.filter((entry: any) =>
+    (entry.title?.trim() || entry.company?.trim() || entry.bullets?.some((bullet: string) => bullet.trim())) &&
+    (!entry.title?.trim() || !entry.company?.trim() || !entry.bullets?.some((bullet: string) => bullet.trim()))
+  ).length;
+  if (incompleteExperienceCount) {
+    issues.push({ id: 'experience-incomplete', section: 'experience', severity: 'warning', message: `${incompleteExperienceCount} experience entr${incompleteExperienceCount === 1 ? 'y is' : 'ies are'} missing a title, company, or description`, fix: 'Review the highlighted experience entries and fill in the details that apply.' });
+  }
+
+  if (bullets.length && !bullets.some((bullet: string) => /\b\d+(?:[.,]\d+)?\s*%?\b/.test(bullet))) {
+    issues.push({ id: 'experience-metrics', section: 'experience', severity: 'info', message: 'Experience bullets do not include measurable outcomes', fix: 'If you have accurate figures, add them to show scale or impact. Do not estimate or invent metrics.' });
+  }
+
+  const weakStarts = bullets.filter((bullet: string) => !startsWithActionVerb(bullet));
+  if (weakStarts.length) {
+    issues.push({ id: 'experience-action-verbs', section: 'experience', severity: 'warning', message: `${weakStarts.length} experience bullet${weakStarts.length === 1 ? '' : 's'} could start with a clearer action`, fix: 'Start each bullet with what you did, for example: Created, Helped, Organized, or Managed.' });
+  }
+
+  if (!education.length) {
+    issues.push({ id: 'education-missing', section: 'education', severity: 'info', message: 'No education details are listed', fix: 'Add education details if they are relevant to your background or target role.' });
+  } else {
+    const incompleteEducationCount = education.filter((entry: any) =>
+      (entry.degree?.trim() || entry.institution?.trim()) && (!entry.degree?.trim() || !entry.institution?.trim())
+    ).length;
+    if (incompleteEducationCount) {
+      issues.push({ id: 'education-incomplete', section: 'education', severity: 'warning', message: `${incompleteEducationCount} education entr${incompleteEducationCount === 1 ? 'y is' : 'ies are'} missing a degree or institution`, fix: 'Review each listed qualification and add its degree or institution name.' });
+    }
+  }
+
+  if (experiences.length && !projects.length) {
+    issues.push({ id: 'projects-missing', section: 'projects', severity: 'info', message: 'No projects are listed', fix: 'Add a relevant project if it helps show work that is not covered by your experience.' });
+  }
+
+  return issues;
 }
 
 export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: () => void; onNavigate?: (section: string) => void }) {
-  const { data, update, updateExperience } = useResumeStore();
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fixing, setFixing] = useState<string | null>(null);
+  const data = useResumeStore(state => state.data);
+  const update = useResumeStore(state => state.update);
+  const updateExperience = useResumeStore(state => state.updateExperience);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(() => analyzeResume(useResumeStore.getState().data));
+  const [recheckMessage, setRecheckMessage] = useState('');
+  const [fixingId, setFixingId] = useState<string | null>(null);
+  const [fixError, setFixError] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Re-evaluate the current resume after every edit, so resolved suggestions disappear.
   useEffect(() => {
-    analyzeResume();
-  }, []);
+    setSuggestions(analyzeResume(data));
+  }, [data]);
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose();
+    const handleClick = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) onClose();
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [onClose]);
 
-  const analyzeResume = async () => {
-    setLoading(true);
-    const issues: Suggestion[] = [];
+  const recheck = () => {
+    const currentSuggestions = analyzeResume(useResumeStore.getState().data);
+    setSuggestions(currentSuggestions);
+    setRecheckMessage(
+      currentSuggestions.length === 0
+        ? 'Check complete — no current issues found.'
+        : `Check complete — ${currentSuggestions.length} current suggestion${currentSuggestions.length === 1 ? '' : 's'} found.`
+    );
+  };
+  const hasSourceDetails = Boolean(
+    data.skills?.some(skill => skill.trim()) ||
+    data.experience?.some(item => item.title?.trim() || item.company?.trim() || item.bullets?.some(bullet => bullet.trim())) ||
+    data.education?.some(item => item.degree?.trim() || item.institution?.trim()) ||
+    data.projects?.some(item => item.name?.trim() || item.bullets?.some(bullet => bullet.trim())) ||
+    data.certifications?.some(item => item.name?.trim()) ||
+    data.achievements?.some(item => item.title?.trim() || item.description?.trim())
+  );
+  const skillsEvidence = [
+    data.summary,
+    ...data.experience.flatMap(item => [item.title, item.company, ...item.bullets]),
+    ...data.education.flatMap(item => [item.degree, item.fieldOfStudy, item.institution, item.board, item.description]),
+    ...data.projects.flatMap(item => [item.name, item.role, ...item.bullets]),
+    ...data.certifications.flatMap(item => [item.name, item.issuer]),
+    ...data.achievements.flatMap(item => [item.title, item.description]),
+    ...data.customSections.flatMap(item => [item.heading, item.content]),
+  ].filter((value): value is string => typeof value === 'string' && !!value.trim()).join(' ');
+  const canAutoFix = (suggestion: Suggestion) =>
+    suggestion.id === 'summary-short' ||
+    (suggestion.id === 'summary-missing' && hasSourceDetails) ||
+    (suggestion.id === 'skills-few' && !!skillsEvidence) ||
+    suggestion.id === 'experience-action-verbs';
 
-    // Local checks
-    const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary || '';
-    const bullets = data.experience.flatMap(e => e.bullets.filter(b => b.trim()));
-    const hasNumbers = bullets.some(b => /\d/.test(b));
+  const cleanGeneratedText = (value: string) => value
+    .replace(/^```(?:\w+)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .replace(/^(?:professional summary|revised summary|improved bullet)\s*:\s*/i, '')
+    .replace(/^[\u2022*-]+\s*/, '')
+    .replace(/^['"`]|['"`]$/g, '')
+    .trim();
 
-    if (!summaryVal) issues.push({ id: 's1', section: 'summary', severity: 'error', message: 'Professional summary is missing', fix: 'Add a 2-3 sentence summary highlighting your experience and key skills.' });
-    else if (summaryVal.length < 60) issues.push({ id: 's2', section: 'summary', severity: 'warning', message: 'Summary is too short', fix: 'Expand your summary to 2-3 sentences covering your role, years, and top skills.' });
-
-    if (data.skills.length < 5) issues.push({ id: 's3', section: 'skills', severity: 'warning', message: 'Only ' + data.skills.length + ' skills listed', fix: 'Add 8-15 relevant skills including technical tools and soft skills.' });
-    if (data.experience.length === 0) issues.push({ id: 's4', section: 'experience', severity: 'error', message: 'No work experience added', fix: 'Add at least one work experience entry.' });
-    if (!hasNumbers) issues.push({ id: 's5', section: 'experience', severity: 'warning', message: 'No metrics found in bullets', fix: 'Add numbers like 40%, $50K, 200+ users to show measurable impact.' });
-
-    if (bullets.length > 0) {
-      const weakStart = bullets.filter(b => !/^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered|created|launched|architected)/i.test(b.trim()));
-      if (weakStart.length > 0) issues.push({ id: 's6', section: 'experience', severity: 'warning', message: weakStart.length + ' bullets lack strong action verbs', fix: 'Start each bullet with action verbs like Led, Built, Optimized.' });
-    }
-
-    if (!data.personalInfo.linkedin) issues.push({ id: 's7', section: 'personal', severity: 'info', message: 'LinkedIn profile not linked', fix: 'Add your LinkedIn URL to boost recruiter confidence.' });
-    if (!data.personalInfo.portfolio && !data.projects?.length) issues.push({ id: 's8', section: 'projects', severity: 'info', message: 'No portfolio or projects', fix: 'Add projects or a portfolio link to demonstrate your work.' });
-
-    if (data.education.length === 0) issues.push({ id: 's9', section: 'education', severity: 'warning', message: 'Education section is empty', fix: 'Add your degree, institution, and graduation year.' });
-
-    // AI-powered check
+  const autoFix = async (suggestion: Suggestion) => {
+    setFixError('');
+    setRecheckMessage('');
+    setFixingId(suggestion.id);
     try {
-      const res = await executeResumeAI({
-        section: 'resume', action: 'score_advice',
-        content: `Analyze this resume for weaknesses. Return exactly 2-3 specific issues as a simple bullet list. Resume: ${summaryVal.substring(0, 200)} Skills: ${data.skills.join(', ')}`,
-      });
-      if (res.result) {
-        const aiIssues = res.result.split('\n').map(l => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean).slice(0, 3);
-        aiIssues.forEach((msg, i) => {
-          if (!issues.find(s => s.message.includes(msg.substring(0, 20)))) {
-            issues.push({ id: `ai-${i}`, section: 'summary', severity: 'info', message: msg, fix: 'Review and revise based on AI suggestion.' });
-          }
+      if (suggestion.id === 'summary-short' || suggestion.id === 'summary-missing') {
+        const currentSummary = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : String(data.summary || '');
+        const response = await executeResumeAI({
+          section: 'summary',
+          action: 'rewrite',
+          content: `Write one concise, polished professional summary in 2-3 sentences, using only the candidate facts already present in the full profile and current summary. Preserve true employers, job titles, skills, education, and achievements. Do not invent experience, years, metrics, qualifications, or tools. Do not add a heading or options. Current summary: ${currentSummary || '(missing)'}`,
         });
-      }
-    } catch { /* AI check is optional */ }
-
-    setSuggestions(issues);
-    setLoading(false);
-  };
-
-  const fixOne = async (s: Suggestion) => {
-    setFixing(s.id);
-    try {
-      // Fix: missing summary — generate via AI
-      if (s.id === 's1' || s.id === 's2') {
+        const revisedSummary = cleanGeneratedText(response.result || '');
+        if (!revisedSummary || revisedSummary.length < 40) throw new Error('AI did not return a usable summary.');
+        update('summary', revisedSummary);
+      } else if (suggestion.id === 'skills-few') {
+        const response = await executeResumeAI({
+          section: 'skills',
+          action: 'find_missing',
+          content: `Extract up to 12 distinct professional skills that are explicitly written in the evidence text below and are not already in the current skills list. Only return a JSON array of exact skill names copied from the evidence. Do not infer, expand, or invent skills.\nCurrent skills: ${data.skills.join(', ')}\nEvidence text: ${skillsEvidence}`,
+        });
+        const raw = cleanGeneratedText(response.result || '').replace(/^(?:skills?|missing skills)\s*:\s*/i, '');
+        let proposedSkills: string[] = [];
         try {
-          const context = data.experience.map(e => `${e.title} at ${e.company}`).join(', ') || 'professional';
-          const sk = data.skills.slice(0, 5).join(', ');
-          const res = await executeResumeAI({ section: 'summary', action: 'generate', content: `Generate a summary for a ${context}. Skills: ${sk}` });
-          if (res.result) update('summary', res.result.replace(/\*\*/g, '').split('\n').filter(Boolean).slice(0, 3).join(' '));
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) proposedSkills = parsed.filter((item): item is string => typeof item === 'string');
         } catch {
-          const title = data.experience[0]?.title || 'Professional';
-          const sk = data.skills.slice(0, 3).join(', ');
-          update('summary', `Results-driven ${title} with hands-on experience delivering high-quality solutions. Skilled in ${sk || 'cross-functional collaboration'}. Proven ability to drive measurable business impact.`);
+          proposedSkills = raw.split(/[,;\n]/).map(item => item.trim());
         }
-      }
-
-      // Fix: missing skills — add common ones
-      if (s.id === 's3') {
-        const existing = new Set(data.skills.map(x => x.toLowerCase()));
-        const suggested = ['Communication', 'Problem Solving', 'Team Collaboration', 'Time Management', 'Agile', 'Git', 'REST APIs', 'SQL', 'Project Management', 'Critical Thinking'];
-        const toAdd = suggested.filter(sk => !existing.has(sk.toLowerCase())).slice(0, Math.max(0, 8 - data.skills.length));
-        if (toAdd.length > 0) update('skills', [...data.skills, ...toAdd]);
-      }
-
-      // Fix: no experience — navigate to experience section
-      if (s.id === 's4' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('experience'); setFixing(null); return; }
-
-      // Fix: no metrics — quantify bullets via AI
-      if (s.id === 's5') {
-        const snapshot = data.experience; // capture current state
-        const tasks = snapshot.flatMap(exp =>
-          exp.bullets.map((b, i) => {
-            if (!b.trim() || /\d/.test(b)) return null;
-            return executeResumeAI({ section: 'experience', action: 'quantify', content: b, experienceId: exp.id })
-              .then(res => { if (res.result) { const bs = [...exp.bullets]; bs[i] = res.result; updateExperience(exp.id, 'bullets', bs); } })
-              .catch(() => { const bs = [...exp.bullets]; bs[i] = b.replace(/\.$/, '') + ', improving efficiency by 20%.'; updateExperience(exp.id, 'bullets', bs); });
-          }).filter(Boolean)
-        );
-        await Promise.all(tasks);
-      }
-
-      // Fix: weak action verbs — prepend strong verbs
-      if (s.id === 's6') {
-        const strongVerbs = ['Led', 'Built', 'Developed', 'Designed', 'Implemented', 'Optimized', 'Delivered', 'Managed', 'Improved', 'Created'];
-        update('experience', data.experience.map(exp => ({
-          ...exp,
-          bullets: exp.bullets.map((b, i) => {
-            if (!b.trim()) return b;
-            if (/^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered|created|launched|architected)/i.test(b.trim())) return b;
-            return `${strongVerbs[i % strongVerbs.length]} ${b.charAt(0).toLowerCase()}${b.slice(1)}`;
-          }),
-        })));
-      }
-
-      // Fix: LinkedIn — navigate to personal
-      if (s.id === 's7' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('personal'); setFixing(null); return; }
-
-      // Fix: no portfolio/projects — navigate to projects
-      if (s.id === 's8' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('projects'); setFixing(null); return; }
-
-      // Fix: empty education — navigate to education
-      if (s.id === 's9' && onNavigate) { setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p)); onNavigate('education'); setFixing(null); return; }
-
-      // Fix: AI suggestions — improve summary or first bullet via AI
-      if (s.id.startsWith('ai-')) {
-        const msg = s.message.toLowerCase();
-        if (msg.includes('summary') || msg.includes('objective')) {
-          try {
-            const res = await executeResumeAI({ section: 'summary', action: 'rewrite', content: data.summary || s.message });
-            if (res.result) update('summary', res.result);
-          } catch { /* silent */ }
-        } else if (data.experience.length > 0) {
-          const exp = data.experience[0];
-          const bullet = exp.bullets.find(b => b.trim()) || exp.bullets[0];
-          if (bullet) {
-            try {
-              const res = await executeResumeAI({ section: 'experience', action: 'improve', content: bullet, experienceId: exp.id });
-              if (res.result) {
-                const bs = [...exp.bullets];
-                const idx = exp.bullets.indexOf(bullet);
-                bs[idx] = res.result;
-                updateExperience(exp.id, 'bullets', bs);
-              }
-            } catch { /* silent */ }
+        const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').trim().replace(/\s+/g, ' ');
+        const evidence = ` ${normalize(skillsEvidence)} `;
+        const existing = new Set(data.skills.map(normalize));
+        const verifiedSkills = proposedSkills
+          .map(skill => skill.trim().replace(/^['"`]|['"`]$/g, ''))
+          .filter(skill => {
+            const normalized = normalize(skill);
+            return normalized.length > 1 && !existing.has(normalized) && evidence.includes(` ${normalized} `);
+          })
+          .filter((skill, index, all) => all.findIndex(other => normalize(other) === normalize(skill)) === index)
+          .slice(0, 12);
+        if (verifiedSkills.length === 0) throw new Error('No additional skills could be verified in your resume text. Add only skills you actually have.');
+        update('skills', [...data.skills, ...verifiedSkills]);
+      } else if (suggestion.id === 'experience-action-verbs') {
+        const affected = data.experience.flatMap(item => item.bullets
+          .map((bullet, index) => ({ item, bullet, index }))
+          .filter(({ bullet }) => bullet.trim() && !startsWithActionVerb(bullet)));
+        const updates = new Map<string, string[]>();
+        for (const { item, bullet, index } of affected) {
+          const response = await executeResumeAI({
+            section: 'experience',
+            action: 'improve',
+            experienceId: item.id,
+            content: `Rewrite this one existing resume bullet so its first word is one clear past-tense action verb such as Built, Developed, Improved, Enhanced, Managed, Designed, Implemented, or Supported. Preserve its factual meaning and scope. Do not add metrics, outcomes, tools, responsibilities, or claims. Return only the rewritten bullet with no heading or bullet symbol.\nOriginal bullet: ${bullet}`,
+          });
+          const revisedBullet = cleanGeneratedText(response.result || '');
+          if (!revisedBullet || revisedBullet.length < 8 || !startsWithActionVerb(revisedBullet)) {
+            throw new Error('The AI couldn’t improve this bullet safely. Please try again, or edit it to start with what you did, such as “Created,” “Helped,” or “Managed.”');
           }
+          const latestItem = useResumeStore.getState().data.experience.find(entry => entry.id === item.id);
+          if (!latestItem) continue;
+          const nextBullets = [...(updates.get(item.id) || latestItem.bullets)];
+          nextBullets[index] = revisedBullet;
+          updates.set(item.id, nextBullets);
         }
+        updates.forEach((nextBullets, id) => updateExperience(id, 'bullets', nextBullets));
       }
-
-    } catch { /* silent */ } finally {
-      setSuggestions(prev => prev.map(p => p.id === s.id ? { ...p, fixed: true } : p));
-      setFixing(null);
+      const latestSuggestions = analyzeResume(useResumeStore.getState().data);
+      setSuggestions(latestSuggestions);
+      const stillPresent = latestSuggestions.some(item => item.id === suggestion.id);
+      setRecheckMessage(stillPresent
+        ? 'The resume was updated, but this check still finds an issue. Review the affected details or try Auto-fix again.'
+        : 'Fixed. This check no longer finds the issue.');
+    } catch (error) {
+      setFixError(error instanceof Error ? error.message : 'Could not apply this fix. Please try again.');
+    } finally {
+      setFixingId(null);
     }
   };
-
-  const fixAll = async () => {
-    // Run sequentially to avoid Zustand state race conditions
-    for (const s of suggestions.filter(x => !x.fixed)) {
-      await fixOne(s);
-    }
-    setTimeout(analyzeResume, 1500);
+  const errors = suggestions.filter(suggestion => suggestion.severity === 'error').length;
+  const recommendations = suggestions.length - errors;
+  const iconMap = {
+    error: <AlertTriangle className="w-4 h-4 text-red-500" />,
+    warning: <Lightbulb className="w-4 h-4 text-amber-500" />,
+    info: <Sparkles className="w-4 h-4 text-blue-500" />,
   };
-
-  const iconMap = { error: <AlertTriangle className="w-4 h-4 text-red-500" />, warning: <Lightbulb className="w-4 h-4 text-amber-500" />, info: <Sparkles className="w-4 h-4 text-blue-500" /> };
-  const errors = suggestions.filter(s => s.severity === 'error' && !s.fixed).length;
-  const warnings = suggestions.filter(s => s.severity !== 'error' && !s.fixed).length;
 
   return (
     <div ref={panelRef} className="w-full max-w-sm sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
-      {/* Header */}
       <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             <span className="text-sm font-bold">AI Suggestions</span>
           </div>
-          <button onClick={onClose} className="p-0.5 hover:bg-white/20 rounded transition-colors"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={onClose} className="p-0.5 hover:bg-white/20 rounded transition-colors" aria-label="Close suggestions"><X className="w-4 h-4" /></button>
         </div>
-        {!loading && (
-          <p className="text-[10px] text-white/80 mt-1">
-            {errors > 0 && <span className="font-semibold text-red-200">{errors} errors</span>}
-            {errors > 0 && warnings > 0 && <span> & </span>}
-            {warnings > 0 && <span className="font-semibold text-amber-200">{warnings} suggestions</span>}
-          </p>
-        )}
+        <p className="text-[10px] text-white/80 mt-1">
+          {errors > 0 && <span className="font-semibold text-red-200">{errors} issues</span>}
+          {errors > 0 && recommendations > 0 && <span> &amp; </span>}
+          {recommendations > 0 && <span className="font-semibold text-amber-200">{recommendations} suggestions</span>}
+        </p>
       </div>
 
-      {/* Content */}
       <div className="max-h-96 overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center py-8 text-sm text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" /> Analyzing...
-          </div>
-        ) : suggestions.length === 0 ? (
+        {suggestions.length === 0 ? (
           <div className="py-8 text-center text-sm text-green-600">
             <Check className="w-8 h-8 mx-auto mb-2 text-green-500" />
-            No issues found! Your resume looks great.
+            No current issues found in your resume.
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {suggestions.map(s => (
-              <div key={s.id} className={`px-4 py-3 ${s.fixed ? 'opacity-50 bg-gray-50' : ''}`}>
+            {suggestions.map(suggestion => (
+              <div key={suggestion.id} className="px-4 py-3">
                 <div className="flex items-start gap-2">
-                  <div className="mt-0.5 shrink-0">{iconMap[s.severity]}</div>
+                  <div className="mt-0.5 shrink-0">{iconMap[suggestion.severity]}</div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium ${s.fixed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{s.message}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">{s.fix}</p>
+                    <p className="text-xs font-medium text-gray-800">{suggestion.message}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{suggestion.fix}</p>
                   </div>
                 </div>
-                {!s.fixed && (
+                {canAutoFix(suggestion) ? (
                   <div className="flex items-center gap-2 mt-2 ml-6">
-                    <button onClick={() => fixOne(s)} disabled={fixing === s.id}
-                      className="text-[10px] font-medium text-purple-600 hover:text-purple-800 disabled:opacity-40">
-                      {fixing === s.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : null}
-                      Fix
+                    <button
+                      type="button"
+                      disabled={!!fixingId}
+                      onClick={() => autoFix(suggestion)}
+                      className="text-[10px] font-medium text-purple-600 hover:text-purple-800 disabled:cursor-wait disabled:opacity-60 flex items-center gap-1"
+                    >
+                      {fixingId === suggestion.id ? <><Loader2 className="w-3 h-3 animate-spin" /> Fixing...</> : <>Auto-fix <Sparkles className="w-3 h-3" /></>}
                     </button>
-                    {onNavigate && (
-                      <button onClick={() => onNavigate(s.section)}
-                        className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
-                        Open <ChevronRight className="w-2.5 h-2.5" />
-                      </button>
-                    )}
+                  </div>
+                ) : onNavigate && (
+                  <div className="flex items-center gap-2 mt-2 ml-6">
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onNavigate(suggestion.section);
+                      }}
+                      className="text-[10px] font-medium text-purple-600 hover:text-purple-800 flex items-center gap-0.5"
+                    >
+                      Add details <ChevronRight className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -247,16 +297,13 @@ export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: (
         )}
       </div>
 
-      {/* Actions */}
-      {!loading && suggestions.filter(s => !s.fixed).length > 0 && (
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex gap-2">
-          <button onClick={fixAll}
-            className="flex-1 py-2 text-xs font-semibold bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-            Fix All ({suggestions.filter(s => !s.fixed).length})
+      {suggestions.length > 0 && (
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+          <button type="button" onClick={recheck} className="w-full py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100">
+            Re-check resume
           </button>
-          <button onClick={analyzeResume} className="px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
-            Re-check
-          </button>
+          {recheckMessage && <p role="status" aria-live="polite" className="mt-2 text-center text-[10px] text-gray-500">{recheckMessage}</p>}
+          {fixError && <p role="alert" className="mt-2 text-center text-[10px] text-red-600">{fixError}</p>}
         </div>
       )}
     </div>

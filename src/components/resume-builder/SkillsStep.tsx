@@ -31,7 +31,8 @@ export default function SkillsStep() {
   const goal = data.goal || '';
   const [input, setInput] = useState('');
   const [skillError, setSkillError] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [generatingSkills, setGeneratingSkills] = useState(false);
+  const [findingMissingSkills, setFindingMissingSkills] = useState(false);
   const [aiResult, setAiResult] = useState<string[] | null>(null);
   const [expSkills, setExpSkills] = useState<string[]>([]);
   const [expSkillsLoading, setExpSkillsLoading] = useState(false);
@@ -92,7 +93,7 @@ export default function SkillsStep() {
   };
 
   const generateSkills = async () => {
-    setAiLoading(true);
+    setGeneratingSkills(true);
     try {
       // Build comprehensive context from profile for better AI skills generation
       const profileText = [
@@ -111,21 +112,27 @@ export default function SkillsStep() {
         content: profileText || 'Professional',
       });
       const skills = extractSkills(res.result);
-      const merged = [...new Set([...data.skills, ...skills])];
-      setAiResult(skills);
-      update('skills', merged);
+      const currentSkills = useResumeStore.getState().data.skills;
+      const currentLower = new Set(currentSkills.map(skill => skill.trim().toLowerCase()));
+      const addedSkills = skills.filter(skill => {
+        const key = skill.trim().toLowerCase();
+        if (!key || currentLower.has(key)) return false;
+        currentLower.add(key);
+        return true;
+      });
+      if (addedSkills.length > 0) update('skills', [...currentSkills, ...addedSkills]);
+      setAiResult(addedSkills);
     } catch (error) {
       console.error('Skills generation failed:', error);
       setAiResult(null);
     } finally {
-      setAiLoading(false);
+      setGeneratingSkills(false);
     }
   };
 
   const findMissingSkills = async () => {
-    setAiLoading(true);
+    setFindingMissingSkills(true);
     try {
-      const existingLower = new Set(data.skills.map(s => s.toLowerCase()));
       const context = [
         data.targetRole ? `Target Role: ${data.targetRole}` : '',
         data.experience.length > 0
@@ -139,19 +146,20 @@ export default function SkillsStep() {
         action: 'find_missing',
         content: `${context}\n\nList ONLY skills that are missing from the current skills above. Return a plain comma-separated list with no symbols, no bullets, no numbering, no markdown.`,
       });
-      const missing = extractSkills(res.result).filter(
-        s => !existingLower.has(s.toLowerCase())
-      );
-      if (missing.length > 0) {
-        update('skills', [...data.skills, ...missing]);
-        setAiResult(missing);
-      } else {
-        setAiResult([]);
-      }
+      const currentSkills = useResumeStore.getState().data.skills;
+      const currentLower = new Set(currentSkills.map(skill => skill.trim().toLowerCase()));
+      const missing = extractSkills(res.result).filter(skill => {
+        const key = skill.trim().toLowerCase();
+        if (!key || currentLower.has(key)) return false;
+        currentLower.add(key);
+        return true;
+      });
+      if (missing.length > 0) update('skills', [...currentSkills, ...missing]);
+      setAiResult(missing);
     } catch {
       setAiResult(null);
     } finally {
-      setAiLoading(false);
+      setFindingMissingSkills(false);
     }
   };
 
@@ -166,14 +174,14 @@ export default function SkillsStep() {
       {/* AI Actions */}
       <div className="flex items-center gap-1.5 flex-wrap bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
         <Sparkles className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
-        <button onClick={generateSkills} disabled={aiLoading}
+        <button onClick={generateSkills} disabled={generatingSkills}
           className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white border border-gray-200 text-gray-700 rounded-md hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-          {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          {generatingSkills ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
           Generate Skills
         </button>
-        <button onClick={findMissingSkills} disabled={aiLoading}
+        <button onClick={findMissingSkills} disabled={findingMissingSkills}
           className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white border border-gray-200 text-gray-700 rounded-md hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-          {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          {findingMissingSkills ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
           Find Missing Skills
         </button>
       </div>
@@ -226,8 +234,8 @@ export default function SkillsStep() {
         }`}>
           <Check className="w-3 h-3" />
           {aiResult.length > 0
-            ? `${aiResult.length} missing skill${aiResult.length !== 1 ? 's' : ''} added`
-            : 'No missing skills found — your profile looks complete!'}
+            ? `${aiResult.length} new skill${aiResult.length !== 1 ? 's' : ''} added`
+            : 'No new skills found — your profile looks complete!'}
         </div>
       )}
 

@@ -29,49 +29,70 @@ async function hashText(text: string): Promise<string> {
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function mergeWorkExperiences(local: ParsedResume['workExperiences'], ai: ParsedResume['workExperiences']): ParsedResume['workExperiences'] {
-  const merged = local.map(item => ({ ...item, descriptions: [...(item.descriptions || [])] }));
-  for (const item of ai) {
-    const match = merged.find(entry => {
-      const sameTitle = entry.jobTitle && item.jobTitle && entry.jobTitle.toLowerCase() === item.jobTitle.toLowerCase();
-      const sameCompany = entry.company && item.company && entry.company.toLowerCase() === item.company.toLowerCase();
-      return sameTitle && sameCompany || sameCompany && (!entry.jobTitle || !item.jobTitle) || sameTitle && (!entry.company || !item.company);
-    });
-    if (!match) { merged.push(item); continue; }
-    match.jobTitle ||= item.jobTitle;
-    match.company ||= item.company;
-    match.location ||= item.location;
-    match.date ||= item.date;
-    match.descriptions = [...new Set([...match.descriptions, ...(item.descriptions || [])])];
-  }
-  return merged;
-}
-
-function mergeProjects(local: NonNullable<ParsedResume['projects']>, ai: NonNullable<ParsedResume['projects']>): NonNullable<ParsedResume['projects']> {
-  const merged = local.map(item => ({ ...item, descriptions: [...(item.descriptions || (item.description ? [item.description] : []))] }));
-  for (const item of ai) {
-    const match = merged.find(entry => entry.name.toLowerCase() === item.name.toLowerCase());
-    if (!match) { merged.push(item); continue; }
-    match.date ||= item.date;
-    match.descriptions = [...new Set([...(match.descriptions || []), ...(item.descriptions || []), ...(item.description ? [item.description] : [])])];
-  }
-  return merged;
-}
-
 // ─── Known institution keywords ───────────────────────────────────────────────
 const INSTITUTION_KEYWORDS = /\b(university|college|institute|school|academy|polytechnic|iit|nit|licet|loyola|icam|matriculation|higher secondary|secondary)\b/i;
 
 // ─── Known degree keywords ────────────────────────────────────────────────────
 const DEGREE_KEYWORDS = /\b(b\.?tech|b\.?e|b\.?sc|b\.?com|b\.?a|m\.?tech|m\.?e|m\.?sc|mba|m\.?a|ph\.?d|bachelor|master|diploma|sslc|hsc|10th|12th|standard)\b/i;
+const SCHOOL_LEVEL_LABEL = /\b(sslc|hsc|10th|12th|class\s*(?:x|xii|10|12)|higher secondary education|secondary education)\b/i;
+
+function normalizeEducationEntry(entry: ParsedResume['educations'][number]): ParsedResume['educations'][number] {
+  let degree = String(entry.degree || '').replace(/\s+/g, ' ').trim();
+  let school = String(entry.school || '').replace(/\s+/g, ' ').trim();
+  if (/^(institution needs review|institution|school|college|university|unknown|n\/?a)$/i.test(school)) school = '';
+  // AI sometimes combines a school credential and the school name in `degree`,
+  // e.g. "Grade / Class: HSC) Zion Matriculation". Split that back into fields.
+  const schoolCredential = degree.match(/^(?:grade\s*\/?\s*class\s*:\s*)?(HSC|SSLC|SSC|10th|12th|class\s*XII|class\s*X|higher secondary(?: education)?|secondary education)\b/i);
+  if (schoolCredential) {
+    const tail = degree.slice(schoolCredential[0].length).replace(/^[\s):|,;\-]+|[\s(|,;\-]+$/g, '').trim();
+    degree = schoolCredential[1].replace(/\s+/g, ' ').trim();
+    if (!school && tail && !/^(?:hsc|sslc|ssc|10th|12th|class\s*(?:x|xii|10|12))$/i.test(tail)) school = tail;
+  }
+  // AI extraction can attach the tail of an adjacent experience bullet to a degree.
+  // Keep the actual credential from its first recognized degree/class keyword.
+  const degreeMatch = degree.match(DEGREE_KEYWORDS);
+  if (degreeMatch?.index && degreeMatch.index > 0) degree = degree.slice(degreeMatch.index).trim().replace(/^[|,:;\-–]+\s*/, '');
+  if (!degree && SCHOOL_LEVEL_LABEL.test(school)) degree = school;
+  // Some AI responses put the school-level credential in the institution field.
+  if (SCHOOL_LEVEL_LABEL.test(school) && !INSTITUTION_KEYWORDS.test(school.replace(SCHOOL_LEVEL_LABEL, '').trim())) {
+    if (!degree) degree = school;
+    school = '';
+  }
+  degree = degree
+    .replace(/\b(?:large[- ]scale|successfully|responsible for|proven ability|developed|worked on)\b.*?(?=\b(?:b\.?tech|b\.?e|b\.?sc|b\.?com|bachelor|master|mba|m\.?tech|m\.?sc|hsc|sslc|10th|12th|class\s*(?:x|xii|10|12))\b)/i, '')
+    .replace(/[|,:;\-–]+\s*$/, '')
+    .trim();
+  if (/^(school|college|university|institution|higher secondary school|secondary school)$/i.test(school)) school = '';
+  return {
+    ...entry,
+    degree,
+    school,
+    date: String(entry.date || '').trim(),
+    gpa: entry.gpa == null ? undefined : String(entry.gpa).trim(),
+  };
+}
+
+function normalizeEducationList(entries: ParsedResume['educations']): ParsedResume['educations'] {
+  const normalized = entries.map(normalizeEducationEntry).filter(entry => entry.school.length > 2 || entry.degree.length > 1);
+  // Drop duplicate generic school rows when the same credential is already paired
+  // with a named school. This commonly occurs when OCR/AI returns both labels.
+  return normalized.filter((entry, index) => {
+    const genericSchool = !entry.school && !entry.degree || /^(higher secondary school|secondary school|school)$/i.test(entry.school);
+    if (!genericSchool) return true;
+    const key = (entry.degree.match(SCHOOL_LEVEL_LABEL)?.[0] || '').toLowerCase();
+    return !normalized.some((other, otherIndex) => otherIndex !== index && other.school &&
+      key && (other.degree + ' ' + other.school).toLowerCase().includes(key));
+  });
+}
 
 // ─── Section heading detector ─────────────────────────────────────────────────
-const HEADING_PATTERN = /^(work\s+experience|professional\s+experience|experience|employment|work\s+history|education|academic|qualification|skills|technical\s+skills|key\s+skills|core\s+skills|projects?|personal\s+projects?|academic\s+projects?|certifications?|certificates?|awards?|achievements?|languages?|interests?|hobbies|references?|contact|internship|training|summary|objective|profile|about(\s+me)?|extra.?curricular|extracurricular|hackathons?|short\s+courses?|competitions?|workshops?|volunteer|publications?|research|tools?|soft\s+skills?)s?$/i;
+const HEADING_PATTERN = /^(work\s+experience|professional\s+experience|experience|employment|work\s+history|education|academic|qualification|skills|strengths|technical\s+skills|key\s+skills|core\s+skills|projects?|personal\s+projects?|academic\s+projects?|certifications?|certificates?|awards?|achievements?|languages?|interests?|hobbies|references?|contact|internship|training|professional\s+summary|profile\s+summary|summary|objective|profile|about(\s+me)?|extra.?curricular|extracurricular|hackathons?|short\s+courses?|competitions?|workshops?|volunteer|publications?|research|tools?|soft\s+skills?)s?$/i;
 
 const SECTION_HEADINGS = new Set([
-  'about me','about','summary','objective','profile','overview',
+  'about me','about','summary','professional summary','profile summary','objective','profile','overview',
   'experience','work experience','employment','work history','professional experience',
   'education','academic background','qualifications',
-  'skills','technical skills','key skills','core competencies','competencies',
+  'skills','strengths','technical skills','key skills','core competencies','competencies',
   'projects','personal projects','academic projects',
   'certifications','certificates','awards','achievements','accomplishments',
   'languages','interests','hobbies','references','contact','contact information',
@@ -197,7 +218,7 @@ function parseResumeLocally(text: string): ParsedResume {
     return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
   });
   // Also extract from skills section — split by colons, commas, pipes, bullets, newlines
-  const skillsSection = extractSection(lines, /^(key\s+|technical\s+|core\s+|hard\s+|soft\s+|professional\s+)?skills?(\s+&\s+\w+)?$/i);
+  const skillsSection = extractSection(lines, /^(key\s+|technical\s+|core\s+|hard\s+|soft\s+|professional\s+)?(skills?|strengths)(\s+&\s+\w+)?$/i);
   const skillsFromSection = skillsSection
     .join('\n')
     .split(/[,|•\n\/:\t]|\s{2,}/)
@@ -315,12 +336,12 @@ function parseResumeLocally(text: string): ParsedResume {
     const isInlineDegreeSchool = (l: string) => DEGREE_KEYWORDS.test(l) && /\b(university|college|institute|school|academy|polytechnic|iit|nit|licet|loyola|icam|matriculation)\b/i.test(l);
     // Continuation fragment: short line that is clearly a wrapped part of the previous school name
     const isContinuation = (l: string) =>
-      /^(college|university|institute|school|of|and|engineering|technology|science|arts|commerce)\b/i.test(l) &&
+      /^(college|university|institute|school|higher secondary school|secondary school|of|and|engineering|technology|science|arts|commerce)\b/i.test(l) &&
       l.split(/\s+/).length <= 5;
     const isInstitutionLine = (l: string) => INSTITUTION_KEYWORDS.test(l) && !isDegreeOnlyLabel(l);
 
     let cur: ParsedResume['educations'][0] | null = null;
-    const pushCur = () => { if (cur && (cur.school || cur.degree)) educations.push(cur); };
+    const pushCur = () => { if (cur && (cur.school || cur.degree)) educations.push(normalizeEducationEntry(cur)); };
 
     for (const line of eduSection) {
       if (/^[•\-–*]/.test(line)) continue;
@@ -354,6 +375,17 @@ function parseResumeLocally(text: string): ParsedResume {
       const dateRangeMatch = line.match(dateRangeRe);
 
       if (yocMatch) { if (cur) cur.date = yocMatch[1]; continue; }
+      // Treat HSC/SSLC/class labels as the credential, not as the institution name.
+      if (SCHOOL_LEVEL_LABEL.test(line)) {
+        pushCur();
+        cur = {
+          degree: line.replace(yearRe, '').replace(percentRe, '').trim(),
+          school: '',
+          date: hasYear ? line.match(yearRe)?.[0] || '' : '',
+          gpa: pctMatch?.[1] ? `${pctMatch[1]}%` : undefined,
+        };
+        continue;
+      }
       if (!INSTITUTION_KEYWORDS.test(line)) {
         if (gpaMatch) { if (cur) { cur.gpa = gpaMatch[2]; if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; } continue; }
         if (pctMatch && !gpaMatch) { if (cur) { cur.gpa = pctMatch[1]; if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; } continue; }
@@ -455,7 +487,7 @@ function parseResumeLocally(text: string): ParsedResume {
   }
 
   // Summary
-  const summarySection = extractSection(lines, /^(summary|objective|profile|about(\s+me)?)$/i);
+  const summarySection = extractSection(lines, /^(summary|professional\s+summary|profile\s+summary|career\s+summary|objective|career\s+objective|profile|about(\s+me)?)$/i);
   const summary = summarySection.join(' ').trim();
 
   // Certifications — each entry must look like a real cert name (not a sentence fragment)
@@ -516,7 +548,7 @@ function mergeResults(ai: ParsedResume, local: ParsedResume): ParsedResume {
   const phone = aiPhone.length >= 7 ? ai.profile.phone : local.profile.phone;
 
   // Education: prefer local, keep any entry with a real school name or degree label
-  const cleanLocalEdu = local.educations.filter(e => e.school.length > 3 || e.degree.length > 1);
+  const cleanLocalEdu = normalizeEducationList(local.educations);
   const educations = cleanLocalEdu.length > 0 ? cleanLocalEdu : (ai.educations || []);
 
   // Work experience: prefer AI only if company AND jobTitle are both clean real values
@@ -583,7 +615,7 @@ export async function parseResumeFromText(
 
   try {
     const textHash = await hashText(text);
-    const cKey = cacheKey('resume-parse-v18', textHash);
+    const cKey = cacheKey('resume-parse-v20', textHash);
     const cached = getCached<ParsedResume>(cKey);
     if (cached) { onStatus?.('ai'); return cached; }
 
@@ -631,7 +663,7 @@ export async function parseResumeFromText(
             date: e.start_date ? `${e.start_date} - ${e.end_date || 'Present'}` : (e.date || ''),
             descriptions: Array.isArray(e.descriptions) ? e.descriptions : (e.description ? [e.description] : []),
           })),
-          educations: (raw.education || raw.educations || []).map((e: any) => ({
+          educations: (raw.education || raw.educations || []).map((e: any) => normalizeEducationEntry({
             degree: e.degree || e.field_of_study || '',
             school: [e.college, e.university, e.institution, e.school].find((value: any) => value && !/^(university|college|school|institution)$/i.test(String(value).trim())) || '',
             date: e.end_date || e.year || e.date || '',
@@ -643,7 +675,7 @@ export async function parseResumeFromText(
         }
       : {
           ...raw,
-          educations: (raw.educations || raw.education || []).map((e: any) => ({
+          educations: (raw.educations || raw.education || []).map((e: any) => normalizeEducationEntry({
             degree: e.degree || e.class || '',
             school: [e.college, e.university, e.institution, e.school].find((value: any) => value && !/^(university|college|school|institution)$/i.test(String(value).trim())) || '',
             date: e.date || e.year || e.end_date || '',
@@ -715,7 +747,7 @@ export async function parseResumeFromText(
     })).filter((pr: any) => typeof pr.name === 'string' && pr.name.trim().length >= 2 && !SECTION_HEADINGS.has(pr.name.trim().toLowerCase()) && text.toLowerCase().includes(pr.name.trim().toLowerCase()));
 
     // Validate AI education — must have school or degree with real keywords
-    const aiEdu = (p.educations || []).map((e: any) => ({
+    const aiEdu = (p.educations || []).map((e: any) => normalizeEducationEntry({
       degree: e.degree || e.class || '',
       school: [e.college, e.university, e.institution, e.school].find((value: any) => value && !/^(university|college|school|institution)$/i.test(String(value).trim())) || '',
       date: e.date || e.year || '',
@@ -726,7 +758,8 @@ export async function parseResumeFromText(
     );
 
     // BUILD FINAL RESULT: local is primary, AI fills gaps only
-    const cleanLocalEdu = localResult.educations.filter(e => e.school.length > 3 || e.degree.length > 1);
+    const cleanLocalEdu = normalizeEducationList(localResult.educations);
+    const cleanAiEdu = normalizeEducationList(aiEdu);
 
     const merged: ParsedResume = {
       profile: {
@@ -743,11 +776,15 @@ export async function parseResumeFromText(
         ])].map(s => ({ skill: s })),
       },
       // Work: local preferred (structured), AI fills gaps only
-      workExperiences: mergeWorkExperiences(localResult.workExperiences, fixedAiWork),
+      workExperiences: localResult.workExperiences.length
+        ? localResult.workExperiences
+        : fixedAiWork,
       // Education: local first, AI fallback
-      educations: cleanLocalEdu.length > 0 ? cleanLocalEdu : aiEdu,
+      educations: cleanLocalEdu.length > 0 ? cleanLocalEdu : cleanAiEdu,
       // Projects: AI if valid (2+ word names), else local
-      projects: mergeProjects(localResult.projects || [], aiProjects),
+      projects: localResult.projects?.length
+        ? localResult.projects
+        : aiProjects,
       summary: (p.summary || '').trim() || localResult.summary || '',
       competitions: p.competitions?.length ? p.competitions : (localResult.competitions || []),
       certifications: p.certifications?.length

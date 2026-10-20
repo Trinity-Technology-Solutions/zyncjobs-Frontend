@@ -5,13 +5,19 @@ import { executeResumeAI } from '../../services/resumeAIClient';
 import { validateJobTitle } from '../../utils/resumeFieldValidators';
 
 const ROLE_SUGGESTIONS = [
-  'Software Engineer', 'Frontend Developer', 'Backend Developer',
-  'Full Stack Developer', 'DevOps Engineer', 'Data Engineer',
-  'Data Scientist', 'Data Analyst', 'Product Manager', 'UI/UX Designer',
-  'Project Manager', 'Business Analyst', 'QA Engineer', 'QA Analyst',
-  'Mobile Developer', 'Cloud Engineer', 'Machine Learning Engineer',
-  'Cybersecurity Analyst', 'Database Administrator', 'Technical Writer',
-  'Scrum Master', 'Solutions Architect', 'Network Engineer',
+  'Software Engineer', 'Marketing Specialist', 'Frontend Developer',
+  'Sales Executive', 'Backend Developer', 'HR Manager',
+  'Full Stack Developer', 'Business Analyst', 'DevOps Engineer',
+  'Project Manager', 'Data Engineer', 'Accountant',
+  'Data Scientist', 'Customer Support Specialist', 'Data Analyst',
+  'Operations Manager', 'Product Manager', 'Teacher',
+  'UI/UX Designer', 'Financial Analyst', 'QA Engineer',
+  'Recruiter', 'QA Analyst', 'Graphic Designer',
+  'Mobile Developer', 'Content Writer', 'Cloud Engineer',
+  'Supply Chain Manager', 'Machine Learning Engineer', 'Administrative Assistant',
+  'Cybersecurity Analyst', 'Nurse', 'Database Administrator',
+  'Technical Writer', 'Civil Engineer', 'Scrum Master',
+  'Solutions Architect', 'Network Engineer',
 ];
 
 const STYLE_TOGGLES = [
@@ -103,11 +109,14 @@ export default function SummaryStep() {
       const res = await executeResumeAI({
         section: 'summary',
         action: 'generate',
-        content: `${context}\n\nWrite 3 different professional summary options for this candidate. Each must be 2-3 sentences, start with a strong opening, highlight experience and skills. Separate each option with "---" on its own line. No labels, no placeholders.`,
+        content: `${context}\n\nThe exact selected job role is "${role}". Write exactly 3 distinct professional summary options for this candidate, each tailored to that role and 2-3 sentences long. Use only facts in the candidate context: do not invent years, seniority, employers, metrics, achievements, tools, or qualifications. If their recorded experience is in a different role, state their actual experience accurately and frame the selected role as their target; connect it only to relevant skills that are listed. Each option must name "${role}" and must not claim the candidate has held that role unless the experience history supports it. Separate options with "---" on its own line. Return only the options, with no labels or placeholders.`,
       });
       if (res.result) {
         const opts = res.result.split('---').map(s => s.replace(/^Option\s*\d*[:.]?\s*/i, '').trim()).filter(Boolean).slice(0, 3);
-        setOptions(opts.length >= 2 ? opts : [res.result]);
+        const roleMentionedInEveryOption = opts.length >= 2 && opts.every(option =>
+          option.toLocaleLowerCase().includes(role.toLocaleLowerCase())
+        );
+        setOptions(roleMentionedInEveryOption ? opts : fallbackForRole(role));
       } else {
         setOptions(fallbackForRole(role));
       }
@@ -136,17 +145,35 @@ export default function SummaryStep() {
   };
 
   // ── Fallback summaries per role ───────────────────────────────────────
-  const fallbackForRole = (role: string): string[] => [
-    `Experienced ${role} with a proven track record of delivering high-quality results. Skilled across the full ${role} lifecycle with strong collaboration across cross-functional teams.`,
-    `Results-driven ${role} with expertise in optimizing processes and driving measurable outcomes. Passionate about applying best practices to deliver consistent business value.`,
-    `Dedicated ${role} focused on quality, efficiency, and continuous improvement. Adept at translating complex requirements into effective, reliable solutions.`,
-  ];
+  const fallbackForRole = (role: string): string[] => {
+    const experience = data.experience
+      .filter(item => item.title?.trim() || item.company?.trim())
+      .slice(0, 2)
+      .map(item => [item.title, item.company].filter(Boolean).join(' at '));
+    const skills = data.skills.map(skill => skill.trim()).filter(Boolean).slice(0, 5);
+    const experienceText = experience.length ? `Recorded experience includes ${experience.join('; ')}.` : '';
+    const skillsText = skills.length ? `Listed skills include ${skills.join(', ')}.` : '';
+
+    if (!experienceText && !skillsText) {
+      return [
+        `Candidate targeting ${role}. Add relevant experience and skills to create a specific summary without unsupported claims.`,
+        `Career objective: ${role}. The profile does not yet list experience or skills to support a more detailed summary.`,
+        `Applicant seeking a ${role} opportunity. Add verified skills and experience to personalize this summary.`,
+      ];
+    }
+
+    return [
+      `Candidate targeting ${role}. ${experienceText} ${skillsText}`.trim(),
+      `${role} applicant whose profile records ${[experience.join(', '), skills.join(', ')].filter(Boolean).join(' and ')}.`,
+      `Seeking a ${role} position, with documented background in ${[experience.join(', '), skills.join(', ')].filter(Boolean).join(' and ')}.`,
+    ];
+  };
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-gray-900">Professional Summary</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Pick a role — AI generates 3 options to choose from</p>
+        <p className="text-sm text-gray-500 mt-0.5">Pick any role — AI generates 3 options grounded in your experience and skills</p>
         <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Keep it 3-4 sentences — highlight your top <span className="text-blue-500 font-medium">achievements</span>, <span className="text-blue-500 font-medium">years of experience</span>, and <span className="text-blue-500 font-medium">key skills</span></p>
       </div>
 
@@ -272,7 +299,7 @@ export default function SummaryStep() {
               Try a different role
             </summary>
             <div className="flex flex-wrap gap-2 mt-3">
-              {ROLE_SUGGESTIONS.filter(r => r !== selectedRole).slice(0, 6).map(role => (
+              {ROLE_SUGGESTIONS.filter(r => r !== selectedRole).slice(0, 12).map(role => (
                 <button key={role} onClick={() => { update('summary', ''); generateOptions(role); }}
                   disabled={loading}
                   className="px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:border-purple-300 hover:text-purple-700 disabled:opacity-40 transition-all"

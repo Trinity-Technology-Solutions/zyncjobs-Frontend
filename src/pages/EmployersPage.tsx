@@ -195,7 +195,9 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 grad: 'from-amber-500 to-orange-400', tile: 'bg-amber-50', text: 'text-amber-500', cta: 'Explore Insights',
               },
               {
-                icon: Building2, title: 'Employer Branding', target: 'employer-register',
+                // Signed-in employers should manage their own company brand;
+                // visitors still go through employer registration first.
+                icon: Building2, title: 'Employer Branding', target: user?.type === 'employer' ? 'company-profile' : 'employer-register',
                 desc: 'Showcase your company, culture, and career opportunities to attract the right talent.',
                 bullets: ['Branded company profile', 'Share your workplace story', 'Highlight career opportunities'],
                 variant: 'branding', url: 'zyncjobs.ai/companies',
