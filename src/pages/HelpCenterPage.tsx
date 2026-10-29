@@ -85,13 +85,15 @@ const HelpCenterPage: React.FC<HelpCenterPageProps> = ({ onNavigate, user, onLog
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       {/* Hero */}
-      <div className="relative bg-gradient-to-br from-blue-50 via-orange-50 to-blue-100 text-gray-900 py-8 overflow-hidden border-b border-gray-200">
+      <div className="relative z-20 bg-gradient-to-br from-blue-50 via-orange-50 to-blue-100 text-gray-900 py-8 overflow-visible border-b border-gray-200">
         <div className="absolute top-4 left-4 z-10">
           <BackButton fallback="/" className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
         </div>
-        <div className="absolute top-10 left-10 w-24 h-24 bg-blue-200/30 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-32 h-32 bg-orange-200/30 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-10 left-1/3 w-20 h-20 bg-orange-100/40 rounded-full blur-lg animate-pulse delay-500"></div>
+        <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-10 left-10 w-24 h-24 bg-blue-200/30 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-20 right-20 w-32 h-32 bg-orange-200/30 rounded-full blur-2xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-10 left-1/3 w-20 h-20 bg-orange-100/40 rounded-full blur-lg animate-pulse delay-500"></div>
+        </div>
 
         <div className="portal-page-container relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex justify-center mb-4">
@@ -109,13 +111,14 @@ const HelpCenterPage: React.FC<HelpCenterPageProps> = ({ onNavigate, user, onLog
               onChange={setSearchTerm}
               options={[]}
               allowCustom
+              showDropdownToggle={false}
               placeholder="Search help articles..."
             />
           </div>
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <main className="relative z-0 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
         {/* Category quick-nav pills */}
         {!searchTerm && (

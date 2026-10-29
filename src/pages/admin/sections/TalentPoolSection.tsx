@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Upload, Users, UserX, Mail, ChevronRight, Copy, FileSpreadsheet, Search, RotateCcw, Brain, Zap, AlertCircle, X, Check, Loader2, Eye, ArrowRight, MapPin, Phone, Building2, FileText, Briefcase } from 'lucide-react';
+import { Upload, Users, UserX, Mail, ChevronRight, Copy, FileSpreadsheet, Search, RotateCcw, Brain, Zap, AlertCircle, X, Check, Loader2, Eye, ArrowRight, MapPin, Phone, Building2, FileText, Briefcase, FolderOpen, Trash2, CheckCircle2, BarChart3, Inbox, ListChecks, FlaskConical } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { S3Service } from '../../../services/s3Service';
 import { apiFetch } from '../../../api/apiFetch';
@@ -78,7 +78,7 @@ export default function TalentPoolSection({ onUnauthorized, recruiterName = '', 
               <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
               <div>
                 <p className="text-blue-300 font-semibold text-sm flex items-center gap-2">
-                  🚀 Resume Processing Active
+                  <Zap size={16} aria-hidden="true" /> Resume Processing Active
                   <span className="px-2 py-0.5 bg-blue-600/30 text-blue-300 rounded-full text-xs">
                     {globalProcessingStatus.progress}%
                   </span>
@@ -644,7 +644,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
             onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            📄 Select Files (PDF/DOC/DOCX/TXT/JPG/PNG)
+            <FileText size={16} aria-hidden="true" className="inline-block mr-2" /> Select Files (PDF/DOC/DOCX/TXT/JPG/PNG)
           </button>
           <button
             type="button"
@@ -663,7 +663,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
             }}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            📂 Select Folder
+            <FolderOpen size={16} aria-hidden="true" className="inline-block mr-2" /> Select Folder
           </button>
         </div>
         <input
@@ -704,7 +704,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
       {!done && failedFileNames.length > 0 && (
         <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-red-400">⚠️ {failedFileNames.length} file(s) failed in last session</p>
+            <p className="text-xs font-semibold text-red-400 flex items-center gap-2"><AlertCircle size={15} aria-hidden="true" /> {failedFileNames.length} file(s) failed in last session</p>
             <button
               onClick={() => { setFailedFileNames([]); localStorage.removeItem('talentPool_failedNames'); }}
               className="text-xs text-gray-500 hover:text-gray-300">Dismiss</button>
@@ -727,7 +727,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
           {failedFiles.length > 0 && (
             <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-red-400">⚠️ {failedFiles.length} file(s) failed to parse</p>
+                <p className="text-xs font-semibold text-red-400 flex items-center gap-2"><AlertCircle size={15} aria-hidden="true" /> {failedFiles.length} file(s) failed to parse</p>
                 <button
                   onClick={handleRetryFailed}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition-colors"
@@ -983,7 +983,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
             <div className="flex items-center gap-2">
               <Copy className="w-4 h-4 text-orange-400" />
               <p className="text-sm font-semibold text-orange-300">
-                {duplicateGroups.length === 0 ? 'No duplicates found ✅' : `${duplicateGroups.length} duplicate group(s) — ${duplicateIds.size} extra entries`}
+                {duplicateGroups.length === 0 ? <span className="inline-flex items-center gap-2">No duplicates found <CheckCircle2 size={16} aria-hidden="true" /></span> : `${duplicateGroups.length} duplicate group(s) — ${duplicateIds.size} extra entries`}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -992,7 +992,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
                   onClick={deleteAllDuplicates}
                   className="text-xs px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg transition-colors"
                 >
-                  🗑️ Delete All {duplicateIds.size} Duplicates
+                  <Trash2 size={15} aria-hidden="true" className="inline-block mr-2" /> Delete All {duplicateIds.size} Duplicates
                 </button>
               )}
               <button onClick={() => setShowDuplicates(false)} className="text-gray-400 hover:text-white text-lg">×</button>
@@ -1112,7 +1112,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
               }}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
             >
-              🗑️ Delete {selected.size} Selected
+              <Trash2 size={16} aria-hidden="true" /> Delete {selected.size} Selected
             </button>
           </>
         )}
@@ -1151,7 +1151,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
                 ))
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={11} className="text-center text-gray-500 py-10 text-sm">
-                  {isProcessing ? '⏳ Parsing resumes... candidates will appear shortly.' : 'No candidates found.'}
+                  {isProcessing ? <span className="inline-flex items-center gap-2"><Loader2 size={16} aria-hidden="true" className="animate-spin" /> Parsing resumes... candidates will appear shortly.</span> : 'No candidates found.'}
                 </td></tr>
               ) : visibleCandidates.map(c => (
                 <tr key={c.id} className={`border-b border-gray-800 hover:bg-gray-800/40 transition-colors ${selected.has(c.id) ? 'bg-blue-900/10' : ''}`}>
@@ -1201,7 +1201,7 @@ function ExtractedPage({ lastUploadAt, onUnauthorized, recruiterName, onOpenTrac
                           disabled={retryingIds.has(c.id)}
                           className="text-xs px-2 py-1 bg-orange-900/40 hover:bg-orange-900/70 text-orange-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {retryingIds.has(c.id) ? '...' : '↺ Retry'}
+                          {retryingIds.has(c.id) ? <Loader2 size={13} aria-label="Retrying" className="inline-block animate-spin" /> : <><RotateCcw size={13} aria-hidden="true" className="inline-block mr-1" /> Retry</>}
                         </button>
                       )}
                       <button onClick={() => deleteCandidate(c.id)}
@@ -1442,7 +1442,7 @@ function InternalPage() {
     <div className="space-y-4">
       {/* Notice Banner */}
       <div className="flex items-start gap-3 bg-amber-900/20 border border-amber-700/40 rounded-xl px-5 py-4">
-        <span className="text-amber-400 text-lg mt-0.5">⚠️</span>
+        <AlertCircle size={20} aria-hidden="true" className="text-amber-400 mt-0.5 shrink-0" />
         <div>
           <p className="text-amber-300 font-semibold text-sm">Internal Talent Pool — Not Registered Users</p>
           <p className="text-amber-400/70 text-xs mt-1">
@@ -1603,7 +1603,7 @@ function InternalPage() {
             </div>
             <div className="px-6 pb-5">
               <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg px-4 py-2">
-                <p className="text-amber-400 text-xs">⚠️ Not a registered ZyncJobs user — invitation only</p>
+                <p className="text-amber-400 text-xs flex items-center gap-2"><AlertCircle size={14} aria-hidden="true" /> Not a registered ZyncJobs user — invitation only</p>
               </div>
             </div>
           </div>
@@ -1665,9 +1665,9 @@ function BulkEmailPage() {
         body: JSON.stringify({ testEmail: testEmail.trim(), template })
       });
       const data = await res.json();
-      setTestResult({ ok: res.ok, msg: res.ok ? `✅ Test email sent to ${testEmail.trim()}` : `❌ ${data.error || 'Failed to send'}` });
+      setTestResult({ ok: res.ok, msg: res.ok ? `Test email sent to ${testEmail.trim()}` : (data.error || 'Failed to send') });
     } catch {
-      setTestResult({ ok: false, msg: '❌ Network error — check backend connection' });
+      setTestResult({ ok: false, msg: 'Network error — check backend connection' });
     }
     setTestSending(false);
   };
@@ -1717,10 +1717,10 @@ function BulkEmailPage() {
           <p style="color:#374151;font-size:13px;line-height:1.7;margin:0 0 16px;">We noticed you have not joined ZyncJobs yet. Since our last message, several new positions have been added that closely match your profile.</p>
           <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:12px;padding:16px 18px;margin:0 0 16px;">
             <p style="color:#3730A3;font-size:13px;font-weight:700;margin:0 0 8px;">What is waiting for you:</p>
-            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Curated job matches tailored to your skills</p>
-            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Opportunities with companies actively hiring now</p>
-            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Streamlined application process — no lengthy forms</p>
-            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Full visibility into your application pipeline</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m20 6-11 11-5-5" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Curated job matches tailored to your skills</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m20 6-11 11-5-5" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Opportunities with companies actively hiring now</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m20 6-11 11-5-5" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Streamlined application process — no lengthy forms</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m20 6-11 11-5-5" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Full visibility into your application pipeline</p>
           </div>
           <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
           <div style="text-align:center;margin:0 0 16px;">
@@ -1876,15 +1876,15 @@ function BulkEmailPage() {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-emerald-700/50 rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center space-y-4">
             <div className="w-16 h-16 bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-3xl">✅</span>
+              <CheckCircle2 size={32} aria-hidden="true" className="text-emerald-400" />
             </div>
             <h3 className="text-xl font-bold text-white">Emails Sent Successfully!</h3>
             <p className="text-gray-400 text-sm">
               <span className="text-emerald-400 font-semibold text-lg">{lastSentCount}</span> emails delivered successfully.
             </p>
             <div className="bg-gray-800 rounded-xl px-4 py-3 text-left space-y-1">
-              <p className="text-xs text-gray-400">📊 Total emailed so far: <span className="text-white font-semibold">{sentIds.size}</span></p>
-              <p className="text-xs text-gray-400">📭 Remaining unsent: <span className="text-orange-400 font-semibold">{unsentCandidates.length}</span></p>
+              <p className="text-xs text-gray-400 flex items-center gap-2"><BarChart3 size={14} aria-hidden="true" /> Total emailed so far: <span className="text-white font-semibold">{sentIds.size}</span></p>
+              <p className="text-xs text-gray-400 flex items-center gap-2"><Inbox size={14} aria-hidden="true" /> Remaining unsent: <span className="text-orange-400 font-semibold">{unsentCandidates.length}</span></p>
             </div>
             {unsentCandidates.length > 0 && (
               <button
@@ -1986,7 +1986,7 @@ function BulkEmailPage() {
                           ? 'bg-emerald-900/40 text-emerald-400'
                           : 'bg-gray-700 text-gray-400'
                       }`}>
-                        {sentIds.has(c.id) || c.emailStatus === 'Sent' ? '✓ Sent' : 'Not Sent'}
+                        {sentIds.has(c.id) || c.emailStatus === 'Sent' ? <span className="inline-flex items-center gap-1"><Check size={12} aria-hidden="true" /> Sent</span> : 'Not Sent'}
                       </span>
                     </td>
                   </tr>
@@ -2017,7 +2017,7 @@ function BulkEmailPage() {
               onClick={() => setPreview(true)}
               className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg transition-colors"
             >
-              👁 Preview Email
+              <Eye size={16} aria-hidden="true" className="inline-block mr-2" /> Preview Email
             </button>
           </div>
 
@@ -2038,14 +2038,14 @@ function BulkEmailPage() {
               />
             </div>
             <div className="text-xs text-gray-500 bg-gray-800/50 rounded-lg px-3 py-2 space-y-1">
-              <p>📦 {selectedList.length} selected to send now</p>
-              <p>📭 {unsentCandidates.length} total unsent remaining</p>
-              <p>✅ {sentIds.size} already emailed (tracked)</p>
+              <p className="flex items-center gap-2"><ListChecks size={14} aria-hidden="true" /> {selectedList.length} selected to send now</p>
+              <p className="flex items-center gap-2"><Inbox size={14} aria-hidden="true" /> {unsentCandidates.length} total unsent remaining</p>
+              <p className="flex items-center gap-2"><CheckCircle2 size={14} aria-hidden="true" /> {sentIds.size} already emailed (tracked)</p>
             </div>
           </div>
 
           <div className="bg-gray-900 border border-blue-800/40 rounded-xl p-5 space-y-3">
-            <p className="text-sm font-semibold text-gray-200">🧪 Send Test Email</p>
+            <p className="text-sm font-semibold text-gray-200 flex items-center gap-2"><FlaskConical size={16} aria-hidden="true" /> Send Test Email</p>
             <p className="text-xs text-gray-500">Send the selected template to any email to preview exactly how it looks in inbox.</p>
             <input
               type="email"
@@ -2055,7 +2055,7 @@ function BulkEmailPage() {
               className="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             {testResult && (
-              <p className={`text-xs font-medium ${testResult.ok ? 'text-emerald-400' : 'text-red-400'}`}>{testResult.msg}</p>
+              <p role="status" className={`text-xs font-medium flex items-center gap-2 ${testResult.ok ? 'text-emerald-400' : 'text-red-400'}`}>{testResult.ok ? <CheckCircle2 size={14} aria-hidden="true" /> : <AlertCircle size={14} aria-hidden="true" />}{testResult.msg}</p>
             )}
             <button
               onClick={handleTestSend}
@@ -2090,7 +2090,7 @@ function BulkEmailPage() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-gray-500">⏳ Sending emails — please keep this tab open.</p>
+          <p className="text-xs text-gray-500 flex items-center gap-2"><Loader2 size={14} aria-hidden="true" className="animate-spin" /> Sending emails — please keep this tab open.</p>
         </div>
       )}
 

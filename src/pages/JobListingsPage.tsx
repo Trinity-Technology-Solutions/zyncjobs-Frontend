@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
+import { availableListingJobs, listingTitleCounts, normalizedJobTitle } from '../utils/jobListingAvailability';
 import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { searchAccuracy } from '../utils/searchAccuracy';
@@ -47,6 +48,7 @@ interface JobListingsSnapshot {
   radius: number;
   activeTab: 'search' | 'recommended';
   activeQuickFilter: string | null;
+  trendingTitle?: string;
 }
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
@@ -68,8 +70,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     return initialSearch?.category || p.get('category') || '';
   });
   const [categoryTerms, setCategoryTerms] = useState<string[]>(initialSearch?.categoryTerms || []);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
+  const [jobs, setJobsState] = useState<any[]>([]);
+  const [filteredJobs, setFilteredJobsState] = useState<any[]>([]);
+  const setJobs = useCallback((next: React.SetStateAction<any[]>) => {
+    setJobsState(previous => availableListingJobs(typeof next === 'function' ? next(previous) : next));
+  }, []);
+  const setFilteredJobs = useCallback((next: React.SetStateAction<any[]>) => {
+    setFilteredJobsState(previous => availableListingJobs(typeof next === 'function' ? next(previous) : next));
+  }, []);
+  const [trendingTitle, setTrendingTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [salaryMin, setSalaryMin] = useState(0);
@@ -138,6 +147,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     'zync:list:job-listings',
     (snap, scrollY) => {
       setSearchTerm(snap.searchTerm);
+      setTrendingTitle(snap.trendingTitle || '');
       setLocation(snap.location);
       setSelectedCategory(snap.selectedCategory);
       setCategoryTerms(snap.categoryTerms || []);
@@ -152,7 +162,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       window.setTimeout(() => window.scrollTo(0, scrollY || 0), 100);
     },
     () => ({
-      searchTerm, location, selectedCategory, categoryTerms,
+      searchTerm, location, selectedCategory, categoryTerms, trendingTitle,
       filters, salaryMin, salaryMax, expMin, expMax, radius,
       activeTab, activeQuickFilter,
     }),
@@ -227,7 +237,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   const clientFilter = useCallback((jobList: any[], term: string, loc: string) => {
-    return jobList.filter(job => {
+    return availableListingJobs(jobList).filter(job => {
       // Search only on job title
       const jobTitle = (job.title || job.jobTitle || '').toLowerCase();
       const matchTerm = !term || jobTitle.includes(term.toLowerCase());
@@ -272,20 +282,18 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         if (response.ok) {
           const data = await response.json();
           const jobsArray = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data) ? data : []);
-          if (jobsArray.length > 0) {
-            if (append) {
-              setJobs(prev => [...prev, ...jobsArray]);
-              setFilteredJobs(prev => [...prev, ...jobsArray]);
-            } else {
-              setJobs(jobsArray);
-              setFilteredJobs(jobsArray);
-            }
-            setHasMoreJobs(jobsArray.length === jobsPerPage);
-            setTotalPages(data.totalPages || Math.ceil((data.total || jobsArray.length) / jobsPerPage) || 1);
-            return;
+          if (append) {
+            setJobs(prev => [...prev, ...jobsArray]);
+            setFilteredJobs(prev => [...prev, ...jobsArray]);
+          } else {
+            setJobs(jobsArray);
+            setFilteredJobs(jobsArray);
           }
+          setHasMoreJobs(jobsArray.length === jobsPerPage);
+          setTotalPages(data.totalPages || Math.ceil((data.total || jobsArray.length) / jobsPerPage) || 1);
+          return;
         }
-        // Advanced search failed or returned empty — fall back to client-side filter on all jobs
+        // Only a failed request may fall back. An empty successful result is authoritative.
         if (!append) {
           // If we have jobs loaded, filter them; otherwise fetch all and filter
           if (jobs.length > 0) {
@@ -371,6 +379,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   // reflects exactly how many results the user would get after checking it.
   const computeFilteredJobs = useCallback((source: any[], skipLocation: boolean) => {
     let filtered = clientFilter(source, searchTerm, location);
+    if (trendingTitle && searchTerm === trendingTitle) {
+      filtered = filtered.filter(job => normalizedJobTitle(job.title || job.jobTitle || '') === normalizedJobTitle(trendingTitle));
+    }
 
     if (filters.department.length > 0) {
       filtered = filtered.filter(job =>
@@ -455,11 +466,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       });
     }
     return filtered;
-  }, [clientFilter, searchTerm, location, filters, expMin, expMax, salaryMin, salaryMax]);
+  }, [clientFilter, searchTerm, location, filters, expMin, expMax, salaryMin, salaryMax, trendingTitle]);
+
+  useEffect(() => { if (searchTerm !== trendingTitle) setTrendingTitle(''); }, [searchTerm, trendingTitle]);
 
   // Reactive filter: runs when jobs load, filters change, or Search is triggered
   useEffect(() => {
-    if (jobs.length === 0) return;
     const filtered = computeFilteredJobs(jobs, false);
     filtered.sort((a: any, b: any) => {
       const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
@@ -529,15 +541,22 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     fetchStats();
     fetchCompanyLogos([]);
 
-    const handleJobPosted = () => fetchJobsRef.current?.();
+    const handleJobPosted = () => { allJobsCacheRef.current = []; fetchJobsRef.current?.(); };
+    const handleVisible = () => { if (document.visibilityState === 'visible') handleJobPosted(); };
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'lastJobPosted') setTimeout(() => fetchJobsRef.current?.(), 500);
+      if (['lastJobPosted', 'lastJobDeleted', 'lastJobUpdated'].includes(e.key || '')) handleJobPosted();
     };
 
     window.addEventListener('jobPosted', handleJobPosted);
+    window.addEventListener('jobDeleted', handleJobPosted);
+    window.addEventListener('jobUpdated', handleJobPosted);
+    document.addEventListener('visibilitychange', handleVisible);
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('jobPosted', handleJobPosted);
+      window.removeEventListener('jobDeleted', handleJobPosted);
+      window.removeEventListener('jobUpdated', handleJobPosted);
+      document.removeEventListener('visibilitychange', handleVisible);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
@@ -687,8 +706,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         let jobsArray = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data) ? data : []);
 
         // Re-filter client-side: title + location only
-        const filtered = clientFilter(jobsArray.length > 0 ? jobsArray : jobs, searchQuery, locationQuery);
-        setJobs(jobsArray.length > 0 ? jobsArray : jobs);
+        const filtered = clientFilter(jobsArray, searchQuery, locationQuery);
+        setJobs(jobsArray);
         setFilteredJobs(filtered);
         setCurrentPage(1);
         setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
@@ -1286,13 +1305,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           <div className="job-search-filter-rail hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
               {/* Trending Job Titles - Dynamic count from real data */}
-              {jobs.length > 0 && (() => {
-                const titleCounts: Record<string, number> = {};
-                jobs.forEach((job: any) => {
-                  const title = (job.jobTitle || job.title || '').trim();
-                  if (title) titleCounts[title] = (titleCounts[title] || 0) + 1;
-                });
-                const topTitles = Object.entries(titleCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+              {filteredJobs.length > 0 && (() => {
+                const topTitles = listingTitleCounts(filteredJobs).slice(0, 8);
                 if (topTitles.length === 0) return null;
                 return (
                   <div className="p-6">
@@ -1301,11 +1315,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       Trending Jobs
                     </h3>
                     <div className="space-y-2">
-                      {topTitles.map(([title, count]) => (
-                        <div key={title} onClick={() => setSearchTerm(title)} className="flex items-center justify-between cursor-pointer group hover:bg-orange-50 rounded-lg px-3 py-2 transition-colors">
+                      {topTitles.map(({ title, count }) => (
+                        <button type="button" key={title} aria-pressed={trendingTitle === title} onClick={() => { setTrendingTitle(title); setSearchTerm(title); }} className="w-full text-left flex items-center justify-between cursor-pointer group hover:bg-orange-50 rounded-lg px-3 py-2 transition-colors">
                           <span className="text-sm text-gray-700 group-hover:text-orange-600 font-medium truncate pr-2">{title}</span>
                           <span className="flex-shrink-0 text-xs font-semibold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{count}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -1507,8 +1521,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="job-results-toolbar mb-4 flex items-center justify-between">
               <p className="text-gray-600 text-sm">
                 {loading ? 'Searching...' : (
-                  `${filteredJobs.length} results` +
-                  (filteredJobs.length > 0 ? ` (${Math.floor(filteredJobs.length * 0.6)} new)` : '')
+                  `${filteredJobs.length} results`
                 )}
               </p>
               

@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload, Loader2, AlertCircle, Trash2, Plus,
-  FileText, ChevronDown, Download
+  FileText, ChevronDown, Download, Calendar
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { apiFetch } from '../../../api/apiFetch';
+import TrackerInterviewModal from './TrackerInterviewModal';
 import {
   enqueueTrackerResumeUpload,
   subscribeToTrackerUploads,
@@ -34,6 +35,12 @@ interface TrackerRow {
   candidateName: string;
   phone: string;
   email: string;
+  location: string;
+  linkedinUrl: string;
+  qualification: string;
+  taxTerm: string;
+  visaStatus: string;
+  rate: string;
   recruiterName: string;
   status: string;
   resumeFile?: string;
@@ -46,12 +53,20 @@ interface TrackerRow {
 
 const STATUSES = ['', 'Submitted', 'Feedback', 'Shortlisted', 'Rejected', 'Duplicate', 'Screening', 'Not Relevant'];
 
-const SOURCES = ['', 'LinkedIn', 'Naukri', 'Indeed', 'Monster', 'Shine', 'TimesJobs', 'ZipRecruiter', 'Glassdoor', 'Foundit', 'Hirist', 'Internshala', 'Referral', 'Internal DB', 'Walk-in', 'Other'];
+// Standardize the recruiting sources to the options used by the tracker team.
+// Existing historic source values are still displayed and remain filterable below.
+const SOURCES = ['', 'LinkedIn', 'Dice', 'Referral', 'Internal Database', 'Headhunt', 'Inbound', 'Vendor', 'Other'];
+const QUALIFICATIONS = ['', 'UG', 'PG', 'Doctorate', 'Associate', 'Diploma', 'High School', 'Other'];
+const TAX_TERMS = ['', 'W-2', '1099', 'C2C', 'W-2 Contract', 'Direct Hire'];
+const VISA_STATUSES = ['', 'US Citizen', 'GC', 'H-1B', 'H-4 EAD', 'F-1 CPT', 'F-1 OPT', 'STEM OPT', 'L-1', 'L-2 EAD', 'TN', 'EAD', 'J-1', 'B-1/B-2'];
 
 const SEARCH_COLUMNS = [
   ['subId', 'Submission ID'], ['date', 'Date'], ['clientName', 'Client/HR'],
   ['skillRole', 'Skill / Role'], ['candidateName', 'Candidate Name'], ['phone', 'Contact'],
-  ['email', 'Email ID'], ['recruiterName', 'Recruiter'], ['source', 'Source'],
+  ['email', 'Email ID'], ['location', 'Location'], ['linkedinUrl', 'LinkedIn Profile'],
+  ['qualification', 'Qualification'], ['taxTerm', 'Tax Terms'], ['visaStatus', 'Visa / Status'],
+  ['rate', 'Rate'],
+  ['recruiterName', 'Recruiter'], ['source', 'Source'],
   ['submittedDate', 'Submitted Date'], ['interviewDate', 'Interview Date'], ['status', 'Status'],
 ] as const;
 type SearchColumn = typeof SEARCH_COLUMNS[number][0];
@@ -74,19 +89,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 const SOURCE_COLORS: Record<string, string> = {
   LinkedIn:     'bg-blue-900/40 text-blue-300 border-blue-700/50',
-  Naukri:       'bg-orange-900/40 text-orange-300 border-orange-700/50',
-  Indeed:       'bg-purple-900/40 text-purple-300 border-purple-700/50',
-  Monster:      'bg-violet-900/40 text-violet-300 border-violet-700/50',
-  Shine:        'bg-cyan-900/40 text-cyan-300 border-cyan-700/50',
-  TimesJobs:    'bg-red-900/40 text-red-300 border-red-700/50',
-  ZipRecruiter: 'bg-green-900/40 text-green-300 border-green-700/50',
-  Glassdoor:    'bg-teal-900/40 text-teal-300 border-teal-700/50',
-  Foundit:      'bg-pink-900/40 text-pink-300 border-pink-700/50',
-  Hirist:       'bg-indigo-900/40 text-indigo-300 border-indigo-700/50',
-  Internshala:  'bg-lime-900/40 text-lime-300 border-lime-700/50',
+  Dice:         'bg-cyan-900/40 text-cyan-300 border-cyan-700/50',
   Referral:     'bg-emerald-900/40 text-emerald-300 border-emerald-700/50',
-  'Internal DB':'bg-gray-800 text-gray-300 border-gray-700',
-  'Walk-in':    'bg-yellow-900/40 text-yellow-300 border-yellow-700/50',
+  'Internal Database': 'bg-gray-800 text-gray-300 border-gray-700',
+  Headhunt:     'bg-violet-900/40 text-violet-300 border-violet-700/50',
+  Inbound:      'bg-orange-900/40 text-orange-300 border-orange-700/50',
+  Vendor:       'bg-teal-900/40 text-teal-300 border-teal-700/50',
   Other:        'bg-gray-800 text-gray-400 border-gray-700',
 };
 
@@ -124,8 +132,29 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
   const [recruiterExact, setRecruiterExact] = useState<string | null | undefined>(initialFilters ? initialFilters.recruiter : undefined);
   const [todayExact, setTodayExact] = useState(initialFilters?.today || '');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [linkedinDrafts, setLinkedinDrafts] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingSaves = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; row: TrackerRow }>());
+  const [interviewSubmission, setInterviewSubmission] = useState<TrackerRow | null>(null);
+  const [openingInterviews, setOpeningInterviews] = useState<string | null>(null);
+  const [nextInterviews, setNextInterviews] = useState<Record<string, { round: string; scheduledDate: string; timezone: string }>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    const refresh = async () => {
+      try {
+        const response = await apiFetch(`${API_ENDPOINTS.TRACKER_ROWS.replace(/\/rows$/, '')}/interview-summary`);
+        if (response.status === 401) { onUnauthorized(); return; }
+        if (response.ok) {
+          const data = await response.json();
+          if (mounted && data && typeof data === 'object' && !Array.isArray(data)) setNextInterviews(data);
+        }
+      } catch { /* The interview panel provides retry and error details. */ }
+    };
+    void refresh();
+    window.addEventListener('zync:tracker-interviews-updated', refresh);
+    return () => { mounted = false; window.removeEventListener('zync:tracker-interviews-updated', refresh); };
+  }, [onUnauthorized]);
 
   const loadRows = useCallback(async () => {
     try {
@@ -157,9 +186,29 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
         const body = await response.json().catch(() => ({}));
         setError(body.error || 'Failed to save submission.');
         await loadRows();
+        return false;
       }
-    } catch { setError('Failed to save submission. Please retry your edit.'); }
+      const saved = await response.json().catch(() => null);
+      if (saved && typeof saved.linkedinUrl === 'string') {
+        setRows(prev => prev.map(current => current.id === row.id && current.linkedinUrl === row.linkedinUrl
+          ? { ...current, linkedinUrl: saved.linkedinUrl } : current));
+      }
+      return true;
+    } catch { setError('Failed to save submission. Please retry your edit.'); return false; }
   }, [onUnauthorized, loadRows]);
+
+  const openInterviews = async (row: TrackerRow) => {
+    if (openingInterviews) return;
+    setOpeningInterviews(row.id);
+    try {
+      const pending = pendingSaves.current.get(row.id);
+      if (pending) {
+        clearTimeout(pending.timer); pendingSaves.current.delete(row.id);
+      }
+      if (!await saveRow(pending?.row || row)) return;
+      setInterviewSubmission(row);
+    } finally { setOpeningInterviews(null); }
+  };
 
   useEffect(() => {
     const refresh = () => { void loadRows(); };
@@ -196,6 +245,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
       candidateName: '',
       phone: '',
       email: '',
+      location: '', linkedinUrl: '', qualification: '', taxTerm: '', visaStatus: '', rate: '',
       recruiterName,
       status: '',
       resumeFile: '',
@@ -257,9 +307,9 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
   }, [recruiterName, onUnauthorized]);
 
   const exportCSV = () => {
-    const headers = ['SNO', 'Sub ID', 'Date', 'Client/HR', 'Skill/Role', 'Candidate Name', 'Contact Number', 'Email ID', 'Recruiter Name', 'Source', 'Submitted Date', 'Interview Date', 'Status'];
+    const headers = ['SNO', 'Sub ID', 'Submitted Date', 'Date', 'Client/HR', 'Skill/Role', 'Candidate Name', 'Contact Number', 'Email ID', 'Location', 'LinkedIn Profile', 'Qualification', 'Tax Terms', 'Visa / Status', 'Rate', 'Recruiter Name', 'Source', 'Interview Date', 'Status'];
     const csvRows = filtered.map(r =>
-      [r.sno, r.subId, r.date, r.clientName, r.skillRole, r.candidateName, r.phone, r.email, r.recruiterName, r.source, r.submittedDate, r.interviewDate, r.status]
+      [r.sno, r.subId, r.submittedDate, r.date, r.clientName, r.skillRole, r.candidateName, r.phone, r.email, r.location, r.linkedinUrl, r.qualification, r.taxTerm, r.visaStatus, r.rate, r.recruiterName, r.source, r.interviewDate, r.status]
         .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`)
         .join(',')
     );
@@ -281,7 +331,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
     const columns: readonly SearchColumn[] = searchColumn === 'all' ? SEARCH_COLUMNS.map(([key]) => key) : [searchColumn];
     const values = columns.flatMap(key => {
       const value = String(row[key] ?? '').toLowerCase();
-      if (DATE_COLUMNS.some(column => column.key === key)) return [value, toDisplay(value), toDisplay(value).replaceAll('-', '/')];
+      if (DATE_COLUMNS.some(column => column.key === key)) return [value, toDisplay(value), toDisplay(value).replace(/-/g, '/')];
       return [value];
     });
     const matchesSearch = terms.every(term => values.some(value => value.includes(term)) || (
@@ -289,7 +339,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
       String(row.phone || '').replace(/\D/g, '').includes(term.replace(/\D/g, ''))
     ));
     return matchesSearch &&
-      (recruiterExact === undefined || row.recruiterName === recruiterExact) &&
+      (recruiterExact === undefined || (recruiterExact === '_' ? !row.recruiterName?.trim() || row.recruiterName.trim() === '?' : row.recruiterName === recruiterExact)) &&
       (!todayExact || row.date === todayExact) &&
       (!clientFilter.trim() || String(row.clientName || '').toLowerCase().includes(clientFilter.trim().toLowerCase())) &&
       ((!appliedDateRange.from && !appliedDateRange.to) || (
@@ -317,10 +367,11 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
   };
   const textColumnWidth = (key: keyof TrackerRow, minimum: number) => Math.max(minimum, ...filtered.map(row => String(row[key] ?? '').length * 9 + 48));
   const columnWidths = [
-    56, textColumnWidth('subId', 210), 140, textColumnWidth('clientName', 220),
+    56, textColumnWidth('subId', 210), 160, 140, textColumnWidth('clientName', 220),
     textColumnWidth('skillRole', 300), textColumnWidth('candidateName', 280),
-    textColumnWidth('phone', 200), textColumnWidth('email', 340), textColumnWidth('recruiterName', 200),
-    180, 160, 160, 180, 56,
+    textColumnWidth('phone', 200), textColumnWidth('email', 340),
+    textColumnWidth('location', 240), 320, 160, 170, 220, 160, textColumnWidth('recruiterName', 200),
+    180, 160, 180, 240,
   ];
   const clearFilters = () => {
     setRecruiterExact(undefined); setTodayExact(''); onClearNavigationFilters?.();
@@ -331,6 +382,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
 
   return (
     <div className="space-y-4">
+      {interviewSubmission && <TrackerInterviewModal submission={interviewSubmission} onUnauthorized={onUnauthorized} onClose={() => setInterviewSubmission(null)} />}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -353,14 +405,16 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
             {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
             Upload Resumes
           </button>
-          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" multiple className="hidden"
+          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple className="hidden"
             onChange={e => e.target.files && handleResumeUpload(e.target.files)} />
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-sm text-red-300">
-          <AlertCircle size={14} className="shrink-0" /> {error}
+        <div role="alert" className="flex items-start gap-2 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-sm text-red-300">
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">{error}</p>
+          <button type="button" onClick={() => setError(null)} className="shrink-0 rounded px-2 py-1 text-xs text-red-200 hover:bg-red-800/50 hover:text-white">Close</button>
         </div>
       )}
       {successMsg && (
@@ -427,7 +481,7 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
             <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/60">
-                {['SNO', 'Sub ID', 'Date', 'Client/HR', 'Skill / Role', 'Candidate Name', 'Contact', 'Email ID', 'Recruiter', 'Source', 'Submitted Date', 'Interview Date', 'Status', ''].map(h => (
+                {['SNO', 'Sub ID', 'Submitted Date', 'Date', 'Client/HR', 'Skill / Role', 'Candidate Name', 'Contact', 'Email ID', 'Location', 'LinkedIn Profile', 'Qualification', 'Tax Terms', 'Visa / Status', 'Rate', 'Recruiter', 'Source', 'Interview Date', 'Status', 'Actions'].map(h => (
                   <th key={h} className="px-2 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide border-r border-gray-800 last:border-r-0 whitespace-nowrap">
                     {h}
                   </th>
@@ -437,13 +491,13 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
             <tbody className="divide-y divide-gray-800">
               {loading ? (
                 <tr>
-                  <td colSpan={14} className="text-center py-12 text-gray-500">
+                  <td colSpan={20} className="text-center py-12 text-gray-500">
                     <Loader2 className="w-6 h-6 mx-auto animate-spin text-gray-600" />
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="text-center py-12 text-gray-500">
+                  <td colSpan={20} className="text-center py-12 text-gray-500">
                     <FileText className="w-8 h-8 mx-auto mb-2 text-gray-700" />
                     <p>{rows.length ? 'No submissions match your search or filters.' : 'No entries yet. Upload resumes or add a row manually.'}</p>
                     {hasFilters && <button type="button" onClick={clearFilters} className="mt-3 text-blue-400 hover:text-blue-300">Clear filters</button>}
@@ -454,6 +508,9 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
                   <td className={`${cellCls} w-10 text-gray-500 text-center`}>{row.sno}</td>
                   <td className={`${cellCls} min-w-[110px]`}>
                     <span className="text-[11px] text-blue-400 font-mono px-1">{row.subId || '—'}</span>
+                  </td>
+                  <td className={`${cellCls} w-28`}>
+                    <span className="text-gray-300 whitespace-nowrap" title="Set when created; cannot be edited">{row.submittedDate?.trim() && row.submittedDate.trim() !== '?' ? toDisplay(row.submittedDate) : '_'}</span>
                   </td>
                   <td className={`${cellCls} w-28`}>
                     <input
@@ -491,6 +548,41 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
                     <input title={row.email || ''} aria-label={`Edit email for ${row.candidateName || 'candidate'}`} value={row.email} onChange={e => updateRow(row.id, 'email', e.target.value)}
                       placeholder="Email" className={inputCls} />
                   </td>
+                  <td className={cellCls}>
+                    <input title={row.location || ''} aria-label={`Edit location for ${row.candidateName || 'candidate'}`} value={row.location || ''}
+                      onChange={e => updateRow(row.id, 'location', e.target.value)} placeholder="City, State" className={inputCls} />
+                  </td>
+                  <td className={cellCls}>
+                    <input title={row.linkedinUrl || ''} aria-label={`Edit LinkedIn profile for ${row.candidateName || 'candidate'}`} value={linkedinDrafts[row.id] ?? row.linkedinUrl ?? ''}
+                      onChange={e => setLinkedinDrafts(prev => ({ ...prev, [row.id]: e.target.value }))}
+                      onBlur={e => {
+                        const value = e.target.value.trim();
+                        if (value !== (row.linkedinUrl || '')) updateRow(row.id, 'linkedinUrl', value);
+                        setLinkedinDrafts(prev => { const next = { ...prev }; delete next[row.id]; return next; });
+                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                      placeholder="linkedin.com/in/profile" className={inputCls} />
+                    {/^https:\/\/www\.linkedin\.com\/in\/[\w-]+$/i.test(row.linkedinUrl || '') && (
+                      <a href={row.linkedinUrl} target="_blank" rel="noopener noreferrer" className="px-1 text-[11px] text-blue-400 hover:underline">Open profile</a>
+                    )}
+                  </td>
+                  {([
+                    ['qualification', 'Qualification', QUALIFICATIONS],
+                    ['taxTerm', 'Tax terms', TAX_TERMS],
+                    ['visaStatus', 'Visa / status', VISA_STATUSES],
+                  ] as const).map(([field, label, options]) => (
+                    <td key={field} className={cellCls}>
+                      <select aria-label={`${label} for ${row.candidateName || 'candidate'}`} value={row[field] || ''}
+                        onChange={e => updateRow(row.id, field, e.target.value)}
+                        className="w-full rounded-md border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-200 outline-none focus:ring-1 focus:ring-blue-500">
+                        {options.map(option => <option key={option} value={option}>{option || `Select ${label}`}</option>)}
+                      </select>
+                    </td>
+                  ))}
+                  <td className={cellCls}>
+                    <input title={row.rate || ''} aria-label={`Edit rate for ${row.candidateName || 'candidate'}`} value={row.rate || ''}
+                      onChange={e => updateRow(row.id, 'rate', e.target.value)} placeholder="e.g. $65/hr" className={inputCls} />
+                  </td>
                   <td className={`${cellCls} min-w-[100px]`}>
                     <span className="text-gray-300" title="Set when created; cannot be edited">{row.recruiterName?.trim() && row.recruiterName.trim() !== '?' ? row.recruiterName : '_'}</span>
                   </td>
@@ -509,9 +601,6 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
                       </select>
                       <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                     </div>
-                  </td>
-                  <td className={`${cellCls} w-28`}>
-                    <span className="text-gray-300 whitespace-nowrap" title="Set when created; cannot be edited">{row.submittedDate?.trim() && row.submittedDate.trim() !== '?' ? toDisplay(row.submittedDate) : '_'}</span>
                   </td>
                   <td className={`${cellCls} w-28`}>
                     <input
@@ -539,11 +628,17 @@ export default function SubmissionTrackerSection({ onUnauthorized, recruiterName
                       <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                     </div>
                   </td>
-                  <td className={`${cellCls} w-8`}>
-                    <button onClick={() => deleteRow(row.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-0.5 rounded">
+                  <td className={cellCls}>
+                    {nextInterviews[row.id] && <p className="mb-2 text-[11px] leading-relaxed text-slate-500">Next: {nextInterviews[row.id].round}<br />{new Date(nextInterviews[row.id].scheduledDate).toLocaleString('en-GB', { timeZone: nextInterviews[row.id].timezone, dateStyle: 'short', timeStyle: 'short' })} · {nextInterviews[row.id].timezone}</p>}
+                    <div className="flex items-center gap-2">
+                    <button type="button" disabled={openingInterviews !== null} onClick={() => void openInterviews(row)} className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs disabled:opacity-50 ${row.status === 'Shortlisted' ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                      {openingInterviews === row.id ? <Loader2 size={14} className="animate-spin" /> : <Calendar size={14} />} Interviews
+                    </button>
+                    <button type="button" aria-label={`Delete submission for ${row.candidateName || 'candidate'}`} onClick={() => deleteRow(row.id)}
+                      className="text-gray-600 hover:text-red-400 transition-all p-1 rounded">
                       <Trash2 size={13} />
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}

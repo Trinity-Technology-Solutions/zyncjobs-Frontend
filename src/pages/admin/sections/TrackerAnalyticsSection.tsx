@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, RefreshCw, Users, CheckCircle2, XCircle,
-  FileText, Target, Layers, ArrowUpRight, ArrowDownRight, Minus,
+  FileText, Target, Layers, Minus,
   Award, Activity, BarChart2, PieChart as PieIcon, Download, X, Calendar,
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
@@ -28,15 +28,15 @@ interface Analytics {
 }
 
 interface DrillRow {
-  sub_id: string; candidate_name: string; job_role: string;
-  company: string; status: string; date: string; source: string;
+  sub_id: string; candidate_name: string; skill_role: string;
+  client_name: string; status: string; submitted_date: string; source: string;
 }
 
 type DateRange = 'all' | 'week' | 'month' | 'custom';
 
 const STATUS_COLORS: Record<string, string> = {
-  Submitted: '#3b82f6', Shortlisted: '#10b981', Rejected: '#ef4444',
-  Feedback: '#f97316', Duplicate: '#eab308', Screening: '#8b5cf6', 'Not Relevant': '#6b7280',
+  Submitted: '#3b6caa', Shortlisted: '#64748b', Rejected: '#94a3b8',
+  Feedback: '#7d8fa8', Duplicate: '#bac5d3', Screening: '#8faaca', 'Not Relevant': '#d1d9e3',
 };
 
 function getDateRange(range: DateRange, customFrom: string, customTo: string): { from: string; to: string } | null {
@@ -49,7 +49,7 @@ function getDateRange(range: DateRange, customFrom: string, customTo: string): {
     const d = new Date(); d.setDate(d.getDate() - 29);
     return { from: d.toISOString().slice(0, 10), to: today };
   }
-  if (range === 'custom' && customFrom && customTo) return { from: customFrom, to: customTo };
+  if (range === 'custom' && (customFrom || customTo)) return { from: customFrom, to: customTo };
   return null;
 }
 
@@ -61,7 +61,7 @@ function recruiterDisplayName(name?: string | null) {
 function exportCSV(rows: DrillRow[], recruiterName: string) {
   const headers = ['Sub ID', 'Candidate', 'Job Role', 'Company', 'Status', 'Date', 'Source'];
   const lines = [headers.join(','), ...rows.map(r =>
-    [r.sub_id, r.candidate_name, r.job_role, r.company, r.status, r.date, r.source]
+    [r.sub_id, r.candidate_name, r.skill_role, r.client_name, r.status, r.submitted_date, r.source]
       .map(v => `"${(v || '').replace(/"/g, '""')}"`)
       .join(',')
   )];
@@ -114,25 +114,16 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-function KpiCard({ label, value, icon: Icon, gradient, trend }: {
+function KpiCard({ label, value, icon: Icon }: {
   label: string; value: string | number;
-  icon: any; gradient: string; trend?: 'up' | 'down' | 'neutral';
+  icon: any;
 }) {
   return (
-    <div className="relative bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-hidden group hover:border-gray-700 transition-all duration-200">
+    <div className="tracker-kpi-card relative bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-hidden group hover:border-gray-700 transition-all duration-200">
       <div className="flex items-start justify-between mb-2">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${gradient}`}>
-          <Icon className="w-4 h-4 text-white" />
+        <div className="tracker-kpi-icon w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4" aria-hidden="true" />
         </div>
-        {trend && (
-          <div className={`flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-            trend === 'up' ? 'bg-emerald-900/40 text-emerald-400' :
-            trend === 'down' ? 'bg-red-900/40 text-red-400' :
-            'bg-gray-800 text-gray-400'
-          }`}>
-            {trend === 'up' ? <ArrowUpRight size={10} /> : trend === 'down' ? <ArrowDownRight size={10} /> : <Minus size={10} />}
-          </div>
-        )}
       </div>
       <p className="text-2xl font-bold text-white tracking-tight leading-none mb-1">{typeof value === 'number' ? value.toLocaleString() : value}</p>
       <p className="text-xs text-gray-400 leading-tight">{label}</p>
@@ -210,7 +201,7 @@ function DrillDownModal({ recruiterName, dateParams, onClose }: {
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-gray-900">
                 <tr className="border-b border-gray-800">
-                  {['Sub ID', 'Candidate', 'Job Role', 'Company', 'Status', 'Date', 'Source'].map(h => (
+                  {['Sub ID', 'Candidate', 'Skill / Role', 'Client / HR', 'Status', 'Submitted Date', 'Source'].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-gray-500 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -220,15 +211,15 @@ function DrillDownModal({ recruiterName, dateParams, onClose }: {
                   <tr key={i} className="hover:bg-gray-800/40 transition-colors">
                     <td className="py-3 px-4 text-blue-400 font-mono">{r.sub_id || '—'}</td>
                     <td className="py-3 px-4 text-white font-medium">{r.candidate_name || '—'}</td>
-                    <td className="py-3 px-4 text-gray-300">{r.job_role || '—'}</td>
-                    <td className="py-3 px-4 text-gray-400">{r.company || '—'}</td>
+                    <td className="py-3 px-4 text-gray-300">{r.skill_role || '—'}</td>
+                    <td className="py-3 px-4 text-gray-400">{r.client_name || '—'}</td>
                     <td className="py-3 px-4">
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-medium"
                         style={{ backgroundColor: `${STATUS_COLORS[r.status] || '#6b7280'}20`, color: STATUS_COLORS[r.status] || '#9ca3af' }}>
                         {r.status || '—'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-400">{r.date || '—'}</td>
+                    <td className="py-3 px-4 text-gray-400">{r.submitted_date || '—'}</td>
                     <td className="py-3 px-4 text-gray-500">{r.source || '—'}</td>
                   </tr>
                 ))}
@@ -319,16 +310,16 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
   const conversionRate = total > 0 ? ((shortlisted / total) * 100).toFixed(1) : '0';
 
   const kpis = [
-    { label: 'Total Submissions', value: total, icon: Layers, gradient: 'bg-gradient-to-br from-blue-600 to-blue-700', trend: 'up' as const },
-    { label: 'Shortlisted', value: shortlisted, icon: CheckCircle2, gradient: 'bg-gradient-to-br from-emerald-600 to-emerald-700', trend: 'up' as const },
-    { label: 'Submitted', value: submitted, icon: TrendingUp, gradient: 'bg-gradient-to-br from-indigo-600 to-indigo-700', trend: 'neutral' as const },
-    { label: 'Feedback', value: feedback, icon: Activity, gradient: 'bg-gradient-to-br from-orange-500 to-orange-600', trend: 'neutral' as const },
-    { label: 'Screening', value: screening, icon: FileText, gradient: 'bg-gradient-to-br from-purple-600 to-purple-700', trend: 'neutral' as const },
-    { label: 'Duplicate', value: duplicate, icon: Layers, gradient: 'bg-gradient-to-br from-yellow-500 to-yellow-600', trend: 'neutral' as const },
-    { label: 'Not Relevant', value: notRelevant, icon: Minus, gradient: 'bg-gradient-to-br from-gray-600 to-gray-700', trend: 'neutral' as const },
-    { label: 'Rejected', value: rejected, icon: XCircle, gradient: 'bg-gradient-to-br from-red-600 to-red-700', trend: 'down' as const },
-    { label: 'Unique Candidates', value: Number(totals.unique_candidates || 0), icon: Users, gradient: 'bg-gradient-to-br from-purple-600 to-purple-700', trend: 'up' as const },
-    { label: 'Conversion Rate', value: `${conversionRate}%`, icon: Target, gradient: 'bg-gradient-to-br from-orange-500 to-orange-600', trend: Number(conversionRate) > 20 ? 'up' as const : 'neutral' as const },
+    { label: 'Total Submissions', value: total, icon: Layers },
+    { label: 'Shortlisted', value: shortlisted, icon: CheckCircle2 },
+    { label: 'Submitted', value: submitted, icon: TrendingUp },
+    { label: 'Feedback', value: feedback, icon: Activity },
+    { label: 'Screening', value: screening, icon: FileText },
+    { label: 'Duplicate', value: duplicate, icon: Layers },
+    { label: 'Not Relevant', value: notRelevant, icon: Minus },
+    { label: 'Rejected', value: rejected, icon: XCircle },
+    { label: 'Unique Candidates', value: Number(totals.unique_candidates || 0), icon: Users },
+    { label: 'Conversion Rate', value: `${conversionRate}%`, icon: Target },
   ];
 
   const pieData = statusBreakdown.filter(s => s.status && Number(s.count) > 0)
@@ -344,7 +335,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="tracker-analytics space-y-6">
       {drillRecruiter && (
         <DrillDownModal
           recruiterName={drillRecruiter}
@@ -384,7 +375,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
               <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
                 className="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-2 py-1.5" />
               <button onClick={() => load('custom', customFrom, customTo)}
-                disabled={!customFrom || !customTo}
+                disabled={!customFrom && !customTo}
                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors disabled:opacity-40">
                 Apply
               </button>
@@ -505,7 +496,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
                   {recruiterStats.map((r, i) => {
                     const displayName = recruiterDisplayName(r.name);
                     const rate = Number(r.total) > 0 ? Math.round((Number(r.shortlisted) / Number(r.total)) * 100) : 0;
-                    const rankCls = i === 0 ? 'text-yellow-400 bg-yellow-900/30' : i === 1 ? 'text-gray-300 bg-gray-700/50' : i === 2 ? 'text-orange-400 bg-orange-900/30' : 'text-gray-500 bg-gray-800/50';
+                    const rankCls = 'tracker-rank';
                     return (
                       <tr key={i} onClick={() => setDrillRecruiter(r.name)}
                         className="hover:bg-gray-800/40 transition-colors cursor-pointer group">
@@ -514,7 +505,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
                         </td>
                         <td className="py-3 px-2">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shrink-0">
+                            <div className="tracker-recruiter-avatar w-7 h-7 rounded-lg flex items-center justify-center shrink-0">
                               <span className="text-white text-[11px] font-bold">{displayName[0].toUpperCase()}</span>
                             </div>
                             <span className="text-white font-medium truncate max-w-[90px] group-hover:text-blue-400 transition-colors">{displayName}</span>
@@ -531,7 +522,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
                           { key: 'rejected', label: 'Rejected', status: 'Rejected', color: 'text-red-400' },
                           { key: 'today_count', label: 'Today', status: undefined, color: 'text-blue-400' },
                         ] as const).map(column => <td key={column.key} className="py-3 px-2 text-center">
-                          <button type="button" className={`${column.color} font-semibold rounded px-2 py-1 hover:bg-gray-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400`} aria-label={`View ${column.label} submissions for ${displayName}`} onClick={event => {
+                          <button type="button" className="tracker-stat-link font-semibold rounded px-2 py-1 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" aria-label={`View ${column.label} submissions for ${displayName}`} onClick={event => {
                             event.stopPropagation();
                             const dates = getDateRange(dateRange, customFrom, customTo);
                             onOpenTracker?.({ recruiter: r.name ?? null, status: column.status, from: dates?.from, to: dates?.to, today: column.key === 'today_count' ? new Date().toISOString().slice(0, 10) : undefined });
@@ -540,7 +531,7 @@ export default function TrackerAnalyticsSection({ onUnauthorized, userRole, onOp
                         <td className="py-3 px-2">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-800 rounded-full h-1.5 min-w-[40px]">
-                              <div className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${Math.min(rate, 100)}%` }} />
+                              <div className="tracker-conversion-bar h-1.5 rounded-full" style={{ width: `${Math.min(rate, 100)}%` }} />
                             </div>
                             <span className="text-gray-300 font-semibold w-8 text-right shrink-0">{rate}%</span>
                           </div>

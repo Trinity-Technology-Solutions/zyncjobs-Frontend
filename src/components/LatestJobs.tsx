@@ -281,7 +281,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
             </div>
             
             <div className="text-center">
-              <button className="home-text-link" onClick={() => onNavigate?.('job-listings')}>Explore more opportunities <ArrowRight size={17} /></button>
+              <button className="home-text-link" onClick={() => onNavigate?.('job-listings', { clearFilters: true })}>Explore more opportunities <ArrowRight size={17} /></button>
             </div>
           </>
         )}

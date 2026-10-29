@@ -23,6 +23,29 @@ let status: TrackerUploadStatus = {
 };
 let queue: Promise<void> = Promise.resolve();
 
+type UploadResponse = { id?: string; candidateName?: string; error?: string };
+
+async function readUploadResponse(response: Response): Promise<{ body: UploadResponse | null; error: string | null }> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return {
+      body: null,
+      error: response.ok
+        ? 'Upload service returned an empty response. No submission was created; please retry this file.'
+        : `Upload service returned no error details (HTTP ${response.status}). Please retry this file.`,
+    };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return { body: parsed as UploadResponse, error: null };
+  } catch {
+    // Reverse proxies sometimes return a plain-text or HTML error page. Do not
+    // expose a JSON parsing exception as if it were a resume parsing failure.
+  }
+  return { body: null, error: `Upload service returned an invalid response (HTTP ${response.status}). Please retry this file.` };
+}
+
 function publish(next: Partial<TrackerUploadStatus>) {
   status = { ...status, ...next };
   listeners.forEach(listener => listener(status));
@@ -35,7 +58,7 @@ export function getTrackerUploadStatus() {
 export function subscribeToTrackerUploads(listener: Listener) {
   listeners.add(listener);
   listener(status);
-  return () => listeners.delete(listener);
+  return () => { listeners.delete(listener); };
 }
 
 export function enqueueTrackerResumeUpload(
@@ -52,14 +75,16 @@ export function enqueueTrackerResumeUpload(
       publish({ currentFile: file.name });
       try {
         if (!file.size) throw new Error('Empty files cannot be uploaded.');
-        if (!/\.(pdf|doc|docx)$/i.test(file.name)) throw new Error('Only PDF, DOC and DOCX resumes are supported.');
+        if (!/\.(pdf|doc|docx|png|jpe?g)$/i.test(file.name)) throw new Error('Only PDF, DOC, DOCX, PNG, JPG and JPEG resumes are supported.');
         if (file.size > 10 * 1024 * 1024) throw new Error('Resume must be 10 MB or smaller.');
         const formData = new FormData();
         formData.append('resume', file);
         const response = await apiFetch(`${API_ENDPOINTS.TRACKER_ROWS.replace(/\/rows$/, '')}/upload-resume`, { method: 'POST', body: formData });
         if (response.status === 401) { onUnauthorized(); publish({ active: false, currentFile: '' }); return; }
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error || 'Resume upload failed.');
+        const { body, error } = await readUploadResponse(response);
+        if (error) throw new Error(error);
+        if (!response.ok) throw new Error(body?.error || `Resume upload failed (HTTP ${response.status}).`);
+        if (!body) throw new Error('Upload service returned no submission record. Please retry this file.');
         if (!body.id || !body.candidateName) throw new Error('Server did not return a valid submission record.');
         publish({ completed: status.completed + 1 });
       } catch (cause) {
