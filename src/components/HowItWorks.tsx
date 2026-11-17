@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRight, UserPlus, FileText, Search, Check, Sparkles, Briefcase, CalendarClock, ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react';
+import './HowItWorks.css';
+import { ArrowRight, Bookmark, MessageSquareText, UserPlus, FileText, Search, Check, Sparkles, Briefcase, CalendarClock, ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react';
 
 interface HowItWorksProps {
   onNavigate?: (page: string) => void;
@@ -40,9 +41,20 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   const [active, setActive] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const manualStepRef = useRef(false);
   const scrollLayout = useRef({ pinned: false, header: 86, padding: 40, distance: 0, contentHeight: 0 });
   const [trackHeight, setTrackHeight] = useState<number | undefined>();
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      section.classList.toggle('journey-in-view', entry.isIntersecting);
+      if (entry.isIntersecting) section.classList.add('journey-revealed');
+    }, { threshold: 0.08 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     let frame = 0;
     const updateStep = () => {
@@ -51,6 +63,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
       const section = sectionRef.current;
       if (!section) return;
       const layout = scrollLayout.current;
+      if (!layout.pinned) return;
       const top = section.getBoundingClientRect().top + layout.padding;
       const travelled = layout.header + 12 - top;
       const progress = layout.pinned ? travelled / layout.distance : (travelled + window.innerHeight * .15) / Math.max(layout.contentHeight, 1);
@@ -59,13 +72,17 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
     const scheduleUpdate = () => { if (!frame) frame = window.requestAnimationFrame(updateStep); };
     const handleScroll = () => { manualStepRef.current = false; scheduleUpdate(); };
     const measure = () => {
-      if (!sectionRef.current || !contentRef.current) return;
+      if (!sectionRef.current || !contentRef.current || !stageRef.current) return;
       const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 86;
       const padding = parseFloat(getComputedStyle(sectionRef.current).paddingTop) || 0;
       const bottomPadding = parseFloat(getComputedStyle(sectionRef.current).paddingBottom) || 0;
-      const contentHeight = contentRef.current.getBoundingClientRect().height;
-      const available = window.innerHeight - header - 24;
-      const pinned = contentHeight <= available;
+      const naturalHeight = stageRef.current.offsetHeight;
+      const available = Math.max(240, window.innerHeight - header - 24);
+      const pinned = window.innerWidth >= 1024;
+      const scale = pinned ? Math.min(1, available / Math.max(naturalHeight, 1)) : 1;
+      const contentHeight = naturalHeight * scale;
+      contentRef.current.style.height = pinned ? `${contentHeight}px` : '';
+      stageRef.current.style.setProperty('--journey-stage-scale', `${scale}`);
       const distance = Math.max(1200, available * .65 * steps.length);
       scrollLayout.current = { pinned, header, padding, distance, contentHeight };
       sectionRef.current.classList.toggle('journey-scroll-pinned', pinned);
@@ -73,7 +90,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
       scheduleUpdate();
     };
     const observer = new ResizeObserver(measure);
-    if (contentRef.current) observer.observe(contentRef.current);
+    if (stageRef.current) observer.observe(stageRef.current);
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', measure);
     measure();
@@ -92,8 +109,9 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
   const Icon = step.icon;
 
   return (
-    <section ref={sectionRef} style={{ minHeight: trackHeight }} id="how-it-works" className="career-journey" aria-labelledby="journey-heading">
+    <section ref={sectionRef} style={{ minHeight: trackHeight }} id="how-it-works" className="career-journey journey-enhanced" aria-labelledby="journey-heading">
       <div ref={contentRef} className="journey-container">
+      <div ref={stageRef} className="journey-stage">
         <div className="journey-header">
           <div>
             <span className="journey-eyebrow">HOW ZYNCJOBS WORKS</span>
@@ -107,7 +125,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
           {steps.map((item, index) => {
             const StepIcon = item.icon;
             return (
-              <button key={item.id} type="button" className={`journey-step ${active === index ? 'is-active' : ''}`} aria-pressed={active === index} aria-controls="journey-detail" onClick={() => selectStep(index)}>
+              <button key={item.id} type="button" className={`journey-step ${active === index ? 'is-active' : ''}`} aria-pressed={active === index} aria-label={`Step ${item.id}: ${item.label}`}  aria-controls="journey-detail" onClick={() => selectStep(index)}>
                 <span className="journey-step-number">{item.id}</span>
                 <span className="journey-step-label"><small>STEP {item.id}</small><strong>{item.label}</strong></span>
                 <StepIcon size={19} strokeWidth={1.7} className="journey-step-icon" />
@@ -116,29 +134,37 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
           })}
         </div>
 
+        <div className="journey-progress" aria-hidden="true"><span style={{ width: `${((active + 1) / steps.length) * 100}%` }} /></div>
         <div className="journey-panel" id="journey-detail">
-          <div className="journey-copy" key={step.id}>
-            <div className="journey-detail-label"><span><Icon size={21} strokeWidth={1.7} /></span> STEP {step.id} OF 04</div>
+          <div className={`journey-copy journey-copy-step-${active}`} key={step.id}>
+            <div className="journey-detail-label"><span><Icon size={21} strokeWidth={1.7} /></span><div><small>YOUR CAREER JOURNEY</small><strong>STEP {step.id} OF 04</strong></div></div>
             <h3>{step.title}</h3>
             <p>{step.desc}</p>
-            <ul>{step.bullets.map(bullet => <li key={bullet}><Check size={16} /><span>{bullet}</span></li>)}</ul>
-            <button className="journey-action" onClick={() => onNavigate?.(step.page)}>{step.cta} <ArrowRight size={17} /></button>
+            <ul className="journey-benefit-cards">{step.bullets.map((bullet, index) => {
+              const BenefitIcon = [Icon, BadgeCheck, CalendarClock][index];
+              const details = [
+                ['A few details to introduce yourself.', 'Keep every opportunity in one place.', 'Discover roles around your strengths.'],
+                ['Find opportunities with the right fit.', 'Focus on what matters most to you.', 'Make your next move with clarity.'],
+                ['Bring your experience to life.', 'See where your resume can improve.', 'Make every application feel relevant.'],
+                ['Put your experience in front of employers.', 'See each step from applied to interview.', 'Keep your next opportunity within reach.'],
+              ];
+              return <li key={bullet}><span className="journey-benefit-icon"><BenefitIcon size={18} strokeWidth={1.7} /></span><div><strong>{bullet}</strong><small>{details[active][index]}</small></div><Check size={14} className="journey-benefit-check" /></li>;
+            })}</ul>
+            <div className="journey-copy-actions"><button type="button" className="journey-action" onClick={() => onNavigate?.(step.page)}>{step.cta}<span><ArrowRight size={17} /></span></button><span className="journey-action-note"><BadgeCheck size={13} />{['Your next chapter starts here', 'Find a role that feels right', 'Make your experience shine', 'Your next move starts here'][active]}</span></div>
           </div>
           <div className="journey-preview layered-journey-preview">
-            <div className="journey-preview-heading"><span className="journey-preview-brand">zync<span>jobs</span></span></div>
             <div className="journey-preview-content" {...{ inert: '' }} aria-hidden="true"><LayeredStepPreview index={active} /></div>
-            <p className="journey-preview-caption">An illustration of your journey on ZyncJobs</p>
           </div>
         </div>
 
         <div className="journey-footer">
-          <span>One step at a time. All the way forward.</span>
           <div className="journey-controls">
-            <span aria-live="polite" aria-atomic="true">Step {active + 1} of {steps.length}: {step.label}</span>
+            <span className="sr-only" aria-live="polite" aria-atomic="true">Step {active + 1} of {steps.length}: {step.label}</span>
             <button type="button" aria-label="Previous step" disabled={active === 0} onClick={() => selectStep(active - 1)}><ChevronLeft size={18} /></button>
             <button type="button" aria-label="Next step" disabled={active === steps.length - 1} onClick={() => selectStep(active + 1)}><ChevronRight size={18} /></button>
           </div>
         </div>
+      </div>
       </div>
       <style>{`
         .career-journey { background: #fff; border-block: 1px solid #e8edf5; padding: 40px 0; color: #172b4d; }
@@ -343,16 +369,59 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
 };
 
 const LayeredStepPreview: React.FC<{ index: number }> = ({ index }) => {
-  const Segments = ({ filled = 4 }: { filled?: number }) => <span className="layered-fit-segments">{Array.from({length: 5}, (_, position) => <i key={position} className={position < filled ? 'is-filled' : ''} />)}</span>;
-  const Lines = () => <div className="layered-document-lines"><i /><i /><i /></div>;
-  const titles = ['Your candidate profile', 'Find your next role', 'Your professional resume', 'Track your applications'];
-  return <div key={index} className={`journey-layered-scene layered-step-${index}`}>
-    <div className="layered-main-sheet"><div className="layered-sheet-heading"><span className="layered-zync-mark">zj</span><strong>{titles[index]}</strong><span className="layered-sheet-tag">{['Profile', 'Discover', 'Resume', 'Applications'][index]}</span></div>
-      {index === 0 ? <><div className="layered-profile-summary"><span><UserPlus size={25} /></span><div><strong>Your skills. Your story.</strong><p>Build a profile for your next move</p></div></div><div className="layered-fields">{['Personal details', 'Work experience', 'Career preferences'].map(label => <div key={label}><span>{label}</span><div><i /><Check size={13} /></div></div>)}</div></> : index === 1 ? <><h4 className="layered-opportunity-title">Customer Support Specialist</h4><p className="layered-sheet-subtitle">Explore a role that fits your strengths</p><div className="layered-skills"><strong>Skills</strong><div>{['Communication', 'Teamwork', 'Customer focus'].map(skill => <span key={skill}><Check size={10} />{skill}</span>)}</div></div><strong className="layered-section-label">Role details</strong><Lines /><Lines /></> : index === 2 ? <><div className="layered-resume-name"><span><FileText size={22} /></span><div><strong>Your experience</strong><p>Clearly presented. Ready to share.</p></div></div>{['Professional summary', 'Experience', 'Skills'].map(label => <div className="layered-resume-section" key={label}><strong>{label}</strong><Lines /></div>)}</> : <><h4 className="layered-opportunity-title">Your selected opportunity</h4><p className="layered-sheet-subtitle">Keep every application organised</p><div className="layered-application-progress">{['Applied', 'In review', 'Interview'].map((label, position) => <div key={label} className={position === 1 ? 'is-current' : ''}><span>{position === 0 ? <Check size={12} /> : position + 1}</span><strong>{label}</strong><i /></div>)}</div><Lines /></>}
+  const titles = ['Your candidate profile', 'Discover your next role', 'Your professional resume', 'Application workspace'];
+  const tags = ['Profile', 'Discover', 'Resume', 'Applications'];
+  const skills = ['Communication', 'Customer success', 'Problem solving'];
+  const Avatar = () => <img className="journey-person-avatar" src="/images/women.png" alt="" />;
+  const Company = () => <div className="journey-company"><span><Briefcase size={20} /></span><div><strong>Customer Support Specialist</strong><small>Example company | Chennai</small></div></div>;
+  return (
+    <div key={index} className={`journey-layered-scene journey-rich-scene layered-step-${index}`}>
+      <div className="layered-main-sheet">
+        <div className="layered-sheet-heading"><span className="layered-zync-mark">zj</span><strong>{titles[index]}</strong><span className="layered-sheet-tag">{tags[index]}</span></div>
+        {index === 0 ? <>
+          <div className="journey-person"><Avatar /><div><strong>Alex Morgan</strong><span>Customer Success Professional</span><small><BadgeCheck size={11} /> Open to opportunities</small></div></div>
+          <div className="journey-mini-stats"><div><strong>3+ years</strong><span>Experience</span></div><div><strong>Chennai</strong><span>Preferred location</span></div><div><strong>Full-time</strong><span>Job preference</span></div></div>
+          <div className="journey-card-section"><strong>Skills that tell your story</strong><div className="journey-skill-pills">{skills.map(skill => <span key={skill}>{skill}</span>)}</div></div>
+          <div className="journey-completion"><span>Profile strength <strong>85%</strong></span><div><i style={{width: '85%'}} /></div><small>Add your resume to complete your profile</small></div>
+        </> : index === 1 ? <>
+          <div className="journey-search-field"><Search size={13} /><span>Role, skill or company</span><span>Chennai</span></div>
+          <Company />
+          <div className="journey-skill-pills"><span>Full-time</span><span>Hybrid</span><span>2-4 years</span></div>
+          <div className="journey-card-section"><strong>A role built around your strengths</strong><p>Help customers succeed, solve meaningful problems, and grow with a collaborative team.</p></div>
+          <div className="journey-card-section"><strong>Skills you bring</strong><div className="journey-skill-pills">{skills.slice(0, 2).map(skill => <span key={skill}><Check size={10} />{skill}</span>)}</div></div>
+          <div className="journey-preview-bottom"><span><BadgeCheck size={12} /> Matches your interests</span><strong>View opportunity <ArrowRight size={11} /></strong></div>
+        </> : index === 2 ? <>
+          <div className="journey-resume-cover"><Avatar /><div><strong>Alex Morgan</strong><span>Customer Success Professional</span><small>Chennai, India | alex@example.com</small></div><FileText size={21} /></div>
+          <div className="journey-card-section"><strong>Professional summary</strong><p>Customer-focused professional with 3+ years of experience building relationships and improving service experiences.</p></div>
+          <div className="journey-card-section"><strong>Experience <span>2022 - Present</span></strong><b>Customer Success Associate</b><p>Supported customer onboarding and partnered with teams to resolve enquiries and improve satisfaction.</p></div>
+          <div className="journey-skill-pills">{skills.map(skill => <span key={skill}>{skill}</span>)}</div>
+          <div className="journey-preview-bottom"><span><Check size={12} /> ATS-friendly layout</span><strong>Resume.pdf</strong></div>
+        </> : <>
+          <Company />
+          <div className="journey-application-meta"><span>Application #ZJ-2048</span><span>Full-time | Hybrid</span></div>
+          <div className="layered-application-progress">{['Applied', 'In review', 'Interview'].map((label, position) => <div key={label} className={position === 1 ? 'is-current' : ''}><span>{position === 0 ? <Check size={12} /> : position + 1}</span><strong>{label}</strong><i /><small>{['Complete', 'In progress', 'Up next'][position]}</small></div>)}</div>
+          <div className="journey-employer-note"><MessageSquareText size={15} /><div><strong>Your next chapter is taking shape</strong><p>Follow updates from the hiring team right here.</p></div></div>
+        </>}
+      </div>
+      <div className="layered-floating-insight journey-overlap-list">
+        <div className="layered-insight-title"><Sparkles size={14} /><strong>{['Your profile checklist', 'Recommended jobs', 'Resume review', 'My applications'][index]}</strong></div>
+        {[
+          [['Personal details', 'Complete', UserPlus], ['Work experience', '3 years added', Briefcase], ['Resume.pdf', 'Ready to upload', FileText]],
+          [['Customer Success', 'Chennai | Hybrid', Briefcase], ['Support Associate', 'Remote | Full-time', MessageSquareText], ['Account Executive', 'Bengaluru | On-site', Briefcase]],
+          [['ATS structure', 'Well organised', FileText], ['Relevant skills', '3 skills included', BadgeCheck], ['Experience', 'Add measurable impact', Briefcase]],
+          [['Customer Success', 'In review', Briefcase], ['Support Associate', 'Applied', MessageSquareText], ['Account Executive', 'Saved for later', Bookmark]],
+        ][index].map(([label, detail, ItemIcon], position) => {
+          const RowIcon = ItemIcon as typeof Briefcase;
+          return <div className="journey-overlap-row" key={label as string}><span><RowIcon size={14} /></span><div><strong>{label as string}</strong><small>{detail as string}</small></div>{position === 0 && <span className="journey-list-dot" />}</div>;
+        })}
+        <div className="journey-overlap-list-footer"><BadgeCheck size={11} />{['Your story, all together', 'Selected for your interests', 'Small changes. More impact.', 'Every opportunity, organised'][index]}</div>
+      </div>
+      <div className="layered-side-cards">
+        <div className="layered-side-note journey-rich-note"><span>{index === 2 ? <FileText size={18} /> : <CalendarClock size={18} />}</span><strong>{['Your next chapter', 'A world of possibilities', 'Ready to stand out', 'Stay interview-ready'][index]}</strong><p>{['One profile. More opportunities.', 'Find a team where you can thrive.', 'Your experience, clearly presented.', 'A little preparation goes a long way.'][index]}</p><div className="journey-context-metric"><strong>{['85%', '3', '86', 'In review'][index]}</strong><span>{['Profile complete', 'Relevant opportunities', 'Illustrative ATS score', 'Current application'][index]}</span></div><small>{['Made for your ambitions', 'Explore at your own pace', 'Built for your next move', 'Take your next step'][index]}</small></div>
+        <div className="layered-recommendations"><strong>{index === 2 ? 'Make it even better' : 'Keep moving forward'}</strong>{(index === 0 ? ['Explore matched roles', 'Upload your resume'] : index === 1 ? ['Save your favourites', 'Meet your next team'] : index === 2 ? ['Highlight your impact', 'Tailor to the role'] : ['Check your updates', 'Practice interviews']).map((label, i) => <div key={label}><span>{i === 0 ? <Briefcase size={13} /> : <FileText size={13} />}</span><div><strong>{label}</strong><small>{i === 0 ? 'Your next opportunity' : 'Prepare with confidence'}</small></div></div>)}</div>
+      </div>
     </div>
-    <div className="layered-floating-insight"><div className="layered-insight-title"><Sparkles size={14} /><strong>{['Profile ready', 'Explore your fit', 'Resume check', 'Application sent'][index]}</strong></div>{index === 0 || index === 3 ? <><div className="layered-insight-confirmation"><Check size={18} /><span>{index === 0 ? 'Your details, all in one place' : 'Follow your progress here'}</span></div><Lines /></> : <div className="layered-fit-grid">{(index === 1 ? ['Skills', 'Role relevance', 'Preferences'] : ['Structure', 'Keywords', 'Readability']).map((label, position) => <div key={label}><strong>{label}</strong><Segments filled={position === 2 ? 3 : 4} /></div>)}</div>}</div>
-    <div className="layered-side-cards"><div className="layered-side-note"><span>{index === 0 ? <BadgeCheck size={18} /> : index === 1 ? <Search size={18} /> : index === 2 ? <FileText size={18} /> : <CalendarClock size={18} />}</span><strong>{['Ready to connect', 'Discover opportunities', 'Improve your impact', 'Stay prepared'][index]}</strong><Lines /></div><div className="layered-recommendations"><strong>{['Your next steps', 'More roles to explore', 'Resume suggestions', 'What comes next'][index]}</strong>{(index === 0 ? ['Explore jobs', 'Build your resume'] : index === 1 ? ['Sales Executive', 'Support Associate'] : index === 2 ? ['Highlight your skills', 'Show clear outcomes'] : ['Check application updates', 'Prepare for interviews']).map(label => <div key={label}><span><Briefcase size={12} /></span><div><strong>{label}</strong><i /></div></div>)}</div></div>
-  </div>;
+  );
 };
 
 export default HowItWorks;

@@ -1,15 +1,24 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import './candidateScrollMotion.css';
 
 export default function useHomeMotion() {
   const { pathname } = useLocation();
   useEffect(() => {
     if (!['/', '/employers'].includes(pathname)) return;
     const tracked = new Set<HTMLElement>();
+    const candidateItems = new Set<HTMLElement>();
     const tiltCards = new Set<HTMLElement>();
     const removers: (() => void)[] = [];
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
+        if (entry.target.classList.contains('candidate-scroll-item')) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('candidate-scroll-visible');
+            observer.unobserve(entry.target);
+          }
+          return;
+        }
         if (entry.isIntersecting) entry.target.classList.add('home-motion-visible');
         else if (entry.boundingClientRect.top > window.innerHeight) entry.target.classList.remove('home-motion-visible');
 
@@ -19,7 +28,35 @@ export default function useHomeMotion() {
     const scan = () => {
       const root = document.querySelector<HTMLElement>('.zync-home, .employer-home');
       if (!root) return;
+      if (root.classList.contains('zync-home')) {
+        const groups = [
+          '.home-existing-hero .hero-main-copy > *, .home-existing-hero .home-existing-robot',
+          '.home-company-strip > div',
+          '.home-latest-jobs .home-section-heading, .home-latest-jobs .portal-job-card, .home-latest-jobs .text-center',
+          '.career-tools-section .mb-12, .career-tools-grid > .career-tool-card',
+          '.career-journey .journey-header, .career-journey .journey-step-list, .career-journey .journey-preview',
+          'section[aria-labelledby="candidate-job-tools-title"] > div > .flex',
+          'section[aria-labelledby="candidate-job-tools-title"] .grid > div',
+          '.home-categories .max-w-2xl, .home-categories .interactive-category-card',
+          '.home-career-feature .career-role-introduction, .home-career-feature .career-role-panel',
+          '.home-final-cta .candidate-opportunity-copy, .home-final-cta .candidate-opportunity-art',
+          '.portal-footer .portal-footer-main > *, .portal-footer .portal-footer-bottom',
+        ];
+        groups.forEach(selector => {
+          root.querySelectorAll<HTMLElement>(selector).forEach((item, index) => {
+            if (candidateItems.has(item)) return;
+            candidateItems.add(item);
+            item.style.setProperty('--candidate-reveal-delay', `${Math.min(index % 4, 3) * 65}ms`);
+            item.classList.add('candidate-scroll-item');
+            // Previously visited content stays visible when lazy data arrives.
+            if (item.getBoundingClientRect().bottom < 0 || item.contains(document.activeElement)) {
+              item.classList.add('candidate-scroll-visible');
+            } else observer.observe(item);
+          });
+        });
+      }
       root.querySelectorAll<HTMLElement>('.home-latest-jobs, .home-categories, .home-career-feature, .home-final-cta, .employer-segments, .employer-callback, .employer-faq, .employer-final-cta, .employer-solution-section, .employer-features').forEach(el => {
+        if (root.classList.contains('zync-home')) return;
         if (tracked.has(el)) return;
         tracked.add(el);
         // Reveal the inner content, keeping section backgrounds and scroll measurements stable.
@@ -57,6 +94,10 @@ export default function useHomeMotion() {
       observer.disconnect(); mutations.disconnect();
       removers.forEach(remove => remove());
       tracked.forEach(el => { const content = el.querySelector('.home-motion-reveal') || el; content.classList.remove('home-motion-reveal', 'home-motion-visible'); });
+      candidateItems.forEach(item => {
+        item.classList.remove('candidate-scroll-item', 'candidate-scroll-visible');
+        item.style.removeProperty('--candidate-reveal-delay');
+      });
     };
   }, [pathname]);
 }

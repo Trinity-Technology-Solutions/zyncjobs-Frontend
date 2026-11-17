@@ -1,0 +1,35 @@
+/* Observe individual content blocks, leaving sticky sections and page layout alone. */
+.zync-home .candidate-scroll-item { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .zync-home .candidate-scroll-item {
+    opacity: 0;
+    translate: 0 32px;
+    transition: opacity 650ms cubic-bezier(.22, 1, .36, 1) var(--candidate-reveal-delay, 0ms),
+      translate 800ms cubic-bezier(.22, 1, .36, 1) var(--candidate-reveal-delay, 0ms);
+  }
+  .zync-home .career-tool-card.candidate-scroll-item { translate: 0 40px; }
+  .zync-home .home-motion-card.candidate-scroll-item {
+    transition: opacity 650ms var(--candidate-reveal-delay, 0ms),
+      translate 800ms cubic-bezier(.22, 1, .36, 1) var(--candidate-reveal-delay, 0ms),
+      transform 200ms, box-shadow 200ms !important;
+  }
+  .zync-home .career-role-introduction.candidate-scroll-item { translate: -26px 18px; }
+  .zync-home .career-role-panel.candidate-scroll-item { translate: 26px 18px; }
+  .zync-home .home-existing-robot.candidate-scroll-item,
+  .zync-home .candidate-opportunity-art.candidate-scroll-item { translate: 0 24px; }
+  .zync-home .candidate-scroll-item.candidate-scroll-visible,
+  .zync-home .candidate-scroll-item:focus-within {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+  .zync-home .candidate-scroll-item { --candidate-reveal-delay: 0ms !important; }
+  .zync-home .career-role-introduction.candidate-scroll-item,
+  .zync-home .career-role-panel.candidate-scroll-item { translate: 0 24px; }
+  .zync-home .candidate-scroll-item.candidate-scroll-visible,
+  .zync-home .candidate-scroll-item:focus-within { translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zync-home .candidate-scroll-item { opacity: 1; translate: none; transition: none; }
+}

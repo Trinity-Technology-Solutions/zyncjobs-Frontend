@@ -84,6 +84,30 @@ const splitEducations = (eduArr: any[]) => {
   return result;
 };
 
+const certificationValidityError = (certification: { noExpiry?: boolean; startYear?: string | number; endYear?: string | number; startMonth?: string; endMonth?: string } | null | undefined): string => {
+  if (certification?.noExpiry) return "";
+  const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+  const startYear = Number(certification?.startYear);
+  const endYear = Number(certification?.endYear);
+  const startMonth = monthNames.findIndex((month) => month.startsWith(String(certification?.startMonth || "").toLowerCase()));
+  const endMonth = monthNames.findIndex((month) => month.startsWith(String(certification?.endMonth || "").toLowerCase()));
+  if (!startYear || !endYear || startMonth < 0 || endMonth < 0) return "";
+  if (endYear < startYear || (endYear === startYear && endMonth < startMonth)) {
+    return "End date must be the same as or later than the start date.";
+  }
+  return "";
+};
+
+const competitiveExamYearError = (year: string | number | undefined): string => {
+  const value = String(year ?? "").trim();
+  if (!value) return "";
+  const currentYear = new Date().getFullYear();
+  if (!/^\d{4}$/.test(value) || Number(value) < 1900 || Number(value) > currentYear) {
+    return `Enter a valid 4-digit year between 1900 and ${currentYear}.`;
+  }
+  return "";
+};
+
 // Preserve complete structured resume sections and merge partial parses with existing profile details.
 const mapParsedSections = (p: any, old: any) => {
   const text = (value: any) => typeof value === 'string' ? value.trim() : '';
@@ -6161,12 +6185,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     <AutocompleteCombobox
                       placeholder="Month"
                       value={modalData.startMonth || ""}
-                      onChange={(val) =>
-                        setModalData({
-                          ...modalData,
-                          startMonth: val,
-                        })
-                      }
+                      onChange={(val) => setModalData((prev: any) => ({ ...prev, startMonth: val, _validityError: "" }))}
                       options={[
                         { value: "January", label: "January" },
                         { value: "February", label: "February" },
@@ -6185,12 +6204,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     <AutocompleteCombobox
                       placeholder="Year"
                       value={modalData.startYear || ""}
-                      onChange={(val) =>
-                        setModalData({
-                          ...modalData,
-                          startYear: val,
-                        })
-                      }
+                      onChange={(val) => setModalData((prev: any) => ({ ...prev, startYear: val, _validityError: "" }))}
                       options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
                         value: String(y),
                         label: String(y),
@@ -6202,9 +6216,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     <AutocompleteCombobox
                       placeholder="Month"
                       value={modalData.endMonth || ""}
-                      onChange={(val) =>
-                        setModalData({ ...modalData, endMonth: val })
-                      }
+                      onChange={(val) => setModalData((prev: any) => ({ ...prev, endMonth: val, _validityError: "" }))}
                       disabled={modalData.noExpiry}
                       options={[
                         { value: "January", label: "January" },
@@ -6224,9 +6236,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     <AutocompleteCombobox
                       placeholder="Year"
                       value={modalData.endYear || ""}
-                      onChange={(val) =>
-                        setModalData({ ...modalData, endYear: val })
-                      }
+                      onChange={(val) => setModalData((prev: any) => ({ ...prev, endYear: val, _validityError: "" }))}
                       disabled={modalData.noExpiry}
                       options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
                         value: String(y),
@@ -6234,6 +6244,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       }))}
                     />
                   </div>
+                  {(certificationValidityError(modalData) || modalData._validityError) && (
+                    <p role="alert" className="mt-2 text-sm text-red-600">
+                      {certificationValidityError(modalData) || modalData._validityError}
+                    </p>
+                  )}
                   <label className="flex items-center mt-3">
                     <input
                       type="checkbox"
@@ -6244,6 +6259,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           noExpiry: e.target.checked,
                           endMonth: "",
                           endYear: "",
+                          _validityError: "",
                         })
                       }
                       className="mr-2"
@@ -6263,7 +6279,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, certifications: modalData };
+                    const validityError = certificationValidityError(modalData);
+                    if (validityError) {
+                      setModalData((prev: any) => ({ ...prev, _validityError: validityError }));
+                      return;
+                    }
+                    const { _validityError, ...certificationData } = modalData;
+                    const updatedUser = { ...user, certifications: certificationData };
                     setUser(updatedUser);
                     localStorage.setItem("user", JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
@@ -6275,7 +6297,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             email: user?.email,
-                            certifications: modalData,
+                            certifications: certificationData,
                           }),
                         },
                       );
@@ -6730,13 +6752,28 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      pattern="[0-9]{4}"
                       value={modalData.year || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, year: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+                        const year = rawValue.replace(/\D/g, "").slice(0, 4);
+                        const error = /\D/.test(rawValue)
+                          ? "Use numbers only for the year."
+                          : year.length === 4
+                            ? competitiveExamYearError(year)
+                            : "";
+                        setModalData({ ...modalData, year, _yearError: error });
+                      }}
                       className="w-full p-3 border rounded-lg"
                       placeholder="e.g. 2023"
                     />
+                    {(modalData._yearError || competitiveExamYearError(modalData.year)) && (
+                      <p role="alert" className="mt-1 text-sm text-red-600">
+                        {modalData._yearError || competitiveExamYearError(modalData.year)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {/* Already added exams */}
@@ -6795,6 +6832,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 <button
                   onClick={() => {
                     if (!modalData.examName) return;
+                    const yearError = competitiveExamYearError(modalData.year);
+                    if (yearError || modalData._yearError) {
+                      setModalData({ ...modalData, _yearError: yearError || modalData._yearError });
+                      return;
+                    }
                     const existing: any[] = modalData._list || [];
                     const editIdx = modalData._editIndex;
                     const entry = {
@@ -6821,6 +6863,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </button>
                 <button
                   onClick={async () => {
+                    const yearError = competitiveExamYearError(modalData.year);
+                    if (yearError || modalData._yearError) {
+                      setModalData({ ...modalData, _yearError: yearError || modalData._yearError });
+                      return;
+                    }
                     const existing: any[] = modalData._list || [];
                     const finalList = modalData.examName
                       ? [
@@ -6832,6 +6879,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           },
                         ]
                       : existing;
+                    if (finalList.some((exam: { year?: string | number }) => competitiveExamYearError(exam.year))) {
+                      setModalData({
+                        ...modalData,
+                        _yearError: "Please edit or remove any exam with an invalid year before saving.",
+                      });
+                      return;
+                    }
                     if (finalList.length === 0) {
                       setActiveModal(null);
                       return;
