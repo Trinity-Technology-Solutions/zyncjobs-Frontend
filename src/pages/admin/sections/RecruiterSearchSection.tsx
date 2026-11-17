@@ -131,7 +131,7 @@ function CandidateCard({
               <>
                 <button onClick={() => openResume(c.id, API_ENDPOINTS.BASE_URL)}
                   className="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-700 text-center flex items-center justify-center gap-1">
-                  <FileText size={13} /> View
+                  <FileText size={13} /> View Resume
                 </button>
                 <button onClick={() => downloadResume(c.id, c.name, API_ENDPOINTS.BASE_URL)}
                   className="px-2.5 py-1.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg hover:bg-gray-700 flex items-center justify-center"

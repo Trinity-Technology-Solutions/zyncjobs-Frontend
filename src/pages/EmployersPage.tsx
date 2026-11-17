@@ -5,11 +5,12 @@ import Footer from '../components/Footer';
 import GetStartedButton from '../components/animata/button/get-started-button';
 import WorkButton from '../components/animata/button/work-button';
 import { API_ENDPOINTS } from '../config/env';
+import { submitEmployerCallbackRequest } from '../services/employerCallbackService';
 import {
   Briefcase, Search, ArrowRight, CheckCircle2,
   Bot, CalendarClock, Wallet,
   Building2, Users, Zap, Target, TrendingUp, Phone, Mail,
-  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Award, Clock, ClipboardCheck, HelpCircle
+  User, ChevronDown, ShieldCheck, Sparkles, Globe2, Clock, ClipboardCheck
 } from 'lucide-react';
 
 const EmployersPage = ({ onNavigate, user, onLogout }: {
@@ -145,7 +146,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
       </section>
 
       {/* ── 2. One-Stop Solution — product categories with sub-products ── */}
-      <ProductsSection go={go} />
+      <ProductsSection onSelectSolution={() => go(user?.type === 'employer' ? 'dashboard' : 'employer-login')} />
 
       {/* ── 3. What ZyncJobs offers — cards with real site previews ── */}
       <section className="employer-features py-16 lg:py-24 bg-white overflow-hidden">
@@ -197,7 +198,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               {
                 // Signed-in employers should manage their own company brand;
                 // visitors still go through employer registration first.
-                icon: Building2, title: 'Employer Branding', target: user?.type === 'employer' ? 'company-profile' : 'employer-register',
+                icon: Building2, title: 'Employer Branding', target: user?.type === 'employer' ? 'employer-complete-profile' : 'employer-register',
                 desc: 'Showcase your company, culture, and career opportunities to attract the right talent.',
                 bullets: ['Branded company profile', 'Share your workplace story', 'Highlight career opportunities'],
                 variant: 'branding', url: 'zyncjobs.ai/companies',
@@ -236,8 +237,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 title="Growing companies & enterprises"
                 tagline="Scale hiring with confidence"
                 points={['Fill any role, from bulk hiring to leadership', 'Get AI-powered candidate insights and market trends', 'Track hiring performance with real-time analytics']}
-                cta="Request callback"
-                onClick={scrollToCallback}
+                cta="Explore plans"
+                onClick={scrollToPlans}
               />
             </Reveal>
             <Reveal delay={100}>
@@ -259,8 +260,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 title="Consultants & agencies"
                 tagline="Move fast with smarter tools"
                 points={['Speed up hiring with faster turnaround', "Track your team's performance with data insights", 'Instantly connect with candidates via email, SMS, call']}
-                cta="Request callback"
-                onClick={scrollToCallback}
+                cta="Explore plans"
+                onClick={scrollToPlans}
               />
             </Reveal>
           </div>
@@ -775,13 +776,7 @@ function HeroCallbackCard() {
     setSubmitting(true);
     setError('');
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/contact`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(),
-          subject: 'Employer callback request',
-          message: `Please call me about hiring. Phone: ${form.phone}. Hiring for: ${form.hiringFor}.` }),
-      });
-      if (!response.ok) throw new Error('Unable to send your callback request. Please try again.');
+      await submitEmployerCallbackRequest(form);
       setSubmitted(true);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to send your request. Please try again.');
@@ -858,36 +853,7 @@ const PRODUCT_CATEGORIES = [
   { id: 'assisted', label: 'Assisted Hiring', icon: Bot },
 ] as const;
 
-type ProductCategoryId = typeof PRODUCT_CATEGORIES[number]['id'];
-
-const PRODUCTS: Record<ProductCategoryId, {
-  name: string; tag: string; bullets: string[]; stats: { v: string; l: string }[]; grad: string; initials: string; target: string;
-}[]> = {
-  sourcing: [
-    { name: 'ZyncJobs Portal', tag: 'Candidate Search + Job Posting', bullets: ['10 lakh+ registered jobseekers', 'AI-matched candidate recommendations', 'Save & track promising profiles'], stats: [{ v: '1L+', l: 'jobseekers' }, { v: '10K+', l: 'daily active users' }], grad: 'from-blue-600 to-cyan-500', initials: 'ZP', target: 'job-posting-selection' },
-    { name: 'Resume Parser & Ranking', tag: 'Automatic resume scoring', bullets: ['Parse & score every resume', 'Skill & experience extraction', 'Ranked shortlists in seconds'], stats: [{ v: '100%', l: 'resumes parsed' }, { v: 'Auto', l: 'scoring' }], grad: 'from-cyan-500 to-sky-400', initials: 'RP', target: 'job-parsing' },
-  ],
-  screening: [
-    { name: 'Verified Candidates', tag: 'Credential-checked profiles', bullets: ['Email & identity verification', 'Skill validation checks', 'Clearly marked verified profiles'], stats: [{ v: '100%', l: 'verified profiles' }, { v: '24h', l: 'verification' }], grad: 'from-blue-600 to-indigo-500', initials: 'VC', target: 'candidate-search' },
-  ],
-  automation: [
-    { name: 'Interview Scheduling', tag: 'One-click booking', bullets: ['No back-and-forth emails', 'Auto confirmations & reminders', 'Built-in video meeting links'], stats: [{ v: '1-click', l: 'booking' }, { v: '0', l: 'emails needed' }], grad: 'from-amber-500 to-orange-400', initials: 'IS', target: 'interviews' },
-    { name: 'Bulk Job Import', tag: 'Volume hiring made easy', bullets: ['Import hundreds of roles at once', 'Bulk edit & publish instantly', 'All applicants in one dashboard'], stats: [{ v: '100s', l: 'jobs at once' }, { v: 'Instant', l: 'publish' }], grad: 'from-orange-500 to-amber-400', initials: 'BJ', target: 'bulk-job-import' },
-  ],
-  planning: [
-    { name: 'Salary Insights', tag: 'Market benchmarks', bullets: ['Real market data by role & location', 'Benchmark against industry peers', 'Confident offers every time'], stats: [{ v: 'Live', l: 'market data' }, { v: '?', l: 'confident offers' }], grad: 'from-violet-600 to-purple-400', initials: 'SI', target: 'salary-insights' },
-    { name: 'Hiring Analytics', tag: 'Live dashboards', bullets: ['Track applications & interviews', 'Recruiter activity insights', 'Real-time hiring funnel'], stats: [{ v: 'Real-time', l: 'dashboards' }, { v: '24/7', l: 'visibility' }], grad: 'from-purple-600 to-fuchsia-400', initials: 'HA', target: 'employer-dashboard' },
-  ],
-  branding: [
-    { name: 'Branded Career Page', tag: 'Tell your employer story', bullets: ['Showcase your brand & culture', 'Highlight employee stories', 'Attract the right-fit candidates'], stats: [{ v: 'Brand', l: 'story' }, { v: 'More', l: 'visibility' }], grad: 'from-blue-600 to-violet-600', initials: 'BC', target: 'employer-register' },
-    { name: 'Premium Job Posting', tag: 'Stand out to top talent', bullets: ['Featured placement & highlights', 'Boosted visibility for critical roles', 'Priority in candidate search'], stats: [{ v: 'Top', l: 'placement' }, { v: '3x', l: 'visibility' }], grad: 'from-sky-500 to-blue-400', initials: 'PJ', target: 'job-posting-selection' },
-  ],
-  assisted: [
-    { name: 'AI Recruiter Assistant', tag: 'Agentic AI talent sourcing', bullets: ['24/7 candidate sourcing', 'Automatic screening & scoring', 'Ranked shortlists in seconds'], stats: [{ v: '24/7', l: 'sourcing' }, { v: 'AI', l: 'ranked' }], grad: 'from-orange-500 to-rose-400', initials: 'AI', target: 'ai-recruiter' },
-  ],
-};
-
-function ProductsSection({ go }: { go: (page: string) => void }) {
+function ProductsSection({ onSelectSolution }: { onSelectSolution: () => void }) {
 
   return (
     <section id="products" className="employer-solution-section py-16 lg:py-24 bg-[#F6F8FF]">
@@ -913,7 +879,7 @@ function ProductsSection({ go }: { go: (page: string) => void }) {
 </svg></div><div className="career-discovery-copy"><Reveal><SectionHeader overline="One-Stop Solution. Talent Decoded." title="Comprehensive solutions for all your hiring needs" /></Reveal></div></div>
         <div className="employer-category-panel">          <div className="solution-categories" role="group" aria-label="Hiring solution categories">
             <p className="solution-navigation-label">Hiring solutions</p>
-            {PRODUCT_CATEGORIES.map(item => <button key={item.id} id={`solution-category-${item.id}`} type="button" onClick={() => go(PRODUCTS[item.id][0].target)}><span className="solution-category-icon"><item.icon size={19} strokeWidth={1.7} /></span><span>{item.label}<small>Explore tools</small></span><ArrowRight size={14} className="solution-category-arrow" /></button>)}
+            {PRODUCT_CATEGORIES.map(item => <button key={item.id} id={`solution-category-${item.id}`} type="button" onClick={onSelectSolution}><span className="solution-category-icon"><item.icon size={19} strokeWidth={1.7} /></span><span>{item.label}<small>Explore tools</small></span><ArrowRight size={14} className="solution-category-arrow" /></button>)}
           </div>
         </div>
       </div>
@@ -1022,13 +988,7 @@ function CallbackForm() {
     setSubmitting(true);
     setError('');
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/contact`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(),
-          subject: 'Employer callback request',
-          message: `Please call me about hiring. Phone: ${form.phone}. Hiring for: ${form.hiringFor}.` }),
-      });
-      if (!response.ok) throw new Error('Unable to send your callback request. Please try again.');
+      await submitEmployerCallbackRequest(form);
       setSubmitted(true);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to send your request. Please try again.');

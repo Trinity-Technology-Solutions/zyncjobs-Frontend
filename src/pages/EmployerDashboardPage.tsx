@@ -1646,7 +1646,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               })()}
 
               {/* ── Row 1: Charts ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-5">
+              <div className="employer-insights-grid grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-5">
                 {/* Area chart */}
                 <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all flex flex-col">
                   <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
@@ -1658,21 +1658,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       <TrendingUp className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                  <div className="flex-1 min-h-0">
+                  <div className="employer-insight-chart flex-1 min-h-0">
                   {applications.length === 0 ? (
                     <div className="flex items-center justify-center h-40 text-slate-400 text-xs">No data yet</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={160}>
-                      <AreaChart data={applicationsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="100%" height={210}>
+                      <AreaChart data={applicationsOverTime} margin={{ top: 15, right: 12, left: -22, bottom: 4 }}>
                         <defs>
                           <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#2563eb" stopOpacity={0.18} />
                             <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                        <CartesianGrid strokeDasharray="3 5" stroke="#eaf0f7" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickMargin={10} minTickGap={20} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickMargin={8} />
                         <Tooltip />
                         <Area type="monotone" dataKey="applications" stroke="#2563eb" fill="url(#appGrad)" strokeWidth={2} />
                       </AreaChart>
@@ -1692,17 +1692,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       <BarChart2 className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                  <div className="flex-1 min-h-0">
+                  <div className="employer-insight-chart flex-1 min-h-0">
                   {statusBreakdown.length === 0 ? (
                     <div className="flex items-center justify-center h-40 text-slate-400 text-xs">No data yet</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={190}>
+                    <ResponsiveContainer width="100%" height={210}>
                       <PieChart>
-                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={42} outerRadius={68} paddingAngle={3} dataKey="value">
+                        <Pie data={statusBreakdown} cx="50%" cy="47%" innerRadius={49} outerRadius={72} paddingAngle={3} dataKey="value" stroke="none">
                           {statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                         </Pie>
                         <Tooltip />
-                        <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                        <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
@@ -1729,12 +1729,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     ];
                     return (
                       <>
-                        <div className="flex h-2 rounded-full overflow-hidden mb-4 bg-slate-100">
-                          {acq.map((s,i) => <div key={i} style={{width:`${(s.count/total)*100}%`,background:s.color}} />)}
-                        </div>
-                        <div className="space-y-2.5">
+                        <div className="employer-stage-list">
                           {acq.map((s,i) => (
-                            <div key={i} className="flex items-center justify-between text-xs">
+                            <div key={i} className="employer-stage-row">
+                              <div className="flex items-center justify-between gap-3 text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:s.color}}></span>
                                 <span className="text-slate-600 font-medium">{s.label}</span>
@@ -1742,6 +1740,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               <span className="font-bold text-[#1e3a8a]">
                                 {applications.length > 0 ? `${Math.round((s.count/total)*100)}%` : '0%'}
                               </span>
+                              </div>
+                              <div className="employer-stage-track" aria-hidden="true"><div style={{ width: `${Math.min(100, (s.count / total) * 100)}%`, background: s.color }} /></div>
                             </div>
                           ))}
                         </div>
@@ -1753,7 +1753,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* ── Row 2: Bottom Cards (New Applicants & Recent Activity) ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mb-6">
+              <div className="employer-activity-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mb-6">
                 {/* New Applicants */}
                 <div className="bg-white rounded-lg p-5 shadow-sm border border-[#e2e8f0] hover:border-[#bfdbfe] transition-all">
                   <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
@@ -1763,7 +1763,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   {applications.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-8">No applicants yet</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="employer-applicant-list">
                       {enrichedApps.slice(0, 5).map((app, i) => (
                         <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
                           <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[#1e3a8a] bg-slate-100 border border-slate-200 text-xs font-bold">
@@ -1771,11 +1771,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold text-[#1e3a8a] truncate">{app.candidateName || 'Candidate'}</p>
-                            <p className="text-[11px] text-slate-500 truncate">{(app.jobTitle || 'a position').substring(0, 24)}</p>
+                            <p className="text-[11px] text-slate-500 truncate" title={app.jobTitle || 'a position'}>{app.jobTitle || 'a position'}</p>
                           </div>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${matchScoreClasses(getApplicantMatchScore(app, matchScores))}`}
                             title="AI Match Score">
-                            {getApplicantMatchScore(app, matchScores) === null ? '—' : `${getApplicantMatchScore(app, matchScores)}%`}
+                            {getApplicantMatchScore(app, matchScores) === null ? 'No score' : `${getApplicantMatchScore(app, matchScores)}% match`}
                           </span>
                         </div>
                       ))}
@@ -1793,7 +1793,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   ) : recentActivity.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-8">No recent activity</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="employer-recent-activity-list">
                       {recentActivity.map((activity, index) => (
                         <div key={index} className="flex items-start gap-2.5 pb-2.5 border-b border-slate-100 last:border-0">
                           <div className="w-2 h-2 rounded-full bg-[#2563eb] mt-1.5 flex-shrink-0" />

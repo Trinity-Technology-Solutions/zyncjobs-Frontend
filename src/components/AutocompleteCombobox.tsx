@@ -51,6 +51,7 @@ export interface AutocompleteComboboxProps {
   hasMore?: boolean;
   dataSource?: DataSourceKey;
   id?: string;
+  showDropdownToggle?: boolean;
 }
 
 export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
@@ -75,6 +76,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   hasMore = false,
   dataSource,
   id,
+  showDropdownToggle = true,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -304,7 +306,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   useEffect(() => {
     mountedRef.current = true;
     // Clear any stale recent searches from localStorage
-    try { localStorage.removeItem('combobox_recent'); } catch {}
+    try { localStorage.removeItem('combobox_recent'); } catch { /* Ignore unavailable storage. */ }
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -439,20 +441,22 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             className="flex-1 w-full px-4 py-3 pr-10 bg-transparent border-none outline-none text-gray-900 placeholder:text-gray-400 disabled:cursor-not-allowed"
             autoFocus={autoFocus}
           />
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={() => {
-              if (isOpen) { closeDropdown(); }
-              else { setChevronOpened(true); openDropdown(); }
-            }}
-            onMouseDown={e => e.preventDefault()}
-            disabled={disabled}
-            aria-label={isOpen ? 'Close dropdown' : 'Open dropdown'}
-            className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <ChevronDown className={`w-5 h-5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
-          </button>
+          {showDropdownToggle && (
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => {
+                if (isOpen) { closeDropdown(); }
+                else { setChevronOpened(true); openDropdown(); }
+              }}
+              onMouseDown={e => e.preventDefault()}
+              disabled={disabled}
+              aria-label={isOpen ? 'Close dropdown' : 'Open dropdown'}
+              className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ChevronDown className={`w-5 h-5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+          )}
           {isLoading && (
             <Loader2 className="absolute right-10 w-5 h-5 animate-spin text-blue-500" />
           )}

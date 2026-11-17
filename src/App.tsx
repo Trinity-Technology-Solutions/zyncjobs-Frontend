@@ -15,6 +15,7 @@ import CookieConsentBanner from './components/CookieConsentBanner';
 import BackToTop from './components/BackToTop';
 import SEOHead from './components/SEOHead';
 const JobCategories = lazy(() => import('./components/JobCategories'));
+const CandidateFeaturesSection = lazy(() => import('./components/CandidateFeaturesSection'));
 const LatestJobs = lazy(() => import('./components/LatestJobs'));
 const HowItWorks = lazy(() => import('./components/HowItWorks'));
 const TalentedPeople = lazy(() => import('./components/TalentedPeople'));
@@ -274,7 +275,7 @@ function App() {
   const isEmployerHomePage = location.pathname === '/' && user?.type === 'employer';
   const isAdminPage = location.pathname.startsWith('/admin');
   const useSharedPageShell = !isHomePage && !isEmployerHomePage;
-  const useHeaderOffset = useSharedPageShell && !isAdminPage;
+  const useHeaderOffset = (useSharedPageShell || isEmployerHomePage) && !isAdminPage;
   // If we already have user from localStorage and no refresh token, skip loading state
   const [userLoading, setUserLoading] = useState(() => {
     const hasRefreshToken = !!tokenStorage.getRefresh();
@@ -304,6 +305,12 @@ function App() {
   const handleNavigation = useCallback((page: string, params?: any) => {
     const currentPath = window.location.pathname;
     if (page === 'home') { if (currentPath !== '/') navigate('/'); return; }
+    if (page === 'job-listings' && params?.clearFilters) {
+      sessionStorage.removeItem('zync:list:job-listings');
+      navigate(`/job-listings${params?.tab ? `?tab=${encodeURIComponent(params.tab)}` : ''}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (page === 'job-listings' && params?.tab) { navigate(`/job-listings?tab=${params.tab}`); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'job-listings') {
       const qp = new URLSearchParams();
@@ -818,6 +825,7 @@ function App() {
                 <CompanyCarousel />
                 <LatestJobs onNavigate={handleNavigation} user={user} />
                 <HowItWorks onNavigate={handleNavigation} />
+                <CandidateFeaturesSection onNavigate={handleNavigation} />
                 <JobCategories onNavigate={handleNavigation} />
                 <TalentedPeople onNavigate={handleNavigation} />
                 <CallToAction onNavigate={handleNavigation} />

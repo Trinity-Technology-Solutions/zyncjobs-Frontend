@@ -732,8 +732,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         <div className="my-jobs-content bg-white rounded-xl sm:rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <BackButton fallback="/dashboard" text="Back to Dashboard" className="mb-4 sm:mb-6" />
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
-            <div className="flex flex-wrap gap-1">
+          <div className="posted-jobs-page-header flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+            <div className="min-w-0">
               {user?.type === 'employer' ? (
                 <div className="posted-jobs-heading"><h1>Posted Jobs</h1><p>Jobs you have posted. Open a role to review its candidates, or manage all postings in Job Management.</p><div className="posted-jobs-heading-actions"><button type="button" onClick={() => onNavigate('job-management')}>Job Management</button><button type="button" onClick={() => { localStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}>Post a job</button></div></div>
               ) : (
@@ -795,9 +795,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+          <div className="posted-jobs-list-heading flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-              {activeTab === 'Applications' ? 'My Applications' : activeTab}
+              {activeTab === 'Applications' ? 'My Applications' : activeTab === 'Posted Jobs' ? 'Your job listings' : activeTab}
+              {user?.type === 'employer' && activeTab === 'Posted Jobs' && postedJobs.length > 0 && (
+                <span className="posted-jobs-count">{postedJobs.length}</span>
+              )}
             </h2>
           </div>
 
@@ -812,8 +815,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                   {postedJobs.length > 0 ? (
                     <>
                       {/* Bulk Actions Bar */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                        <div className="flex flex-wrap items-center gap-4">
+                      <div className="posted-jobs-bulk-toolbar mb-5 p-4 bg-gray-50 rounded-lg border">
+                        <div className="posted-jobs-bulk-toolbar-inner flex flex-wrap items-center gap-4">
                           <label className="flex items-center space-x-3">
                             <input
                               type="checkbox"
@@ -834,7 +837,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                             {selectedJobs.length} of {postedJobs.length} jobs selected
                           </span>
                           
-                          <div className="flex gap-3 ml-auto">
+                          <div className="posted-jobs-bulk-actions flex gap-3 ml-auto">
                             <BulkJobRefresh
                               selectedJobIds={selectedJobs}
                               selectedJobs={postedJobs.filter(job => selectedJobs.includes(getId(job))).map(job => ({

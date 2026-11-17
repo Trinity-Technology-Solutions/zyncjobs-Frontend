@@ -78,6 +78,8 @@ export const API_ENDPOINTS = {
   // User
   PROFILE: `${config.API_URL}/profile`,
   USERS: `${config.API_URL}/users`,
+  CONTACT: `${config.API_URL}/contact`,
+  EMPLOYER_CALLBACK: `${config.API_URL}/contact/callback`,
 
   // Resume Viewer
   RESUME_VIEWER: `${config.API_URL}/resume-viewer`,
