@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, TrendingUp, AlertCircle, CheckCircle2, Compass, ShieldCheck, Sparkles } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../api/auth';
+import { AccountLockoutError, authAPI } from '../api/auth';
 import Header from '../components/Header';
 import WorkButton from '../components/animata/button/work-button';
 import analytics from '../services/analytics';
@@ -22,8 +22,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [lockedMinutes, setLockedMinutes] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+  const [lockout, setLockout] = useState<AccountLockoutError | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -53,6 +52,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setFieldErrors({});
     if (!validateForm()) return;
@@ -102,10 +102,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       let errorMessage = 'Login failed';
       
       // Handle account lockout (HTTP 423)
-      if (err.locked || err.response?.status === 423 || err.message?.includes('locked')) {
-        setLockedUntil(err.lockedUntil || null);
-        setLockedMinutes(err.lockoutMinutes || 15);
-        setLoading(false);
+      if (err instanceof AccountLockoutError) {
+        setLockout(err);
         return;
       }
       
@@ -134,6 +132,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Header onNavigate={onNavigate} />
+      {lockout && (
+        <AccountLockedModal
+          lockout={lockout}
+          onClose={() => setLockout(null)}
+          onResetPassword={() => { setLockout(null); onNavigate('forgot-password'); }}
+        />
+      )}
 
       <main className="portal-page-container w-full flex-1 py-6 sm:py-10 lg:py-12">
         <div className="mx-auto grid w-full gap-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-10">

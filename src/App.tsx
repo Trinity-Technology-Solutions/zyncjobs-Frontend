@@ -35,7 +35,6 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
 const PasswordExpiredModal = lazy(() => import('./components/PasswordExpiredModal'));
-const AccountLockedModal = lazy(() => import('./components/AccountLockedModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
 
 const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage'));
@@ -288,8 +287,6 @@ function App() {
 
   const [passwordExpired, setPasswordExpired] = useState(false);
   const [expiredUserData, setExpiredUserData] = useState<any>(null);
-  const [accountLocked, setAccountLocked] = useState(false);
-  const [lockoutData, setLockoutData] = useState<{ lockoutMinutes: number; email: string }>({ lockoutMinutes: 15, email: '' });
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
@@ -555,12 +552,6 @@ function App() {
       else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
-    const handleAccountLocked = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setLockoutData({ lockoutMinutes: detail.lockoutMinutes || 15, email: detail.email || '' });
-      setAccountLocked(true);
-    };
-    window.addEventListener('zync:account-locked', handleAccountLocked);
 
     // IMMEDIATELY clear httpOnly cookie if on admin accept invite page
     // This runs synchronously before restoreSession
@@ -738,7 +729,6 @@ function App() {
     restoreSession();
     return () => {
       window.removeEventListener('zync:logout', handleForceLogout);
-      window.removeEventListener('zync:account-locked', handleAccountLocked);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount only
@@ -1296,15 +1286,6 @@ function App() {
             onLogout={handleLogout}
           />
         )}
-        <AccountLockedModal
-          isOpen={accountLocked}
-          lockoutMinutes={lockoutData.lockoutMinutes}
-          onClose={() => setAccountLocked(false)}
-          onContactSupport={() => {
-            setAccountLocked(false);
-            handleNavigation('contact');
-          }}
-        />
       </Suspense>
     </>
   );

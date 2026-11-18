@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TalentedPeopleProps {
@@ -6,41 +6,13 @@ interface TalentedPeopleProps {
 }
 
 const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
-  const [isVisible, setIsVisible] = useState(false);
   const [rolePage, setRolePage] = useState(0);
   const roles = ['Sales Executive', 'Customer Support', 'Accountant', 'HR Executive', 'Operations Coordinator', 'Software Developer', 'Registered Nurse', 'Mechanical Engineer', 'Teacher', 'Graphic Designer', 'Marketing Executive', 'Logistics Coordinator'];
   const totalRolePages = Math.ceil(roles.length / 6);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  // Intersection Observer for scroll animation
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Trigger animation when entering viewport
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (sectionRef.current) {
-            observer.unobserve(sectionRef.current);
-          }
-        }
-      },
-      { threshold: 0.15 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
 
   return (
-    <section ref={sectionRef} className="home-career-feature py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
-      <div className={`career-role-discovery max-w-7xl mx-auto ${isVisible ? 'is-visible' : ''}`}>
+    <section className="home-career-feature py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
+      <div className="career-role-discovery max-w-7xl mx-auto">
         <div className="career-role-introduction">
           <div className="career-role-art"><svg className="career-person-illustration" viewBox="0 0 260 220" fill="none" aria-hidden="true" focusable="false">
   <circle cx="118" cy="106" r="88" fill="#F0EEF5" />

@@ -1,69 +1,74 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import './candidateScrollMotion.css';
+import './homeScrollMotion.css';
 
 export default function useHomeMotion() {
   const { pathname } = useLocation();
   useEffect(() => {
-    if (!['/', '/employers'].includes(pathname)) return;
-    const tracked = new Set<HTMLElement>();
-    const candidateItems = new Set<HTMLElement>();
+    if (!/^\/(?:employers\/*)?$/i.test(pathname)) return;
+    const revealItems = new Set<HTMLElement>();
     const tiltCards = new Set<HTMLElement>();
     const removers: (() => void)[] = [];
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.target.classList.contains('candidate-scroll-item')) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('candidate-scroll-visible');
-            observer.unobserve(entry.target);
-          }
-          return;
-        }
-        if (entry.isIntersecting) entry.target.classList.add('home-motion-visible');
-        else if (entry.boundingClientRect.top > window.innerHeight) entry.target.classList.remove('home-motion-visible');
-
+    let scrollFrame = 0;
+    const updateProgress = () => {
+      scrollFrame = 0;
+      const viewport = window.innerHeight;
+      const positions = Array.from(revealItems, item => {
+        const { top, height } = item.getBoundingClientRect();
+        const travel = Math.min(viewport * 0.62, Math.max(height, viewport * 0.36));
+        const progress = Math.max(0, Math.min(1, (viewport - top) / travel));
+        return { item, progress };
       });
-    }, { threshold: 0.08, rootMargin: '0px 0px -24px 0px' });
+      for (const { item, progress } of positions) {
+        const remaining = (1 - progress).toFixed(3);
+        if (item.style.getPropertyValue('--home-slide-remaining') !== remaining) {
+          item.style.setProperty('--home-slide-remaining', remaining);
+          item.classList.toggle('home-scroll-moving', remaining !== '0.000');
+        }
+      }
+    };
+    const scheduleProgress = () => {
+      if (!scrollFrame) scrollFrame = requestAnimationFrame(updateProgress);
+    };
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     const scan = () => {
       const root = document.querySelector<HTMLElement>('.zync-home, .employer-home');
       if (!root) return;
-      if (root.classList.contains('zync-home')) {
-        const groups = [
+      for (const item of revealItems) {
+        if (!root.contains(item)) revealItems.delete(item);
+      }
+      const groups = root.classList.contains('zync-home')
+        ? [
           '.home-existing-hero .hero-main-copy > *, .home-existing-hero .home-existing-robot',
           '.home-company-strip > div',
           '.home-latest-jobs .home-section-heading, .home-latest-jobs .portal-job-card, .home-latest-jobs .text-center',
-          '.career-tools-section .mb-12, .career-tools-grid > .career-tool-card',
-          '.career-journey .journey-header, .career-journey .journey-step-list, .career-journey .journey-preview',
+          '.career-tools-section .mb-12',
+          '.career-tools-grid > .career-tool-card',
+          '.career-journey .journey-header, .career-journey .journey-step-list',
+          '.career-journey .journey-panel',
           'section[aria-labelledby="candidate-job-tools-title"] > div > .flex',
           'section[aria-labelledby="candidate-job-tools-title"] .grid > div',
           '.home-categories .max-w-2xl, .home-categories .interactive-category-card',
           '.home-career-feature .career-role-introduction, .home-career-feature .career-role-panel',
           '.home-final-cta .candidate-opportunity-copy, .home-final-cta .candidate-opportunity-art',
-          '.portal-footer .portal-footer-main > *, .portal-footer .portal-footer-bottom',
+        ]
+        : [
+          '.employer-hero-copy, .employer-hero-form',
+          '.employer-job-ticker',
+          '.employer-trusted > *',
+          '.employer-solution-section .career-discovery-art, .employer-category-panel',
+          '.reveal',
         ];
-        groups.forEach(selector => {
-          root.querySelectorAll<HTMLElement>(selector).forEach((item, index) => {
-            if (candidateItems.has(item)) return;
-            candidateItems.add(item);
-            item.style.setProperty('--candidate-reveal-delay', `${Math.min(index % 4, 3) * 65}ms`);
-            item.classList.add('candidate-scroll-item');
-            // Previously visited content stays visible when lazy data arrives.
-            if (item.getBoundingClientRect().bottom < 0 || item.contains(document.activeElement)) {
-              item.classList.add('candidate-scroll-visible');
-            } else observer.observe(item);
-          });
+      groups.push('.portal-footer .portal-footer-main > *, .portal-footer .portal-footer-bottom');
+      groups.forEach(selector => {
+        root.querySelectorAll<HTMLElement>(selector).forEach((item, index) => {
+          if (revealItems.has(item)) return;
+          revealItems.add(item);
+          item.style.setProperty('--home-slide-direction', index % 2 === 0 ? '-1' : '1');
+          item.classList.add('home-scroll-item');
         });
-      }
-      root.querySelectorAll<HTMLElement>('.home-latest-jobs, .home-categories, .home-career-feature, .home-final-cta, .employer-segments, .employer-callback, .employer-faq, .employer-final-cta, .employer-solution-section, .employer-features').forEach(el => {
-        if (root.classList.contains('zync-home')) return;
-        if (tracked.has(el)) return;
-        tracked.add(el);
-        // Reveal the inner content, keeping section backgrounds and scroll measurements stable.
-        const content = el.querySelector<HTMLElement>(':scope > .portal-page-container, :scope > .max-w-7xl') || el;
-        content.classList.add('home-motion-reveal');
-        observer.observe(content);
       });
+      scheduleProgress();
       if (!finePointer) return;
       root.querySelectorAll<HTMLElement>('.business-segment-card, .employer-offering-card, .home-latest-jobs .portal-job-card').forEach(card => {
         if (tiltCards.has(card)) return;
@@ -90,13 +95,18 @@ export default function useHomeMotion() {
     scan();
     const mutations = new MutationObserver(scan);
     mutations.observe(document.getElementById('main-content') || document.body, { childList: true, subtree: true });
+    window.addEventListener('scroll', scheduleProgress, { passive: true, capture: true });
+    window.addEventListener('resize', scheduleProgress);
     return () => {
-      observer.disconnect(); mutations.disconnect();
+      mutations.disconnect();
+      cancelAnimationFrame(scrollFrame);
+      window.removeEventListener('scroll', scheduleProgress, true);
+      window.removeEventListener('resize', scheduleProgress);
       removers.forEach(remove => remove());
-      tracked.forEach(el => { const content = el.querySelector('.home-motion-reveal') || el; content.classList.remove('home-motion-reveal', 'home-motion-visible'); });
-      candidateItems.forEach(item => {
-        item.classList.remove('candidate-scroll-item', 'candidate-scroll-visible');
-        item.style.removeProperty('--candidate-reveal-delay');
+      revealItems.forEach(item => {
+        item.classList.remove('home-scroll-item', 'home-scroll-moving');
+        item.style.removeProperty('--home-slide-remaining');
+        item.style.removeProperty('--home-slide-direction');
       });
     };
   }, [pathname]);

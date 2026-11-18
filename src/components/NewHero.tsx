@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion } from 'framer-motion';
 import { Search, MapPin, ArrowRight } from 'lucide-react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -356,11 +355,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                       grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-8 xl:gap-12 items-center">
 
         {/* ════ LEFT — Content ════ */}
-        <motion.div
+        <div
           className="hero-main-copy w-full max-w-2xl space-y-3.5 sm:space-y-4 lg:space-y-5 py-6 sm:py-8 lg:py-10 xl:py-12"
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="text-blue-600 font-semibold text-xs sm:text-sm tracking-wide uppercase">
             Let AI Find Your Next Move
@@ -421,7 +417,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
             ))}
             </div>
           </div>
-        </motion.div>
+        </div>
 
         <div className="home-existing-robot hero-original-robot">
           <span className="hero-original-greeting">Hi, I am <strong>ZYNC BOT!</strong></span>

@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getEmployerReturnPath } from '../utils/employerReturnPath';
 import React, { useState } from 'react';
 import { Eye, EyeOff, Search, BarChart2, Shield, AlertTriangle, KeyRound } from 'lucide-react';
-import { authAPI } from '../api/auth';
+import { AccountLockoutError, authAPI } from '../api/auth';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import { generateEmployerId } from '../utils/employerIdUtils';
@@ -27,8 +27,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestReset, setSuggestReset] = useState(false);
-  const [lockedMinutes, setLockedMinutes] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+  const [lockout, setLockout] = useState<AccountLockoutError | null>(null);
   const [showChangePw, setShowChangePw] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPw, setConfirmNewPw] = useState('');
@@ -42,11 +41,12 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
     setSuggestReset(false);
     try {
-      const response = await authAPI.login({ email, password, portal: 'employer' } as any);
+      const response = await authAPI.login({ email, password, portal: 'employer' });
       const userType = response.user.userType || response.user.role;
       const isTeamMember = !!(response.user as any).teamRole;
 
@@ -96,13 +96,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome back! Login successful.' });
     } catch (err) {
       const errData = (err as any)?.response?.data || err;
-      let errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
+      const errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
       
       // Handle account lockout (HTTP 423)
-      if ((err as any)?.locked || (err as any)?.response?.status === 423 || errorMessage.includes('locked') || errorMessage.includes('too many')) {
-        setLockedUntil((err as any)?.lockedUntil || null);
-        setLockedMinutes((err as any)?.lockoutMinutes || 15);
-        setLoading(false);
+      if (err instanceof AccountLockoutError) {
+        setLockout(err);
         return;
       }
       
@@ -143,13 +141,13 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
     <div className="employer-login-page portal-auth-page flex flex-col overflow-x-hidden bg-[#f7f4ef]">
       <Header onNavigate={onNavigate} />
 
-      <AccountLockedModal
-        isOpen={lockedMinutes > 0}
-        lockoutMinutes={lockedMinutes}
-        lockedUntil={lockedUntil}
-        onClose={() => { setLockedMinutes(0); setLockedUntil(null); setError(''); }}
-        onContactSupport={() => { setLockedMinutes(0); setLockedUntil(null); onNavigate('forgot-password'); }}
-      />
+      {lockout && (
+        <AccountLockedModal
+          lockout={lockout}
+          onClose={() => setLockout(null)}
+          onResetPassword={() => { setLockout(null); onNavigate('forgot-password'); }}
+        />
+      )}
 
       {/* Change Password Modal for team members after first login */}
       {showChangePw && (

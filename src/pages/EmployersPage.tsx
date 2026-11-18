@@ -37,7 +37,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
   }, [pageLocation.hash]);
 
   return (
-    <div className="employer-home min-h-screen bg-white">
+    <div className="employer-home min-h-screen bg-white overflow-x-clip">
       <GlobalMotionStyles />
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
@@ -204,8 +204,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 variant: 'branding', url: 'zyncjobs.ai/companies',
                 grad: 'from-indigo-500 to-violet-500', tile: 'bg-indigo-50', text: 'text-indigo-600', cta: 'Build Your Brand',
               },
-            ].map((f, i) => (
-              <Reveal key={f.title} delay={i * 60} className="employer-offering-reveal">
+            ].map(f => (
+              <Reveal key={f.title} className="employer-offering-reveal">
                 <article className={`employer-offering-card offering-${f.variant}`}>
                   <button type="button" className="employer-offering-preview" aria-label={`${f.title} demo, plays on hover or focus`} onMouseEnter={() => setPreviewRuns(previous => ({...previous, [f.variant]: (previous[f.variant] || 0) + 1}))} onFocus={() => setPreviewRuns(previous => ({...previous, [f.variant]: (previous[f.variant] || 0) + 1}))}>
                     
@@ -230,7 +230,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
             />
           </Reveal>
           <div className="business-segments-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Reveal delay={0}>
+            <Reveal>
               <SegmentCard
                 icon={Building2}
                 grad="from-blue-600 to-cyan-500"
@@ -241,7 +241,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 onClick={scrollToPlans}
               />
             </Reveal>
-            <Reveal delay={100}>
+            <Reveal>
               <SegmentCard
                 icon={Users}
                 grad="from-blue-600 to-violet-600"
@@ -253,7 +253,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
                 featured
               />
             </Reveal>
-            <Reveal delay={200}>
+            <Reveal>
               <SegmentCard
                 icon={Zap}
                 grad="from-violet-600 to-purple-500"
@@ -349,17 +349,6 @@ function GlobalMotionStyles() {
 
       @keyframes particle-rise { 0% { transform: translateY(0) translateX(0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.4; } 100% { transform: translateY(-380px) translateX(var(--drift, 20px)); opacity: 0; } }
       .particle { position: absolute; animation: particle-rise linear infinite; }
-
-      @keyframes hero-fade-up { 0% { opacity: 0; transform: translateY(16px); } 100% { opacity: 1; transform: translateY(0); } }
-      .hero-fade-1, .hero-fade-2, .hero-fade-3, .hero-fade-4, .hero-fade-5 { animation: hero-fade-up 0.7s cubic-bezier(.16,.84,.44,1) both; }
-      .hero-fade-1 { animation-delay: 0.02s; }
-      .hero-fade-2 { animation-delay: 0.10s; }
-      .hero-fade-3 { animation-delay: 0.20s; }
-      .hero-fade-4 { animation-delay: 0.30s; }
-      .hero-fade-5 { animation-delay: 0.40s; }
-
-      .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s cubic-bezier(.16,.84,.44,1), transform 0.7s cubic-bezier(.16,.84,.44,1); }
-      .reveal-visible { opacity: 1; transform: translateY(0); }
 
       @keyframes count-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
@@ -559,41 +548,15 @@ function GlobalMotionStyles() {
       }
       @media (prefers-reduced-motion: reduce) {
         .marquee-track, .ticker-track, .animate-gradient-shift, .animate-pulse-soft, .animate-float-slow, .animate-float-slow-alt, .animate-float,
-        .orb-1, .orb-2, .orb-3, .grid-pan, .particle, .suite-panel-in, .suite-progress, .suite-chip-in,
-        .hero-fade-1, .hero-fade-2, .hero-fade-3, .hero-fade-4, .hero-fade-5 { animation: none !important; }
-        .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+        .orb-1, .orb-2, .orb-3, .grid-pan, .particle, .suite-panel-in, .suite-progress, .suite-chip-in { animation: none !important; }
       }
     `}</style>
   );
 }
 
-/** Scroll-triggered reveal wrapper — fades/rises content in once it enters the viewport. */
-function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
+function Reveal({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      ref={ref}
-      className={`reveal ${visible ? 'reveal-visible' : ''} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
+    <div className={`reveal ${className}`}>
       {children}
     </div>
   );
@@ -1145,7 +1108,7 @@ function FAQSection({ go }: { go: (page: string) => void }) {
 
         <div className="space-y-4">
           {faqs.map((f, i) => (
-            <Reveal key={f.q} delay={i * 40}>
+            <Reveal key={f.q}>
               <div
                 className={`group rounded-2xl border transition-all duration-300 overflow-hidden ${open === i
                   ? 'bg-white border-blue-200/90 shadow-xl shadow-blue-900/5 ring-1 ring-blue-500/10'

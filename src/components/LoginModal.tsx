@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { authAPI } from '../api/auth';
+import { AccountLockoutError, authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import { FormLoading } from './LoadingStates';
 import { updateUserInStorage } from '../utils/userStorage';
 import WorkButton from './animata/button/work-button';
+import AccountLockedModal from './AccountLockedModal';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -56,8 +57,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [lockout, setLockout] = useState<AccountLockoutError | null>(null);
 
   if (!isOpen) return null;
+  if (lockout) return (
+    <AccountLockedModal
+      lockout={lockout}
+      onClose={() => setLockout(null)}
+      onResetPassword={() => { setLockout(null); onClose(); onNavigate('forgot-password'); }}
+    />
+  );
 
   const validateForm = () => {
     const errs: Record<string, string> = {};
@@ -70,16 +79,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setFieldErrors({});
+    setRemainingAttempts(null);
     if (!validateForm()) return;
     setLoading(true);
 
-    console.log('Attempting login with:', { email });
-
     try {
       const response = await authAPI.login({ email, password });
-      console.log('Login successful:', response);
       
       // Check if account is deleted or suspended
       const accountStatus = response.user.status as string | undefined;
@@ -137,12 +145,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
       setFieldErrors({});
-      if (err.locked) {
-        onClose();
-        const event = new CustomEvent('zync:account-locked', {
-          detail: { lockoutMinutes: err.lockoutMinutes || 15, email }
-        });
-        window.dispatchEvent(event);
+      if (err instanceof AccountLockoutError) {
+        setError('');
+        setLockout(err);
         return;
       }
       if (err.remainingAttempts !== undefined) {

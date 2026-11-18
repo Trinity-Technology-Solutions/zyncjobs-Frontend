@@ -94,21 +94,8 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
       });
 
       const data = await response.json();
-      console.log('Reset response:', response.status, data);
-      
       if (response.ok && data.success) {
-        // Store user role so success screen can redirect to correct login
-        try {
-          const tokenRes = await fetch(`${API_ENDPOINTS.BASE_URL}/verify-reset-token/${token}`);
-          if (tokenRes.ok) {
-            const tokenData = await tokenRes.json();
-            const userRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/check/${encodeURIComponent(tokenData.email)}`);
-            if (userRes.ok) {
-              const userData = await userRes.json();
-              if (userData.user?.userType === 'employer') setUserRole('employer');
-            }
-          }
-        } catch {}
+        setUserRole(data.userType === 'employer' ? 'employer' : 'candidate');
         setSuccess(true);
       } else {
         setError(data.error || 'Failed to reset password');
