@@ -99,20 +99,6 @@ const parseSalaryNumber = (value: string): number => {
   return num;
 };
 
-// Returns a hint string if salary value seems like a raw number that could be simplified
-const getSalaryHint = (value: string): string => {
-  const s = String(value || '').trim().toLowerCase().replace(/,/g, '');
-  if (!s) return '';
-  const match = s.match(/^(\d+(?:\.\d+)?)\s*(k|l|cr)?$/);
-  if (!match || match[2]) return ''; // already has unit suffix
-  const num = parseFloat(match[1]);
-  if (isNaN(num) || num <= 0) return '';
-  if (num >= 10000000) return `= ₹${(num/10000000).toFixed(1)}Cr`;
-  if (num >= 100000) return `= ₹${(num/100000).toFixed(1)}L`;
-  if (num >= 1000) return `= ₹${(num/1000).toFixed(1)}K`;
-  return '';
-};
-
 // Format a salary for display only — never used for validation.
 // Small values (e.g. 800) stay exact; large values are abbreviated with K / L / Cr.
 const formatSalary = (value: string): string => {
@@ -474,6 +460,25 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const autoSaveRequest = React.useRef<Promise<void> | null>(null);
   const autoSaveMounted = React.useRef(false);
   const discardDraft = React.useRef(false);
+  const draftStorageKeyRef = React.useRef(draftStorageKey);
+  draftStorageKeyRef.current = draftStorageKey;
+  const isEditModeRef = React.useRef(isEditMode);
+  isEditModeRef.current = isEditMode;
+  const modeRef = React.useRef(mode);
+  modeRef.current = mode;
+
+  // Discard unfinished Manual Creation drafts when leaving the job posting route,
+  // while keeping localStorage intact across in-page browser refreshes.
+  useEffect(() => {
+    return () => {
+      if (!isEditModeRef.current && modeRef.current === 'manual') {
+        discardDraft.current = true;
+        try {
+          localStorage.removeItem(draftStorageKeyRef.current);
+        } catch { /* Ignore storage errors during cleanup. */ }
+      }
+    };
+  }, []);
 
   // Keep every form field and the current step locally so a browser refresh
   // restores an in-progress post or edit instead of reverting to old values.
