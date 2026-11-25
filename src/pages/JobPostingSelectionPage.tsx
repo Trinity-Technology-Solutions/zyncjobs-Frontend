@@ -50,9 +50,25 @@ const parseFeatures = [
 ];
 
 
-const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNavigate }) => {
+const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNavigate, user }) => {
   const methods = [
-    { id: 'manual', title: 'Manual Creation', subtitle: 'Step-by-step guided form', icon: Pencil, steps: manualSteps, features: manualFeatures, tag: 'Full Control', badge: '', action: () => { localStorage.removeItem('editJobData'); onNavigate('job-posting', { mode: 'manual' }); } },
+    {
+      id: 'manual',
+      title: 'Manual Creation',
+      subtitle: 'Step-by-step guided form',
+      icon: Pencil,
+      steps: manualSteps,
+      features: manualFeatures,
+      tag: 'Full Control',
+      badge: '',
+      action: () => {
+        localStorage.removeItem('editJobData');
+        try {
+          localStorage.removeItem(`job-posting-draft:${user?.email || 'unknown'}:new`);
+        } catch { /* Ignore storage errors. */ }
+        onNavigate('job-posting', { mode: 'manual' });
+      },
+    },
     { id: 'ai', title: 'Parse Job Details', subtitle: 'Auto-extract with AI', icon: Sparkles, steps: parseSteps, features: parseFeatures, tag: 'Fastest Way', badge: 'AI', action: () => { localStorage.removeItem('editJobData'); onNavigate('job-parsing'); } },
     { id: 'bulk', title: 'Bulk Import', subtitle: 'Import 100s of jobs at once', icon: Upload, steps: bulkSteps, features: bulkFeatures, tag: 'Recruiters & Agencies', badge: 'NEW', action: () => onNavigate('bulk-job-import') },
   ];
