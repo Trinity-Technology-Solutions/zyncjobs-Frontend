@@ -5,6 +5,18 @@ import { tokenStorage } from '../utils/tokenStorage';
 export interface LoginData {
   email: string;
   password: string;
+  portal?: 'candidate' | 'employer';
+}
+
+export class AccountLockoutError extends Error {
+  constructor(
+    message: string,
+    readonly lockoutMinutes: number | null,
+    readonly deadline: number | null,
+  ) {
+    super(message);
+    this.name = 'AccountLockoutError';
+  }
 }
 
 export interface RegisterData {
@@ -120,27 +132,30 @@ export const authAPI = {
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error('Too many login attempts. Please wait a few minutes and try again.');
-      }
+      const error = await response.json().catch(() => ({})) || {};
       if (response.status === 423) {
-        const errorText = await response.text();
-        let error: any;
-        try { error = JSON.parse(errorText); } catch { error = { error: 'Account is locked' }; }
-        const err: any = new Error(error.error || 'Account is temporarily locked due to too many failed attempts.');
-        err.locked = true;
-        err.lockoutMinutes = error.lockoutMinutes || 15;
-        err.lockedUntil = error.lockedUntil || null;
-        err.remainingAttempts = error.remainingAttempts;
-        throw err;
+        const now = Date.now();
+        const lockedUntil = Date.parse(error.lockedUntil);
+        const serverTime = Date.parse(response.headers.get('Date') || '');
+        const deadline = typeof error.remainingSeconds === 'number' && Number.isFinite(error.remainingSeconds)
+          ? now + Math.max(0, error.remainingSeconds) * 1000
+          : Number.isFinite(lockedUntil)
+            ? Number.isFinite(serverTime) ? now + (lockedUntil - serverTime) : lockedUntil
+            : null;
+        const duration = Number(error.lockoutMinutes);
+        throw new AccountLockoutError(
+          error.error || 'Account is temporarily locked due to too many failed attempts.',
+          Number.isFinite(duration) && duration > 0 ? duration : null,
+          deadline,
+        );
       }
-      const errorText = await response.text();
-      let error: any;
-      try { error = JSON.parse(errorText); } catch { error = { error: 'Login failed' }; }
-      const err: any = new Error(error.error || 'Incorrect email or password. Please try again.');
-      err.suggestReset = error.suggestReset || false;
-      err.response = { data: error };
-      throw err;
+      const fallback = response.status === 429
+        ? 'Too many login requests. Please wait and try again.'
+        : 'Incorrect email or password. Please try again.';
+      throw Object.assign(new Error(error.error || fallback), {
+        remainingAttempts: error.attemptsRemaining ?? error.remainingAttempts,
+        response: { status: response.status, data: error },
+      });
     }
 
     const result = await response.json();

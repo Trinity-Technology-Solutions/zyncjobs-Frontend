@@ -178,7 +178,7 @@ export const getRoleDisplayName = (role: UserRole): string => {
 
 // Check if user is super admin
 export const isSuperAdmin = (userEmailOrRole: string): boolean => {
-  return userEmailOrRole === 'super_admin' || userEmailOrRole === 'admin@zyncjobs.com' || userEmailOrRole === 'antony@trinitetech.com';
+  return userEmailOrRole === 'super_admin' || userEmailOrRole === 'admin@zyncjobs.com';
 };
 
 // Get account status display info

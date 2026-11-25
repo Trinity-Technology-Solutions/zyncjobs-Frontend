@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
 import CompanyLogo from './CompanyLogo';
-import { formatSalary } from '../utils/textUtils';
+import { formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
-import { ArrowRight, Briefcase } from 'lucide-react';
+import { ArrowRight, Briefcase, Sparkles } from 'lucide-react';
 import { getId } from '../utils/getId';
 
 interface LatestJobsProps {
@@ -33,11 +33,42 @@ interface Job {
   currency?: string;
   createdAt: string;
   urgentNote?: string;
+  skills?: string[] | string;
+}
+
+function getSkillLabels(skills: Job['skills']): string[] {
+  const labels = Array.isArray(skills) ? skills : typeof skills === 'string' ? skills.split(',') : [];
+  const unique = new Map<string, string>();
+  for (const label of labels) {
+    if (typeof label !== 'string' || !label.trim()) continue;
+    const skill = label.trim();
+    if (!unique.has(skill.toLowerCase())) unique.set(skill.toLowerCase(), skill);
+  }
+  return [...unique.values()];
 }
 
 const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const latestJobsRef = useRef<HTMLElement>(null);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const tracks = latestJobsRef.current?.querySelectorAll<HTMLElement>('[data-loop="true"] .latest-job-skills-track');
+    if (!tracks?.length) return;
+
+    const updateDuration = (track: HTMLElement) => {
+      // The loop travels half the track because it contains two identical groups.
+      const distance = track.getBoundingClientRect().width / 2;
+      if (distance > 0) track.style.setProperty('--skill-loop-duration', `${distance / 18}s`);
+    };
+    const observer = new ResizeObserver(entries => {
+      for (const { target } of entries) updateDuration(target as HTMLElement);
+    });
+    for (const track of tracks) {
+      updateDuration(track);
+      observer.observe(track);
+    }
+    return () => observer.disconnect();
+  }, [jobs, loading]);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
 
@@ -188,8 +219,10 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
     );
   }
 
+  const cards = jobs.map(job => ({ job, skills: getSkillLabels(job.skills) }));
+
   return (
-    <section className="home-latest-jobs bg-white py-10 sm:py-12 lg:py-14">
+    <section ref={latestJobsRef} className="home-latest-jobs py-10 sm:py-12 lg:py-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="home-section-heading">
           <div>
@@ -197,21 +230,19 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
             <h2>Fresh opportunities. New possibilities.</h2>
             <p>Explore the latest roles posted on ZyncJobs.</p>
           </div>
-          <button className="home-text-link" onClick={() => onNavigate?.('job-listings')}>View all jobs <ArrowRight size={17} /></button>
+          <button className="home-text-link" onClick={() => onNavigate?.('job-listings', { clearFilters: true })}>View all jobs <ArrowRight size={17} /></button>
         </div>
         
         {jobs.length === 0 ? (
           <div className="text-center py-12 rounded-xl border border-slate-200 bg-white">
             <Briefcase size={30} className="mx-auto mb-3 text-blue-500" />
             <h3 className="font-semibold text-slate-800 mb-2">Your next opportunity is on its way</h3>
-            <p className="text-sm text-slate-500 mb-5">New roles will appear here as employers post them. Explore jobs or build your profile to get started.</p>
-            <button className="home-text-link" onClick={() => onNavigate?.('job-listings')}>Explore jobs <ArrowRight size={16} /></button>
+            <p className="text-sm text-slate-500">New roles will appear here as employers post them.</p>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
-              {jobs.map((job) => (
-                <div key={getId(job)} className="portal-job-card bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+              {cards.map(({ job, skills }) => (
+                <div key={getId(job)} className="portal-job-card min-w-0 bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full">
                   <div>
                     <div className="flex items-center mb-4 min-w-0">
                       <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-3 sm:mr-4">
@@ -224,7 +255,12 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-slate-500 text-xs truncate">{job.company}</p>
+                        <div className="latest-job-company-line">
+                          <p className="text-slate-500 text-xs truncate">{job.company}</p>
+                          {Date.parse(job.createdAt) <= Date.now() && getPostingFreshness(job.createdAt) === 'new' && (
+                            <span className="latest-job-freshness"><Sparkles size={12} aria-hidden="true" /> New on ZyncJobs</span>
+                          )}
+                        </div>
                         <h3 className="font-semibold text-slate-900 text-base truncate" title={job.jobTitle}>{job.jobTitle}</h3>
                         <div className="text-gray-500 text-xs mt-0.5 truncate">{job.location}</div>
                       </div>
@@ -236,6 +272,20 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                     )}
                     <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">{formatJobDescription(job.description || '', 100)}</p>
+                    {skills.length > 0 && (
+                      <div className="latest-job-skills" data-loop={skills.length > 1}>
+                        <div className="latest-job-skills-track">
+                          <ul className="latest-job-skills-group" aria-label="Job skills">
+                            {skills.map(skill => <li key={skill}>{skill}</li>)}
+                          </ul>
+                          {skills.length > 1 && (
+                            <ul className="latest-job-skills-group latest-job-skills-copy" aria-hidden="true">
+                              {skills.map(skill => <li key={skill}>{skill}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div>
@@ -280,10 +330,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
               ))}
             </div>
             
-            <div className="text-center">
-              <button className="home-text-link" onClick={() => onNavigate?.('job-listings', { clearFilters: true })}>Explore more opportunities <ArrowRight size={17} /></button>
-            </div>
-          </>
         )}
       </div>
       

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { CompanyLogoLoop } from './CompanyCarousel';
+import React, { useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TalentedPeopleProps {
@@ -6,41 +7,13 @@ interface TalentedPeopleProps {
 }
 
 const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
-  const [isVisible, setIsVisible] = useState(false);
   const [rolePage, setRolePage] = useState(0);
   const roles = ['Sales Executive', 'Customer Support', 'Accountant', 'HR Executive', 'Operations Coordinator', 'Software Developer', 'Registered Nurse', 'Mechanical Engineer', 'Teacher', 'Graphic Designer', 'Marketing Executive', 'Logistics Coordinator'];
   const totalRolePages = Math.ceil(roles.length / 6);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  // Intersection Observer for scroll animation
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Trigger animation when entering viewport
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (sectionRef.current) {
-            observer.unobserve(sectionRef.current);
-          }
-        }
-      },
-      { threshold: 0.15 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
 
   return (
-    <section ref={sectionRef} className="home-career-feature py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
-      <div className={`career-role-discovery max-w-7xl mx-auto ${isVisible ? 'is-visible' : ''}`}>
+    <section className="home-career-feature py-10 sm:py-12 lg:py-14 bg-white overflow-hidden">
+      <div className="career-role-discovery max-w-7xl mx-auto">
         <div className="career-role-introduction">
           <div className="career-role-art"><svg className="career-person-illustration" viewBox="0 0 260 220" fill="none" aria-hidden="true" focusable="false">
   <circle cx="118" cy="106" r="88" fill="#F0EEF5" />
@@ -72,30 +45,9 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
       {/* Company Logos Section / Lightweight Divider Bar */}
       <div className="home-feature-companies w-full mt-10 sm:mt-12 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-gray-500 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-5 sm:mb-6">
-            Trusted by top companies
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10 md:gap-14 lg:gap-16">
-            {[
-              { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-            ].map((company, index) => (
-              <img
-                key={index}
-                src={company.logo}
-                alt={company.name}
-                className="h-9 sm:h-10 lg:h-11 max-w-[140px] sm:max-w-[160px] w-auto object-contain hover:scale-105 transition-transform duration-200"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            ))}
+          <div className="home-company-panel">
+            <h3 className="home-company-heading">Trusted by top companies</h3>
+            <CompanyLogoLoop />
           </div>
         </div>
       </div>

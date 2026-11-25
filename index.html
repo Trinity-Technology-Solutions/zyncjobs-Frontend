@@ -175,24 +175,56 @@
     <link rel="preconnect" href="https://www.googletagmanager.com">
     <link rel="dns-prefetch" href="https://unpkg.com">
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>#root{background-color:#f9fafb;min-height:100vh;} </style>
-    <!-- Tailwind CDN for development - will be replaced by Vite plugin in production -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['"IBM Plex Sans"', 'sans-serif'],
-            }
-          }
-        }
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
+    <style>
+      #root { background: #f9fafb; min-height: 100vh; }
+      .zync-startup {
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 18px;
+        min-height: 100vh;
+        min-height: 100svh;
+        background: radial-gradient(ellipse at 50% 38%, #fff 8%, #eff5ff 68%, #eaf2fd);
       }
-    </script>
+      .zync-startup-logo { display: block; width: 148px; height: auto; }
+      .zync-startup-track {
+        width: 176px;
+        height: 6px;
+        border-radius: 999px;
+        background: #dde7f7;
+        overflow: hidden;
+      }
+      .zync-startup-track::before {
+        content: '';
+        display: block;
+        width: 38%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #245be0, #18a6e3 65%, #f97316);
+        animation: zync-startup-slide .55s linear infinite alternate;
+      }
+      .zync-startup-label { margin: -6px 0 0; font: 500 13px/1.4 'IBM Plex Sans', system-ui, sans-serif; color: #385271; }
+      @keyframes zync-startup-slide {
+        from { transform: translateX(0); }
+        to { transform: translateX(163%); }
+      }
+    </style>
+    <!-- Tailwind CDN for development - will be replaced by Vite plugin in production -->
+    <script async src="https://cdn.tailwindcss.com" onload="if (window.tailwind) window.tailwind.config = { theme: { extend: { fontFamily: { sans: ['IBM Plex Sans', 'sans-serif'] } } } }"></script>
   </head>
   <body style="background-color: #f9fafb;">
-    <div id="root"></div>
+    <div id="root">
+      <div class="zync-startup" role="status">
+        <img class="zync-startup-logo" src="/images/zyncjobs-logo.png" alt="">
+        <div class="zync-startup-track" aria-hidden="true"></div>
+        <p class="zync-startup-label">Loading ZyncJobs</p>
+      </div>
+    </div>
+    <noscript>
+      <style>.zync-startup { display: none; } #root { min-height: 0; }</style>
+      <p>Enable JavaScript to open ZyncJobs.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
     <script defer src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.10/dist/dotlottie-wc.js" type="module"></script>
   </body>

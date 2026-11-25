@@ -56,10 +56,6 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
       // employer with recruiter_portal_access permission → treat as recruiter in dashboard
       if (role === 'employer' && hasRecruiterAccess) role = 'recruiter';
 
-      if (data.user?.email === 'antony@trinitetech.com') {
-        role = 'super_admin';
-      }
-
       const token = data.accessToken || data.token;
       const refreshToken = data.refreshToken;
       tokenStorage.setAccess(token);

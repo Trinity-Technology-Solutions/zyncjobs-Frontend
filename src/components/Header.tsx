@@ -16,6 +16,8 @@ import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
 import CandidateNotificationBell from './CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
+import EmployerAvatar, { type EmployerIdentity } from './EmployerAvatar';
+import { getUserFromStorage } from '../utils/userStorage';
 
 
 const resolveProfilePhoto = (value: string | undefined): string => {
@@ -26,12 +28,13 @@ const resolveProfilePhoto = (value: string | undefined): string => {
 };
 
 interface HeaderProps {
+  workspaceLayout?: boolean;
   onNavigate?: (page: string, data?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' | 'recruiter', email?: string} | null;
   onLogout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout, workspaceLayout = false }) => {
   const { unreadCount: alertUnread } = useJobAlertStore(user?.type === 'candidate' ? user?.email : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -56,13 +59,27 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       return '';
     }
   });
+  const [employerIdentity, setEmployerIdentity] = useState<EmployerIdentity>(() => ({
+    ...user,
+    ...getUserFromStorage(),
+  }));
+  const profileAvatar = user?.type === 'employer'
+    ? <EmployerAvatar account={employerIdentity} className="portal-profile-avatar bg-white text-xs" />
+    : <span className="portal-profile-avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : <UserCircle size={26} strokeWidth={1.5} aria-hidden="true" />}</span>;
   const candidateNotifications = useApplicationNotifications(user?.type === 'candidate' ? userEmail : undefined);
-  const renderNotificationBell = () => {
-    if (user?.type === 'candidate') return <CandidateNotificationBell notifications={candidateNotifications.notifications} unreadCount={candidateNotifications.unreadCount} onMarkRead={candidateNotifications.markRead} onMarkAllRead={candidateNotifications.markAllRead} onClearAll={candidateNotifications.clearAll} onDismiss={candidateNotifications.dismissNotification} onNavigate={page => onNavigate?.(page)} />;
-    if (!user) return <button type="button" className="portal-notification-bell" aria-label="Sign in to view notifications" onClick={() => onNavigate?.(isEmployerContext ? 'employer-login' : 'login')}><Bell size={23} strokeWidth={1.5} aria-hidden="true" /></button>;
-    return null;
-  };
-  const isScrolled = true; // Default to light header
+  const notificationBell = user?.type === 'candidate' ? (
+    <div className="portal-notifications">
+      <CandidateNotificationBell
+        notifications={candidateNotifications.notifications}
+        unreadCount={candidateNotifications.unreadCount}
+        onMarkRead={candidateNotifications.markRead}
+        onMarkAllRead={candidateNotifications.markAllRead}
+        onClearAll={candidateNotifications.clearAll}
+        onDismiss={candidateNotifications.dismissNotification}
+        onNavigate={page => onNavigate?.(page)}
+      />
+    </div>
+  ) : null;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
@@ -71,6 +88,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const location = useLocation();
   const currentPath = location.pathname;
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const showHeader = isHeaderVisible || isMenuOpen || isDropdownOpen;
   useEffect(() => {
     setIsHeaderVisible(true);
     const positions = new WeakMap<EventTarget, number>();
@@ -120,9 +138,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   // Employer context = employer logged in OR on an employer-facing page
   const isEmployerContext = user?.type === 'employer' || isEmployerPagePath(currentPath);
 
-  // Show Job Seeker links everywhere EXCEPT on Job Seeker Auth pages
-  const showJobSeekerLinks = !isJobSeekerAuthPage;
-
   // Secret typed sequence to reveal admin login
   useEffect(() => {
     const secret = import.meta.env.VITE_ADMIN_SECRET || '';
@@ -155,6 +170,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const updateUserData = () => {
       try {
         const stored = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user?.type === 'employer') setEmployerIdentity({ ...user, ...stored });
         const name = stored.fullName || stored.name || (user as any)?.fullName || user?.name || stored.email?.split('@')[0] || 'User';
         setDisplayName(name);
         const photo = stored.profilePhoto || (user as any)?.profilePhoto || '';
@@ -162,6 +178,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         const email = stored.email || user?.email || (user as any)?.email || '';
         setUserEmail(email);
       } catch {
+        if (user?.type === 'employer') setEmployerIdentity(user);
         setDisplayName((user as any)?.fullName || user?.name || 'User');
         setProfilePhoto(resolveProfilePhoto((user as any)?.profilePhoto));
         setUserEmail(user?.email || (user as any)?.email || '');
@@ -433,9 +450,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     };
   }, [user]);
 
-  const navTextClass = isScrolled 
-    ? 'text-gray-900 hover:text-blue-600' 
-    : 'text-white/90 hover:text-white';
+  const navTextClass = 'text-gray-900 hover:text-blue-600';
 
   const renderProfileDrawer = () => {
     if (!user) return null;
@@ -482,7 +497,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             <div className="p-6 bg-gradient-to-br from-blue-50/50 via-slate-50/30 to-white">
               <div className="flex items-start gap-4">
                 <div className="relative flex-shrink-0">
-                  {profilePhoto ? (
+                  {user.type === 'employer' ? (
+                    <EmployerAvatar account={employerIdentity} className="block w-16 h-16 p-1 rounded-full overflow-hidden bg-white ring-4 ring-white shadow-md" />
+                  ) : profilePhoto ? (
                     <img 
                       src={profilePhoto} 
                       alt={displayName} 
@@ -813,44 +830,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   return (
     <>
       <header
-        className="zync-site-header fixed top-0 left-0 right-0 z-50"
-        data-scroll-hidden={!isHeaderVisible && !isMenuOpen && !isDropdownOpen}
-        style={{ transform: isHeaderVisible || isMenuOpen || isDropdownOpen ? 'translateY(0)' : 'translateY(-100%)' }}
+        ref={headerRef}
+        className={`zync-site-header fixed top-0 left-0 right-0 z-50${workspaceLayout ? ' zync-site-header-workspace' : ''}`}
+        data-scroll-hidden={!showHeader}
+        style={{ transform: showHeader ? 'translateY(0)' : 'translateY(-100%)' }}
       >
-      <div
-        className="portal-header-surface w-full border-b transition-colors duration-200"
-        style={isScrolled ? {
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          background: 'rgba(255, 255, 255, 0.97)',
-          borderColor: '#e4eaf3',
-          boxShadow: '0 2px 12px rgba(23, 43, 77, 0.03)',
-        } : {
-          backdropFilter: 'blur(18px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-          background: 'rgba(23, 43, 77, 0.97)',
-          borderColor: 'rgba(255, 255, 255, 0.12)',
-          boxShadow: 'none',
-        }}
-      >
+      <div className="portal-header-surface w-full border-b transition-colors duration-200 motion-reduce:transition-none">
       <div className="portal-header-container w-full px-4 sm:px-6 lg:px-8">
         <div className="portal-header-row flex items-center justify-between gap-3 sm:gap-4">
-          <div className="flex-shrink-0">
-            <button 
+          <div className="portal-header-brand flex-shrink-0">
+            <button
               onClick={() => onNavigate && onNavigate('home')}
               className="flex items-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               aria-label="Go to ZyncJobs home"
             >
-              <img 
-                src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
-                alt={siteSettings?.siteTitle || 'ZyncJobs'} 
+              <img
+                src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'}
+                alt={siteSettings?.siteTitle || 'ZyncJobs'}
                 className="portal-header-logo w-auto object-contain"
               />
             </button>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="portal-header-nav hidden lg:flex min-w-0 items-center flex-1 justify-start" aria-label="Main navigation">
+          <nav className="portal-header-nav hidden lg:flex items-center justify-center" aria-label="Main navigation">
             {isEmployerContext ? (
               <>
                 <button
@@ -877,6 +880,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             {navItems.length > 0 ? (
               navItems
                 .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
+                .filter(item => user?.type === 'candidate' || (
+                  item.label.trim().toLowerCase() !== 'saved jobs' &&
+                  !/^\/?(?:my-jobs|saved-jobs)(?:[/?#]|$)/i.test(item.url)
+                ))
                 .map((item) => (
                 <button
                   key={item.id}
@@ -907,7 +914,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               </button>
             ) : (
               <div className="relative" ref={careerDropdownRef}>
-                <button 
+                <button
                   onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
                   className={`flex items-center space-x-1 ${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
                   aria-expanded={isCareerDropdownOpen}
@@ -918,7 +925,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 </button>
                 {isCareerDropdownOpen && (
                   <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" role="menu">
-                    <button 
+                    <button
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }}
                       className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
                       role="menuitem"
@@ -928,7 +935,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </svg>
                       Resume Studio
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
                       className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
                       role="menuitem"
@@ -938,7 +945,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </svg>
                       Interview Preparation
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
                       className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
                       role="menuitem"
@@ -948,7 +955,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       </svg>
                       Career Guidance
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('skill-assessment'); }}
                       className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
                       role="menuitem"
@@ -962,64 +969,44 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 )}
               </div>
             )}
-            <button 
-              onClick={() => {
-                if (user) {
-                  if (user.type === 'employer') {
-                    onNavigate && onNavigate('job-posting-selection');
-                  } else {
-                    onNavigate && onNavigate('my-jobs');
-                  }
-                } else {
-                  onNavigate && onNavigate(isEmployerContext ? 'employer-register' : 'candidate-register');
-                }
-              }}
-              className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
-            >
-              {user?.type === 'employer' ? 'Job Posting' : 'Saved Jobs'}
-            </button>
+            {user?.type === 'candidate' && (
+              <button
+                onClick={() => onNavigate?.('my-jobs')}
+                className={`${navTextClass} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
+              >
+                Saved Jobs
+              </button>
+            )}
               </>
             )}
 
           </nav>
 
-          {/* Right side items */}
-          <div className="portal-header-actions hidden lg:flex items-center gap-2 ml-auto">
+          {/* Desktop account controls */}
+          <div className="portal-header-actions hidden lg:flex items-center gap-2">
 
-            {/* For Employers Button - only when not logged in and outside employer context */}
-            {!isEmployerContext && !user ? (
-              <button 
-                onClick={handleEmployerPageClick}
-                className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded whitespace-nowrap"
-                title="Go to employer page"
-              >
-                For Employers
-              </button>
-            ) : null}
-
-            <div className="portal-notifications">{renderNotificationBell()}</div>
-            {/* Login/Register Dropdown */}
+            {notificationBell}
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="portal-profile-pill" aria-expanded={isDropdownOpen} aria-haspopup="true" aria-label={`Open profile menu for ${displayName}`}>
                   <Menu size={20} strokeWidth={1.6} aria-hidden="true" />
-                  <span className="portal-profile-avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : <UserCircle size={26} strokeWidth={1.5} aria-hidden="true" />}</span>
+                  {profileAvatar}
                   {user.type === 'candidate' && alertUnread > 0 && <span className="portal-profile-count">{alertUnread > 9 ? '9+' : alertUnread}</span>}
                 </button>
               </div>
             ) : isEmployerContext ? (
               <>
                 {currentPath !== '/employer-login' && (
-                  <button 
+                  <button
                     onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-login'); }}
-                    className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                    className="portal-header-login"
                   >
                     Employer Login
                   </button>
                 )}
-                <button 
+                <button
                   onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('employer-register'); }}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                  className="portal-header-register"
                 >
                   {currentPath === '/employer-login' ? 'Register' : 'Create Account'}
                 </button>
@@ -1027,72 +1014,61 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             ) : isJobSeekerAuthPage ? (
               <>
                 {currentPath !== '/candidate-register' && currentPath !== '/role-selection' && (
-                  <button 
+                  <button
                     onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('candidate-register'); }}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors shadow-sm"
+                  className="portal-header-register"
                   >
                     Register
                   </button>
                 )}
                 {(currentPath === '/candidate-register' || currentPath === '/role-selection') && (
-                  <button 
+                  <button
                     onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('login'); }}
-                    className="px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                    className="portal-header-login"
                   >
                     Login
                   </button>
                 )}
               </>
             ) : (
-              <div className="relative" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`portal-auth-button flex items-center space-x-1 ${navTextClass} transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded`}
-                  aria-expanded={isDropdownOpen}
-                  aria-haspopup="true"
-                >
-                  <span>Login/Register</span>
-                  <ChevronDown className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              <div className="portal-candidate-auth relative" ref={dropdownRef}>
+                <button type="button" className="portal-header-login" onClick={handleLoginClick}>
+                  Login
                 </button>
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" role="menu">
-                    {showJobSeekerLinks && (
-                      <>
-                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
-                        <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                          Login
-                        </button>
-                        <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                          Register
-                        </button>
-                      </>
-                    )}
-                    
-                    {showJobSeekerLinks && adminUnlocked && <hr className="my-1" />}
-                    
-                    {adminUnlocked && (
-                      <button
-                        onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate && onNavigate('admin/login'); }}
-                        className="block w-full text-left px-4 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors rounded-b-lg flex items-center gap-2"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Admin Portal
-                      </button>
-                    )}
-                  </div>
+                <button type="button" className="portal-header-register" onClick={handleRegisterClick}>
+                  Register
+                </button>
+                {isDropdownOpen && adminUnlocked && (
+                  <button
+                    type="button"
+                    onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate?.('admin/login'); }}
+                    className="absolute right-0 top-full z-50 mt-2 flex items-center gap-2 rounded-lg bg-purple-700 px-4 py-2 font-semibold text-white shadow-lg"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Admin Portal
+                  </button>
                 )}
               </div>
+            )}
+            {!isEmployerContext && !user && (
+              <button
+                type="button"
+                onClick={handleEmployerPageClick}
+                className="portal-header-employer-link text-gray-700 hover:text-blue-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                For Employers
+              </button>
             )}
           </div>
 
           {/* Mobile menu and profile buttons */}
           <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
-            <div className="portal-notifications">{renderNotificationBell()}</div>
+            {notificationBell}
             {user && (
               <div className="relative" ref={mobileDropdownRef}>
                 <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="portal-profile-pill" aria-expanded={isDropdownOpen} aria-haspopup="true" aria-label={`Open profile menu for ${displayName}`}>
                   <Menu size={20} strokeWidth={1.6} aria-hidden="true" />
-                  <span className="portal-profile-avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : <UserCircle size={26} strokeWidth={1.5} aria-hidden="true" />}</span>
+                  {profileAvatar}
                   {user.type === 'candidate' && alertUnread > 0 && <span className="portal-profile-count">{alertUnread > 9 ? '9+' : alertUnread}</span>}
                 </button>
               </div>

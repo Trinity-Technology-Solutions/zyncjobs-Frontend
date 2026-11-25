@@ -1,62 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, KeyRound, X } from 'lucide-react';
+import type { AccountLockoutError } from '../api/auth';
 
 interface AccountLockedModalProps {
-  isOpen: boolean;
-  lockoutMinutes: number;
-  lockedUntil?: string | null;
+  lockout: AccountLockoutError;
   onClose: () => void;
-  onContactSupport: () => void;
+  onResetPassword: () => void;
 }
 
-const TOTAL = 15 * 60;
 const R = 54;
 const CIRC = 2 * Math.PI * R;
 
 const AccountLockedModal: React.FC<AccountLockedModalProps> = ({
-  isOpen,
-  lockoutMinutes,
-  lockedUntil,
+  lockout,
   onClose,
-  onContactSupport,
+  onResetPassword,
 }) => {
-  const getInitialSeconds = () => {
-    if (lockedUntil) {
-      const secs = Math.ceil((new Date(lockedUntil).getTime() - Date.now()) / 1000);
-      return secs > 0 ? secs : 0;
-    }
-    return lockoutMinutes * 60;
-  };
-
-  const [remaining, setRemaining] = useState(getInitialSeconds);
+  const { deadline, lockoutMinutes } = lockout;
+  const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setRemaining(getInitialSeconds());
-    const interval = setInterval(() => {
-      setRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setTimeout(() => onClose(), 500);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isOpen, lockedUntil, lockoutMinutes]);
+    if (deadline === null) return;
+    const update = () => {
+      const currentTime = Date.now();
+      setNow(currentTime);
+      if (currentTime >= deadline) clearInterval(interval);
+    };
+    const interval = setInterval(update, 1000);
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, [deadline]);
 
-  if (!isOpen) return null;
-
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
-  const progress = remaining / TOTAL;
+  const remaining = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+  const expired = remaining === 0;
+  const minutes = Math.floor((remaining ?? 0) / 60);
+  const seconds = (remaining ?? 0) % 60;
+  const totalSeconds = lockoutMinutes === null ? 0 : lockoutMinutes * 60;
+  const progress = totalSeconds > 0 ? Math.min(1, (remaining ?? 0) / totalSeconds) : 0;
   const dashOffset = CIRC * (1 - progress);
 
-  const urgency = remaining < 60 ? '#22c55e' : remaining < 300 ? '#f59e0b' : '#ef4444';
+  const urgency = (remaining ?? Infinity) < 60 ? '#22c55e' : (remaining ?? Infinity) < 300 ? '#f59e0b' : '#ef4444';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="account-lockout-title" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
       <div className="relative bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl">
 
         {/* Top accent bar */}
@@ -70,7 +60,7 @@ const AccountLockedModal: React.FC<AccountLockedModalProps> = ({
               Security Alert
             </span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-lg hover:bg-gray-100">
+          <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-lg hover:bg-gray-100">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -83,14 +73,14 @@ const AccountLockedModal: React.FC<AccountLockedModalProps> = ({
             <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-3">
               <Lock className="w-7 h-7 text-red-600" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900">Account Temporarily Locked</h2>
+            <h2 id="account-lockout-title" className="text-lg font-bold text-gray-900">{expired ? 'You can try signing in again' : 'Account Temporarily Locked'}</h2>
             <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-              Too many failed attempts detected. Access has been suspended for <span className="font-semibold text-gray-700">{lockoutMinutes} minutes</span>.
+              {expired ? 'The reported lockout timer has ended.' : lockout.message}
             </p>
           </div>
 
           {/* Circular countdown */}
-          <div className="flex flex-col items-center mb-5">
+          {remaining !== null && <div className="flex flex-col items-center mb-5">
             <div className="relative w-32 h-32">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
                 <circle cx="60" cy="60" r={R} fill="none" stroke="#f3f4f6" strokeWidth="8" />
@@ -111,14 +101,13 @@ const AccountLockedModal: React.FC<AccountLockedModalProps> = ({
                 <span className="text-xs text-gray-400 mt-0.5">remaining</span>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Info row */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
+          <div className="grid grid-cols-2 gap-2 mb-5">
             {[
-              { label: 'Attempts', value: '5 / 5' },
-              { label: 'Lock Duration', value: `${lockoutMinutes} min` },
-              { label: 'Status', value: remaining > 0 ? 'Locked' : 'Unlocked' },
+              { label: 'Lock Duration', value: lockoutMinutes === null ? 'Unavailable' : `${lockoutMinutes} min` },
+              { label: 'Status', value: expired ? 'Try again' : 'Locked' },
             ].map(({ label, value }) => (
               <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 text-center">
                 <p className="text-xs text-gray-400 mb-0.5">{label}</p>
@@ -129,7 +118,7 @@ const AccountLockedModal: React.FC<AccountLockedModalProps> = ({
 
           {/* Tip */}
           <p className="text-xs text-gray-400 text-center mb-4">
-            If you've forgotten your password, reset it now to regain access immediately.
+            If you've forgotten your password, request a reset link.
           </p>
 
           {/* Actions */}
@@ -138,10 +127,10 @@ const AccountLockedModal: React.FC<AccountLockedModalProps> = ({
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
             >
-              {remaining > 0 ? 'Close' : 'Try Again'}
+              {expired ? 'Try Again' : 'Close'}
             </button>
             <button
-              onClick={onContactSupport}
+              onClick={onResetPassword}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition"
             >
               <KeyRound className="w-4 h-4" />

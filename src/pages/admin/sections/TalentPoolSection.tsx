@@ -2049,7 +2049,7 @@ function BulkEmailPage() {
             <p className="text-xs text-gray-500">Send the selected template to any email to preview exactly how it looks in inbox.</p>
             <input
               type="email"
-              placeholder="e.g. muthees@trinitetech.com"
+              placeholder="e.g. name@example.com"
               value={testEmail}
               onChange={e => { setTestEmail(e.target.value); setTestResult(null); }}
               className="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"

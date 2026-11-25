@@ -35,6 +35,7 @@ export interface AutocompleteComboboxProps {
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
+  selectedLabel?: string;
   onBlur?: () => void;
   options: ComboboxOption[];
   allowCustom?: boolean;
@@ -60,6 +61,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   placeholder = 'Search or select...',
   value,
   onChange,
+  selectedLabel,
   onBlur,
   options: allOptions = [],
   allowCustom = false,
@@ -424,7 +426,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             aria-invalid={!!error}
             aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
             placeholder={placeholder}
-            value={value || searchQuery}
+            value={value ? selectedLabel ?? value : searchQuery}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={() => {

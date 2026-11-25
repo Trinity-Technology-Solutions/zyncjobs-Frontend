@@ -35,7 +35,6 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
 const PasswordExpiredModal = lazy(() => import('./components/PasswordExpiredModal'));
-const AccountLockedModal = lazy(() => import('./components/AccountLockedModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
 
 const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage'));
@@ -111,11 +110,10 @@ const InterviewInvitePage = lazy(() => import('./pages/InterviewInvitePage'));
 const ATSDashboard = lazy(() => import('./pages/ATSDashboard'));
 
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-      <p className="text-gray-600">Loading...</p>
-    </div>
+  <div className="zync-startup" role="status">
+    <img className="zync-startup-logo" src="/images/zyncjobs-logo.png" alt="" />
+    <div className="zync-startup-track" aria-hidden="true" />
+    <p className="zync-startup-label">Loading ZyncJobs</p>
   </div>
 );
 
@@ -195,7 +193,7 @@ const DashboardRoute: React.FC<{
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
         <>
-          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} workspaceLayout />
           <EmployerDashboardPage user={user as any} onNavigate={handleNavigation} onLogout={handleLogout} />
         </>
       ) : (
@@ -288,8 +286,6 @@ function App() {
 
   const [passwordExpired, setPasswordExpired] = useState(false);
   const [expiredUserData, setExpiredUserData] = useState<any>(null);
-  const [accountLocked, setAccountLocked] = useState(false);
-  const [lockoutData, setLockoutData] = useState<{ lockoutMinutes: number; email: string }>({ lockoutMinutes: 15, email: '' });
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
@@ -340,7 +336,20 @@ function App() {
     if (page === 'employer-login') { navigate('/employer-login'); return; }
     if (page === 'candidate-register') { navigate('/candidate-register'); return; }
     if (page === 'employer-register') { navigate('/employer-register'); return; }
-    if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (page === 'dashboard') {
+      const applicationJobId = params?.applicationJobId;
+      navigate(applicationJobId
+        ? `/dashboard?${new URLSearchParams({ jobId: String(applicationJobId) })}#applications`
+        : '/dashboard', applicationJobId ? {
+          state: {
+            applicationJobId: String(applicationJobId),
+            applicationJobTitle: params.applicationJobTitle,
+            applicationJobCode: params.applicationJobCode,
+          },
+        } : undefined);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
     if (page === 'bulk-job-import') { navigate('/bulk-job-import'); return; }
     if (page === 'job-alert-notifications') { navigate('/job-alert-notifications'); return; }
@@ -555,12 +564,6 @@ function App() {
       else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
-    const handleAccountLocked = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setLockoutData({ lockoutMinutes: detail.lockoutMinutes || 15, email: detail.email || '' });
-      setAccountLocked(true);
-    };
-    window.addEventListener('zync:account-locked', handleAccountLocked);
 
     // IMMEDIATELY clear httpOnly cookie if on admin accept invite page
     // This runs synchronously before restoreSession
@@ -738,7 +741,6 @@ function App() {
     restoreSession();
     return () => {
       window.removeEventListener('zync:logout', handleForceLogout);
-      window.removeEventListener('zync:account-locked', handleAccountLocked);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount only
@@ -1296,15 +1298,6 @@ function App() {
             onLogout={handleLogout}
           />
         )}
-        <AccountLockedModal
-          isOpen={accountLocked}
-          lockoutMinutes={lockoutData.lockoutMinutes}
-          onClose={() => setAccountLocked(false)}
-          onContactSupport={() => {
-            setAccountLocked(false);
-            handleNavigation('contact');
-          }}
-        />
       </Suspense>
     </>
   );

@@ -5,41 +5,11 @@ interface CallToActionProps {
 }
 
 const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
-  const [isVisible, setIsVisible] = React.useState(false);
-  const sectionRef = React.useRef<HTMLElement>(null);
-
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (sectionRef.current) {
-            observer.unobserve(sectionRef.current);
-          }
-        }
-      },
-      { threshold: 0.15 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
-
   return (
     <section 
-      ref={sectionRef}
       className="home-final-cta illustrated-candidate-cta py-10 sm:py-12 lg:py-14 relative overflow-hidden"
     >
-      <div className={`candidate-opportunity-layout max-w-7xl mx-auto relative z-10 transition-all duration-1000 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-      }`}>
+      <div className="candidate-opportunity-layout max-w-7xl mx-auto relative z-10">
         
         <div className="candidate-opportunity-copy">
         {/* Heading */}
@@ -53,9 +23,7 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
         </p>
 
         {/* Buttons */}
-        <div className={`mt-2 sm:mt-3 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 max-w-xs sm:max-w-none mx-auto transition-all duration-1000 delay-300 ${
-          isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-        }`}>
+        <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 max-w-xs sm:max-w-none mx-auto">
           
           {/* Primary Button */}
           <button 

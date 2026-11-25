@@ -78,7 +78,7 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
       </div>
 
       {/* Tab Bar */}
-      <div className="bg-white border-b border-gray-200 portal-page-sticky sticky top-0 z-30 shadow-sm">
+      <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="portal-page-container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-0">
           {([
             { key: 'terms', label: 'User Terms & Conditions', icon: FileText },
@@ -105,7 +105,7 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
 
           {/* Sidebar */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
-            <div className="bg-white rounded-2xl border border-gray-200 p-4 sticky top-20">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sticky top-[calc(var(--header-h)+1rem)] max-h-[calc(100dvh-var(--header-h)-2rem)] overflow-y-auto">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">On this page</p>
               <nav className="space-y-0.5">
                 {SECTIONS[activeTab].map(s => (
@@ -432,7 +432,7 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
 };
 
 const Section: React.FC<{ id: string; title: string; children: React.ReactNode; accent?: 'blue' | 'orange' }> = ({ id, title, children, accent = 'blue' }) => (
-  <section id={id} className="scroll-mt-24">
+  <section id={id} className="scroll-mt-[calc(var(--header-h)+1rem)]">
     <h3 className={`text-lg font-bold mb-3 ${accent === 'orange' ? 'text-gray-900' : 'text-gray-900'}`}>
       <span className={`inline-block w-1 h-5 rounded-full mr-3 align-middle ${accent === 'orange' ? 'bg-orange-400' : 'bg-blue-500'}`} />
       {title}

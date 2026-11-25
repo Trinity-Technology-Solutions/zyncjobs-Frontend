@@ -1,3 +1,4 @@
+import { assessmentOptionIndex } from '../utils/assessmentAnswers';
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, RotateCcw } from 'lucide-react';
 import BackButton from '../components/BackButton';
@@ -134,14 +135,15 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
 
   const { skill, score, completedAt, review: reviewData, questions = [] } = review;
   const isPassed = score >= 70;
-  const correctCount = questions.filter((q: any) => {
-    const userAns = q.userAnswer;
-    const correctVal = q.correctAnswer !== undefined ? q.correctAnswer : q.correct;
-    if (correctVal === undefined) return false;
-    if (typeof userAns === 'number' && typeof correctVal === 'number') return userAns === correctVal;
-    return String(userAns) === String(correctVal);
-  }).length;
-  const wrongCount = questions.length - correctCount;
+  const verdict = (q: any): boolean | undefined => {
+    if (q.gradingStatus === 'pending') return undefined;
+    if (typeof q.isCorrect === 'boolean') return q.isCorrect;
+    const key = assessmentOptionIndex(q.correct ?? q.correctAnswer, q.options);
+    if (key !== undefined) return assessmentOptionIndex(q.userAnswer, q.options) === key;
+    return undefined;
+  };
+  const correctCount = questions.filter((q: any) => verdict(q) === true).length;
+  const wrongCount = questions.filter((q: any) => verdict(q) === false).length;
   const circumference = 2 * Math.PI * 34;
 
   return (
@@ -219,9 +221,9 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
                 {questions.map((q: any, idx: number) => {
                   const isMcq = q.type === 'mcq' || Array.isArray(q.options);
                   const correctVal = q.correctAnswer !== undefined ? q.correctAnswer : q.correct;
-                  const userAns = Number(q.userAnswer);
-                  const correctAns = Number(correctVal);
-                  const isCorrect = isMcq ? userAns === correctAns : !!q.isCorrect;
+                  const userAns = assessmentOptionIndex(q.userAnswer, q.options);
+                  const correctAns = assessmentOptionIndex(correctVal, q.options);
+                  const isCorrect = verdict(q);
                   const qText = q.question || q.title || q.scenario || q.description || `Question ${idx + 1}`;
                   return (
                     <div key={idx} style={{
@@ -239,11 +241,13 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
                           backgroundColor: isCorrect ? '#34d399' : isMcq ? '#f87171' : '#94a3b8'
                         }}>{idx + 1}</span>
                         <p className="text-sm font-medium text-gray-800 leading-relaxed flex-1">{qText}</p>
-                        {isMcq && (isCorrect
+                        {isMcq && isCorrect !== undefined && (isCorrect
                           ? <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
                           : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />)}
-                        {!isMcq && <span className="text-[10px] text-gray-400 capitalize flex-shrink-0 mt-0.5">{q.type}</span>}
+                        {!isMcq && <span className="text-[10px] text-gray-400 capitalize flex-shrink-0 mt-0.5">{q.type} / {isCorrect === undefined ? 'Not graded' : isCorrect ? 'Correct' : 'Incorrect'}</span>}
                       </div>
+
+                      {q.gradingFeedback && <p className="mb-2 text-xs text-gray-600">{q.gradingFeedback}</p>}
 
                       {/* MCQ options */}
                       {isMcq && Array.isArray(q.options) && (

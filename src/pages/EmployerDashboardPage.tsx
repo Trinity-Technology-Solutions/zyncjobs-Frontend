@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getApplicationJobId, getId } from '../utils/getId';
 import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper, Link2 } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
@@ -9,6 +11,9 @@ import { API_ENDPOINTS } from '../config/constants';
 import config from '../config/env';
 import { io } from 'socket.io-client';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
+import EmployerAvatar from '../components/EmployerAvatar';
+import ApplicationScreeningFlag from '../components/ApplicationScreeningFlag';
+import { getScreeningFlag } from '../utils/applicationScreening';
 import { apiFetch } from '../api/apiFetch';
 import CandidateCredentialing from '../components/CandidateCredentialing';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
@@ -156,7 +161,25 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [selectedResumeUrl, setSelectedResumeUrl] = useState<string | null>(null);
   const [selectedResumeCandidateName, setSelectedResumeCandidateName] = useState<string | null>(null);
   const [selectedResumeCandidateEmail, setSelectedResumeCandidateEmail] = useState<string | null>(null);
-  const [appFilterJob, setAppFilterJob] = useState('all');
+  const dashboardLocation = useLocation();
+  const navigate = useNavigate();
+  const appFilterJob = new URLSearchParams(dashboardLocation.search).get('jobId') || 'all';
+  const selectedPosting = jobs.find(job => getId(job) === appFilterJob);
+  const applicationForSelectedJob = applications.find(app => getApplicationJobId(app.jobId) === appFilterJob);
+  const selectedJobNavigation = dashboardLocation.state?.applicationJobId === appFilterJob ? dashboardLocation.state : undefined;
+  const selectedJobTitle = selectedPosting?.jobTitle || selectedPosting?.title || applicationForSelectedJob?.jobTitle
+    || selectedJobNavigation?.applicationJobTitle
+    || (loading ? 'Loading job…' : 'Selected job');
+  const selectedJobCode = selectedPosting?.jobCode || selectedPosting?.positionId
+    || applicationForSelectedJob?.jobCode || applicationForSelectedJob?.positionId
+    || applicationForSelectedJob?.jobId?.jobCode || applicationForSelectedJob?.jobId?.positionId
+    || selectedJobNavigation?.applicationJobCode;
+  const setAppFilterJob = (jobId: string) => {
+    const params = new URLSearchParams(dashboardLocation.search);
+    if (jobId === 'all') params.delete('jobId');
+    else params.set('jobId', jobId);
+    navigate({ search: params.toString(), hash: '#applications' }, { replace: true, preventScrollReset: true });
+  };
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
   const [profileApplication, setProfileApplication] = useState<any>(null);
@@ -207,15 +230,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   // Deep-link from email or navigation: /dashboard#interviews opens Interviews tab
   useEffect(() => {
     const handleHash = () => {
-      const hash = window.location.hash.replace('#', '');
+      const hash = dashboardLocation.hash.slice(1);
       if (hash && ['dashboard', 'applications', 'interviews', 'saved-candidates', 'alerts', 'team', 'auto-rejection', 'credentialing'].includes(hash)) {
         setActiveMenu(hash);
       }
     };
     handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [dashboardLocation.hash]);
 
   useEffect(() => {
     if (activeMenu === 'saved-candidates') {
@@ -777,50 +798,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   };
 
 
-  const getDisplayLogo = () => {
-    if (companyLogo && companyLogo.trim() !== '') return companyLogo;
-
-    const isTrinity = user?.email?.includes('@trinitetech') || user?.email?.includes('trinity') ||
-                     companyName?.toLowerCase().includes('trinity') || employerName?.toLowerCase().includes('trinity');
-    if (isTrinity) return '/images/trinity-logo.webp';
-
-    const isInypeople = companyName?.toLowerCase().includes('inypeople') || companyName?.toLowerCase().includes('iny people') ||
-                       employerName?.toLowerCase().includes('inypeople') || employerName?.toLowerCase().includes('iny people');
-    if (isInypeople) return '/images/company-logos/inypeople-logo.png';
-
-    const isNambikkai = companyName?.toLowerCase().includes('nambikkai') || employerName?.toLowerCase().includes('nambikkai');
-    if (isNambikkai) return '/images/company-logos/nambikkai-logo.png';
-
-    const API_BASE = (typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL || '/api' : '/api');
-    const domainMap: Record<string, string> = {
-      zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
-      google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
-      accenture: 'accenture.com', cognizant: 'cognizant.com', hcl: 'hcltech.com',
-      oracle: 'oracle.com', ibm: 'ibm.com', capgemini: 'capgemini.com',
-    };
-    const n = (companyName || '').toLowerCase();
-    for (const [key, domain] of Object.entries(domainMap)) {
-      if (n.includes(key)) return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`;
-    }
-
-    if (user?.email?.includes('@')) {
-      const emailDomain = user.email.split('@')[1];
-      if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain)) {
-        return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(emailDomain)}`;
-      }
-    }
-
-    const displayName = companyName && companyName !== 'Company' ? companyName : employerName;
-    const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
-    return `data:image/svg+xml,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r="32" fill="#1d4ed8"/>
-        <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text>
-      </svg>`
-    )}`;
-  };
-
-
   // ── Analytics helpers ──────────────────────────────────────────────
   const analyticsRange = useMemo(() => {
     // Last 7 days labels
@@ -984,32 +961,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md overflow-hidden">
-                    <img src={getDisplayLogo()} alt={companyName || employerName}
-                      className="w-10 sm:w-14 h-10 sm:h-14 object-contain"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        const displayName = companyName || employerName;
-                        if ((displayName.toLowerCase().includes('trinity') || 
-                             user?.email?.includes('trinity') || 
-                             user?.email?.includes('@trinitetech')) && 
-                            !img.src.includes('trinity-logo')) {
-                          if (!img.src.includes('trinity-logo.webp')) {
-                            img.src = '/images/trinity-logo.webp';
-                          } else {
-                            img.src = '/images/company-logos/trinity-logo.png';
-                          }
-                          return;
-                        }
-                        if (displayName.toLowerCase().includes('nambikkai') && !img.src.includes('nambikkai-logo.png')) {
-                          img.src = '/images/company-logos/nambikkai-logo.png';
-                          return;
-                        }
-                        const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
-                        const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
-                          `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#1e40af"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text></svg>`
-                        )}`;
-                        if (img.src !== fallbackUrl) img.src = fallbackUrl;
-                      }}
+                    <EmployerAvatar
+                      account={{ ...user, name: employerName, companyName, companyLogo }}
+                      className="block w-10 sm:w-14 h-10 sm:h-14 overflow-hidden rounded-full"
                     />
                   </div>
                 </div>
@@ -1114,7 +1068,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'ats-dashboard',    label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => withRoleCheck('Recruiter Analytics', 'Recruiter', () => onNavigate('ats-dashboard')), external: true, show: true },
                 // { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true }, // TODO: enable after complete structure is built
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
-                { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
+                { key: 'auto-rejection',   label: 'AI Screening',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Screening', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
                 { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
                 { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
@@ -1281,8 +1235,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                  ) :
                  activeMenu === 'auto-rejection' ? (
                    <>
-                     <span className="sm:hidden">Auto-Reject</span>
-                     <span className="hidden sm:inline">AI Auto-Rejection</span>
+                     <span className="sm:hidden">AI Screening</span>
+                     <span className="hidden sm:inline">AI Screening</span>
                    </>
                  ) :
                  activeMenu === 'credentialing' ? 'Credentialing' : 'Dashboard'}
@@ -1313,7 +1267,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           </div>
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-slate-100 sm:border-0 justify-end">
+          <div className="employer-dashboard-toolbar-actions flex items-center gap-2 sm:gap-2.5 flex-shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-slate-100 sm:border-0 justify-end">
             {/* Complete Profile Button */}
             <button
               onClick={() => {
@@ -1822,8 +1776,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
                   {(() => {
                     const filtered = applications.filter(a => {
-                      const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
-                      const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
+                      const jobMatch = appFilterJob === 'all' || getApplicationJobId(a.jobId) === appFilterJob;
+                      const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus || getScreeningFlag(a) === appFilterStatus;
                       const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
                       return jobMatch && statusMatch && searchMatch;
                     });
@@ -1847,13 +1801,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                   <AutocompleteCombobox
                     value={appFilterJob === 'all' ? '' : appFilterJob}
+                    selectedLabel={selectedJobCode ? `${selectedJobCode} · ${selectedJobTitle}` : selectedJobTitle}
                     onChange={(val) => setAppFilterJob(val || 'all')}
                     options={[
                       { value: 'all', label: 'All Jobs' },
-                      ...jobs.map(job => {
-                        const jobTitle = job.jobTitle || job.title;
-                        const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
-                        return { value: jobTitle, label: `${jobTitle} (${count})` };
+                      ...jobs.filter(job => getId(job)).map(job => {
+                        const jobId = getId(job);
+                        const jobTitle = job.jobTitle || job.title || 'Job Position';
+                        const jobCode = job.jobCode || job.positionId;
+                        const count = applications.filter(a => getApplicationJobId(a.jobId) === jobId).length;
+                        return { value: jobId, label: `${jobCode ? `${jobCode} · ` : ''}${jobTitle} (${count})` };
                       })
                     ]}
                     placeholder="All Jobs"
@@ -1868,6 +1825,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       { value: 'reviewed', label: 'Reviewed' },
                       { value: 'shortlisted', label: 'Shortlisted' },
                       { value: 'rejected', label: 'Rejected' },
+                      { value: 'needs-review', label: 'Needs Review' },
+                      { value: 'previously-auto-rejected', label: 'Previously auto-rejected' },
                       { value: 'hired', label: 'Hired' }
                     ]}
                     placeholder="All Status"
@@ -1896,15 +1855,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
               ) : (() => {
                 const filtered = applications.filter(a => {
-                  const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
-                  const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
+                  const jobMatch = appFilterJob === 'all' || getApplicationJobId(a.jobId) === appFilterJob;
+                  const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus || getScreeningFlag(a) === appFilterStatus;
                   const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
                   return jobMatch && statusMatch && searchMatch;
                 });
                 return filtered.length === 0 ? (
                   <div className="bg-white rounded-lg border border-[#e2e8f0] p-12 text-center shadow-sm">
                     <Users className="w-14 h-14 text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm text-slate-500 font-medium">No applications match your filters.</p>
+                    <p className="text-sm text-slate-500 font-medium">
+                      {appFilterJob !== 'all' && appFilterStatus === 'all' && !appSearch
+                        ? 'No applications yet for this job.'
+                        : 'No applications match your filters.'}
+                    </p>
                   </div>
                 ) : (
                 <div className="space-y-3.5">
@@ -1937,6 +1900,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <span className="text-xs text-slate-500 break-all">{application.candidateEmail}</span>
                             <span className="text-xs text-slate-400">· Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           </div>
+                          <ApplicationScreeningFlag application={application} />
                           {application.coverLetter && application.coverLetter !== 'No cover letter' && (
                             <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg mb-3 border-l-2 border-[#1e3a8a]">
                               <strong className="text-slate-800">Cover Letter:</strong> {application.coverLetter.length > 100 ? `${application.coverLetter.substring(0, 100)}...` : application.coverLetter}
@@ -1972,7 +1936,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ status: newStatus }),
+                                    body: JSON.stringify({ status: newStatus, employerConfirmedRejection: newStatus === 'rejected', updatedBy: employerName || 'Employer' }),
                                   });
                                   if (response.ok) {
                                     setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: newStatus } : app));
@@ -2027,28 +1991,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
                                       method: 'PUT',
                                       headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ status: 'rejected' }),
+                                      body: JSON.stringify({ status: 'rejected', employerConfirmedRejection: true, updatedBy: employerName || 'Employer' }),
                                     });
                                     if (response.ok) {
                                       setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: 'rejected' } : app));
-                                      // Send rejection email to candidate
-                                      try {
-                                        await apiFetch(`${API_ENDPOINTS.BASE_URL}/email/send`, {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            to: application.candidateEmail,
-                                            subject: `Application Update - ${application.jobTitle || 'Job Position'} at ${companyName}`,
-                                            type: 'application_rejected',
-                                            data: {
-                                              candidateName: application.candidateName || 'Applicant',
-                                              jobTitle: application.jobTitle || 'Job Position',
-                                              companyName,
-                                            },
-                                          }),
-                                        });
-                                      } catch { /* email failure is non-critical */ }
-                                      showToast('Application rejected & email sent to candidate', 'success');
+                                      showToast('Application rejected', 'success');
                                     } else { throw new Error(); }
                                   } catch { showToast('Failed to reject application.', 'error'); }
                                 }}
@@ -2647,7 +2594,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="mb-5">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">AI Auto-Rejection</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a8a]">AI Screening</h1>
                     <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                       Configure intelligent filtering to automatically screen applications
                     </p>

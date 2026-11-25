@@ -3,19 +3,18 @@ import React, { useRef, useCallback } from 'react';
 interface Props {
   min: number;
   max: number;
+  upperLimit?: number;
   onChange: (min: number, max: number) => void;
 }
 
-const TOTAL = 50;
-
-const SalaryRangeSlider: React.FC<Props> = ({ min, max, onChange }) => {
+const SalaryRangeSlider: React.FC<Props> = ({ min, max, upperLimit = 50, onChange }) => {
   const trackRef = useRef<HTMLDivElement>(null);
 
   const getVal = useCallback((clientX: number) => {
     const rect = trackRef.current!.getBoundingClientRect();
     const pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    return Math.round(pct * TOTAL);
-  }, []);
+    return Math.round(pct * upperLimit);
+  }, [upperLimit]);
 
   const startDrag = (thumb: 'min' | 'max') => (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -37,8 +36,8 @@ const SalaryRangeSlider: React.FC<Props> = ({ min, max, onChange }) => {
     window.addEventListener('touchend', up);
   };
 
-  const minPct = (min / TOTAL) * 100;
-  const maxPct = (max / TOTAL) * 100;
+  const minPct = (min / upperLimit) * 100;
+  const maxPct = (max / upperLimit) * 100;
 
   return (
     <div ref={trackRef} className="relative h-5 flex items-center cursor-pointer select-none">
