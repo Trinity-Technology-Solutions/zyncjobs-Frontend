@@ -940,10 +940,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
           const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
           let current: any = null;
           for (const line of lines.slice(0, 20)) {
+            if (/^(?:(?:key|selected|academic|personal|technical)\s+)?(?:projects?|education|certifications?|internships?|skills|languages)\s*:?$/i.test(line)) break;
             if (line.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4}/i)) {
               if (current) workExperiences.push(current);
               current = { jobTitle: '', company: '', date: line, descriptions: [] };
-            } else if (current && line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+            } else if (current && (line.startsWith('•') || line.startsWith('-') || line.startsWith('*'))) {
               current.descriptions.push(line.replace(/^[•\-\*]\s*/, ''));
             } else if (current && !current.company && line.length > 3 && line.length < 60) {
               current.company = line;
@@ -1548,135 +1549,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         );
                       })}
 
-                      {/* LinkedIn Import — full-width row matching other items */}
-                      {!user?.linkedInImported && (
-                        <div className="border-t border-[#e2e8f0] mt-2 pt-2">
-                          <LinkedInConnect
-                            mode="modal"
-                            className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] text-[#1e3a8a] bg-slate-50 font-medium text-xs sm:text-sm hover:bg-[#eff6ff] hover:border-[#bfdbfe] transition-colors"
-                            onImport={async (profile: LinkedInProfile) => {
-                              // Resolve email — user may be null if page just loaded after OAuth redirect
-                              const resolvedEmail =
-                                user?.email ||
-                                (() => {
-                                  try {
-                                    return JSON.parse(
-                                      localStorage.getItem("user") || "{}",
-                                    ).email;
-                                  } catch {
-                                    return "";
-                                  }
-                                })();
-                              const currentUser =
-                                user ||
-                                (() => {
-                                  try {
-                                    return JSON.parse(
-                                      localStorage.getItem("user") || "{}",
-                                    );
-                                  } catch {
-                                    return {};
-                                  }
-                                })();
-                              const merged = {
-                                ...currentUser,
-                                name: profile.name || currentUser?.name,
-                                location:
-                                  profile.location || currentUser?.location,
-                                profileSummary:
-                                  profile.summary ||
-                                  currentUser?.profileSummary,
-                                profilePhoto:
-                                  profile.profilePhoto ||
-                                  currentUser?.profilePhoto,
-                                skills:
-                                  profile.skills.length > 0
-                                    ? profile.skills
-                                    : currentUser?.skills || [],
-                                ...(profile.experience.length > 0
-                                  ? {
-                                      employment: profile.experience.map(
-                                        (exp) => ({
-                                          companyName: exp.company,
-                                          designation: exp.title,
-                                          description: exp.description,
-                                          currentlyWorking: exp.current,
-                                          startYear:
-                                            exp.startDate?.match(
-                                              /\d{4}/,
-                                            )?.[0] || "",
-                                          endYear:
-                                            exp.endDate?.match(/\d{4}/)?.[0] ||
-                                            "",
-                                        }),
-                                      ),
-                                    }
-                                  : {}),
-                                ...(profile.education.length > 0
-                                  ? {
-                                      educationCollege: {
-                                        college: profile.education[0].school,
-                                        degree: profile.education[0].degree,
-                                        passingYear:
-                                          profile.education[0].endYear || "",
-                                      },
-                                    }
-                                  : {}),
-                                linkedInImported: true,
-                              };
-                              setUser(merged);
-                              localStorage.setItem(
-                                "user",
-                                JSON.stringify(merged),
-                              );
-                              calculateProfileCompletion(merged);
-                              // Use LinkedIn token if available (set during OAuth callback)
-                              const linkedinToken =
-                                sessionStorage.getItem("linkedin_token");
-                              const saveHeaders: Record<string, string> = {
-                                "Content-Type": "application/json",
-                              };
-                              if (linkedinToken)
-                                saveHeaders["Authorization"] =
-                                  `Bearer ${linkedinToken}`;
-                              try {
-                                await apiFetch(
-                                  `${API_ENDPOINTS.BASE_URL}/profile/save`,
-                                  {
-                                    method: "POST",
-                                    headers: saveHeaders,
-                                    body: JSON.stringify({
-                                      email: resolvedEmail,
-                                      ...merged,
-                                    }),
-                                  },
-                                );
-                                sessionStorage.removeItem("linkedin_token");
-                              } catch {
-                                /* silent */
-                              }
-                              setNotification({
-                                type: "success",
-                                message:
-                                  "LinkedIn profile imported successfully!",
-                                isVisible: true,
-                              });
-                            }}
-                          />
-                        </div>
-                      )}
-                      {user?.linkedInImported && (
-                        <div className="flex items-center gap-3 px-3 py-2.5 text-xs sm:text-sm text-[#1e3a8a] font-medium border-t border-[#e2e8f0] mt-2 bg-slate-50 rounded-lg">
-                          <svg
-                            className="w-5 h-5 flex-shrink-0 text-[#0A66C2]"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                          >
-                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                          </svg>
-                          LinkedIn connected
-                        </div>
-                      )}
                     </nav>
                   </div>
 
@@ -2556,18 +2428,146 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         </div>
                       </div>
                       {!readOnly && (
-                        <div className="flex-shrink-0 mt-2 sm:mt-0">
+                        <div className="mt-2 flex max-w-full flex-wrap items-start gap-2 sm:mt-0">
                           <button
                             onClick={() => {
                               setResumePopupFile(null);
                               setResumePopupError("");
                               setShowResumePopup(true);
                             }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-all"
+                            className="inline-flex min-h-10 items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-all"
                           >
                             <Sparkles className="w-4 h-4" />
                             Import Resume
                           </button>
+                        {!user?.linkedInImported && (
+                          <div className="max-w-full">
+                            <LinkedInConnect
+                              mode="modal"
+                              className="min-h-10 px-4 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] bg-white hover:bg-[#eff6ff]"
+                              onImport={async (profile: LinkedInProfile) => {
+                                // Resolve email — user may be null if page just loaded after OAuth redirect
+                                const resolvedEmail =
+                                  user?.email ||
+                                  (() => {
+                                    try {
+                                      return JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      ).email;
+                                    } catch {
+                                      return "";
+                                    }
+                                  })();
+                                const currentUser =
+                                  user ||
+                                  (() => {
+                                    try {
+                                      return JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                    } catch {
+                                      return {};
+                                    }
+                                  })();
+                                const merged = {
+                                  ...currentUser,
+                                  name: profile.name || currentUser?.name,
+                                  location:
+                                    profile.location || currentUser?.location,
+                                  profileSummary:
+                                    profile.summary ||
+                                    currentUser?.profileSummary,
+                                  profilePhoto:
+                                    profile.profilePhoto ||
+                                    currentUser?.profilePhoto,
+                                  skills:
+                                    profile.skills.length > 0
+                                      ? profile.skills
+                                      : currentUser?.skills || [],
+                                  ...(profile.experience.length > 0
+                                    ? {
+                                        employment: profile.experience.map(
+                                          (exp) => ({
+                                            companyName: exp.company,
+                                            designation: exp.title,
+                                            description: exp.description,
+                                            currentlyWorking: exp.current,
+                                            startYear:
+                                              exp.startDate?.match(
+                                                /\d{4}/,
+                                              )?.[0] || "",
+                                            endYear:
+                                              exp.endDate?.match(/\d{4}/)?.[0] ||
+                                              "",
+                                          }),
+                                        ),
+                                      }
+                                    : {}),
+                                  ...(profile.education.length > 0
+                                    ? {
+                                        educationCollege: {
+                                          college: profile.education[0].school,
+                                          degree: profile.education[0].degree,
+                                          passingYear:
+                                            profile.education[0].endYear || "",
+                                        },
+                                      }
+                                    : {}),
+                                  linkedInImported: true,
+                                };
+                                setUser(merged);
+                                localStorage.setItem(
+                                  "user",
+                                  JSON.stringify(merged),
+                                );
+                                calculateProfileCompletion(merged);
+                                // Use LinkedIn token if available (set during OAuth callback)
+                                const linkedinToken =
+                                  sessionStorage.getItem("linkedin_token");
+                                const saveHeaders: Record<string, string> = {
+                                  "Content-Type": "application/json",
+                                };
+                                if (linkedinToken)
+                                  saveHeaders["Authorization"] =
+                                    `Bearer ${linkedinToken}`;
+                                try {
+                                  await apiFetch(
+                                    `${API_ENDPOINTS.BASE_URL}/profile/save`,
+                                    {
+                                      method: "POST",
+                                      headers: saveHeaders,
+                                      body: JSON.stringify({
+                                        email: resolvedEmail,
+                                        ...merged,
+                                      }),
+                                    },
+                                  );
+                                  sessionStorage.removeItem("linkedin_token");
+                                } catch {
+                                  /* silent */
+                                }
+                                setNotification({
+                                  type: "success",
+                                  message:
+                                    "LinkedIn profile imported successfully!",
+                                  isVisible: true,
+                                });
+                              }}
+                            />
+                          </div>
+                        )}
+                        {user?.linkedInImported && (
+                          <div className="flex min-h-10 items-center gap-2 px-4 py-2 text-sm text-[#1e3a8a] font-medium border border-[#e2e8f0] bg-slate-50 rounded-lg">
+                            <svg
+                              className="w-5 h-5 flex-shrink-0 text-[#0A66C2]"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                            >
+                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                            </svg>
+                            LinkedIn connected
+                          </div>
+                        )}
                         </div>
                       )}
                     </div>
@@ -4150,7 +4150,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         throw new Error("Could not extract any data from this resume. The file may be empty, scanned (image-only PDF), or in an unsupported format.");
                       }
                     }
-                    console.log("[ResumePopup] upload-and-parse result:", JSON.stringify(p, null, 2));
                     // 2. Upload resume file to S3
                     const s3Result =
                       await S3Service.uploadResumeToS3(resumePopupFile);
@@ -4287,7 +4286,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     setShowResumePopup(false);
                     setNotification({
                       type: p.parserWarnings?.length ? "info" : "success",
-                      message: p.parserWarnings?.length ? 'Profile saved with partial resume extraction. Review projects, internships and certifications.' : 'Resume parsed and profile updated successfully!',
+                      message: p.parserWarnings?.length ? 'Profile saved. Please review the imported résumé details.' : 'Resume parsed and profile updated successfully!',
                       isVisible: true,
                     });
                   } catch (err: any) {

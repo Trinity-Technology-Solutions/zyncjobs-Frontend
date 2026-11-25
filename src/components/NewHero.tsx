@@ -317,9 +317,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   return (
     <div
       className="home-existing-hero relative w-full overflow-hidden bg-slate-50"
-      style={{ 
-        paddingTop: 'var(--header-h, 86px)',
-      }}
+      style={{ paddingTop: 'var(--header-h, 86px)' }}
     >
       {/* Background Decoratives - Professional Corporate Aesthetic */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
@@ -420,7 +418,6 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </div>
 
         <div className="home-existing-robot hero-original-robot">
-          <span className="hero-original-greeting">Hi, I am <strong>ZYNC BOT!</strong></span>
           <div className="hero-original-canvas"><RobotCanvas /></div>
         </div>
       </div>

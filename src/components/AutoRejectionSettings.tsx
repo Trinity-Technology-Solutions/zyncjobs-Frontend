@@ -16,7 +16,6 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     minSkillsMatch: 60,
     minExperienceMatch: 80,
     minOverallScore: 70,
-    sendFeedback: true,
     rejectReasons: {
       skillsMismatch: true,
       insufficientExperience: true,
@@ -27,7 +26,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
 
   const [analytics, setAnalytics] = useState({
     totalApplications: 0,
-    autoRejected: 0,
+    needsReviewCount: 0,
     rejectionReasons: {
       skillsMismatch: 0,
       insufficientExperience: 0,
@@ -61,12 +60,12 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   useEffect(() => {
     if (!candidateDetails.length) return;
     const evaluated = candidateDetails.map((candidate: any) => {
-      const skillFailure = settings.rejectReasons.skillsMismatch && candidate.hasSkillData && candidate.skillsMatch < settings.minSkillsMatch;
-      const experienceFailure = settings.rejectReasons.insufficientExperience && candidate.hasExperienceData && candidate.experienceMatch < settings.minExperienceMatch;
+      const skillFailure = settings.rejectReasons.skillsMismatch && (!candidate.hasSkillData || candidate.skillsMatch < settings.minSkillsMatch);
+      const experienceFailure = settings.rejectReasons.insufficientExperience && (!candidate.hasExperienceData || candidate.experienceMatch < settings.minExperienceMatch);
       const overallFailure = candidate.hasSkillData && candidate.hasExperienceData && candidate.overallScore < settings.minOverallScore;
-      const educationFailure = settings.rejectReasons.educationGap && candidate.hasEducationData && candidate.educationMatch === 0;
-      const locationFailure = settings.rejectReasons.locationMismatch && candidate.hasLocationData && candidate.locationMatch === 0;
-      const wouldBeRejected = Boolean(skillFailure || experienceFailure || overallFailure || educationFailure || locationFailure);
+      const educationFailure = settings.rejectReasons.educationGap && candidate.hasEducationRequirement && candidate.educationMatch !== 100;
+      const locationFailure = settings.rejectReasons.locationMismatch && candidate.hasLocationRequirement && candidate.locationMatch !== 100;
+      const needsReview = Boolean(skillFailure || experienceFailure || overallFailure || educationFailure || locationFailure);
       const reason = skillFailure ? 'skillsMismatch'
         : experienceFailure ? 'insufficientExperience'
           : overallFailure ? 'overallScore'
@@ -74,15 +73,15 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
               : locationFailure ? 'locationMismatch' : null;
       return {
         ...candidate,
-        wouldBeRejected,
-        status: settings.autoReject && wouldBeRejected ? 'auto-rejected' : candidate.originalStatus || 'pending',
+        needsReview,
+        status: settings.autoReject && needsReview ? 'needs-review' : candidate.originalStatus || 'pending',
         reason
       };
     });
     setCandidateDetails(evaluated);
     setAnalytics(previous => ({
       ...previous,
-      autoRejected: evaluated.filter((candidate: any) => candidate.wouldBeRejected).length,
+      needsReviewCount: evaluated.filter((candidate: any) => candidate.needsReview).length,
       rejectionReasons: {
         ...previous.rejectionReasons,
         skillsMismatch: evaluated.filter((candidate: any) => candidate.reason === 'skillsMismatch').length,
@@ -174,17 +173,19 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           ? Math.min(100, Math.max(0, Math.round(aiOverall)))
           : Math.round(skillsMatch * 0.6 + experienceMatch * 0.4);
         const requiredSkills = app._jobData?.skills || app._jobData?.requiredSkills || [];
-        const candidateSkills = app.skills || app.resumeSkills || app.candidateProfile?.skills || [];
+        const candidateSkills = [...toList(app.skills), ...toList(app.resumeSkills), ...toList(app.candidateProfile?.skills)];
         const hasSkillData = toList(requiredSkills).length > 0 && toList(candidateSkills).length > 0;
         const rawExperience = app.yearsExperience ?? app.experience ?? app.candidateExperience ?? app.candidateProfile?.yearsExperience;
         const hasExperienceData = rawExperience !== undefined && rawExperience !== null && String(rawExperience).trim() !== '';
         const candidateEducation = app.education || app.candidateProfile?.education || app.resumeParsed?.education || '';
         const requiredEducation = app._jobData?.education || app._jobData?.educationLevel || app._jobData?.minimumEducation || '';
-        const hasEducationData = Boolean(String(candidateEducation).trim() && String(requiredEducation).trim());
+        const hasEducationRequirement = Boolean(String(requiredEducation).trim());
+        const hasEducationData = Boolean(String(candidateEducation).trim()) && hasEducationRequirement;
         const candidateLocation = app.location || app.candidateProfile?.location || '';
         const requiredLocation = app._jobData?.location || app._jobData?.jobLocation || '';
         const isRemoteJob = /remote|anywhere/i.test(`${app._jobData?.locationType || ''} ${app._jobData?.workSetting || ''} ${requiredLocation}`);
-        const hasLocationData = Boolean(String(candidateLocation).trim() && String(requiredLocation).trim()) && !isRemoteJob;
+        const hasLocationRequirement = Boolean(String(requiredLocation).trim()) && !isRemoteJob;
+        const hasLocationData = Boolean(String(candidateLocation).trim()) && hasLocationRequirement;
         const educationMatch = hasEducationData
           ? (String(candidateEducation).toLowerCase().includes(String(requiredEducation).toLowerCase()) ? 100 : 0)
           : null;
@@ -194,17 +195,17 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
 
         // Read latest settings from DB response (passed in) or current state
         const currentSettings = overrideSettings || settings;
-        const meetsRejectionRules = (
-          (currentSettings.rejectReasons.skillsMismatch && hasSkillData && skillsMatch < currentSettings.minSkillsMatch) ||
-          (currentSettings.rejectReasons.insufficientExperience && hasExperienceData && experienceMatch < currentSettings.minExperienceMatch) ||
+        const matchesReviewRules = (
+          (currentSettings.rejectReasons.skillsMismatch && (!hasSkillData || skillsMatch < currentSettings.minSkillsMatch)) ||
+          (currentSettings.rejectReasons.insufficientExperience && (!hasExperienceData || experienceMatch < currentSettings.minExperienceMatch)) ||
           (hasSkillData && hasExperienceData && overallScore < currentSettings.minOverallScore) ||
-          (currentSettings.rejectReasons.educationGap && hasEducationData && educationMatch === 0) ||
-          (currentSettings.rejectReasons.locationMismatch && hasLocationData && locationMatch === 0)
+          (currentSettings.rejectReasons.educationGap && hasEducationRequirement && educationMatch !== 100) ||
+          (currentSettings.rejectReasons.locationMismatch && hasLocationRequirement && locationMatch !== 100)
         );
-        const shouldReject = currentSettings.autoReject && meetsRejectionRules;
+        const shouldFlag = currentSettings.autoReject && matchesReviewRules;
 
         let rejectionReason = null;
-        if (meetsRejectionRules) {
+        if (matchesReviewRules) {
           if (skillsMatch < currentSettings.minSkillsMatch) rejectionReason = 'skillsMismatch';
           else if (experienceMatch < currentSettings.minExperienceMatch) rejectionReason = 'insufficientExperience';
         }
@@ -213,13 +214,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           id: app._id,
           name: app.candidateName || 'Unknown Candidate',
           email: app.candidateEmail,
-          status: shouldReject ? 'auto-rejected' : app.status || 'pending',
+          status: shouldFlag ? 'needs-review' : app.status || 'pending',
           originalStatus: app.status || 'pending',
-          wouldBeRejected: meetsRejectionRules,
+          needsReview: matchesReviewRules,
           hasSkillData,
           hasExperienceData,
-          hasEducationData,
-          hasLocationData,
+          hasEducationRequirement,
+          hasLocationRequirement,
           educationMatch,
           locationMatch,
           reason: rejectionReason,
@@ -234,13 +235,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       setCandidateDetails(processedCandidates);
 
       const totalApps = processedCandidates.length;
-      const wouldReject = processedCandidates.filter((c: any) => c.wouldBeRejected).length;
+      const needsReviewCount = processedCandidates.filter((c: any) => c.needsReview).length;
       const skillsIssues = processedCandidates.filter((c: any) => c.reason === 'skillsMismatch').length;
       const experienceIssues = processedCandidates.filter((c: any) => c.reason === 'insufficientExperience').length;
 
       setAnalytics({
         totalApplications: totalApps,
-        autoRejected: wouldReject,
+        needsReviewCount,
         rejectionReasons: {
           skillsMismatch: skillsIssues,
           insufficientExperience: experienceIssues,
@@ -323,9 +324,9 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         candidates = candidateDetails;
         title = 'All Applications';
         break;
-      case 'auto-rejected':
-        candidates = candidateDetails.filter((c: any) => c.wouldBeRejected);
-        title = settings.autoReject ? 'Auto-Rejected Candidates' : 'Candidates Below Threshold';
+      case 'needs-review':
+        candidates = candidateDetails.filter((c: any) => c.needsReview);
+        title = settings.autoReject ? 'Candidates Needing Review' : 'Candidates Below Threshold';
         break;
       case 'skills':
         candidates = candidateDetails.filter((c: any) => c.reason === 'skillsMismatch');
@@ -388,14 +389,14 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         dirtyRef.current = false;
         setIsDirty(false);
         localStorage.setItem(getSettingsCacheKey(employerEmail), JSON.stringify(mergedSettings));
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'AI auto-rejection settings saved. New and existing applications will be evaluated.' } }));
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'AI screening settings saved. New and existing applications will be evaluated.' } }));
         await loadCandidateData(mergedSettings);
       } else {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result.error || 'Could not save AI rejection settings');
+        throw new Error(result.error || 'Could not save AI screening settings');
       }
     } catch (error) {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: (error as Error).message || 'Could not save AI rejection settings', type: 'error' } }));
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: (error as Error).message || 'Could not save AI screening settings', type: 'error' } }));
       setIsSaving(false);
       return;
     }
@@ -408,11 +409,11 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center mb-6">
         <Brain className="w-6 h-6 text-blue-600 mr-3" />
-        <h2 className="text-xl font-semibold text-gray-900">AI Auto-Rejection Settings</h2>
+        <h2 className="text-xl font-semibold text-gray-900">AI Screening Settings</h2>
       </div>
 
 
-      {/* Enable Auto-Rejection */}
+      {/* Enable screening */}
       <div className="mb-6">
         <label className="flex items-center">
           <input
@@ -421,10 +422,10 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             onChange={(e) => handleSettingChange('autoReject', e.target.checked)}
             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
-          <span className="ml-3 text-gray-900 font-medium">Enable AI Auto-Rejection</span>
+          <span className="ml-3 text-gray-900 font-medium">Enable AI Screening</span>
         </label>
         <p className="text-sm text-gray-500 mt-1 ml-7">
-          Automatically reject candidates who don&apos;t meet minimum requirements
+          Flag applications that fall below your thresholds or need more evidence. Recruiters decide the outcome.
         </p>
       </div>
 
@@ -498,7 +499,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
 
           {/* Rejection Reasons */}
           <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Auto-Reject For:</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Flag for review when:</h3>
             <div className="grid grid-cols-2 gap-4">
               <label className="flex items-center">
                 <input
@@ -542,21 +543,6 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             </div>
           </div>
 
-          {/* Feedback Settings */}
-          <div className="mb-6">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={settings.sendFeedback}
-                onChange={(e) => handleSettingChange('sendFeedback', e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span className="ml-3 text-gray-900 font-medium">Send feedback to rejected candidates</span>
-            </label>
-            <p className="text-sm text-gray-500 mt-1 ml-7">
-              Help candidates improve by explaining why they were rejected
-            </p>
-          </div>
         </>
       )}
 
@@ -565,7 +551,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center">
             <BarChart3 className="w-5 h-5 text-gray-600 mr-2" />
-            <h3 className="text-sm font-medium text-gray-900">Rejection Analytics Preview</h3>
+            <h3 className="text-sm font-medium text-gray-900">Screening Preview</h3>
           </div>
           <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2 py-1 rounded-full font-medium">
             {isDirty ? 'Unsaved changes — preview updates live' : settings.autoReject ? 'Automation enabled — saved rules apply to pending and new applications' : 'Preview only — no applications changed'}
@@ -587,11 +573,11 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           </div>
           <div 
             className="cursor-pointer hover:bg-white p-2 rounded transition-colors"
-            onClick={() => showCandidateList('auto-rejected')}
+            onClick={() => showCandidateList('needs-review')}
           >
-            <span className="text-gray-500">{settings.autoReject ? 'Auto-Rejected' : 'Would Be Rejected'}</span>
+            <span className="text-gray-500">{settings.autoReject ? 'Needs Review' : 'Would Need Review'}</span>
             <div className="font-semibold text-orange-600 flex items-center">
-              {analytics.autoRejected}
+              {analytics.needsReviewCount}
               <Eye className="w-3 h-3 ml-1 text-gray-400" />
             </div>
           </div>
@@ -624,7 +610,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           onClick={handleSave}
           disabled={isSaving}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
-          title="Save auto-rejection settings"
+          title="Save AI screening settings"
         >
           <Save className="w-4 h-4 mr-2" />
           {isSaving ? 'Saving…' : 'Save Settings'}
@@ -638,7 +624,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             <div className="flex items-center justify-between p-6 border-b">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{modalData.type}</h3>
-                <p className="text-xs text-orange-600 mt-1">{settings.autoReject ? 'Candidates below the saved thresholds are automatically rejected.' : 'Preview only — candidates are not changed until automation is enabled and saved.'}</p>
+                <p className="text-xs text-orange-600 mt-1">{settings.autoReject ? 'Candidates below the saved thresholds are flagged for recruiter review.' : 'Preview only — candidates are not changed until automation is enabled and saved.'}</p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -686,14 +672,14 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
                           <div>
                             <div className="text-xs text-gray-500">Preview Status</div>
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              candidate.wouldBeRejected
+                              candidate.needsReview
                                 ? 'bg-orange-100 text-orange-800'
                                 : !candidate.hasSkillData || !candidate.hasExperienceData
                                   ? 'bg-gray-100 text-gray-700'
                                   : 'bg-green-100 text-green-800'
                             }`}>
-                              {candidate.wouldBeRejected ? (
-                                <><AlertTriangle className="h-3 w-3" aria-hidden="true" />{settings.autoReject ? 'Flagged for rejection' : 'Would be flagged'}</>
+                              {candidate.needsReview ? (
+                                <><AlertTriangle className="h-3 w-3" aria-hidden="true" />{settings.autoReject ? 'Flagged for review' : 'Would be flagged'}</>
                               ) : !candidate.hasSkillData || !candidate.hasExperienceData ? (
                                 <><Info className="h-3 w-3" aria-hidden="true" />Not evaluated — missing data</>
                               ) : (

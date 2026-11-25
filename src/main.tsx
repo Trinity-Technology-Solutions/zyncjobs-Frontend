@@ -52,7 +52,8 @@ window.addEventListener('unhandledrejection', (e) => {
   }
 });
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')!;
+const renderApp = () => createRoot(root).render(
   <BrowserRouter>
       <GlobalErrorBoundary>
         <ErrorBoundary>
@@ -63,4 +64,23 @@ createRoot(document.getElementById('root')!).render(
       </GlobalErrorBoundary>
   </BrowserRouter>
 );
+
+const minimumStartupTime = 1000;
+if (root.querySelector('.zync-startup') && document.visibilityState === 'visible') {
+  // Count time already spent on the startup screen while the bundle loaded.
+  const loaderMotion = document.getAnimations().find(animation =>
+    'animationName' in animation && animation.animationName === 'zync-startup-slide');
+  const firstPaint = performance.getEntriesByName('first-paint')[0]?.startTime;
+  const elapsed = typeof loaderMotion?.currentTime === 'number'
+    ? loaderMotion.currentTime
+    : firstPaint === undefined ? 0 : performance.now() - firstPaint;
+  const remaining = Math.max(0, minimumStartupTime - elapsed);
+  if (remaining > 0) {
+    window.requestAnimationFrame(() => window.setTimeout(renderApp, remaining));
+  } else {
+    renderApp();
+  }
+} else {
+  renderApp();
+}
 

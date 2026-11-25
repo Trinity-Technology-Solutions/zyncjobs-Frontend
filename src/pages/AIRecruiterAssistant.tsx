@@ -1,12 +1,16 @@
 import EmployerFeatureGuide from '../components/EmployerFeatureGuide';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
+import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { getCached, setCached, cacheKey } from '../services/aiCache';
+import { apiFetch } from '../api/apiFetch';
+import { getApplicationJobId, getId } from '../utils/getId';
+import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
+import { formatSalary } from '../utils/textUtils';
+import { mergeCandidateSkills } from '../utils/candidateScoring';
 import { sendAIMessageStream } from '../services/aiChatService';
-import { searchCandidates, rankCandidates, shortlistCandidates, type RecruiterCandidate } from '../services/aiRecruiterService';
+import { searchCandidates, type RecruiterCandidate } from '../services/aiRecruiterService';
 import { useTypewriter } from '../hooks/useTypewriter';
 
 const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
@@ -18,14 +22,58 @@ interface AIRecruiterAssistantProps {
 }
 
 
+type ApplicantResult = RecruiterCandidate & {
+  applicationId?: string;
+  postingId?: string;
+  postingTitle?: string;
+  applicationStatus?: string;
+  matchedRequired?: string[];
+  matchedPreferred?: string[];
+  additionalSkills?: string[];
+};
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  candidates?: RecruiterCandidate[];
+  candidates?: ApplicantResult[];
+}
+
+const cleanReply = (reply: string) => reply.replace(/^#{1,6}\s+/gm, '').replace(/^\s*---+\s*$/gm, '').replace(/\*\*([^*]+)\*\*/g, '$1');
+
+function rankPostingApplicants(job: any, applications: any[]): ApplicantResult[] {
+  const key = (skill: string) => skill.trim().toLowerCase().replace(/^(react|vue|node)\.?js$/, '$1');
+  const labels = (value: unknown): string[] => Array.isArray(value)
+    ? [...new Map(value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).map(item => [key(item), item.trim()])).values()]
+    : [];
+  const required = labels(job.skills);
+  const requiredKeys = new Set(required.map(key));
+  const preferred = labels(job.goodToHaveSkills).filter(skill => !requiredKeys.has(key(skill)));
+  const preferredKeys = new Set(preferred.map(key));
+  return applications.filter(app => getApplicationJobId(app.jobId) === getId(job)).map(app => {
+    const skills = labels(mergeCandidateSkills({ skills: app.skills || app.candidateSkills, candidateProfile: app.candidateProfile, parsedResume: app.parsedResume, resumeData: app.resumeData }));
+    const keys = new Set(skills.map(key));
+    const matchedRequired = required.filter(skill => keys.has(key(skill)));
+    return {
+      applicationId: getId(app),
+      postingId: getId(job),
+      postingTitle: job.jobTitle || job.title,
+      applicationStatus: app.status,
+      name: app.candidateName || app.candidateProfile?.name || 'Applicant',
+      experience: [app.yearsExperience, app.candidateExperience, app.candidateProfile?.experience].find(value => typeof value === 'string' && value.trim()) || (typeof app.yearsExperience === 'number' ? `${app.yearsExperience} years` : undefined),
+      skills,
+      matchScore: required.length && skills.length ? Math.round(100 * matchedRequired.length / required.length) : null,
+      matchedRequired,
+      matchedPreferred: preferred.filter(skill => keys.has(key(skill))),
+      missingSkills: skills.length ? required.filter(skill => !keys.has(key(skill))) : [],
+      additionalSkills: skills.filter(skill => !requiredKeys.has(key(skill)) && !preferredKeys.has(key(skill))),
+    };
+  }).sort((a, b) => (b.matchScore ?? -1) - (a.matchScore ?? -1) || b.matchedPreferred.length - a.matchedPreferred.length);
 }
 
 const SYSTEM_PROMPT = `You are ZyncJobs AI Recruiter Assistant — an expert recruitment automation assistant for employers and HR teams on ZyncJobs.
+
+Treat unavailable facts as unknown. Never invent employer or applicant facts, scores, or salary. If no posting is selected, ask the recruiter to select one before reviewing a specific role. Use plain text and short bullet lists.
 
 You help recruiters with:
 - Analyzing candidate profiles and ranking them for job fit
@@ -55,66 +103,34 @@ const QUICK_ACTIONS = [
 const detectRecruiterIntent = (text: string): 'source' | 'rank' | 'shortlist' | null => {
   const q = text.toLowerCase();
   if (/\b(short[- ]?list|short listing)\b/.test(q)) return 'shortlist';
-  if (/\b(rank|score|evaluate|compare|best fit|best candidate|top candidate)\b/.test(q)) return 'rank';
+  if (/\b(rank|score|evaluate|compare|best fit|best candidates?|top candidates?|who should i (?:interview|hire)|analy[sz]e (?:a |this |my )?candidate)\b/.test(q)) return 'rank';
   if (/\b(source|find|search|look for|fetch|hire)\b/.test(q)) return 'source';
   return null;
 };
 
-const getAdvancedFallbackWithContext = (input: string, jobs: any[], user: any): string => {
-  const q = input.toLowerCase();
-  const hasJobContext = jobs && jobs.length > 0;
-  const userName = user?.name || user?.fullName || 'Recruiter';
-  
-  if (hasJobContext) {
-    const jobTitles = jobs.map(j => j.jobTitle || j.title || '').filter(Boolean).join(', ');
-    const relevantSkills = jobs.flatMap(j => {
-      const skills = Array.isArray(j.skills) ? j.skills : [];
-      return skills.slice(0, 4);
-    }).filter(Boolean).join(', ');
-
-    const screeningForRoles = jobs.map(j => {
-      const title = j.jobTitle || j.title || 'role';
-      const skills = Array.isArray(j.skills) ? j.skills.slice(0, 5).join(', ') : 'core skills';
-      const exp = j.experienceRange || j.experienceLevel || 'relevant';
-      const loc = j.location || 'your location';
-      return `**${title}** (${loc})\n• Skills to verify: ${skills}\n• Experience: ${exp}\n• Assessment: technical/domain screening tailored to ${title}`;
-    }).join('\n\n');
-
-    if (q.includes('candidate') || q.includes('screen') || q.includes('evaluate')) {
-      return `${userName}, here is a screening plan built from your active roles (${jobTitles}):\n\n${screeningForRoles}\n\n**Universal red flags:**\n• Skills claimed but not backed by experience\n• Employment gaps without explanation\n• Poor communication in cover letter or interview\n\nKey skill focus for your openings: ${relevantSkills}\n\nWould you like detailed scoring criteria for any of these roles?`;
-    }
-
-    if (q.includes('interview')) {
-      return `${userName}, here are interview strategies tailored to your current openings (${jobTitles}):\n\n${screeningForRoles}\n\n**Recommended question structure:**\n• Role-specific technical questions around: ${relevantSkills}\n• Behavioral questions using the STAR format\n• Culture-fit and growth-orientation questions\n\nWould you like me to generate 10 ready-to-use questions for a specific role?`;
-    }
-
-    if (q.includes('job') && (q.includes('post') || q.includes('description') || q.includes('optim'))) {
-      return `${userName}, here is how to optimize your active postings (${jobTitles}):\n\n**For each role:**\n• Lead with impact and team context\n• List must-have skills first: ${relevantSkills}\n• Add salary range — postings with salary get ~30% more applications\n• Include location, work mode, and growth path\n• Keep requirements realistic — separate "must-have" from "nice-to-have"\n\nWant me to rewrite the description for one of these roles?`;
-    }
-
-    if (q.includes('salary') || q.includes('benchmark') || q.includes('pay')) {
-      return `${userName}, salary guidance for your active roles (${jobTitles}):\n\n• Use ZyncJobs salary insights for real-time, role-specific data\n• Adjust for location — metro cities command a 20-30% premium\n• Consider total comp: base + bonus + equity + benefits\n• Match ranges to the experience level in each posting\n\nSkills influencing pay in your roles: ${relevantSkills}\n\nTell me a specific role + location and I'll give a precise benchmark range.`;
-    }
-
-    if (q.includes('reject') || q.includes('email') || q.includes('template')) {
-      return `${userName}, here is a rejection email template you can use for candidates in your ${jobTitles} pipeline:\n\nSubject: Application Update - [Role]\n\nDear [Candidate Name],\n\nThank you for interviewing for [Role] at [Company]. We appreciated learning about your background.\n\nAfter careful review, we have decided to move forward with another candidate whose experience more closely matches our current needs.\n\nWe were impressed by [specific positive] and encourage you to apply for future openings that fit your profile.\n\nWarm regards,\n${userName}\n\nWould you like this customized for a specific stage or candidate?`;
-    }
-
-    return `${userName}, I can work with your active job data (${jobTitles}). Ask me about screening candidates, interview questions, optimizing postings, salary benchmarks, or candidate emails — and I'll tailor the answer to your current roles.`;
-  }
-
-  if (q.includes('job') && (q.includes('post') || q.includes('description') || q.includes('optim')))
-    return `Here's how to optimize your job posting:\n\n• **Clear job title** — Use standard titles (e.g., "Senior React Developer" not "Rockstar Coder")\n• **Compelling summary** — 2-3 sentences on role impact and team\n• **Specific requirements** — Separate "must-have" from "nice-to-have"\n• **Salary range** — Posts with salary get 30% more applications\n• **Company culture** — Mention work style, benefits, growth opportunities\n• **Clear apply process** — Tell candidates exactly what to expect\n\nWant me to write a specific job description for you?`;
-  if (q.includes('interview') && q.includes('question'))
-    return `Strong interview questions by category:\n\n**Technical:**\n• Describe your experience with [specific tech stack]\n• Walk me through how you'd architect [specific system]\n• How do you handle [specific technical challenge]?\n\n**Behavioral (STAR format):**\n• Tell me about a time you missed a deadline — what happened?\n• Describe a conflict with a teammate and how you resolved it\n• Give an example of a project you're most proud of\n\n**Culture fit:**\n• What does your ideal work environment look like?\n• How do you stay updated with industry trends?\n• Where do you see yourself in 3 years?\n\nWant questions tailored to a specific role?`;
-  if (q.includes('screen') || q.includes('criteria') || q.includes('evaluat'))
-    return `Candidate screening framework:\n\n**Must-have criteria:**\n• Core technical skills match (60% weight)\n• Years of relevant experience\n• Education/certification requirements\n\n**Good-to-have:**\n• Industry domain knowledge\n• Portfolio/GitHub/work samples\n• Communication skills in cover letter\n\n**Red flags to watch:**\n• Frequent job hopping (< 1 year per role without reason)\n• Vague answers about past responsibilities\n• No questions asked during interview\n• Inconsistencies between resume and LinkedIn\n\nWhat role are you screening for? I can give specific criteria.`;
-  if (q.includes('reject') || q.includes('email') || q.includes('template'))
-    return `Professional rejection email template:\n\n---\nSubject: Your Application at [Company] — Update\n\nDear [Candidate Name],\n\nThank you for taking the time to interview with us for the [Role] position. We genuinely appreciated learning about your background and experience.\n\nAfter careful consideration, we've decided to move forward with another candidate whose experience more closely aligns with our current needs.\n\nWe were impressed by [specific positive] and encourage you to apply for future openings.\n\nWarm regards,\n[Your Name]\n---\n\nWant me to customize this for a specific stage?`;
-  if (q.includes('salary') || q.includes('benchmark') || q.includes('pay'))
-    return `Salary benchmarking tips on ZyncJobs:\n\n• **Check ZyncJobs salary insights** for role-specific data\n• **Factor in location** — Bangalore/Mumbai command 20-30% premium\n• **Consider total comp** — base + bonus + equity + benefits\n\n**India tech salary ranges (2024):**\n• Junior Dev (0-2 yrs): ₹4-8 LPA\n• Mid Dev (2-5 yrs): ₹8-18 LPA\n• Senior Dev (5-8 yrs): ₹18-35 LPA\n• Lead/Architect (8+ yrs): ₹35-60 LPA\n\nWhat role and location are you benchmarking for?`;
-  return `I can help you with that! Here are some key recruitment best practices:\n\n• **Speed matters** — Top candidates are off the market in 10 days\n• **Clear communication** — Update candidates at every stage\n• **Structured interviews** — Use consistent questions for fair comparison\n• **Data-driven decisions** — Track time-to-hire, offer acceptance rate\n\nCould you share more details about your specific challenge?`;
-};
+function postingReview(job: any): string {
+  const list = (skills: unknown) => Array.isArray(skills) && skills.length ? skills.join(', ') : 'Not available';
+  const salary = job.salary || ((job.salaryMin || job.salaryMax) ? { min: job.salaryMin, max: job.salaryMax } : null);
+  const hasDescription = Boolean((job.jobDescription || job.description || '').trim());
+  const postedSalary = formatSalary(salary, job.currency || job.salary?.currency) || 'Not available';
+  const missing = [
+    ...(!hasDescription ? ['job description'] : []),
+    ...(!job.skills?.length ? ['required skills'] : []),
+    ...(!job.experienceRange && !job.experience ? ['experience requirement'] : []),
+    ...(!job.location ? ['location'] : []),
+    ...(postedSalary === 'Not available' ? ['posted salary'] : []),
+  ];
+  return [
+    job.jobTitle || job.title || 'Selected posting',
+    `Required skills: ${list(job.skills)}`,
+    `Preferred skills: ${list(job.goodToHaveSkills)}`,
+    `Experience requirement: ${job.experienceRange || job.experience || 'Not available'}`,
+    `Location: ${job.location || 'Not available'}`,
+    `Posted salary: ${postedSalary}`,
+    `Job type: ${Array.isArray(job.jobType) ? list(job.jobType) : job.jobType || job.type || 'Not available'}`,
+    missing.length ? `Review before publishing: ${missing.join(', ')}.` : 'Core posting fields are present. Check that the responsibilities and qualifications are specific to the role.',
+  ].join('\n');
+}
 
 const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate, onLogout, user }) => {
   const [messages, setMessages] = useState<Message[]>([{
@@ -124,7 +140,10 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [jobContext, setJobContext] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [jobsError, setJobsError] = useState(false);
+  const selectedJob = jobs.find(job => getId(job) === selectedJobId);
   const [shortlistedIds, setShortlistedIds] = useState<string[]>([]);
   const [aiOnline, setAiOnline] = useState<boolean | null>(null);
 
@@ -143,49 +162,58 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   const { streamingText, isTyping } = useTypewriter();
 
   useEffect(() => {
-    const loadJobs = async () => {
-      try {
-        const res = await fetch(API_ENDPOINTS.JOBS);
-        if (res.ok) {
-          const all = await res.json();
-          const mine = all.filter((j: any) =>
-            j.postedBy?.toLowerCase() === user?.email?.toLowerCase() ||
-            j.employerEmail?.toLowerCase() === user?.email?.toLowerCase()
-          );
-          setJobContext(mine.slice(0, 5));
+    if (!user?.email) return;
+    const controller = new AbortController();
+    const ownerEmail = getEffectiveEmployerEmail() || user.email;
+    apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${encodeURIComponent(ownerEmail)}`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load postings');
+        const data = await response.json();
+        if (!controller.signal.aborted) {
+          setJobs((Array.isArray(data) ? data : data.jobs || []).filter((job: any) => getId(job)));
+          setJobsError(false);
         }
-      } catch { /* offline or backend unavailable */ }
-    };
-    if (user?.email) loadJobs();
-  }, [user]);
+      })
+      .catch(() => { if (!controller.signal.aborted) setJobsError(true); });
+    return () => controller.abort();
+  }, [user?.email]);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const shortlistCandidate = useCallback(async (candidate: RecruiterCandidate) => {
-    const job = jobContext[0];
-    const jobId = job?._id || job?.id;
-    if (!jobId) {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Open a job first — shortlisting needs an active job" } }));
-      return;
-    }
-    if (!candidate.id) {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate profile not found — open them in Candidate Search instead" } }));
-      return;
-    }
+  const shortlistCandidate = useCallback(async (candidate: ApplicantResult) => {
+    if (!candidate.applicationId) return;
     try {
-      await fetch(`${API_ENDPOINTS.BASE_URL}/employer/shortlist`, {
-        method: 'POST',
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${encodeURIComponent(candidate.applicationId)}/status`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ candidateId: candidate.id, jobId, notes: `Shortlisted via AI Recruiter Assistant for ${job.jobTitle || job.title || 'the role'}` }),
+        body: JSON.stringify({ status: 'shortlisted' }),
       });
-      setShortlistedIds(prev => prev.includes(candidate.id!) ? prev : [...prev, candidate.id!]);
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `${candidate.name} shortlisted for ${job.jobTitle || job.title || 'the role'}!` } }));
+      if (!response.ok) throw new Error('Shortlist failed');
+      setShortlistedIds(prev => [...new Set([...prev, candidate.applicationId!])]);
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: `${candidate.name} shortlisted.` } }));
     } catch {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Error shortlisting candidate" } }));
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Could not shortlist the application.' } }));
     }
-  }, [jobContext]);
+  }, []);
+
+  const loadPostingApplicants = useCallback(async (job: any, signal: AbortSignal) => {
+    const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${encodeURIComponent(getId(job))}`, { signal: signal });
+    if (!response.ok) throw new Error('Could not load applications');
+    const data = await response.json();
+    const applications = Array.isArray(data) ? data : data.applications;
+    if (!Array.isArray(applications)) throw new Error('Invalid applications response');
+    const candidates = rankPostingApplicants(job, applications);
+    const title = job.jobTitle || job.title;
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: candidates.length
+        ? `${title}: ${candidates.length} applicant${candidates.length === 1 ? '' : 's'}, ordered by required skill coverage. Use the evidence below to decide who to review.`
+        : `No applications found for ${title}.`,
+      candidates, timestamp: new Date(),
+    }]);
+  }, []);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -198,68 +226,49 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
     setInput('');
     setLoading(true);
     
-    // Check cache
-    const key = cacheKey('recruiter', trimmed);
-    const cached = getCached<string>(key);
-    if (cached) {
-      setMessages(prev => [...prev, { role: 'assistant', content: cached, timestamp: new Date() }]);
+    const intent = detectRecruiterIntent(trimmed);
+    if (intent) {
+      try {
+        if (intent === 'source') {
+          const result = await searchCandidates(trimmed);
+          if (!result.success) throw new Error('Candidate sourcing failed');
+          setMessages(prev => [...prev, {
+            role: 'assistant', content: `Talent pool results: ${result.candidates.length} candidates shown.`,
+            candidates: result.candidates, timestamp: new Date(),
+          }]);
+        } else if (!selectedJob) {
+          setMessages(prev => [...prev, { role: 'assistant', content: 'Select a job posting first so I can review its applicants.', timestamp: new Date() }]);
+        } else {
+          await loadPostingApplicants(selectedJob, abortRef.current.signal);
+        }
+      } catch {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Could not load recruitment data. Please try again.', timestamp: new Date() }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (/\b(?:jd|job description|posting|salary|ctc|compensation)\b/i.test(trimmed) && /\b(?:good|review|optim\w*|analy[sz]e|audit|missing|salary|ctc|compensation)\b/i.test(trimmed)) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: selectedJob ? postingReview(selectedJob) : 'Select a job posting to review its actual details.',
+        timestamp: new Date(),
+      }]);
       setLoading(false);
       return;
     }
 
-    // Structured recruiter actions — real AI service endpoints (sourcing, ranking, shortlisting)
-    const intent = detectRecruiterIntent(trimmed);
-    if (intent) {
-      try {
-        const cleaned = trimmed.replace(/\b(please|pls|source|find|search|short[- ]?list|rank|me|for|candidates?|candidate)\b/gi, ' ').replace(/\s+/g, ' ').trim();
-        const firstJob = jobContext[0];
-        const jobDesc = cleaned
-          || (firstJob ? `${firstJob.jobTitle || firstJob.title || ''}${Array.isArray(firstJob.skills) && firstJob.skills.length ? ` — ${firstJob.skills.slice(0, 5).join(', ')}` : ''}`.trim() : '')
-          || 'skilled professionals';
-        let candidates: RecruiterCandidate[] = [];
-        let summary = '';
-
-        if (intent === 'source') {
-          const r = await searchCandidates(jobDesc);
-          candidates = r.candidates;
-          summary = `🔎 **Sourced ${r.totalCount || candidates.length} matching candidate${(r.totalCount || candidates.length) === 1 ? '' : 's'}** from the talent pool for:\n"${jobDesc}"\n\nShowing the top ${candidates.length} below — tap a card to open Candidate Search.`;
-        } else if (intent === 'rank') {
-          const found = await searchCandidates(jobDesc);
-          const r = await rankCandidates(jobDesc, found.candidates.map((c) => ({ ...c })));
-          candidates = r.ranked;
-          summary = `🏆 **Ranked ${candidates.length} candidates by fit** for:\n"${jobDesc}"\n\nSorted best-first by match score.`;
-        } else {
-          const r = await shortlistCandidates(jobDesc);
-          candidates = r.candidates;
-          summary = `✅ **Shortlist recommendation** for:\n"${jobDesc}"\n\n${candidates.length} candidate${candidates.length === 1 ? '' : 's'} made the cut — ranked by fit.`;
-        }
-
-        if (candidates.length > 0) {
-          setCached(key, summary);
-          setLoading(false);
-          setMessages(prev => [...prev, { role: 'assistant', content: summary, candidates, timestamp: new Date() }]);
-          return;
-        }
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') console.warn('Structured recruiter action failed, falling back to chat:', e);
-      }
-    }
-
+    const jobContext = selectedJob ? [selectedJob] : [];
     // Try AI service first for contextual responses
     let aiResponseSuccessful = false;
     
     try {
       setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
-      setLoading(false);
       let full = '';
       await sendAIMessageStream(
         updated.map(m => ({ role: m.role, content: m.content })),
-        SYSTEM_PROMPT + (jobContext.length > 0 ? `\n\nCurrent job context: ${jobContext.map(j => {
-          const title = j.jobTitle || j.title || '';
-          const skills = Array.isArray(j.skills) ? j.skills.slice(0, 3).join(', ') : '';
-          const location = j.location || '';
-          return `${title} (skills: ${skills}, location: ${location})`;
-        }).join('; ')}` : ''),
+        SYSTEM_PROMPT + (selectedJob ? `\n\nSelected posting:\n${postingReview(selectedJob)}\n\nJob description:\n${String(selectedJob.jobDescription || selectedJob.description || '').slice(0, 8000)}` : ''),
         (chunk) => {
           full += chunk;
           setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
@@ -270,12 +279,10 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           user_profile: user,
         }
       );
-      if (full) {
-        aiResponseSuccessful = true;
-        setCached(key, full);
-      }
+      aiResponseSuccessful = Boolean(full);
     } catch (e: any) {
-      if (e?.name === 'AbortError' || e?.message === 'AI agent unavailable') {
+      if (e?.name === 'AbortError') { setLoading(false); return; }
+      if (e?.message === 'AI agent unavailable') {
         // AI service not available or failed - use enhanced fallback
         aiResponseSuccessful = false;
       } else {
@@ -287,7 +294,7 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
 
     // Enhanced fallback logic with better context handling
     if (!aiResponseSuccessful) {
-      const fallbackResponse = getAdvancedFallbackWithContext(trimmed, jobContext, user);
+      const fallbackResponse = 'The AI response is unavailable. Try again, or select a posting and ask to review its JD or rank its applicants.';
       setMessages(prev => {
         const updated = [...prev];
         if (updated.length > 0 && updated[updated.length - 1].role === 'assistant' && updated[updated.length - 1].content === '') {
@@ -297,7 +304,8 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
         return updated;
       });
     }
-  }, [messages, loading, jobContext, user]);
+    setLoading(false);
+  }, [messages, loading, selectedJob, loadPostingApplicants, user]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -309,6 +317,26 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       content: `Hello${user?.name ? ` ${user.name.split(' ')[0]}` : ''}! 👋 I'm your AI Recruiter Assistant. What would you like to work on today?`,
       timestamp: new Date(),
     }]);
+  };
+
+  const selectPosting = async (jobId: string) => {
+    setSelectedJobId(jobId);
+    resetChat();
+    const job = jobs.find(posting => getId(posting) === jobId);
+    if (!job) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    try {
+      await loadPostingApplicants(job, controller.signal);
+    } catch {
+      if (!controller.signal.aborted) setMessages(prev => [...prev, {
+        role: 'assistant', content: 'Could not load applicants for this posting. Select Rank Candidates to retry.', timestamp: new Date(),
+      }]);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
   };
 
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -331,7 +359,7 @@ return (
         />
 
         <div className="portal-page-container relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-9">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="recruiter-banner-layout">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => onNavigate?.('dashboard')}
@@ -357,27 +385,30 @@ return (
                 <p className="text-blue-300/90 text-sm sm:text-base leading-relaxed mt-0.5 max-w-2xl">Agentic AI talent sourcing · screening · ranked shortlists</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <div className="recruiter-banner-actions">
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2.5 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
                 <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-400' : 'bg-red-400'} shadow-[0_0_8px_rgba(52,211,153,0.8)]`} />
                 <span className="text-xs text-white/80 font-medium truncate">
                   {aiOnline === null ? 'Connecting to AI engine…' : aiOnline ? 'AI Engine Online' : 'AI Engine Offline'}
                 </span>
               </div>
-              {jobContext.length > 0 && (
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2.5 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-white/80 font-medium truncate">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
-                </div>
-              )}
               <button
                 onClick={resetChat}
+                disabled={loading}
                 className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-3 sm:px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-all hover:scale-[1.02] active:scale-95 flex-shrink-0"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">New Chat</span>
               </button>
             </div>
+              <label className="recruiter-posting-picker">
+                Job posting
+                <select value={selectedJobId} disabled={loading} onChange={event => void selectPosting(event.target.value)}
+                  className="recruiter-posting-select">
+                  <option value="">{jobsError ? 'Could not load postings' : 'Select a posting'}</option>
+                  {jobs.map(job => <option key={getId(job)} value={getId(job)}>{job.jobTitle || job.title}{job.location ? ` / ${job.location}` : ''}</option>)}
+                </select>
+              </label>
           </div>
         </div>
         {/* Gradient divider */}
@@ -420,7 +451,7 @@ return (
                 <span className={`w-2 h-2 rounded-full ${aiOnline === null ? 'bg-amber-400 animate-pulse' : aiOnline ? 'bg-emerald-500' : 'bg-red-400'}`} />
                 <p className="text-[11px] font-medium text-gray-600">AI Engine {aiOnline === null ? '…' : aiOnline ? 'Online' : 'Offline'}</p>
               </div>
-              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">Sourcing, ranking & shortlisting run on the live AI service.</p>
+              <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">Applicant ranking uses the selected posting and works even when AI chat is offline.</p>
             </div>
           </div>
         </div>
@@ -471,22 +502,22 @@ return (
                 </div>
 
                 {/* Bubble */}
-                <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`min-w-0 flex flex-col gap-1 ${msg.role === 'user' ? 'max-w-[85%] items-end' : msg.candidates?.length ? 'flex-1 items-start' : 'max-w-[85%] sm:max-w-[75%] items-start'}`}>
                   <div className={`px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
                     msg.role === 'assistant'
                       ? 'bg-gradient-to-br from-gray-50 to-white text-gray-800 rounded-tl-sm border border-gray-100'
                       : 'bg-gradient-to-br from-blue-600 to-violet-600 text-white rounded-tr-sm shadow-md'
                   }`}>
-                    {i === messages.length - 1 && msg.role === 'assistant' && isTyping ? streamingText : msg.content}
+                    {msg.role === 'assistant' ? cleanReply(i === messages.length - 1 && isTyping ? streamingText : msg.content) : msg.content}
                     {i === messages.length - 1 && msg.role === 'assistant' && isTyping && (
                       <span className="inline-block w-1 h-4 bg-blue-400 animate-pulse ml-0.5 align-middle" />
                     )}
                   </div>
 
                   {msg.role === 'assistant' && msg.candidates && msg.candidates.length > 0 && (
-                    <div className="w-full max-w-[85%] sm:max-w-[75%] grid gap-2 sm:grid-cols-2 mt-1">
+                    <div className="w-full grid grid-cols-1 gap-3 mt-2">
                       {msg.candidates.map((c, ci) => (
-                        <div key={`${c.name}-${ci}`} style={{ animationDelay: `${ci * 70}ms` }} className="zync-pop-in bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:border-blue-300 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                        <div key={`${c.name}-${ci}`} style={{ animationDelay: `${ci * 70}ms` }} className="zync-pop-in min-w-0 bg-white border border-gray-200 rounded-xl p-4 shadow-sm [overflow-wrap:anywhere]">
                           <div className="flex items-start gap-2.5">
                             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm ring-2 ring-violet-100">
                               <span className="text-xs font-bold text-white">
@@ -494,8 +525,8 @@ return (
                               </span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-gray-800 truncate">{c.name}</p>
-                              {c.role && <p className="text-xs text-gray-500 truncate">{c.role}</p>}
+                              <p className="text-base font-semibold text-gray-900">{c.name}</p>
+                              {c.role && <p className="text-sm text-gray-600">{c.role}</p>}
                               {(c.location || c.experience) && (
                                 <p className="text-xs text-gray-400 truncate">
                                   {[c.location, c.experience].filter(Boolean).join(' · ')}
@@ -504,17 +535,17 @@ return (
                             </div>
                           </div>
                           {c.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
+                            <div className="flex flex-wrap gap-1.5 mt-3">
                               {c.skills.slice(0, 4).map(s => (
-                                <span key={s} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-medium">{s}</span>
+                                <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-xs font-medium">{s}</span>
                               ))}
                               {c.skills.length > 4 && <span className="text-[10px] text-gray-400 self-center">+{c.skills.length - 4}</span>}
                             </div>
                           )}
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
                             {c.matchScore != null && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-semibold">
-                                <CheckCircle2 className="w-3 h-3" /> Match {c.matchScore}%
+                                <CheckCircle2 className="w-3 h-3" /> {c.applicationId ? 'Required skills' : 'Match'} {c.matchScore}%
                               </span>
                             )}
                             {c.atsScore != null && (
@@ -523,26 +554,46 @@ return (
                               </span>
                             )}
                           </div>
-                          {c.missingSkills.length > 0 && (
-                            <p className="text-[10px] text-amber-600 mt-1.5">Missing: {c.missingSkills.slice(0, 3).join(', ')}</p>
+                          {(c.applicationId || c.missingSkills.length > 0) && (
+                            <details className="mt-3 border-t border-gray-100 pt-2 text-sm text-slate-700">
+                              <summary className="cursor-pointer font-medium text-blue-700">Skill details</summary>
+                              <div className="mt-2 space-y-2">
+                                {c.missingSkills.length > 0 && (
+                                  <p className="text-amber-800">Missing{c.applicationId ? ' required' : ''}: {c.missingSkills.join(', ')}</p>
+                                )}
+                                {c.applicationId && (
+                                  <>
+                                    <p>Matched required: {c.matchedRequired?.join(', ') || 'None verified'}</p>
+                                    {c.matchScore == null && <p>Required skill coverage unavailable. Check the posting and applicant skill data.</p>}
+                                    <p>Matched preferred: {c.matchedPreferred?.join(', ') || 'None verified'}</p>
+                                    <p>Additional skills: {c.additionalSkills?.join(', ') || 'None recorded'}</p>
+                                  </>
+                                )}
+                              </div>
+                            </details>
+                          )}
+                          {c.applicationId && (
+                            <p className="mt-2 text-xs text-slate-600">Status: {shortlistedIds.includes(c.applicationId) ? 'shortlisted' : c.applicationStatus || 'Not available'}</p>
                           )}
                           <div className="flex gap-1.5 mt-2">
-                            <button
+                            {c.applicationId && !['rejected', 'withdrawn', 'hired', 'interviewed'].includes(c.applicationStatus || '') && <button
                               onClick={() => shortlistCandidate(c)}
-                              disabled={shortlistedIds.includes(c.id || '')}
+                              disabled={(c.applicationStatus === 'shortlisted' || shortlistedIds.includes(c.applicationId || ''))}
                               className={`flex-1 text-xs font-semibold rounded-lg py-1.5 transition-colors disabled:cursor-default ${
-                                shortlistedIds.includes(c.id || '')
+                                (c.applicationStatus === 'shortlisted' || shortlistedIds.includes(c.applicationId || ''))
                                   ? 'bg-emerald-50 text-emerald-600'
                                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                               }`}
                             >
-                              {shortlistedIds.includes(c.id || '') ? '✓ Shortlisted' : 'Shortlist'}
-                            </button>
+                              {(c.applicationStatus === 'shortlisted' || shortlistedIds.includes(c.applicationId || '')) ? '✓ Shortlisted' : 'Shortlist'}
+                            </button>}
                             <button
-                              onClick={() => onNavigate?.('candidate-search')}
+                              onClick={() => c.postingId
+                                ? onNavigate?.('dashboard', { applicationJobId: c.postingId, applicationJobTitle: c.postingTitle })
+                                : onNavigate?.('candidate-search')}
                               className="flex-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg py-1.5 transition-colors"
                             >
-                              View Profile
+                              {c.postingId ? 'View applications' : 'Candidate Search'}
                             </button>
                           </div>
                         </div>

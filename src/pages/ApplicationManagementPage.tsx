@@ -7,13 +7,14 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
-import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown, ClipboardList, AlertTriangle, Check, UserRound, FileText, CalendarDays, Trash2 } from 'lucide-react';
+import { Zap, X, CheckCircle, MinusCircle, Search, FileDown, ClipboardList, AlertTriangle, Check, UserRound, FileText, CalendarDays, Trash2 } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
 import { rankCandidates, type RecruiterCandidate } from '../services/aiRecruiterService';
 import { scoreBreakdown, mergeCandidateSkills } from '../utils/candidateScoring';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import ApplicationScreeningFlag from '../components/ApplicationScreeningFlag';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -62,6 +63,7 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         </div>
       </div>
       <p className="text-xs text-gray-400 truncate mb-1">{application.candidateEmail}</p>
+      <ApplicationScreeningFlag application={application} />
       {appliedDate && (
         <p className="text-xs text-gray-300 mb-3">
           {new Date(appliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
@@ -148,7 +150,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobSkills, setJobSkills] = useState<string[]>([]);
   const [jobDescription, setJobDescription] = useState<string>('');
-  const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string; recommendation?: string; aiSummary?: string; fromAI?: boolean; breakdown?: any }[] | null>(null);
+  const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string; fromAI: boolean; matchedSkills: string[]; missingSkills: string[]; jobSkills: string[] }[] | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
   const [aiFailed, setAiFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -229,7 +231,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       const res = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, updatedBy: user?.name || 'Employer' }),
+        body: JSON.stringify({ status: newStatus, employerConfirmedRejection: newStatus === 'rejected', updatedBy: user?.name || 'Employer' }),
       });
       if (!res.ok) throw new Error();
       setApplications(prev => prev.map(app => (app.id || app._id) === id ? { ...app, status: newStatus } : app));
@@ -288,23 +290,12 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     const candidateSkills = mergeCandidateSkills(app);
     const jobData = { skills, jobTitle: sessionStorage.getItem('selectedJobTitle') || '' };
     const bd = scoreBreakdown(app, candidateSkills, jobData);
-    return { score: bd.score, hasSkillData: candidateSkills.length > 0, matchedSkills: bd.matchedSkills, missingSkills: bd.missingSkills, jobSkills: bd.jobSkills };
-  };
-
-  const deriveStatus = (score: number, ai: any, hasSkillData: boolean) => {
-    // When the AI responded, trust its recommendation — but a "reject" must be
-    // backed by a clearly low score; borderline rejections go to Screening.
-    if (ai?.matchScore != null && ai?.recommendation) {
-      if (ai.recommendation === 'strong') return 'shortlisted';
-      if (ai.recommendation === 'reject') return score < 40 ? 'rejected' : 'reviewed';
-    }
-    if (score >= 50) return 'shortlisted';
-    if (score < 30) return hasSkillData ? 'rejected' : 'reviewed'; // never reject on missing data
-    return 'reviewed';
+    return { score: bd.score, matchedSkills: bd.matchedSkills, missingSkills: bd.missingSkills, jobSkills: bd.jobSkills };
   };
 
   const runAIShortlist = async () => {
-    if (!applications.length) return;
+    const eligible = applications.filter(app => ['pending', 'applied', 'reviewed'].includes(app.status));
+    if (!eligible.length) return;
     setAiRunning(true);
 
     let skills = jobSkills;
@@ -329,7 +320,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     try {
       const r = await rankCandidates(
         jobDesc,
-        applications.map((app: any) => ({
+        eligible.map((app: any) => ({
           name: app.candidateName || app.name || 'Candidate',
           skills: normalizeSkillArray(app.skills || app.candidateSkills || []),
           resume: buildCandidateResumeText(app),
@@ -342,13 +333,14 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     }
     const rankedByName = new Map(ranked.map((c) => [c.name, c]));
 
-    const preview = applications.map((app: any) => {
+    const preview = eligible.map((app: any) => {
       const candidateName = app.candidateName || app.name || 'Candidate';
       const ai = rankedByName.get(candidateName);
-      const { score, hasSkillData, matchedSkills, missingSkills, jobSkills } = computeScore(app, skills);
+      const { score, matchedSkills, missingSkills, jobSkills } = computeScore(app, skills);
       const finalScore = ai?.matchScore ?? score;
-      const newStatus = deriveStatus(finalScore, ai, hasSkillData);
-      return { app, score: finalScore, newStatus, recommendation: ai?.recommendation, aiSummary: ai?.feedback, fromAI: ai?.matchScore != null, matchedSkills, missingSkills, jobSkills };
+      const newStatus = ai?.recommendation === 'reject' ? 'reviewed'
+        : ai?.recommendation === 'strong' || finalScore >= 50 ? 'shortlisted' : 'reviewed';
+      return { app, score: finalScore, newStatus, fromAI: ai?.matchScore != null, matchedSkills, missingSkills, jobSkills };
     });
 
     setAiPreview(preview);
@@ -358,7 +350,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const confirmAIShortlist = async () => {
     if (!aiPreview) return;
     setAiRunning(true);
-    await Promise.all(aiPreview.map(({ app, newStatus }) => updateStatus(app.id || app._id, newStatus === 'rejected' ? 'ai_rejected' : newStatus)));
+    await Promise.all(aiPreview.map(({ app, newStatus }) => updateStatus(app.id || app._id, newStatus)));
     setAiPreview(null); setAiRunning(false);
   };
 
@@ -612,7 +604,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             </div>
             {aiFailed && (
               <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
-                <AlertTriangle className="mr-2 inline-block h-4 w-4" aria-hidden="true" /> AI scoring service is unavailable — scores below are rule-based estimates. No candidate will be auto-rejected due to missing profile data.
+                <AlertTriangle className="mr-2 inline-block h-4 w-4" aria-hidden="true" /> AI scoring is unavailable. Scores below are estimates based on the available application data.
               </div>
             )}
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
@@ -625,9 +617,9 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                         <div className="text-xs text-gray-500">{fromAI ? 'AI Score' : 'Est. Score'}</div>
                         <div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div>
                       </div>
-                      <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : newStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : newStatus === 'rejected' ? <XCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
-                        {newStatus}
+                      <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
+                        {newStatus === 'shortlisted' ? 'Shortlist' : 'Needs Review'}
                       </div>
                     </div>
                   </div>
@@ -648,8 +640,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             <div className="p-4 border-t flex items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                 <span className="inline-flex items-center gap-1"><CheckCircle className="h-4 w-4 text-emerald-600" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted</span>
-                <span className="inline-flex items-center gap-1"><MinusCircle className="h-4 w-4 text-amber-600" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed</span>
-                <span className="inline-flex items-center gap-1"><XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</span>
+                <span className="inline-flex items-center gap-1"><MinusCircle className="h-4 w-4 text-amber-600" aria-hidden="true" />{aiPreview.filter(p => p.newStatus === 'reviewed').length} need review</span>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setAiPreview(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>

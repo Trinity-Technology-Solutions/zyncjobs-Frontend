@@ -2,18 +2,18 @@
 
 /* Header height tokens & responsive layout offset */
 :root {
-  --header-h: 72px;
+  --header-h: 75px;
   --header-offset: 0px;
 }
 @media (min-width: 640px) {
   :root {
-    --header-h: 78px;
+    --header-h: 83px;
     --header-offset: 0px;
   }
 }
 @media (min-width: 1024px) {
   :root {
-    --header-h: 84px;
+    --header-h: 69px;
     --header-offset: 0px;
   }
 }
@@ -467,10 +467,16 @@ html, body {
 
 /* Public home page: preserve the existing sections with a shared visual language. */
 /* Shared header and footer presentation; existing role-aware navigation is retained. */
-.zync-site-header .portal-header-container { max-width: 1264px; margin-inline: auto; }
+.zync-site-header .portal-header-surface {
+  background: rgb(255 255 255 / 97%);
+  border-color: #e4eaf3;
+  box-shadow: 0 2px 12px rgb(23 43 77 / 3%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
 .zync-site-header .portal-header-row { height: 74px; }
 .zync-site-header .portal-header-logo { height: 54px; max-width: 200px; }
-.zync-site-header .portal-header-nav { gap: 6px; margin-left: 20px; }
+.zync-site-header .portal-header-nav { gap: 6px; }
 .zync-site-header .portal-header-nav > button,
 .zync-site-header .portal-header-nav > div > button { min-height: 40px; padding: 9px 11px; font-size: 15px; font-weight: 500; white-space: nowrap; border-radius: 7px; }
 .zync-site-header .portal-header-nav > button:hover,
@@ -481,9 +487,32 @@ html, body {
 .zync-site-header .portal-header-actions > button,
 .zync-site-header .portal-header-actions > div > button { min-height: 44px; font-size: 15px; padding-inline: 14px; border-radius: 7px; white-space: nowrap; }
 .zync-site-header .portal-header-actions > div > button > span { font-size: 15px; }
-.zync-site-header .portal-header-actions .portal-auth-button { background: #245be0; border: 1px solid #245be0; color: #fff; gap: 5px; }
-.zync-site-header .portal-header-actions .portal-auth-button:hover { background: #1948bd; color: #fff; }
-.zync-site-header .portal-header-actions .portal-auth-button > svg { width: 15px; height: 15px; }
+.zync-site-header .portal-candidate-auth { display: flex; align-items: center; gap: 10px; }
+.zync-site-header .portal-header-actions :is(.portal-header-login, .portal-header-register) {
+  min-height: 38px;
+  padding-inline: 20px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 150ms;
+}
+.zync-site-header .portal-header-actions .portal-header-login { border-color: #245be0; color: #245be0; background: #fff; }
+.zync-site-header .portal-header-actions .portal-header-login:hover { background: #edf3ff; }
+.zync-site-header .portal-header-actions .portal-header-register { background: #c74405; color: #fff; }
+.zync-site-header .portal-header-actions .portal-header-register:hover { background: #a93704; }
+.zync-site-header .portal-header-actions :is(.portal-header-login, .portal-header-register):focus-visible {
+  outline: 2px solid #245be0;
+  outline-offset: 2px;
+}
+.zync-site-header .portal-candidate-auth + .portal-header-employer-link { position: relative; margin-left: 6px; }
+.zync-site-header .portal-candidate-auth + .portal-header-employer-link::before {
+  content: "";
+  position: absolute;
+  inset-block: 12px;
+  inset-inline-start: 0;
+  border-inline-start: 1px solid #d3dceb;
+}
 .zync-site-header button:focus-visible { outline: 2px solid #759bec; outline-offset: 3px; }
 .zync-site-header [role="menu"] { border-radius: 10px; border-color: #e3e9f2; box-shadow: 0 12px 35px #172b4d15; }
 .zync-site-header [role="menu"] button { font-size: 13px; }
@@ -509,10 +538,9 @@ html, body {
 .portal-footer .portal-footer-bottom button:hover { color: #245be0; }
 .portal-footer :is(button, a):focus-visible { outline: 2px solid #245be0; outline-offset: 4px; }
 @media (min-width: 640px) { .zync-site-header .portal-header-row { height: 82px; } }
-@media (min-width: 1024px) { .zync-site-header .portal-header-row { height: 86px; } }
-@media (min-width: 1280px) { .zync-site-header .portal-header-nav { margin-left: 28px; gap: 10px; } }
+@media (min-width: 1280px) { .zync-site-header .portal-header-nav { gap: 10px; } }
 @media (min-width: 1024px) and (max-width: 1199px) {
-  .zync-site-header .portal-header-nav { gap: 2px; margin-left: 12px; }
+  .zync-site-header .portal-header-nav { gap: 2px; }
   .zync-site-header .portal-header-nav > button,
   .zync-site-header .portal-header-nav > div > button { font-size: 14px; padding-inline: 8px; }
   .zync-site-header .portal-header-actions > button,
@@ -622,8 +650,6 @@ html, body {
   .zync-home .hero-popular-searches { gap: 7px; }
 }
 .zync-home .home-company-strip { background: #fff; padding-block: 25px; }
-.zync-home .home-company-strip p { color: #71829b; font-weight: 500; font-size: 10px; letter-spacing: 1.8px; }
-.zync-home .home-company-strip img { max-height: 34px; }
 .zync-home .home-latest-jobs { background: #fff; }
 .zync-home .home-latest-jobs .grid > div { border-color: #e3e9f2; border-radius: 12px; padding: 24px; box-shadow: none; transition: border-color .2s, box-shadow .2s; }
 .zync-home .home-latest-jobs .grid > div:hover { border-color: #a9bfee; box-shadow: 0 6px 20px #244e7c09; }
@@ -672,7 +698,7 @@ html, body {
   .zync-home .home-final-cta > div > div { max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .zync-home *, .zync-home *::before, .zync-home *::after { animation: none !important; transition: none !important; }
+  .zync-home :not(.home-company-track), .zync-home *::before, .zync-home *::after { animation: none !important; transition: none !important; }
 }
 /* Shared page grid: match the fixed header without changing narrow reading/form widths. */
 :root { --portal-page-width: 1264px; --portal-page-gutter: 16px; }
@@ -707,7 +733,6 @@ html, body {
   .portal-dashboard-main .portal-dashboard-toolbar { padding-top: 16px; padding-bottom: 16px; }
 }
 /* One shared header/footer size on every site page at each breakpoint. */
-.zync-site-header .portal-header-row { height: var(--header-h); min-height: var(--header-h); }
 .zync-site-header .portal-header-container,
 .portal-footer .portal-footer-container {
   box-sizing: border-box;
@@ -718,7 +743,28 @@ html, body {
 }
 .portal-footer .portal-footer-brand > img { height: 54px; max-width: 200px; object-fit: contain; }
 @media (min-width: 1024px) {
+  .zync-site-header .portal-header-container { max-width: var(--portal-page-width); }
+  .zync-site-header .portal-header-row {
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+    height: 68px;
+    min-height: 68px;
+  }
+  .zync-site-header .portal-header-actions { justify-self: end; }
+  .zync-site-header .portal-header-nav { flex-wrap: wrap; }
+  .zync-site-header .portal-header-brand { justify-self: start; }
+  .zync-site-header .portal-header-logo { height: 48px; }
   .portal-footer .portal-footer-main { min-height: 320px; }
+}
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .zync-site-header .portal-header-container { padding-inline: 16px; }
+  .zync-site-header .portal-header-row { gap: 8px; }
+  .zync-site-header .portal-header-nav > button,
+  .zync-site-header .portal-header-nav > div > button { padding-inline: 6px; }
+  .zync-site-header .portal-header-actions { gap: 4px; }
+  .zync-site-header .portal-header-actions > button { padding-inline: 8px; }
+  .zync-site-header .portal-candidate-auth { gap: 6px; }
+  .zync-site-header .portal-header-actions :is(.portal-header-login, .portal-header-register) { padding-inline: 12px; }
 }
 @media (max-width: 639px) {
   .portal-footer .portal-footer-brand > img { height: 48px; max-width: 180px; }
@@ -731,7 +777,7 @@ html, body {
 .zync-home .home-company-strip { background: #eef3fa; }
 .zync-home .home-latest-jobs { background: #eef3fa; }
 .zync-home .home-latest-jobs .grid > div { background: #fff; border-color: #dce5f1; box-shadow: 0 5px 20px #172b4d06; }
-.zync-home .career-journey { background: #eef3fa; border-block: 0; }
+.zync-home .career-journey { background: #fff; border-block: 0; }
 .zync-home .home-categories { background: #eef3fa; border: 0; }
 .zync-home .home-categories [role="button"] { background: #fff; border-color: #d8e3f3; box-shadow: 0 4px 16px #172b4d05; }
 .zync-home .home-career-feature { background: #eef3fa; }
@@ -980,6 +1026,22 @@ html, body {
 .portal-employer-dashboard .employer-sidebar > .border-t { border-color: #ffffff14; }
 .portal-employer-dashboard .portal-dashboard-main { background: #f5f7fb; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
 .portal-employer-dashboard .portal-dashboard-toolbar { background: #fff; border-bottom: 1px solid #e1e7f0; padding-block: 20px; margin-bottom: 28px; align-items: center; }
+.zync-site-header-workspace .portal-header-container {
+  max-width: none;
+  padding-inline: var(--portal-page-gutter);
+}
+@media (min-width: 1024px) {
+  .portal-employer-dashboard .portal-dashboard-toolbar {
+    display: flex;
+    justify-content: space-between;
+  }
+  .employer-dashboard-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: auto;
+  }
+}
 .portal-employer-dashboard .portal-dashboard-toolbar button { min-height: 38px; box-shadow: none; border-radius: 7px; }
 .portal-employer-dashboard .portal-dashboard-toolbar button[class*="from-orange"] { background: #fff; border: 1px solid #d7e0ec; color: #245be0; }
 .portal-employer-dashboard .portal-dashboard-content { padding-bottom: 28px; }
@@ -1191,7 +1253,6 @@ html, body {
 /* Candidate homepage uses the same gentle lavender palette as its closing CTA. */
 .zync-home .home-existing-hero { background: linear-gradient(180deg, #fdfcff 0%, #eeebff 100%); }
 .zync-home .home-company-strip { background: #faf9ff; }
-.zync-home .career-journey,
 .zync-home .home-categories { background: linear-gradient(180deg, #faf9ff 0%, #f0edff 100%); }
 .zync-home .home-latest-jobs,
 .zync-home .home-career-feature { background: #fff; }
@@ -1790,7 +1851,6 @@ html, body {
 .portal-profile-fallback { background: #f1f4f8; color: #8190a5; }
 .portal-profile-avatar { background: #f1f4f8; color: #8190a5; }
 /* Shared header notification control: real unread badge, compact outlined bell. */
-.zync-site-header .portal-notification-bell,
 .zync-site-header .portal-notifications > .relative > button { display: grid; place-items: center; position: relative; width: 40px; height: 44px; min-height: 44px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: #8190ab; }
 .zync-site-header .portal-notifications > .relative > button > svg { width: 23px; height: 23px; stroke-width: 1.5; }
 .zync-site-header .portal-notifications > .relative > button > span { top: 2px; right: 1px; min-width: 16px; width: auto; height: 16px; padding-inline: 3px; border: 2px solid #fff; font-size: 9px; line-height: 1; }
@@ -2097,15 +2157,27 @@ html, body {
   .employer-register-page .portal-auth-layout { min-height: 0; }
   .employer-register-page .portal-auth-form { align-self: center; }
 }
-/* Shared cool-toned discovery surfaces for candidate and employer homepages. */
 .zync-home .career-role-discovery::before,
 .employer-home #products .employer-discovery-workspace::before {
-  background: linear-gradient(115deg, #f5f7ff, #e8effc);
-  border-color: #d7e2f5;
+  background: linear-gradient(180deg, #fdfcff 0%, #f2effc 48%, #e5def9 100%);
+  border-color: #ded4f7;
+  border-radius: 28px;
 }
+.zync-home .career-role-panel,
+.zync-home .career-role-grid button,
+.employer-home #products .employer-category-panel,
+.employer-home #products .employer-category-panel .solution-categories button {
+  border-color: #dfd6f6;
+}
+.zync-home .career-role-grid button:hover,
+.employer-home #products .employer-category-panel .solution-categories button:hover {
+  background: #f8f5ff;
+  border-color: #ad95df;
+}
+
 @media (max-width: 1023px) {
   .employer-home #products .career-discovery-intro {
-    background: linear-gradient(115deg, #f5f7ff, #e8effc);
+    background: linear-gradient(180deg, #fdfcff 0%, #f2effc 48%, #e5def9 100%);
   }
 }
 /* FAQ help banner with a dedicated hiring-support illustration. */
@@ -2577,7 +2649,6 @@ html, body {
 .zync-home .career-journey .journey-panel { gap: 44px; border: 0; border-radius: 0; overflow: visible; background: transparent; padding-block: 22px; }
 .zync-home .career-journey .journey-copy { padding: 12px 8px 12px 0; }
 .zync-home .career-journey .journey-preview.layered-journey-preview { position: relative; background: transparent; border: 0; padding: 0; overflow: visible; }
-.zync-home .career-journey .layered-journey-preview::before { content: ''; position: absolute; inset: 22px 12px 28px; background: radial-gradient(ellipse at center, #deebfcaa 0%, #eaf2fc55 48%, transparent 73%); pointer-events: none; }
 .zync-home .career-journey .journey-preview-heading { position: relative; margin-bottom: 10px; }
 .zync-home .career-journey .journey-preview-caption { position: relative; margin-top: 12px; }
 .zync-home .career-journey .layered-floating-insight { animation: journey-insight-float 6s ease-in-out infinite; }
@@ -2615,26 +2686,85 @@ html, body {
 .hero-bot-webgl { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .2s; }
 .hero-bot-renderer.has-model .hero-bot-webgl { opacity: 1; }
 .hero-bot-webgl canvas { display: block; }
-.hero-original-greeting { position: absolute; z-index: 2; top: 45px; right: 16px; padding: 12px 17px; border-radius: 18px; background: #fff; border: 1px solid #eef1f5; color: #243858; box-shadow: 0 12px 30px #172b4d09; font-size: 12px; font-weight: 600; }
-.hero-original-greeting strong { color: #f97316; }
-.hero-original-greeting::before { content: ''; position: absolute; top: 50%; left: -7px; width: 12px; height: 12px; background: #fff; transform: translateY(-50%) rotate(45deg); }
 .hero-original-bot-loading { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; margin: -11px; border: 2px solid #dce5f1; border-top-color: #f97316; border-radius: 50%; animation: zync-bot-loading 1s linear infinite; }
 @keyframes zync-bot-loading { to { transform: rotate(360deg); } }
 @media (max-width: 1023px) { .hero-original-robot { width: min(480px, 100%); margin-inline: auto; } }
 @media (max-width: 639px) {
   .hero-original-robot, .hero-original-canvas { height: 340px; }
-  .hero-original-greeting { top: 18px; right: 0; padding: 10px 13px; font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { .hero-original-bot-loading { animation: none; } }
 @media (max-width: 639px) { .zync-home .hero-original-robot .hero-original-canvas { height: 340px; } }
 /* Compact candidate home spacing while preserving the original orange 3D bot. */
 .zync-home :is(.home-existing-hero, .home-company-strip, .home-latest-jobs) > .max-w-7xl { max-width: 1480px; }
-.zync-home .home-existing-hero > .relative.z-10 { max-width: 1480px; padding-block: 12px; gap: 28px; }
+.zync-home { --candidate-hero-width: 1480px; }
+.zync-home .home-existing-hero > .relative.z-10 { max-width: var(--candidate-hero-width); padding-block: 12px; gap: 28px; }
+@media (min-width: 1024px) {
+  .zync-home .zync-site-header .portal-header-container {
+    max-width: none;
+    padding-inline-start: max(0px, (100% - var(--candidate-hero-width)) / 2);
+    padding-inline-end: max(0px, (100% - var(--portal-page-width)) / 2);
+  }
+  .zync-home .portal-header-row {
+    display: flex;
+    padding-inline: var(--portal-page-gutter);
+  }
+  .zync-home .portal-header-actions { flex-shrink: 0; }
+}
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .zync-home .portal-header-row { padding-inline-end: 16px; }
+}
 .zync-home .home-existing-hero .hero-main-copy { padding-block: 12px; }
 .zync-home .hero-original-robot, .zync-home .hero-original-canvas { height: 430px; }
 .zync-home .home-company-strip { padding-block: 12px; }
-.zync-home .home-company-strip p { margin-bottom: 44px; }
 .zync-home .home-latest-jobs { padding-top: 32px; padding-bottom: 40px; }
+.zync-home .home-latest-jobs {
+  background: linear-gradient(180deg, #faf9ff, #eeeaff);
+}
+.latest-job-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.latest-job-company-line > p { min-width: 0; }
+.latest-job-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #e9f7ef;
+  color: #196046;
+  font-size: 10px;
+  font-weight: 700;
+}
+.latest-job-skills { --skill-loop-duration: 24s; min-width: 0; margin-bottom: 16px; overflow: hidden; }
+.latest-job-skills-group { display: flex; flex-wrap: nowrap; gap: 8px; }
+.latest-job-skills-group li {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid #e5dcf9;
+  border-radius: 6px;
+  background: #f5f0ff;
+  color: #243858;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.latest-job-skills-copy { display: none; }
+.latest-job-skills[data-loop="true"] .latest-job-skills-track {
+  display: flex;
+  width: max-content;
+  min-width: 200%;
+  animation: latest-job-skills-slide var(--skill-loop-duration) linear infinite;
+}
+.latest-job-skills[data-loop="true"] .latest-job-skills-group {
+  display: flex;
+  flex: 1 0 auto;
+  padding-inline-end: 8px;
+}
+@keyframes latest-job-skills-slide { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  /* Skill chips loop independently of the homepage's other motion effects. */
+  .zync-home .latest-job-skills[data-loop="true"] .latest-job-skills-track {
+    animation: latest-job-skills-slide var(--skill-loop-duration) linear infinite !important;
+  }
+}
 @media (max-width: 639px) {
   .zync-home .home-existing-hero > .relative.z-10 { padding-block: 10px 16px; gap: 8px; }
   .zync-home .home-existing-hero .hero-main-copy { padding-block: 8px; }
@@ -2660,7 +2790,6 @@ html, body {
 .zync-home .home-existing-hero .hero-search-input-wrap input { font-size: 16px; }
 .zync-home .home-existing-hero .hero-search-submit { min-height: 56px; font-size: 16px; padding-inline: 20px; }
 .zync-home .hero-original-robot, .zync-home .hero-original-canvas { height: 470px; }
-.zync-home .hero-original-greeting { font-size: 13px; top: 48px; }
 @media (max-width: 767px) {
   .zync-home .home-existing-hero > .relative.z-10 { padding-block: 18px; gap: 12px; }
   .zync-home .home-existing-hero .hero-main-copy { padding-block: 12px; }
@@ -2669,14 +2798,10 @@ html, body {
 }
 @media (max-width: 639px) {
   .zync-home .hero-original-robot, .zync-home .hero-original-robot .hero-original-canvas { height: 350px; }
-  .zync-home .hero-original-greeting { font-size: 11px; top: 18px; }
 }
 /* Merge trusted companies into the navy hero, then fade gently into the content below. */
 .zync-home .home-existing-hero { border-bottom: 0; }
 .zync-home .home-company-strip { background: linear-gradient(180deg, #142641 0, #142641 calc(100% - 40px), #fff 100%); border: 0; padding-top: 46px; padding-bottom: 52px; }
-.zync-home .home-company-strip p { color: #b2c5df; }
-.company-marquee-edge-left { background: linear-gradient(90deg, #142641, transparent); }
-.company-marquee-edge-right { background: linear-gradient(270deg, #142641, transparent); }
 /* ZyncBot: a larger, readable career-assistant workspace. */
 .zync-chat-launcher { min-height: 58px; padding: 10px 18px 10px 11px; gap: 10px; box-shadow: 0 8px 26px #245be030; }
 .zync-chat-launcher > img { width: 38px; height: 38px; padding: 5px; }
@@ -3026,6 +3151,12 @@ html, body {
 .feature-sidebar-layout:has(> .feature-guide-credentialing) { padding:0; max-width:none; }
 .feature-sidebar-layout:has(> .feature-guide-credentialing) .feature-sidebar-main h1 { font-size:30px; line-height:1.3; letter-spacing:-.5px; }
 .recruiter-feature-workspace { max-width:1480px; align-items:flex-start; }
+.recruiter-banner-layout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; }
+.recruiter-banner-layout > div:first-child { min-width: 0; }
+.employer-content-page .recruiter-banner-layout h1 { color: #fff; flex-wrap: wrap; }
+.recruiter-banner-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.recruiter-posting-picker { flex-basis: 100%; display: grid; gap: 5px; color: #fff; font-size: 13px; font-weight: 600; }
+.recruiter-posting-select { width: min(100%, 420px); min-width: 0; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #172b4d; }
 .ai-shortlist-guide { padding:0 20px; }
 .ai-shortlist-guide .employer-feature-guide { margin:12px 0; padding:14px; }
 .ai-shortlist-guide .feature-guide-art { flex-basis:80px; }
@@ -3135,8 +3266,6 @@ html, body {
 @media(max-width:900px) { .candidate-profile-workspace > .candidate-profile-context { grid-row:auto; } }
 @media(max-width:639px) { .candidate-profile-workspace > .candidate-identity-card { padding:24px 20px; } .candidate-identity-layout { gap:16px; align-items:flex-start; } .candidate-identity-details h1 { font-size:26px; } .candidate-profile-sheet > div.bg-white { padding:24px 20px; } .candidate-profile-sheet > .candidate-profile-section-nav { padding:16px 20px; gap:20px; } }
 
-@media(min-width:1024px) { .zync-site-header .portal-header-actions > .portal-notifications { margin-right:16px; margin-left:8px; } }
-
 /* Profile overlays need their own offset for the fixed site header. */
 .fixed > .employer-candidate-profile { padding-top:var(--header-h,86px); }
 .candidate-profile-return { display:inline-flex; align-items:center; gap:10px; color:#426086; font-size:13px; font-weight:500; padding:10px 0; }
@@ -3171,14 +3300,8 @@ html, body {
 .hiring-plans-page-heading p { font-size:15px; line-height:1.8; color:#72839a; }
 .hiring-plans-page .public-hiring-plan { box-shadow:0 6px 20px #20375505; }
 
-.company-logo-track { display:flex; width:max-content; animation:zync-company-loop 42s linear infinite; will-change:transform; }
-.company-logo-group { display:flex; align-items:center; flex-shrink:0; gap:36px; padding-right:36px; }
-.company-logo-item { width:128px; flex:0 0 128px; }
-@keyframes zync-company-loop { from { transform:translateX(0); } to { transform:translateX(-50%); } }
-@media(max-width:639px) { .company-logo-group { gap:24px; padding-right:24px; } .company-logo-item { width:96px; flex-basis:96px; } }
 
 
-.zync-home .home-company-strip .company-logo-track { animation:zync-company-loop 42s linear infinite !important; }
 
 
 .home-motion-card { transform:perspective(1000px) rotateX(var(--motion-rx,0deg)) rotateY(var(--motion-ry,0deg)); transition:transform .25s ease,box-shadow .25s ease; }
@@ -3194,9 +3317,6 @@ html, body {
 .zync-home .home-existing-hero .hero-search-chips button:hover { color:#245be0; border-color:#bdd0f1; background:#f1f6ff; }
 .zync-home .home-existing-hero .home-existing-search { box-shadow:0 8px 28px #264c8008; }
 .zync-home .home-company-strip { background:#fff; border:0; }
-.zync-home .home-company-strip p { color:#7d8fa8; }
-.zync-home .company-marquee-edge-left { background:linear-gradient(90deg,#fff,transparent); }
-.zync-home .company-marquee-edge-right { background:linear-gradient(270deg,#fff,transparent); }
 
 /* Reference-inspired pastel hero: mint above, coral and periwinkle below. */
 .zync-home .home-existing-hero {
@@ -3218,10 +3338,9 @@ html, body {
 /* Hero and company logos share one first-screen canvas. */
 .zync-home .home-first-screen {
  background:
-   radial-gradient(ellipse at 53% 105%, #b3f6fc 0%, transparent 48%),
-   radial-gradient(ellipse at 34% 34%, #c3c9fc 0%, transparent 40%),
-   radial-gradient(ellipse at 15% -10%, #2384fb 0%, transparent 40%),
-   linear-gradient(118deg, #7399f9 4%, #67baf7 32%, #39c6f3 58%, #0097f7 82%, #0565ba 100%);
+   radial-gradient(ellipse at 28% 48%, #e0edff 0%, #d9edff 18%, transparent 57%),
+   radial-gradient(ellipse at 54% 105%, #b6f0f7 0%, transparent 52%),
+   linear-gradient(118deg, #7caff4 4%, #88c8f6 34%, #50c5eb 61%, #169bea 83%, #126bb5 100%);
  min-height:calc(100svh - var(--header-h,86px)); display:flex; flex-direction:column; border-radius:0 0 64px 64px; overflow:hidden;
 }
 .zync-home .home-first-screen .home-existing-hero { background:transparent; min-height:0; border-radius:0; flex:1; }
@@ -3230,18 +3349,68 @@ html, body {
 .zync-home .home-first-screen .hero-main-copy > p,
 .zync-home .home-first-screen .hero-popular-searches > span { color: #183454; }
 .zync-home .home-first-screen .home-company-strip { background:transparent; padding-top:20px; padding-bottom:32px; flex-shrink:0; }
-.zync-home .home-first-screen .home-company-strip p { margin-bottom:24px; color:#59718f; }
-.zync-home .home-first-screen .company-marquee-edge { display:none; }
 @media(max-width:639px) { .zync-home .home-first-screen { border-radius:0 0 32px 32px; } }
 
 .zync-home .home-first-screen > .home-existing-hero { min-height:calc(100svh - var(--header-h,86px)); }
 
 /* Keep the trusted-company heading with its logos below the hero fold. */
-.zync-home .home-first-screen + .home-company-strip { margin-top:48px; }
-@media(max-width:639px) { .zync-home .home-first-screen + .home-company-strip { margin-top:32px; } }
+.zync-home .home-first-screen + .home-company-strip { margin-top: 0; padding-block: 12px; }
+.home-company-panel {
+  width: 100%;
+  background: #fff;
+  padding-block: clamp(24px, 3vw, 36px);
+}
+.home-company-heading {
+  width: 100%;
+  margin: 0 0 20px;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
+.home-company-loop {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+.home-company-track {
+  display: flex;
+  width: 216%;
+  min-width: 2460px;
+  animation: home-company-slide 32.4s linear infinite;
+}
+@keyframes home-company-slide {
+  to { transform: translateX(-50%); }
+}
+.home-company-grid {
+  display: grid;
+  flex: 0 0 50%;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 16px;
+  padding-inline: 8px;
+}
+.home-company-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  min-width: 0;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.home-company-logo img {
+  width: min(100%, 122px);
+  height: 32px;
+  object-fit: contain;
+}
+.home-company-logo[data-padded-artwork="true"] img { transform: scale(2.45); }
+.home-company-logo[data-raised-wordmark="true"] img { transform: translateY(-6px); }
+.home-company-logo[data-square-mark="true"] img { width: 38px; height: 38px; }
+.home-company-logo img:not([hidden]) + span { display: none; }
+.home-company-logo img[hidden] { display: none; }
 
-.zync-home .home-company-strip p { font-size:16px; font-weight:600; letter-spacing:1.5px; }
-@media(max-width:639px) { .zync-home .home-company-strip p { font-size:14px; } }
 
 /* Light final call-to-action with blue shading concentrated along the bottom. */
 .zync-home .home-final-cta.illustrated-candidate-cta { background:radial-gradient(ellipse at 0% 115%,#85b8ff 0,transparent 53%),radial-gradient(ellipse at 100% 115%,#85b8ff 0,transparent 53%),linear-gradient(180deg,#f7faff 0%,#f2f7ff 68%,#d9eaff 100%); color:#203755; padding-block:64px; }

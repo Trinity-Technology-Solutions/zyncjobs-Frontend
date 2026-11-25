@@ -1,58 +1,51 @@
 import React from 'react';
 
 const COMPANIES = [
-  { name: 'Birlasoft',   logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-  { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-  { name: 'LTIMindtree',logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-  { name: 'Saksoft',    logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-  { name: 'L&T',        logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-  { name: 'Cognizant',  logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-  { name: 'Accenture',  logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
+  { name: 'Birlasoft', logo: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Birlasoft.svg' },
+  { name: 'Persistent', logo: 'https://upload.wikimedia.org/wikipedia/commons/0/06/Persistent_Systems_Logo.svg' },
+  { name: 'LTM', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100', squareMark: true },
+  { name: 'Saksoft', logo: 'https://bsmedia.business-standard.com/_media/bs/img/article/2022-02/15/full/20220215213226.jpg', paddedArtwork: true },
+  { name: 'Larsen & Toubro', logo: 'https://companieslogo.com/img/orig/LT.NS_BIG-b0f79677.svg' },
+  { name: 'Cognizant', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/43/Cognizant_logo_2022.svg' },
+  { name: 'Accenture', logo: 'https://upload.wikimedia.org/wikipedia/commons/1/1c/Accenture_logo.svg', raisedWordmark: true },
+  { name: 'HCLTech', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/HCLTech-new-logo.svg' },
 ];
 
-const CompanyCarousel: React.FC = () => {
-  // Duplicate the companies array to create a seamless infinite loop
-  const loopCompanies = [...COMPANIES, ...COMPANIES];
-
+export function CompanyLogoLoop() {
   return (
-    <div className="home-company-strip w-full bg-white py-5 sm:py-6 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-xs font-bold text-gray-400 tracking-[0.2em] uppercase mb-4 sm:mb-6">
-          Trusted by Top Companies
-        </p>
-        
-        <div className="relative w-full overflow-hidden">
-          {/* Gradient overlays for smooth fade on edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-10 sm:w-20 company-marquee-edge company-marquee-edge-left z-10 pointer-events-none"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-10 sm:w-20 company-marquee-edge company-marquee-edge-right z-10 pointer-events-none"></div>
-
-          {/* Marquee container */}
-          <div className="company-logo-track">
-            {[0, 1].map(copy => <div key={copy} className="company-logo-group" aria-hidden={copy === 1 ? true : undefined}>
-            {loopCompanies.map((company, index) => (
-              <div 
-                key={`${company.name}-${index}`} 
-                className="company-logo-item flex items-center justify-center"
-              >
-                <img 
-                  src={company.logo} 
-                  alt={`${company.name} logo`} 
-                  className="h-9 sm:h-10 lg:h-11 max-w-[140px] sm:max-w-[160px] w-auto object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&background=0284c7&color=fff&size=80`;
-                  }}
+    <div className="home-company-loop">
+      <div className="home-company-track">
+        {[false, true].map(copy => (
+          <ul key={String(copy)} aria-hidden={copy || undefined} className="home-company-grid">
+            {COMPANIES.map(company => (
+              <li key={company.name} className="home-company-logo"
+                data-padded-artwork={company.paddedArtwork} data-raised-wordmark={company.raisedWordmark}
+                data-square-mark={company.squareMark}>
+                <img
+                  src={company.logo}
+                  alt={company.name}
+                  decoding="async"
+                  onError={event => { event.currentTarget.hidden = true; }}
                 />
-              </div>
+                <span>{company.name}</span>
+              </li>
             ))}
-            </div>)}
-          </div>
-        </div>
+          </ul>
+        ))}
       </div>
-
-
     </div>
   );
-};
+}
+
+const CompanyCarousel: React.FC = () => (
+  <section className="home-company-strip" aria-labelledby="home-company-heading">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="home-company-panel">
+        <h2 id="home-company-heading" className="home-company-heading">Trusted by top companies</h2>
+        <CompanyLogoLoop />
+      </div>
+    </div>
+  </section>
+);
 
 export default CompanyCarousel;

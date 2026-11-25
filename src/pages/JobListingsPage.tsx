@@ -19,11 +19,12 @@ import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
-import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
 import { usePageSnapshot } from '../utils/listPageState';
+import { filterKey, listingAnnualInrSalary, listingFacetCounts, listingJobTypes, listingLocations, listingWorkMode } from '../utils/jobListingFilters';
+import { isFresherExperience } from '../utils/jobExperience';
 
 interface JobListingsSnapshot {
   searchTerm: string;
@@ -151,7 +152,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       setLocation(snap.location);
       setSelectedCategory(snap.selectedCategory);
       setCategoryTerms(snap.categoryTerms || []);
-      setFilters(snap.filters);
+      setFilters({ ...snap.filters, location: [...new Set(snap.filters.location.flatMap(listingLocations))] });
       setSalaryMin(snap.salaryMin ?? 0);
       setSalaryMax(snap.salaryMax ?? 50);
       setExpMin(snap.expMin ?? 0);
@@ -374,27 +375,25 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  // Single filter pipeline — used by the results effect AND the sidebar location counts.
-  // skipLocation=true excludes the sidebar location filter so each location's count
-  // reflects exactly how many results the user would get after checking it.
-  const computeFilteredJobs = useCallback((source: any[], skipLocation: boolean) => {
+  // Exclude the facet being counted while keeping the other active filters.
+  const computeFilteredJobs = useCallback((source: any[], skip?: 'location' | 'department' | 'workMode' | 'jobType') => {
     let filtered = clientFilter(source, searchTerm, location);
     if (trendingTitle && searchTerm === trendingTitle) {
       filtered = filtered.filter(job => normalizedJobTitle(job.title || job.jobTitle || '') === normalizedJobTitle(trendingTitle));
     }
 
-    if (filters.department.length > 0) {
-      filtered = filtered.filter(job =>
-        filters.department.includes(job.jobCategory || job.category || '')
-      );
+    if (skip !== 'department' && filters.department.length > 0) {
+      const selected = new Set(filters.department.map(filterKey));
+      filtered = filtered.filter(job => selected.has(filterKey(job.jobCategory || job.category || '')));
     }
     if (expMin > 0 || expMax < 30) {
       filtered = filtered.filter(job => {
         const exp = job.experienceRange || job.experience || '';
+        if (isFresherExperience(exp)) return expMin === 0;
         const nums = exp.match(/\d+/g)?.map(Number) || [];
         if (!nums.length) return true;
         const jobMin = Math.min(...nums);
-        const jobMax = nums.length > 1 ? Math.max(...nums) : nums[0];
+        const jobMax = nums.length > 1 ? Math.max(...nums) : /\d+\s*\+/.test(exp) ? Infinity : nums[0];
         return jobMin <= (expMax >= 30 ? Infinity : expMax) && jobMax >= expMin;
       });
     }
@@ -402,40 +401,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       const rMin = salaryMin * 100000;
       const rMax = salaryMax >= 50 ? Infinity : salaryMax * 100000;
       filtered = filtered.filter(job => {
-        const s = typeof job.salary === 'object' ? (job.salary?.min || 0) : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
-        const sMaxVal = typeof job.salary === 'object' ? (job.salary?.max || s) : s;
-        if (!s && !sMaxVal) return true;
-        return s <= rMax && sMaxVal >= rMin;
+        const salary = listingAnnualInrSalary(job);
+        return salary !== null && salary.min <= rMax && salary.max >= rMin;
       });
     }
-    if (filters.workMode.length > 0) {
-      filtered = filtered.filter(job => {
-        const lt = (job.locationType || '').toLowerCase();
-        const loc = (job.location || '').toLowerCase();
-        const desc = (job.description || '').toLowerCase();
-        const title = (job.title || job.jobTitle || '').toLowerCase();
-        
-        return filters.workMode.some(mode => {
-          if (mode === 'Remote') {
-            return lt.includes('remote') || loc.includes('remote') || desc.includes('remote') || 
-                   title.includes('remote') || lt.includes('work from home') || 
-                   loc.includes('work from home') || loc === 'remote' || lt === 'remote';
-          }
-          if (mode === 'Hybrid') return lt.includes('hybrid') || loc.includes('hybrid') || desc.includes('hybrid');
-          if (mode === 'Work from office') {
-            return (lt === 'in person' || lt === 'onsite') || 
-                   (!lt.includes('remote') && !lt.includes('hybrid') && 
-                    !loc.includes('remote') && !loc.includes('hybrid') &&
-                    !desc.includes('remote') && !desc.includes('hybrid'));
-          }
-          return false;
-        });
-      });
+    if (skip !== 'workMode' && filters.workMode.length > 0) {
+      filtered = filtered.filter(job => filters.workMode.includes(listingWorkMode(job)));
     }
-    if (!skipLocation && filters.location.length > 0) {
-      filtered = filtered.filter(job =>
-        filters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
-      );
+    if (skip !== 'location' && filters.location.length > 0) {
+      const selected = new Set(filters.location.flatMap(listingLocations).map(filterKey));
+      filtered = filtered.filter(job => listingLocations(job.location || job.jobLocation).some(label => selected.has(filterKey(label))));
     }
     if (filters.industry.length > 0) {
       filtered = filtered.filter(job => {
@@ -443,12 +418,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         return filters.industry.some(ind => jobText.includes(ind.toLowerCase()));
       });
     }
-    if (filters.jobType) {
-      filtered = filtered.filter(job => {
-        const t = job.type || job.jobType;
-        const arr = Array.isArray(t) ? t : t ? [t] : [];
-        return arr.some((v: string) => v.toLowerCase() === filters.jobType.toLowerCase());
-      });
+    if (skip !== 'jobType' && filters.jobType) {
+      const selected = filterKey(listingJobTypes({ jobType: filters.jobType })[0] || '');
+      if (selected) filtered = filtered.filter(job => listingJobTypes(job).some(type => filterKey(type) === selected));
     }
     if (filters.freshness.length > 0) {
       const now = Date.now();
@@ -456,7 +428,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         const raw = job.createdAt || job.postedAt || job.datePosted;
         if (!raw) return false;
         const t = new Date(raw).getTime();
-        if (isNaN(t) || t <= 0) return false;
+        if (isNaN(t) || t <= 0 || t > now) return false;
         const daysDiff = (now - t) / (1000 * 60 * 60 * 24);
         return filters.freshness.some(freshness => {
           if (freshness === '48h') return daysDiff <= 2;
@@ -472,7 +444,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   // Reactive filter: runs when jobs load, filters change, or Search is triggered
   useEffect(() => {
-    const filtered = computeFilteredJobs(jobs, false);
+    const filtered = computeFilteredJobs(jobs);
     filtered.sort((a: any, b: any) => {
       const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
       const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
@@ -485,10 +457,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   // Keep applyFilters as a no-op shim so existing call sites don't break
   const applyFilters = useCallback((_f: any, _j: any, _eMin?: any, _eMax?: any, _sMin?: any, _sMax?: any) => {}, []);
-
-  const handleQuickFilterToggle = (key: string, filterType: string, value: string) => {
-    handleQuickFilter(key, filterType, value);
-  };
 
   const fetchStats = async () => {
     try {
@@ -643,7 +611,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     setFilters(prev => {
       if (arrayFilters.includes(filterType)) {
         const arr = prev[filterType as keyof typeof prev] as string[];
-        return { ...prev, [filterType]: arr.includes(value) ? arr.filter(i => i !== value) : [...arr, value] };
+        const key = filterKey(value);
+        return { ...prev, [filterType]: arr.some(item => filterKey(item) === key)
+          ? arr.filter(item => filterKey(item) !== key)
+          : [...arr, value] };
       }
       return { ...prev, [filterType]: value };
     });
@@ -1252,57 +1223,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             </button>
           </div>
 
-          {/* Mobile Filter Panel */}
-          {showFilters && (
-            <div className="lg:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Filters</h3>
-                <button onClick={() => setShowFilters(false)} title="Close filters"><X className="w-5 h-5 text-gray-400" /></button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
-                  <AutocompleteCombobox
-                    value={filters.jobType}
-                    onChange={(val) => handleFilterChange('jobType', val)}
-                    options={[
-                      { value: '', label: 'All Types' },
-                      { value: 'Full-time', label: 'Full-time' },
-                      { value: 'Part-time', label: 'Part-time' },
-                      { value: 'Contract', label: 'Contract' },
-                      { value: 'Remote', label: 'Remote' },
-                    ]}
-                    placeholder="Select job type..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Remote','Hybrid','Work from office'].map(mode => (
-                      <label key={mode} className="flex items-center gap-1 text-sm">
-                        <input 
-                          type="radio" 
-                          name="workModeMobile"
-                          checked={filters.workMode.includes(mode)} 
-                          onChange={() => {
-                            const key = mode === 'Remote' ? 'remote' : mode === 'Hybrid' ? 'hybrid' : 'office';
-                            handleQuickFilter(key, 'workMode', mode);
-                          }} 
-                        />
-                        {mode}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {isFiltered && (
-                <button onClick={() => { setActiveQuickFilter(null); setFilters({ jobType: '', salaryRange: '', experience: '', department: [], location: [], workMode: [], industry: [], companySize: [], freshness: [] }); setSalaryMin(0); setSalaryMax(50); setExpMin(0); setExpMax(30); }} className="mt-3 text-sm text-red-500 hover:underline">Clear all filters</button>
-              )}
-            </div>
-          )}
-
-          {/* Left Sidebar - Filters (desktop only) */}
-          <div className="job-search-filter-rail hidden lg:block lg:col-span-1">
+          <div className={`job-search-filter-rail lg:col-span-1 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
               {/* Trending Job Titles - Dynamic count from real data */}
               {filteredJobs.length > 0 && (() => {
@@ -1328,29 +1249,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Department</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {[
-                    'Information Technology', 'Software Development', 'Data Science & Analytics',
-                    'Sales & Business Development', 'Marketing & Digital Marketing',
-                    'Finance & Accounting', 'Banking & Insurance', 'Human Resources',
-                    'Operations & Supply Chain', 'Logistics & Warehouse', 'Customer Service',
-                    'Civil & Construction', 'Mechanical & Manufacturing', 'Electrical & Electronics',
-                    'Healthcare & Medical', 'Pharmacy & Life Sciences',
-                    'Education & Teaching', 'Hospitality & Travel', 'Media & Creative',
-                    'Legal & Compliance', 'Real Estate', 'Retail', 'Gulf & Overseas', 'Other'
-                  ].map(cat => {
-                    const count = jobs.filter(j => (j.jobCategory || j.category) === cat).length;
-                    return (
-                      <label key={cat} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="mr-2"
-                          checked={filters.department.includes(cat)}
-                          onChange={() => handleFilterChange('department', cat)}
-                        />
-                        <span className="text-sm">{cat} ({count})</span>
-                      </label>
-                    );
-                  })}
+                  {listingFacetCounts(computeFilteredJobs(jobs, 'department'), job => [job.jobCategory || job.category || '']).map(({ key, label, count }) => (
+                    <label key={key} className="flex items-center gap-2">
+                      <input type="checkbox" checked={filters.department.some(value => filterKey(value) === key)}
+                        onChange={() => handleFilterChange('department', label)} />
+                      <span className="text-sm">{label} ({count})</span>
+                    </label>
+                  ))}
                 </div>
               </div>
               
@@ -1364,10 +1269,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <SalaryRangeSlider
                   min={expMin}
                   max={expMax}
+                  upperLimit={30}
                   onChange={(mn, mx) => { setExpMin(mn); setExpMax(mx); }}
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
-                  <span>0</span><span>5</span><span>10</span><span>15</span><span>20</span><span>30+</span>
+                  <span>0</span><span>6</span><span>12</span><span>18</span><span>24</span><span>30+</span>
                 </div>
                 {(expMin > 0 || expMax < 30) && (
                   <button onClick={() => { setExpMin(0); setExpMax(30); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
@@ -1413,24 +1319,22 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 />
                 <div className="space-y-1.5">
                   {(() => {
-                    const jobLocs = Array.from(new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))).sort();
-                    const filtered = locationSearch
-                      ? jobLocs.filter(l => l.toLowerCase().includes(locationSearch.toLowerCase()))
-                      : jobLocs;
-                    const visible = showAllLocations ? filtered : filtered.slice(0, 6);
-                    // Count each location against ALL other active filters (term, category,
-                    // work mode, salary, etc.) — so the badge matches the real result count.
-                    const baseForCounts = jobs.length > 0 ? computeFilteredJobs(jobs, true) : [];
+                    const selected = new Set(filters.location.flatMap(listingLocations).map(filterKey));
+                    const locations = listingFacetCounts(computeFilteredJobs(jobs, 'location'), job => listingLocations(job.location || job.jobLocation))
+                      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+                    const query = filterKey(locationSearch);
+                    const searchKeys = listingLocations(locationSearch).map(filterKey);
+                    const filtered = locations.filter(({ key }) => !query || key.includes(query) || searchKeys.includes(key));
+                    const visible = showAllLocations || query ? filtered : filtered.slice(0, 6);
                     return (
                       <>
-                        {visible.map(loc => {
-                          const count = baseForCounts.filter(j => (j.location || '').toLowerCase().includes(loc.toLowerCase())).length;
+                        {visible.map(({ key, label: loc, count }) => {
                           return (
-                            <label key={loc} className="flex items-center gap-2 cursor-pointer group">
+                            <label key={key} className="flex items-center gap-2 cursor-pointer group">
                               <input
                                 type="checkbox"
                                 className="w-4 h-4 accent-blue-600"
-                                checked={filters.location.includes(loc)}
+                                checked={selected.has(key)}
                                 onChange={() => handleFilterChange('location', loc)}
                               />
                               <span className="text-sm text-gray-700 group-hover:text-blue-600 flex-1">{loc}</span>
@@ -1454,63 +1358,31 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Work mode</h4>
                 <div className="space-y-2">
-                  {['Work from office', 'Hybrid', 'Remote'].map(mode => {
-                    const count = jobs.filter(job => {
-                      const lt = (job.locationType || '').toLowerCase();
-                      const loc = (job.location || '').toLowerCase();
-                      if (mode === 'Remote') return lt === 'remote' || loc === 'remote';
-                      if (mode === 'Hybrid') return lt === 'hybrid' || loc === 'hybrid';
-                      return lt === 'in person' || (lt !== 'remote' && lt !== 'hybrid' && loc !== 'remote');
-                    }).length;
-                    const modeKey = mode === 'Remote' ? 'remote' : mode === 'Hybrid' ? 'hybrid' : 'office';
-                    const isActive = filters.workMode.includes(mode);
-                    return (
-                      <label key={mode} className="flex items-center cursor-pointer" onClick={() => handleQuickFilterToggle(modeKey, 'workMode', mode)}>
-                        <input
-                          type="radio"
-                          name="workMode"
-                          className="mr-2"
-                          checked={isActive}
-                          onChange={() => {}}
-                        />
-                        <span className="text-sm">{mode} ({count})</span>
-                      </label>
-                    );
-                  })}
+                  {listingFacetCounts(computeFilteredJobs(jobs, 'workMode'), job => [listingWorkMode(job)]).map(({ key, label, count }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={filters.workMode.includes(label)}
+                        onChange={() => {
+                          if (['remote', 'hybrid', 'office'].includes(activeQuickFilter || '')) setActiveQuickFilter(null);
+                          handleFilterChange('workMode', label);
+                        }} />
+                      <span className="text-sm">{label} ({count})</span>
+                    </label>
+                  ))}
                 </div>
               </div>
               {/* Job Type */}
               <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Job Type</h4>
                 <div className="space-y-2">
-                  {(() => {
-                    const allTypes = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship'];
-                    const dynamicTypes = Array.from(new Set(
-                      jobs.flatMap(j => {
-                        const t = j.type || j.jobType;
-                        return Array.isArray(t) ? t : t ? [t] : [];
-                      }).map((t: string) => t.trim()).filter(Boolean)
-                    ));
-                    const types = Array.from(new Set([...allTypes, ...dynamicTypes]));
-                    return types.map(type => {
-                      const count = jobs.filter(j => {
-                        const t = j.type || j.jobType;
-                        const arr = Array.isArray(t) ? t : t ? [t] : [];
-                        return arr.some((v: string) => v.toLowerCase() === type.toLowerCase());
-                      }).length;
-                      return (
-                        <label key={type} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={filters.jobType === type}
-                            onChange={() => handleFilterChange('jobType', filters.jobType === type ? '' : type)}
-                          />
-                          <span className="text-sm">{type} ({count})</span>
-                        </label>
-                      );
-                    });
-                  })()}
+                  {listingFacetCounts(computeFilteredJobs(jobs, 'jobType'), listingJobTypes).map(({ key, label, count }) => {
+                    const selected = filterKey(listingJobTypes({ jobType: filters.jobType })[0] || '') === key;
+                    return (
+                      <label key={key} className="flex items-center gap-2">
+                        <input type="checkbox" checked={selected} onChange={() => handleFilterChange('jobType', selected ? '' : label)} />
+                        <span className="text-sm">{label} ({count})</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1546,63 +1418,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 </button>
               )}
             </div>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-              <button onClick={() => setShowFilters(false)} title="Close filters">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
-                <AutocompleteCombobox
-                  value={filters.jobType}
-                  onChange={(val) => handleFilterChange('jobType', val)}
-                  options={[
-                    { value: '', label: 'All Types' },
-                    { value: 'Full-time', label: 'Full-time' },
-                    { value: 'Part-time', label: 'Part-time' },
-                    { value: 'Contract', label: 'Contract' },
-                    { value: 'Remote', label: 'Remote' },
-                  ]}
-                  placeholder="Select job type..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
-                <AutocompleteCombobox
-                  value={filters.experience}
-                  onChange={(val) => handleFilterChange('experience', val)}
-                  options={[
-                    { value: '', label: 'All Levels' },
-                    { value: 'Entry', label: 'Entry Level' },
-                    { value: 'Mid', label: 'Mid Level' },
-                    { value: 'Senior', label: 'Senior Level' },
-                  ]}
-                  placeholder="Select experience level..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
-                <AutocompleteCombobox
-                  value={filters.salaryRange}
-                  onChange={(val) => handleFilterChange('salaryRange', val)}
-                  options={[
-                    { value: '', label: 'All Ranges' },
-                    { value: '50k-100k', label: '₹50k - ₹100k' },
-                    { value: '100k-150k', label: '₹100k - ₹150k' },
-                    { value: '150k+', label: '₹150k+' },
-                  ]}
-                  placeholder="Select salary range..."
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {loading ? (
           <div className="space-y-6">

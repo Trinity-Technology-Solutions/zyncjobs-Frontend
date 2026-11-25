@@ -4,6 +4,10 @@ import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
 import { sendAIMessage } from '../services/aiChatService';
 import { JobParser } from '../utils/jobParser';
+import { extractFixedJobSalary } from '../utils/jobSalary';
+import { extractJobWorkAuthorization } from '../utils/jobWorkAuthorization';
+import { importJobSkills } from '../utils/importedJobSkills';
+import { FRESHER_EXPERIENCE, isFresherExperience, mentionsFresherEligibility } from '../utils/jobExperience';
 
 interface JobParsingPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -107,6 +111,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         const cleanTitle = metaTitlePat.test(rawTitle) || titleLooksLikeSentence ? '' : rawTitle;
         ai = {
           jobTitle:         cleanTitle,
+          companyName:      d.companyName || d.company || '',
           jobLocation:      d.location        || '',
           jobType:          d.jobType         || '',
           experienceRange:  d.experienceRange || '',
@@ -116,6 +121,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
           minSalary:        d.salaryMin > 0 ? String(d.salaryMin) : '',
           maxSalary:        d.salaryMax > 0 ? String(d.salaryMax) : '',
           currency:         d.currency        || '',
+          payRate:          d.payRate         || '',
+          payType:          d.payType         || '',
           educationLevel:   d.educationLevel  || '',
           jobCategory:      d.jobCategory     || '',
           responsibilities: d.responsibilities || [],
@@ -152,7 +159,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     } catch { /* ignore */ }
 
     // Step 3: merge - AI first, regex fills gaps, helper functions as final fallback
-    const salary = extractSalaryIfNumeric(description);
+    const fixedSalary = extractFixedJobSalary(description);
+    const salary = fixedSalary || extractSalaryIfNumeric(description);
     const jobLocation =
       ai.jobLocation || regex.jobLocation || extractLocation(description);
     const country = await inferCountryFromCity(base, jobLocation);
@@ -215,31 +223,56 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     const rawJobType = ai.jobType ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description);
     const jobType = (Array.isArray(rawJobType) ? rawJobType : [rawJobType]).filter(t => JOB_TYPES.includes(t));
 
+    const requiredSkills = importJobSkills(description, [
+      ...strictList(ai.skills), ...strictList(regex.skills), ...extractSkills(description),
+    ], 'required');
+    const preferredSkills = importJobSkills(description, [
+      ...strictList(ai.goodToHaveSkills), ...strictList(regex.goodToHaveSkills),
+    ], 'preferred').filter(skill => !requiredSkills.some(required => required.toLowerCase() === skill.toLowerCase()));
+    const education = /\bM\.?B\.?A\b|\bmaster of business administration\b/i.test(description)
+      ? "Master's Degree"
+      : strictShort(ai.educationLevel || extractEducation(description));
+
+    const explicitExperience = extractExperience(description);
+    const experienceRange = strictExp(normalizeExperienceRange(explicitExperience))
+      || (explicitExperience === FRESHER_EXPERIENCE || mentionsFresherEligibility(description)
+        ? FRESHER_EXPERIENCE
+        : strictExp(regex.experienceRange || normalizeExperienceRange(ai.experienceRange)));
+    const sourceText = description.toLowerCase().replace(/\s+/g, ' ');
+    const sourceItems = (items: unknown): string[] => {
+      if (!Array.isArray(items)) return [];
+      return items.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())
+        && sourceText.includes(item.trim().toLowerCase().replace(/\s+/g, ' ')));
+    };
+    const sourceResponsibilities = sourceItems(regex.responsibilities);
+    const sourceRequirements = sourceItems(extractRequirements(description));
+
     return {
       jobTitle:         strictTitle(ai.jobTitle       || regex.jobTitle       || extractJobTitle(description)),
       companyName:      strictCompany(ai.companyName  || extractCompanyName(description)),
       jobLocation:      strictLocation(jobLocation),
       country,
       jobType,
-      experienceRange:  strictExp(regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description)),
-      skills:           strictList((Array.isArray(ai.skills) && ai.skills.length) ? ai.skills : (regex.skills?.length ? regex.skills : extractSkills(description))),
-      minSalary:        strictAmount(ai.minSalary    || regex.minSalary    || salary.min),
-      maxSalary:        strictAmount(ai.maxSalary    || regex.maxSalary    || salary.max),
-      currency:         strictEnum(ai.currency       || regex.currency     || salary.currency, CURRENCIES),
-      payRate:          salary.payRate,
-      payType:          (salary as any).payType,
+      experienceRange,
+      skills:           requiredSkills,
+      minSalary:        fixedSalary?.min || strictAmount(ai.minSalary || regex.minSalary || salary.min),
+      maxSalary:        fixedSalary ? '' : strictAmount(ai.maxSalary || regex.maxSalary || salary.max),
+      currency:         strictEnum(fixedSalary?.currency || ai.currency || regex.currency || salary.currency, CURRENCIES),
+      payRate:          fixedSalary?.payRate || strictEnum(ai.payRate, ['per year', 'per month', 'per hour']) || salary.payRate,
+      payType:          fixedSalary?.payType || strictEnum(ai.payType, ['Exact amount', 'Range', 'Starting amount', 'Maximum amount']) || ('payType' in salary ? salary.payType : undefined),
+      jobImportId:      String(Date.now()),
       benefits:         strictList((Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description), 40, 10),
-      educationLevel:   strictShort(ai.educationLevel || extractEducation(description)),
+      educationLevel:   education,
       jobDescription:   description,
-      responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
-      requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),
-      goodToHaveSkills: strictList((Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description))),
+      responsibilities: sourceResponsibilities.length ? sourceResponsibilities : sourceItems([...sourceItems(ai.responsibilities), ...extractResponsibilities(description)]),
+      requirements:     sourceRequirements.length ? sourceRequirements : sourceItems(ai.requirements),
+      goodToHaveSkills: preferredSkills,
       jobCategory:      strictEnum(ai.jobCategory    || extractJobCategory(description), JOB_CATEGORIES),
       nationality:      ai.nationality      || '',
       priority:         ai.priority && ['Low','Medium','High','Urgent'].includes(ai.priority) ? ai.priority : extractPriority(description),
       clientName:       extractClientName(description),
       reportingManager: extractReportingManager(description),
-      workAuth:         extractWorkAuth(description),
+      workAuth:         extractJobWorkAuthorization(description),
       noticePeriod:     extractNoticePeriod(description),
       urgentNote:       extractUrgentNote(description),
       nationalityRestriction: extractNationalityRestriction(description),
@@ -403,6 +436,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   const normalizeExperienceRange = (raw: string): string => {
     if (!raw) return '';
     const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (isFresherExperience(text)) return FRESHER_EXPERIENCE;
 
     const snapMin = (n: number) => {
       const opts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20];
@@ -416,7 +450,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     };
 
     // Match "11-15 years" or "11 - 15 years" or "11 to 15 years" or "11 â€“ 15 years"
-    const rangeMatch = text.match(/(\d+)\s*(?:[\-\u2013\u2014]|\bto\b)\s*(\d+)/);
+    const rangeMatch = text.match(/(\d+)\s*(?:years?|yrs?)?\s*(?:[\-\u2013\u2014]|\bto\b)\s*(\d+)/);
     if (rangeMatch) {
       return `${snapMin(parseInt(rangeMatch[1]))} - ${snapMax(parseInt(rangeMatch[2]))}`;
     }
@@ -428,7 +462,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       return `${snapMin(n)} - ${snapMax(Math.min(n + 2, 25))}`;
     }
 
-    if (/fresher|entry|no experience|0/i.test(text)) return '0 years - 1 year';
+    if (/\bentry\b/i.test(text)) return '0 years - 1 year';
     if (/junior/i.test(text)) return '1 year - 2 years';
     if (/mid|intermediate/i.test(text)) return '3 years - 5 years';
     if (/senior/i.test(text)) return '5 years - 7 years';
@@ -585,7 +619,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       const m = raw.match(/(\d+)\s*[\-\u2013\u2014to]+\s*(\d+)/);
       if (m) return `${parseInt(m[1])}-${parseInt(m[2])} years`;
       const s = raw.match(/(\d+)/);
-      if (s) return `${parseInt(s[1])}+ years`;
+      if (s) return Number(s[1]) === 0 ? FRESHER_EXPERIENCE : `${parseInt(s[1])}+ years`;
     }
 
     // Priority 2: range patterns directly tied to experience keyword
@@ -975,21 +1009,6 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     return '';
   };
 
-  const extractWorkAuth = (text: string): string[] => {
-    const workAuth: string[] = [];
-
-    if (/us\s*citizen|citizenship\s*required/i.test(text)) workAuth.push('US Citizen');
-    if (/green\s*card|permanent\s*resident/i.test(text)) workAuth.push('Green Card Holder');
-    if (/h1b|h-1b/i.test(text)) workAuth.push('H1B Visa');
-    if (/\bl1\b|l-1\s*visa/i.test(text)) workAuth.push('L1 Visa');
-    if (/\bopt\b|\bcpt\b|\bf1\s*visa/i.test(text)) workAuth.push('OPT/CPT');
-    if (/tn\s*visa/i.test(text)) workAuth.push('TN Visa');
-    if (/no\s*sponsorship|sponsorship\s*not\s*available/i.test(text)) workAuth.push('No Sponsorship Required');
-    if (/will\s*sponsor|sponsorship\s*available|visa\s*sponsorship/i.test(text)) workAuth.push('Will Sponsor');
-
-    return workAuth;
-  };
-
 
   const extractResponsibilities = (text: string): string[] => {
     const responsibilities: string[] = [];
@@ -1039,38 +1058,6 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     }
     
     return responsibilities.slice(0, 8); // Limit to 8 responsibilities
-  };
-
-  const extractGoodToHaveSkills = (text: string): string[] => {
-    const cleanText = text.replace(
-      /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open)[\s\S]*/gi, ''
-    );
-    // Match section heading then capture only content AFTER the heading line
-    const sectionMatch = cleanText.match(
-      /(?:good\s+to\s+have|nice\s+to\s+have|preferred\s+skills?|bonus\s+skills?|optional\s+skills?)[^\n]*\n([\s\S]*?)(?=(?:preferred\s+candidate|interview|recruitment|mandatory|must\s+have|$))/i
-    );
-    if (!sectionMatch) return [];
-
-    const isValidSkill = (s: string) =>
-      s.length > 2 && s.length < 80 &&
-      !/^[\(\[]/.test(s) &&
-      !/^[-#*=_|.\s]+$/.test(s) &&
-      !/^#{1,6}\s/.test(s) &&
-      !/^-{2,}$/.test(s.trim()) &&
-      /[a-zA-Z]/.test(s) &&
-      !/^(but|and|or|the|not|mandatory|optional|required|preferred|bonus)\b/i.test(s);
-
-    const bullets = sectionMatch[1].match(/(?:^|\n)\s*[•\-\*\d+\.\)\s]+(.+)/gm);
-    if (bullets) {
-      return bullets
-        .map(b => b.replace(/^\s*[•\-\*\d+\.\)\s]+/, '').replace(/\(.*?\)/g, '').trim())
-        .filter(isValidSkill)
-        .slice(0, 10);
-    }
-    return sectionMatch[1].split('\n')
-      .map(l => l.replace(/\(.*?\)/g, '').trim())
-      .filter(isValidSkill)
-      .slice(0, 10);
   };
 
   const extractNationalityRestriction = (text: string): string => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, Briefcase, MapPin, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
-import { getId } from '../utils/getId';
+import { getApplicationJobId, getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
@@ -36,6 +36,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
   const [employerApplications, setEmployerApplications] = useState<any[]>([]);
+  const [applicationCountsStatus, setApplicationCountsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [allJobs, setAllJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
@@ -198,52 +199,20 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const fetchEmployerApplications = async () => {
+    setApplicationCountsStatus('loading');
     try {
-      const ownerEmail = getEffectiveEmployerEmail();
-      console.log('Fetching applications for employer:', ownerEmail);
-      
-      const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
-      if (!jobsResponse.ok) {
-        console.error('Failed to fetch jobs');
-        return;
-      }
-      
-      const employerJobs = getMyPostedJobs(await jobsResponse.json());
-      const employerJobIds = employerJobs.map((job: any) => getId(job));
-      
-      console.log('Employer jobs:', employerJobIds.length);
-      
-      if (employerJobIds.length === 0) {
-        setEmployerApplications([]);
-        return;
-      }
-      
-      // Then get applications for those jobs
-      const applicationsPromises = employerJobIds.map((jobId: any) => 
-        apiFetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`)
-      );
-
-      const applicationsResponses = await Promise.all(applicationsPromises);
-      const allApplications = [];
-      
-      for (let i = 0; i < applicationsResponses.length; i++) {
-        if (applicationsResponses[i].ok) {
-          const jobApplications = await applicationsResponses[i].json();
-          const job = employerJobs[i];
-          allApplications.push(...jobApplications.map((app: any) => ({
-            ...app,
-            jobTitle: app.jobTitle || job?.jobTitle || job?.title || '',
-            jobDescription: app.jobDescription || job?.jobDescription || job?.description || ''
-          })));
-        }
-      }
-      
-      console.log('Total applications found:', allApplications.length);
-      setEmployerApplications(allApplications);
-      
+      const ownerEmail = getEffectiveEmployerEmail() || user?.email;
+      if (!ownerEmail) throw new Error('Missing employer email');
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(ownerEmail)}`);
+      if (!response.ok) throw new Error('Could not fetch employer applications');
+      const data = await response.json();
+      const records = Array.isArray(data) ? data : data?.applications;
+      if (!Array.isArray(records)) throw new Error('Unexpected applications response');
+      setEmployerApplications(records);
+      setApplicationCountsStatus('ready');
     } catch (error) {
       console.error('Error fetching employer applications:', error);
-      setEmployerApplications([]);
+      setApplicationCountsStatus('error');
     }
   };
 
@@ -270,7 +239,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const applicationCountsMap = useMemo(() => {
     const map: Record<string, number> = {};
     employerApplications.forEach((app) => {
-      const appJobId = app.jobId || (app.jobId?._id || app.jobId?.id) || '';
+      const appJobId = getApplicationJobId(app.jobId);
       if (appJobId) {
         map[String(appJobId)] = (map[String(appJobId)] || 0) + 1;
       }
@@ -632,6 +601,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-3 line-clamp-2 leading-tight">
               {job.jobTitle || job.title}
             </h3>
+            {actionType === 'posted' && (job.jobCode || job.positionId) && (
+              <p className="mb-3 break-words text-xs font-medium text-slate-600">Job ID {job.jobCode || job.positionId}</p>
+            )}
           </div>
         </div>
         
@@ -686,14 +658,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 >
                   <span>View Details</span>
                 </button>
-                <button type="button" className="posted-job-applications" onClick={() => {
-                  const selectedId = getId(job);
-                  if (!selectedId) return;
-                  sessionStorage.setItem('selectedJobId', selectedId);
-                  sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
-                  sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
-                  onNavigate('application-management');
-                }}>View applications ({applicationCountsMap[jobId] || 0})</button>
+                <button type="button" className="posted-job-applications" disabled={!jobId}
+                  aria-label={`View applications for ${job.jobTitle || job.title || 'this job'}${job.jobCode || job.positionId ? ` (${job.jobCode || job.positionId})` : ''}`}
+                  onClick={() => onNavigate('dashboard', {
+                    applicationJobId: jobId,
+                    applicationJobTitle: job.jobTitle || job.title,
+                    applicationJobCode: job.jobCode || job.positionId,
+                  })}>
+                  {applicationCountsStatus === 'ready'
+                    ? `${applicationCountsMap[jobId] || 0} ${applicationCountsMap[jobId] === 1 ? 'application' : 'applications'}`
+                    : 'View applications'}
+                </button>
                 <button 
                   onClick={() => deleteJob(getId(job))}
                   disabled={(applicationCountsMap[jobId] || 0) > 0}

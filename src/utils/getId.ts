@@ -6,3 +6,6 @@ export const getId = (obj: any): string => {
   if (!obj) return '';
   return String(obj.id || obj._id || '');
 };
+
+export const getApplicationJobId = (jobId: unknown): string =>
+  typeof jobId === 'string' || typeof jobId === 'number' ? String(jobId) : getId(jobId);

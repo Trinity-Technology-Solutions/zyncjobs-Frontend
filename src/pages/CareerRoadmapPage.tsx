@@ -1,6 +1,6 @@
 import CandidateFeatureGuide from '../components/CandidateFeatureGuide';
 import { useState, useEffect } from 'react';
-import { Target, TrendingUp, ChevronRight, BookOpen, Zap, RotateCcw, DollarSign, BarChart2, Sparkles, Award } from 'lucide-react';
+import { Target, TrendingUp, ChevronRight, BookOpen, ExternalLink, Zap, RotateCcw, DollarSign, BarChart2, Sparkles, Award } from 'lucide-react';
 import { AIFeatureLoader } from '../components/AIProgressLoader';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -20,6 +20,33 @@ interface SkillDetail {
   name: string;
   why: string;
   resource?: { name: string; url: string; type: string }[];
+}
+
+const LEARNING_RESOURCES = {
+  webFundamentals: { name: 'MDN Learn Web Development', url: 'https://developer.mozilla.org/en-US/docs/Learn_web_development', type: 'guide' },
+  git: { name: 'Git documentation', url: 'https://git-scm.com/docs', type: 'docs' },
+  fullStack: { name: 'Full Stack Open', url: 'https://fullstackopen.com/en/', type: 'course' },
+  systemDesign: { name: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer', type: 'github' },
+};
+
+function getLearningResources(skill: SkillDetail, targetRole: string) {
+  const suppliedUrls = new Set((Array.isArray(skill.resource) ? skill.resource : [])
+    .map(resource => typeof resource?.url === 'string' ? resource.url.trim().replace(/\/$/, '') : ''));
+  const resources = Object.values(LEARNING_RESOURCES).filter(resource =>
+    suppliedUrls.has(resource.url.replace(/\/$/, ''))
+  );
+  if (resources.length || !/full[ -]?stack|front[ -]?end|web developer/i.test(targetRole)) return resources;
+
+  if (skill.name === 'Core concepts of ' + targetRole) {
+    return [LEARNING_RESOURCES.webFundamentals];
+  }
+  if (skill.name === 'Industry tools') {
+    return [LEARNING_RESOURCES.git];
+  }
+  if (skill.name === 'Advanced techniques' && /full[ -]?stack/i.test(targetRole)) {
+    return [LEARNING_RESOURCES.fullStack];
+  }
+  return resources;
 }
 
 interface Milestone {
@@ -80,6 +107,40 @@ const STEP_COLORS = [
   { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-800', dot: 'bg-orange-500' },
   { bg: 'bg-pink-600', light: 'bg-pink-50', border: 'border-pink-300', text: 'text-pink-800', dot: 'bg-pink-600' },
 ];
+
+const renderRoadmapInline = (text: string) =>
+  text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith('**') && part.endsWith('**')
+      ? <strong key={index} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>
+      : part
+  );
+
+function RoadmapGuidance({ text }: { text: string }) {
+  const sections = text.split(/(?=#{2,6}\s+)/).map(section => section.trim()).filter(Boolean);
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <h3 className="mb-5 text-lg font-semibold text-slate-900">Roadmap guidance</h3>
+      <div className="space-y-5">
+        {sections.map((section, index) => {
+          const heading = section.match(/^#{2,6}\s+(.+?)(?=\s*\*\*|\n|$)/);
+          const body = heading ? section.slice(heading[0].length).trim() : section;
+          const lines = body
+            .split(/\n+|\s+(?=\d+\.\s+\*\*|-\s+\*\*|\*\*[^*]+:\*\*)/)
+            .map(line => line.trim()).filter(Boolean);
+          return (
+            <div key={index} className="border-l-2 border-blue-200 pl-4">
+              {heading && <h4 className="mb-2 font-semibold text-slate-900">{heading[1].trim()}</h4>}
+              <div className="space-y-1.5 break-words text-sm leading-relaxed text-slate-700">
+                {lines.map((line, lineIndex) => <p key={lineIndex}>{renderRoadmapInline(line)}</p>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props) {
   const [currentRole, setCurrentRole] = useState('');
@@ -161,6 +222,9 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
   const resolvedCurrent = currentRole === 'custom' ? customCurrent : currentRole;
   const resolvedTarget = targetRole === 'custom' ? customTarget : targetRole;
   const canGenerate = resolvedCurrent.trim() && resolvedTarget.trim() && experience;
+  const roadmapSummary = typeof roadmap?.summary === 'string' ? roadmap.summary.trim() : '';
+  const hasLongGuidance = roadmapSummary.length > 280 || /#{2,6}\s/.test(roadmapSummary);
+  const finalTip = typeof roadmap?.finalTip === 'string' ? roadmap.finalTip.trim() : '';
 
   const generateRoadmap = async () => {
     if (!canGenerate) return;
@@ -211,8 +275,8 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
         timeframe: '0-6 months',
         skills: ['Core concepts of ' + target, 'Industry tools', 'Best practices', 'Portfolio projects'],
         skillDetails: [
-          { name: 'Core concepts of ' + target, why: 'Fundamental building blocks for your target role', resource: [{ name: 'FreeCodeCamp', url: 'https://freecodecamp.org', type: 'course' }] },
-          { name: 'Industry tools', why: 'Standard tooling used in professional environments', resource: [{ name: 'Official docs', url: 'https://docs.example.com', type: 'docs' }] },
+          { name: 'Core concepts of ' + target, why: 'Fundamental building blocks for your target role' },
+          { name: 'Industry tools', why: 'Standard tooling used in professional environments' },
         ],
         description: 'Build a strong foundation in the core skills required for ' + target,
         milestones: [
@@ -230,7 +294,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
         timeframe: '6-12 months',
         skills: ['Advanced techniques', 'Collaboration tools', 'Problem solving', 'Real-world projects'],
         skillDetails: [
-          { name: 'Advanced techniques', why: 'Deepen expertise beyond basics', resource: [{ name: 'Advanced Course', url: 'https://example.com/advanced', type: 'course' }] },
+          { name: 'Advanced techniques', why: 'Deepen expertise beyond basics' },
         ],
         description: 'Deepen your expertise and start applying skills in real scenarios',
         milestones: [
@@ -247,7 +311,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
         timeframe: '1-2 years',
         skills: ['Leadership basics', 'System design', 'Mentoring', 'Domain expertise'],
         skillDetails: [
-          { name: 'System design', why: 'Essential for senior roles', resource: [{ name: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer', type: 'github' }] },
+          { name: 'System design', why: 'Essential for senior roles', resource: [LEARNING_RESOURCES.systemDesign] },
         ],
         description: 'Grow professionally and build your reputation in the field',
         milestones: [
@@ -375,22 +439,26 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
           <div className="space-y-6">
 
             {/* Summary Card */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="bg-white/20 text-white text-sm font-semibold px-3 py-1 rounded-full">{roadmap.currentRole}</span>
-                    <ChevronRight className="w-4 h-4 text-blue-200" />
-                    <span className="bg-yellow-400 text-yellow-900 text-sm font-bold px-3 py-1 rounded-full">{roadmap.targetRole}</span>
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 sm:p-6">
+              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                <div className="min-w-0 flex-1">
+                  <h3 className="mb-3 text-lg font-semibold text-slate-900">Career transition</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="break-words rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">{roadmap.currentRole}</span>
+                    <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-600" />
+                    <span className="break-words rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-900">{roadmap.targetRole}</span>
                   </div>
-                  <p className="text-blue-100 text-sm leading-relaxed">{roadmap.summary}</p>
+                  {!hasLongGuidance && roadmapSummary && (
+                    <p className="mt-3 break-words text-sm leading-relaxed text-slate-700">{renderRoadmapInline(roadmapSummary)}</p>
+                  )}
                 </div>
-                <div className="bg-white/15 rounded-xl px-4 py-3 text-center flex-shrink-0">
-                  <div className="text-2xl font-black">{roadmap.totalTimeframe}</div>
-                  <div className="text-xs text-blue-200">Total Time</div>
+                <div className="rounded-xl border border-blue-100 bg-white px-4 py-3">
+                  <div className="text-xs font-medium text-slate-600">Estimated timeline</div>
+                  <div className="text-lg font-bold text-blue-900">{roadmap.totalTimeframe}</div>
                 </div>
               </div>
             </div>
+            {hasLongGuidance && <RoadmapGuidance text={roadmapSummary} />}
 
             {/* Personalized Transition Card */}
             {roadmap.transferableSkills && roadmap.transferableSkills.length > 0 && (
@@ -580,31 +648,34 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
                               <div className="mb-4">
                                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Skills to Learn</p>
                                 <div className="space-y-2">
-                                  {step.skillDetails.map((skill, i) => (
+                                  {step.skillDetails.map((skill, i) => {
+                                    const resources = getLearningResources(skill, roadmap.targetRole);
+                                    return (
                                     <div key={i} className="group relative">
                                       <span className={`text-sm px-3 py-1.5 rounded-full font-medium border ${color.border} ${color.text} bg-white inline-flex items-center gap-1.5`}>
                                         {skill.name}
                                         {skill.why && (
                                           <span className="relative">
                                             <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-normal z-10">
+                                            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-normal z-10">
                                               {skill.why}
                                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                                             </div>
                                           </span>
                                         )}
                                       </span>
-                                      {skill.resource && skill.resource.length > 0 && (
+                                      {resources.length > 0 && (
                                         <div className="mt-1 ml-2 flex flex-wrap gap-1.5">
-                                          {skill.resource.map((res, ri) => (
-                                            <a key={ri} href={res.url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100 transition-colors inline-flex items-center gap-1">
-                                              <BookOpen className="w-3 h-3" /> {res.name} ({res.type})
+                                          {resources.map((res, ri) => (
+                                            <a key={ri} href={res.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 focus-visible:outline-blue-600">
+                                              {res.name} <ExternalLink aria-hidden="true" className="h-3 w-3 shrink-0" />
                                             </a>
                                           ))}
                                         </div>
                                       )}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -724,15 +795,17 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
             </div>
 
             {/* Final Tip */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-3">
+            {finalTip && finalTip !== roadmapSummary && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-3">
               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-indigo-800 mb-0.5">Pro Tip</p>
-                <p className="text-sm text-indigo-700">{roadmap.finalTip}</p>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-indigo-800">{renderRoadmapInline(finalTip)}</p>
               </div>
             </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3">

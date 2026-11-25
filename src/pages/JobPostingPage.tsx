@@ -14,6 +14,8 @@ import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { useJobTitles } from '../utils/jobTitlesData';
+import { importJobSkills } from '../utils/importedJobSkills';
+import { FRESHER_EXPERIENCE, isFresherExperience, mentionsFresherEligibility } from '../utils/jobExperience';
 
 
 interface JobPostingPageProps {
@@ -31,6 +33,8 @@ interface JobData {
   jobLocation: string;
   expandCandidateSearch: boolean;
   experienceRange: string;
+  experienceSelection?: 'fresher' | 'range' | 'unspecified';
+  importedDescription?: boolean;
   country: string;
   language: string | string[];
   jobCategory: string;
@@ -120,42 +124,19 @@ const formatSalary = (value: string): string => {
   return `${num}`;
 };
 
+const getJobPay = ({ payType, minSalary, maxSalary, currency, payRate }: JobData) => {
+  const min = parseSalaryNumber(minSalary);
+  const max = parseSalaryNumber(maxSalary);
+  const prefix = currency === 'INR' ? '₹' : `${currency} `;
+  const amount = (value: string) => `${prefix}${formatSalary(value)}`;
+  if (payType === 'Exact amount' && min > 0) return { min, max: min, label: `${amount(minSalary)} ${payRate}` };
+  if (payType === 'Starting amount' && min > 0) return { min, max: 0, label: `From ${amount(minSalary)} ${payRate}` };
+  if (payType === 'Maximum amount' && max > 0) return { min: 0, max, label: `Up to ${amount(maxSalary)} ${payRate}` };
+  if (payType === 'Range' && min > 0 && max >= min) return { min, max, label: `${amount(minSalary)} – ${amount(maxSalary)} ${payRate}` };
+  return null;
+};
+
 // Snap a raw number to the nearest available dropdown option value
-const snapToDropdownYear = (n: number, isMax: boolean): string => {
-  const minOpts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20];
-  const maxOpts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25];
-  const opts = isMax ? maxOpts : minOpts;
-  const closest = opts.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
-  return `${closest} year${closest !== 1 ? 's' : ''}`;
-};
-
-const extractExperienceFromText = (text: string): string => {
-  if (!text) return '';
-  // Only match lines/phrases that are clearly about experience years — not random sentences
-  const patterns = [
-    /(?:experience\s+required|experience)[:\s]*?(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
-    /(?:experience\s+required|experience)[:\s]*?(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
-    /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-    /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)/i,
-    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-    /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-  ];
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const a = parseInt(match[1]), b = match[2] ? parseInt(match[2]) : NaN;
-      if (!isNaN(a) && a <= 40 && !isNaN(b) && b <= 40 && b >= a) {
-        return `${snapToDropdownYear(a, false)} - ${snapToDropdownYear(b, true)}`;
-      }
-      if (!isNaN(a) && a <= 40) {
-        return `${snapToDropdownYear(a, false)} - ${snapToDropdownYear(Math.min(a + 2, 25), true)}`;
-      }
-    }
-  }
-  return '';
-};
-
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode = 'manual', parsedData }) => {
   const { jobTitles: jobTitleOptions } = useJobTitles();
 
@@ -170,6 +151,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     try { return JSON.parse(localStorage.getItem(draftStorageKey) || 'null'); }
     catch { return null; }
   })();
+  const jobImportId = parsedData?.jobImportId || parsedData?.salaryImportId;
+  const savedImportId = storedDraft?.jobImportId || storedDraft?.salaryImportId;
+  const isNewImport = !isEditMode && mode === 'parse' && Boolean(jobImportId && jobImportId !== savedImportId);
+  const replaceDraftPay = isNewImport &&
+    (parseSalaryNumber(parsedData.minSalary) > 0 || parseSalaryNumber(parsedData.maxSalary) > 0);
   const [currentStep, setCurrentStep] = useState(() => {
     const step = Number(storedDraft?.currentStep);
     return Number.isInteger(step) && step >= 1 && step <= 7 ? step : 1;
@@ -209,17 +195,18 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     expandCandidateSearch: false,
     experienceRange: (() => {
       const raw = editJob?.experienceRange || editJob?.experience || editJob?.experienceLevel || parsedData?.experienceRange || '';
+      if (isFresherExperience(raw)) return FRESHER_EXPERIENCE;
       const snapMin = (n: number) => { const opts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20]; const c = opts.reduce((a,b) => Math.abs(b-n)<Math.abs(a-n)?b:a); return `${c} year${c!==1?'s':''}`; };
       const snapMax = (n: number) => { const opts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25]; const c = opts.reduce((a,b) => Math.abs(b-n)<Math.abs(a-n)?b:a); return `${c} year${c!==1?'s':''}`; };
       const normalize = (val: string) => {
-        const m = val.match(/(\d+)\s*[-\u2013\u2014to]+\s*(\d+)/);
+        const m = val.match(/(\d+)\s*(?:years?|yrs?)?\s*(?:[-\u2013\u2014]|to)\s*(\d+)/i);
         if (m) return `${snapMin(parseInt(m[1]))} - ${snapMax(parseInt(m[2]))}`;
         const s = val.match(/(\d+)/);
         if (s) { const n = parseInt(s[1]); return `${snapMin(n)} - ${snapMax(Math.min(n+2,25))}`; }
         return '';
       };
       // Only use raw if it actually contains year numbers (not garbage text)
-      if (raw && /\d+\s*[-\u2013\u2014to]+\s*\d+|\d+\+?\s*(?:years?|yrs?)/i.test(raw)) return normalize(raw);
+      if (raw && /\d+\s*(?:years?|yrs?)?\s*(?:[-\u2013\u2014]|to)\s*\d+|\d+\+?\s*(?:years?|yrs?)/i.test(raw)) return normalize(raw);
       // Fallback: parse directly from JD text
       if (parsedData?.jobDescription) {
         const jd = parsedData.jobDescription;
@@ -227,6 +214,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
         if (labelMatch) return normalize(labelMatch[1]);
         const rangeMatch = jd.match(/(\d+)\s*[-\u2013\u2014]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i);
         if (rangeMatch) return normalize(rangeMatch[0]);
+        if (mentionsFresherEligibility(jd)) return FRESHER_EXPERIENCE;
       }
       return '';
     })(),
@@ -327,87 +315,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
           .trim();
       const raw = editJob?.jobDescription || editJob?.description || '';
       if (raw) return stripHtml(raw);
-      const parsed = parsedData?.jobDescription || '';
-      if (!parsed) return '';
-
-      const cleaned = stripHtml(parsed);
-      const lines = cleaned.split('\n').map(l => l.trim());
-
-      // Metadata label patterns — lines to skip entirely
-      const metaPatterns = [
-        /^(job\s+)?description\s*:?\s*$/i,
-        /^job\s+summary\s*:?\s*$/i,
-        /^position\s+(title|name)\s*[:\-]/i,
-        /^(job\s+)?title\s*[:\-]/i,
-        /^(job\s+)?role\s*[:\-]/i,
-        /^location\s*[:\-]/i,
-        /^work\s+location\s*[:\-]/i,
-        /^experience\s*[:\-]/i,
-        /^employment\s+type\s*[:\-]/i,
-        /^nationality\s*[:\-]/i,
-        /^nationality\s+requirement\s*[:\-]/i,
-        /^languages?\s+(required|preferred)?\s*[:\-]/i,
-        /^reporting\s+to\s*[:\-]/i,
-        /^industry\s*[:\-]/i,
-        /^department\s*[:\-]/i,
-        /^salary\s*[:\-]/i,
-        /^ctc\s*[:\-]/i,
-        /^notice\s+period\s*[:\-]/i,
-        /^zyncjobs/i,
-        /^connecting\s+talent/i,
-      ];
-
-      // Content section starters — once we hit these, include everything from here
-      const contentSectionPatterns = [
-        /^(role\s+overview|about\s+the\s+role|job\s+overview|overview)/i,
-        /^(key\s+)?responsibilities/i,
-        /^(job\s+)?requirements/i,
-        /^qualifications/i,
-        /^what\s+you('ll|\s+will)\s+(do|be)/i,
-        /^we\s+are\s+(looking|seeking|hiring)/i,
-        /^(the\s+)?ideal\s+candidate/i,
-        /^about\s+us/i,
-        /^preferred\s+qualifications/i,
-        /^what\s+we\s+offer/i,
-      ];
-
-      // Find where real content starts
-      let contentStartIdx = -1;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-        if (contentSectionPatterns.some(p => p.test(line))) {
-          contentStartIdx = i;
-          break;
-        }
-      }
-
-      // If no content section found, skip meta lines from the top
-      if (contentStartIdx === -1) {
-        let startIdx = 0;
-        for (let i = 0; i < Math.min(lines.length, 15); i++) {
-          const line = lines[i];
-          if (!line) { startIdx = i + 1; continue; }
-          const isMeta = metaPatterns.some(p => p.test(line));
-          const isJobTitle = parsedData?.jobTitle &&
-            line.toLowerCase().includes((parsedData.jobTitle || '').toLowerCase().substring(0, 20));
-          if (isMeta || isJobTitle) {
-            startIdx = i + 1;
-          } else {
-            break;
-          }
-        }
-        contentStartIdx = startIdx;
-      }
-
-      // Build final description — skip inline meta lines throughout
-      const result = lines
-        .slice(contentStartIdx)
-        .filter(line => !metaPatterns.some(p => p.test(line)))
-        .join('\n')
-        .trim();
-
-      return result;
+      return parsedData?.jobDescription?.trim() || '';
     })(),
     responsibilities: editJob?.responsibilities
       ? (Array.isArray(editJob.responsibilities) ? editJob.responsibilities : editJob.responsibilities.split('\n').filter(Boolean))
@@ -429,8 +337,30 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
       ...initial,
       ...(editJob?.postingDetails && typeof editJob.postingDetails === 'object' ? editJob.postingDetails : {}),
       ...(storedDraft?.jobData && typeof storedDraft.jobData === 'object' ? storedDraft.jobData : {}),
+      ...(isNewImport && {
+        importedDescription: true,
+        jobTitle: initial.jobTitle,
+        jobDescription: initial.jobDescription,
+        responsibilities: initial.responsibilities,
+        requirements: initial.requirements,
+        experienceRange: initial.experienceRange,
+        experienceSelection: undefined,
+        workAuth: initial.workAuth,
+        nationalityRestriction: initial.nationalityRestriction,
+        skills: initial.skills,
+        goodToHaveSkills: initial.goodToHaveSkills,
+        ...(parsedData?.educationLevel && { educationLevel: initial.educationLevel }),
+      }),
+      ...(replaceDraftPay && {
+        payType: initial.payType,
+        minSalary: initial.minSalary,
+        maxSalary: initial.maxSalary,
+        currency: initial.currency,
+        payRate: initial.payRate,
+      }),
     };
   });
+  const hasImportedDescription = Boolean(jobData.importedDescription || parsedData?.jobDescription || savedImportId);
 
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
@@ -459,11 +389,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
   const [langInput, setLangInput] = useState('');
 
   const [salaryModified, setSalaryModified] = useState(() => {
+    if (replaceDraftPay) return true;
     if (typeof storedDraft?.salaryModified === 'boolean') return storedDraft.salaryModified;
-    const max = getSalaryMax(editJob) || parsedData?.maxSalary || parsedData?.salary?.max;
-    // Modified if range has both values, OR if only max is set (Maximum amount / upto)
-    return !!(max && parseInt(String(max)) > 0);
+    return parseSalaryNumber(jobData.minSalary) > 0 || parseSalaryNumber(jobData.maxSalary) > 0;
   });
+  const jobPay = salaryModified ? getJobPay(jobData) : null;
   const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
 
   const [showBannerPicker, setShowBannerPicker] = useState(false);
@@ -555,10 +485,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
         jobData,
         currentStep,
         salaryModified,
+        jobImportId: jobImportId || savedImportId,
         updatedAt: Date.now(),
       }));
     } catch { /* Keep editing if storage is unavailable or full. */ }
-  }, [draftStorageKey, editJobId, jobData, currentStep, salaryModified]);
+  }, [draftStorageKey, editJobId, jobData, currentStep, salaryModified, jobImportId, savedImportId]);
 
   // Existing jobs are also saved to the API automatically after the user
   // pauses editing. New jobs remain drafts until the user chooses Post Job.
@@ -638,6 +569,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
           jobData: next,
           currentStep,
           salaryModified,
+          jobImportId: jobImportId || savedImportId,
           updatedAt: Date.now(),
         }));
       } catch { /* Keep editing if storage is unavailable or full. */ }
@@ -727,33 +659,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     prefillCompany();
   }, [isEditMode]);
 
-  // Auto-parse skills from job description when parsedData is available
-  useEffect(() => {
-    if (parsedData?.jobDescription && mode === 'parse') {
-      const parsedSkills = parseSkillsFromJobDescription(
-        parsedData.jobDescription, 
-        parsedData.jobTitle || ''
-      );
-      
-      // If no skills were parsed initially or only basic skills, update with parsed skills
-      if (!parsedData.skills || parsedData.skills.length === 0 || 
-          parsedData.skills.every((skill: string) => ['AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux', 'Python', 'SQL', 'Version control'].includes(skill))) {
-        updateJobData('skills', parsedSkills);
-      } else {
-        // Merge existing skills with parsed skills
-        const mergedSkills = [...new Set([...parsedData.skills, ...parsedSkills])].slice(0, 15);
-        updateJobData('skills', mergedSkills);
-      }
-    }
-  }, [parsedData, mode]);
-
-  // Set salaryModified if parsedData has actual salary values
-  useEffect(() => {
-    if (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) {
-      setSalaryModified(true);
-    }
-  }, [parsedData]);
-
   // Auto-fill country from parsed location on mount
   useEffect(() => {
     if (mode === 'parse' && parsedData?.jobLocation && !parsedData?.country) {
@@ -783,6 +688,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     const prev = prevJobTitleRef.current;
     prevJobTitleRef.current = jobData.jobTitle;
     if (jobData.jobTitle && jobData.jobTitle !== prev) {
+      if (hasImportedDescription) {
+        fetchAISkillsForTitle(jobData.jobTitle);
+        return;
+      }
       titleChangedRef.current = true;
       // Always immediately update skills + education for the new title
       const { skills: newSkills, education: newEducation } = getJobTitleDefaults(jobData.jobTitle);
@@ -808,7 +717,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
 
   // When navigating TO step 6, regenerate if title changed since last generation
   useEffect(() => {
-    if (currentStep === 6 && titleChangedRef.current && jobData.jobTitle) {
+    if (!hasImportedDescription && currentStep === 6 && titleChangedRef.current && jobData.jobTitle) {
       titleChangedRef.current = false;
       lastGeneratedTitleRef.current = jobData.jobTitle;
       // Clear stale content immediately before generating for new title
@@ -817,16 +726,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
-
-  // Auto-extract experience range from job description — only in manual mode when not already set
-  useEffect(() => {
-    if (mode === 'parse') return;
-    if (jobData.jobDescription && !jobData.experienceRange) {
-      const extracted = extractExperienceFromText(jobData.jobDescription);
-      if (extracted) updateJobData('experienceRange', extracted);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobData.jobDescription]);
 
   // Set default banner image when job category changes, only if no user-uploaded banner exists
   useEffect(() => {
@@ -1034,6 +933,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
 
   // Local JD generator — no AI dependency, always works
   const generateLocalJD = (jobTitle: string, company: string, location: string, context: any): string => {
+    const isFresherRole = isFresherExperience(context.experienceRange || '');
     const title = jobTitle.toLowerCase();
     const co = company || 'our company';
     const loc = location ? ` in ${location}` : '';
@@ -1188,13 +1088,16 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, mode 
     }
 
     const respText = responsibilities.map(r => `- ${r}`).join('\n');
-    const reqText = requirements.map(r => `- ${r}`).join('\n');
+    const reqText = (isFresherRole
+      ? ['Freshers welcome. No prior work experience is required.', ...requirements.filter(requirement => !/\b(?:years?|yrs?)\b/i.test(requirement))]
+      : requirements
+    ).map(r => `- ${r}`).join('\n');
     const benefitsText = benefits !== 'health insurance, flexible work'
       ? benefits.split(', ').map((b: string) => `- ${b}`).join('\n')
       : `- Comprehensive health, dental, and vision insurance\n- Flexible working arrangements and remote work options\n- Annual learning and development budget\n- Performance-based bonuses and incentives\n- Paid time off, public holidays, and wellness days`;
 
     return `Job Summary
-We are looking for a talented and experienced ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring a strong background in ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting.
+We are looking for a ${isFresherRole ? 'motivated' : 'talented and experienced'} ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring ${isFresherRole ? 'an interest in' : 'a strong background in'} ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting.
 
 About the Company
 ${co} is a forward-thinking organisation committed to excellence and innovation, hiring through ZyncJobs to connect with top talent.
@@ -1223,7 +1126,7 @@ Salary: ${salary ? salary : 'Competitive compensation package commensurate with 
 ${benefitsText}
 
 How to Apply
-Interested candidates are invited to apply directly through this ZyncJobs job posting. Click the Apply button to submit your application. We look forward to hearing from you.`;
+Submit your application using the application options on this listing.`;
   };
 
   // Extract bullet points from a named section in JD text
@@ -1243,6 +1146,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
 
   // Auto-generate job description and populate skills/education
   const generateJobDescription = async (jobTitle: string, forceUpdate = false) => {
+    if (hasImportedDescription) return;
     if (!jobTitle) {
       setNotification({ type: 'error', message: 'Please enter a job title', isVisible: true });
       return;
@@ -1250,12 +1154,13 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     setIsGeneratingDescription(true);
     // Always read latest state via ref to avoid stale closure
     const currentJobData = jobDataRef.current;
+    const isFresherRole = isFresherExperience(currentJobData.experienceRange);
     try {
-      const shouldIncludeSalary = salaryModified && currentJobData.minSalary && currentJobData.maxSalary;
       const context = {
         jobType: currentJobData.jobType,
+        experienceRange: currentJobData.experienceRange,
         skills: forceUpdate ? [] : currentJobData.skills,
-        salary: shouldIncludeSalary ? `${currentJobData.currency} ${formatSalary(currentJobData.minSalary)} - ${formatSalary(currentJobData.maxSalary)} ${currentJobData.payRate}` : undefined,
+        salary: salaryModified ? getJobPay(currentJobData)?.label : undefined,
         benefits: currentJobData.benefits,
         educationLevel: currentJobData.educationLevel,
         existingDescription: '',  // always generate fresh — never recycle old JD
@@ -1265,7 +1170,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
 
       // Try AI first — fall back to local only if AI fails
       let jdText = '';
-      try {
+      if (!isFresherRole) try {
         const raw = await mistralAIService.generateJobDescription(
           jobTitle,
           jobData.companyName || user?.companyName || user?.company || '',
@@ -1293,7 +1198,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         }
         if (currentJobData.educationLevel === "Bachelor's degree") updateJobData('educationLevel', education);
         if (currentJobData.responsibilities.length === 0) updateJobData('responsibilities', titleResponsibilities);
-        if (currentJobData.requirements.length === 0) updateJobData('requirements', titleRequirements);
+        if (currentJobData.requirements.length === 0) {
+          updateJobData('requirements', isFresherRole
+            ? extractSectionFromJD(jdText, ['What We Are Looking For'])
+            : titleRequirements);
+        }
       } else {
         // forceUpdate: always replace skills/responsibilities/requirements for the new title
         const { skills: titleSkills, education } = getJobTitleDefaults(jobTitle);
@@ -1952,6 +1861,12 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
         if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
+        if (jobData.experienceSelection === 'range' && !jobData.experienceRange) {
+          return { isValid: false, message: 'Select an experience range or choose Not specified' };
+        }
+        if (experienceMax && parseInt(experienceMin, 10) > parseInt(experienceMax, 10)) {
+          return { isValid: false, message: 'Maximum experience must be at least the minimum experience' };
+        }
         break;
       case 2:
         // Step 2 is removed - no validation needed
@@ -1981,6 +1896,9 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         break;
       case 6:
         if (!jobData.jobDescription.trim()) return { isValid: false, message: 'Job description is required' };
+        if (hasImportedDescription && jobData.jobDescription.trim().length > 5000) {
+          return { isValid: false, message: 'Shorten the job description to 5,000 characters before publishing.' };
+        }
         break;
     }
     return { isValid: true, message: '' };
@@ -2004,15 +1922,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       const nextStepNum = currentStep + 1;
       setCurrentStep(nextStepNum);
       // Auto-generate JD when entering step 6 ONLY if no JD exists yet
-      if (nextStepNum === 6 && jobData.jobTitle && !jobData.jobDescription.trim()) {
+      if (!hasImportedDescription && nextStepNum === 6 && jobData.jobTitle && !jobData.jobDescription.trim()) {
         setTimeout(() => generateJobDescription(jobData.jobTitle), 300);
       }
-      // In parse mode, always regenerate a clean description when entering step 6
-      if (nextStepNum === 6 && jobData.jobTitle && mode === 'parse') {
-        setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
-      }
       // If skipping to review (step 7) and JD is empty, generate it now
-      if (nextStepNum === 7 && !jobData.jobDescription.trim() && jobData.jobTitle) {
+      if (!hasImportedDescription && nextStepNum === 7 && !jobData.jobDescription.trim() && jobData.jobTitle) {
         setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
       }
     }
@@ -2032,6 +1946,13 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+
+  const experienceSelection = jobData.experienceSelection ?? (isFresherExperience(jobData.experienceRange)
+    ? 'fresher'
+    : jobData.experienceRange ? 'range' : 'unspecified');
+  const [experienceMin = '', experienceMax = ''] = experienceSelection === 'range'
+    ? jobData.experienceRange.split(' - ')
+    : [];
 
   const renderStep1 = () => (
     <div className="px-6 py-8">
@@ -2383,8 +2304,25 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         </div>
 
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
-          {mode === 'parse' && jobData.experienceRange && /^\d+ years? - \d+ years?$/.test(jobData.experienceRange) && (
+          <label htmlFor="job-experience-selection" className="block text-gray-700 font-medium mb-3">Experience</label>
+          <select
+            id="job-experience-selection"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
+            value={experienceSelection}
+            onChange={event => {
+              const selection = event.target.value as NonNullable<JobData['experienceSelection']>;
+              setJobData(previous => ({
+                ...previous,
+                experienceSelection: selection,
+                experienceRange: selection === 'fresher' ? FRESHER_EXPERIENCE : '',
+              }));
+            }}
+          >
+            <option value="unspecified">Not specified</option>
+            <option value="fresher">Fresher — no experience required</option>
+            <option value="range">Experience range</option>
+          </select>
+          {mode === 'parse' && !jobData.experienceSelection && jobData.experienceRange && (
             <p className="text-xs text-green-600 mb-2">✨ Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
           )}
           {mode === 'parse' && jobData.noticePeriod && (
@@ -2392,14 +2330,13 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
               📋 <strong>Note from JD:</strong> {jobData.noticePeriod}
             </p>
           )}
-          <div className="flex gap-4">
+          {experienceSelection === 'range' && <div className="mt-3 flex gap-4">
             <div className="flex-1">
               <AutocompleteCombobox
                 label="Min Experience"
-                value={jobData.experienceRange.split(' - ')[0]?.trim() || ''}
+                value={experienceMin}
                 onChange={(val) => {
-                  const max = jobData.experienceRange.split(' - ')[1]?.trim() || '';
-                  updateJobData('experienceRange', val ? (max ? `${val} - ${max}` : val) : max);
+                  updateJobData('experienceRange', experienceMax ? `${val || '0 years'} - ${experienceMax}` : val);
                 }}
                 options={[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(y => ({
                   value: `${y} year${y !== 1 ? 's' : ''}`,
@@ -2411,10 +2348,9 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             <div className="flex-1">
               <AutocompleteCombobox
                 label="Max Experience"
-                value={jobData.experienceRange.split(' - ')[1]?.trim() || ''}
+                value={experienceMax}
                 onChange={(val) => {
-                  const min = jobData.experienceRange.split(' - ')[0]?.trim() || '';
-                  updateJobData('experienceRange', val ? (min ? `${min} - ${val}` : val) : min);
+                  updateJobData('experienceRange', val ? `${experienceMin || '0 years'} - ${val}` : experienceMin);
                 }}
                 options={[1,2,3,4,5,6,7,8,9,10,12,15,20,25].map(y => ({
                   value: `${y} year${y !== 1 ? 's' : ''}`,
@@ -2423,7 +2359,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
                 placeholder="Select"
               />
             </div>
-          </div>
+          </div>}
         </div>
 
       </div>
@@ -2595,12 +2531,9 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             <p className="text-xs text-red-600 font-medium mt-2">
               Maximum salary cannot be lower than the minimum salary.
             </p>
-          ) : salaryModified && (jobData.minSalary || jobData.maxSalary) && (
+          ) : jobPay && (
             <p className="text-xs text-gray-500 mt-2">
-              Preview: {jobData.payType === 'Maximum amount' ? `Upto ₹${formatSalary(jobData.maxSalary)}` :
-                        jobData.payType === 'Starting amount' ? `From ₹${formatSalary(jobData.minSalary)}` :
-                        jobData.payType === 'Exact amount' ? `₹${formatSalary(jobData.minSalary)}` :
-                        `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
+              Preview: {jobPay.label}
             </p>
           )}
           
@@ -2665,7 +2598,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         </div>
         
         <div>
-          <h3 className="text-gray-700 font-medium mb-3">Work Authorization Required</h3>
+          <h3 className="text-gray-700 font-medium mb-3">Work Authorization (optional)</h3>
           <div className="space-y-2">
             {[
               'US Citizen',
@@ -2726,7 +2659,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             {jobData.jobDescription && (
               <button
                 onClick={() => {
-                  const parsedSkills = parseSkillsFromJobDescription(jobData.jobDescription, jobData.jobTitle);
+                  const parsedSkills = importJobSkills(jobData.jobDescription, parseSkillsFromJobDescription(jobData.jobDescription, jobData.jobTitle), 'required');
                   const mergedSkills = [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15);
                   updateJobData('skills', mergedSkills);
                   setNotification({
@@ -3094,7 +3027,9 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
               </span>
             )}
           </div>
-          <p className="text-gray-500 text-sm mb-4">AI-powered job description. Edit the raw text below or view the formatted preview.</p>
+          <p className="text-gray-500 text-sm mb-4">{hasImportedDescription
+            ? 'Edit your uploaded description or preview its formatting before publishing.'
+            : 'Edit the job description below or view the formatted preview.'}</p>
 
           {/* Tabs: Edit / Preview */}
           <>
@@ -3235,12 +3170,22 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
         
         <div className="flex justify-end mt-4">
           <button
+            type="button"
             onClick={() => {
+              if (hasImportedDescription) {
+                const formatted = jobData.jobDescription
+                  .replace(/\r\n?/g, '\n')
+                  .split('\n').map(line => line.trimEnd()).join('\n')
+                  .replace(/\n{3,}/g, '\n\n').trim();
+                updateJobData('jobDescription', formatted);
+                setJdTab('preview');
+                return;
+              }
               // Clear stale JD/responsibilities/requirements before regenerating for current title
               setJobData(prev => ({ ...prev, jobDescription: '', responsibilities: [], requirements: [] }));
               setTimeout(() => generateJobDescription(jobData.jobTitle, true), 50);
             }}
-            disabled={!jobData.jobTitle || isGeneratingDescription}
+            disabled={isGeneratingDescription || (hasImportedDescription ? !jobData.jobDescription.trim() : !jobData.jobTitle)}
             className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
           >
             {isGeneratingDescription ? (
@@ -3251,7 +3196,7 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             ) : (
               <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
-                <span>Regenerate with AI</span>
+                <span>{hasImportedDescription ? 'Format description' : 'Regenerate with AI'}</span>
               </>
             )}
           </button>
@@ -3385,6 +3330,13 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
               <span className="text-gray-600">Company for this job</span>
               <span className="text-gray-800">{jobData.companyName}</span>
             </div>
+            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+              <span className="text-gray-600">Experience</span>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-800">{jobData.experienceRange || 'Not specified'}</span>
+                <button type="button" aria-label="Edit experience" onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
+              </div>
+            </div>
             
             {/* Only show number of openings if it's actually set and not 0 */}
             {jobData.numberOfPeople > 0 && (
@@ -3425,12 +3377,12 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
             </div>
             
             {/* Only show pay if user actually modified salary values */}
-            {salaryModified && jobData.minSalary && jobData.maxSalary && (
+            {jobPay && (
               <div className="flex justify-between items-center py-3 border-b border-gray-200">
                 <span className="text-gray-600">Pay</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">
-                    ₹{formatSalary(jobData.minSalary)} - ₹{formatSalary(jobData.maxSalary)} {jobData.payRate}
+                    {jobPay.label}
                   </span>
                   <button onClick={() => setCurrentStep(4)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
@@ -3517,6 +3469,11 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       setCurrentStep(6);
       return;
     }
+    if (hasImportedDescription && jobData.jobDescription.trim().length > 5000) {
+      setNotification({ type: 'error', message: 'Shorten the job description to 5,000 characters before publishing.', isVisible: true });
+      setCurrentStep(6);
+      return;
+    }
 
     // Let an already-started autosave finish before the final explicit save,
     // and cancel a pending debounce so an older payload cannot overwrite it.
@@ -3550,16 +3507,6 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
     // Use the uploaded banner URL directly, or fall back to category default
     const finalBannerImage = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
     console.log('Final banner image being sent:', finalBannerImage);
-    
-    // Check if salary should be included (only if user actually modified it)
-    const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
-    
-    // Normalize salary inputs to real numeric values for the API payload.
-    // "6.7K" -> 6700, "800" -> 800, "5L" -> 500000. Empty inputs stay 0.
-    const salaryMinValue = parseSalaryNumber(jobData.minSalary);
-    const salaryMaxValue = jobData.payType === 'Exact amount'
-      ? parseSalaryNumber(jobData.minSalary)
-      : parseSalaryNumber(jobData.maxSalary);
     
     // Format arrays as JSON arrays for backend processing
     const formatArrayField = (field: any): any[] => {
@@ -3613,15 +3560,15 @@ Interested candidates are invited to apply directly through this ZyncJobs job po
       skills: formatArrayField(jobData.skills),
       goodToHaveSkills: formatArrayField(jobData.goodToHaveSkills),
       experienceRange: jobData.experienceRange || '',
-      ...(shouldIncludeSalary && {
+      ...(jobPay && {
         salary: {
-          min: salaryMinValue,
-          max: salaryMaxValue,
+          min: jobPay.min,
+          max: jobPay.max,
           currency: jobData.currency,
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
         },
-        salaryMin: salaryMinValue,
-        salaryMax: salaryMaxValue,
+        salaryMin: jobPay.min,
+        salaryMax: jobPay.max,
         currency: jobData.currency,
         payRate: jobData.payRate,
         payType: jobData.payType

@@ -1,3 +1,4 @@
+import { CompanyLogoLoop } from './CompanyCarousel';
 import React, { useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -44,30 +45,9 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
       {/* Company Logos Section / Lightweight Divider Bar */}
       <div className="home-feature-companies w-full mt-10 sm:mt-12 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-gray-500 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-5 sm:mb-6">
-            Trusted by top companies
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10 md:gap-14 lg:gap-16">
-            {[
-              { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-              { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=100' },
-            ].map((company, index) => (
-              <img
-                key={index}
-                src={company.logo}
-                alt={company.name}
-                className="h-9 sm:h-10 lg:h-11 max-w-[140px] sm:max-w-[160px] w-auto object-contain hover:scale-105 transition-transform duration-200"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            ))}
+          <div className="home-company-panel">
+            <h3 className="home-company-heading">Trusted by top companies</h3>
+            <CompanyLogoLoop />
           </div>
         </div>
       </div>

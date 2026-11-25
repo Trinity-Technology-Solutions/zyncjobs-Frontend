@@ -110,11 +110,10 @@ const InterviewInvitePage = lazy(() => import('./pages/InterviewInvitePage'));
 const ATSDashboard = lazy(() => import('./pages/ATSDashboard'));
 
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-      <p className="text-gray-600">Loading...</p>
-    </div>
+  <div className="zync-startup" role="status">
+    <img className="zync-startup-logo" src="/images/zyncjobs-logo.png" alt="" />
+    <div className="zync-startup-track" aria-hidden="true" />
+    <p className="zync-startup-label">Loading ZyncJobs</p>
   </div>
 );
 
@@ -194,7 +193,7 @@ const DashboardRoute: React.FC<{
         <Navigate to="/admin/dashboard" replace />
       ) : user?.type === 'employer' ? (
         <>
-          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} workspaceLayout />
           <EmployerDashboardPage user={user as any} onNavigate={handleNavigation} onLogout={handleLogout} />
         </>
       ) : (
@@ -337,7 +336,20 @@ function App() {
     if (page === 'employer-login') { navigate('/employer-login'); return; }
     if (page === 'candidate-register') { navigate('/candidate-register'); return; }
     if (page === 'employer-register') { navigate('/employer-register'); return; }
-    if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (page === 'dashboard') {
+      const applicationJobId = params?.applicationJobId;
+      navigate(applicationJobId
+        ? `/dashboard?${new URLSearchParams({ jobId: String(applicationJobId) })}#applications`
+        : '/dashboard', applicationJobId ? {
+          state: {
+            applicationJobId: String(applicationJobId),
+            applicationJobTitle: params.applicationJobTitle,
+            applicationJobCode: params.applicationJobCode,
+          },
+        } : undefined);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
     if (page === 'bulk-job-import') { navigate('/bulk-job-import'); return; }
     if (page === 'job-alert-notifications') { navigate('/job-alert-notifications'); return; }
