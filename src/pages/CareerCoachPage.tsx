@@ -4,9 +4,9 @@ import RoleGuard from '../components/RoleGuard';
 import {
   User, RefreshCw, Zap, TrendingUp,
   Target, BookOpen, Briefcase, Award, ChevronRight,
-  Plus, MessageSquare, BarChart2, Map, Star, Paperclip, Mic, MicOff,
-  Navigation, FileText, DollarSign, Volume2, Pin, Clock, Sparkles,
-  GraduationCap, Rocket, CheckCircle2, Circle, ArrowRight, Image as ImageIcon,
+  Plus, MessageSquare, BarChart2, Map, Star, Paperclip,
+  Navigation, FileText, DollarSign, Pin, Clock, Sparkles,
+  GraduationCap, Rocket, CheckCircle2, Circle, ArrowRight,
 } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
@@ -29,6 +29,9 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   attachment?: MessageAttachment;
+  incomplete?: boolean;
+  error?: boolean;
+  originalPrompt?: string;
 }
 
 interface Session {
@@ -37,6 +40,7 @@ interface Session {
   messages: Message[];
   pinned: boolean;
   createdAt: number;
+  confirmedTargetRole?: string | null;
 }
 
 interface UploadedFile {
@@ -183,10 +187,10 @@ const LEFT_CATEGORIES = [
 ];
 
 const RIGHT_QUICK_NAV = [
-  { icon: <Map className="w-3.5 h-3.5" />, label: 'Career Roadmap', page: 'career-roadmap' },
-  { icon: <BarChart2 className="w-3.5 h-3.5" />, label: 'Skill Gap Analysis', page: 'skill-gap-analysis' },
-  { icon: <Star className="w-3.5 h-3.5" />, label: 'Skill Assessment', page: 'skill-assessment' },
-  { icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Job Recommendations', page: 'job-listings' },
+  { icon: <Map className="w-3.5 h-3.5" />, label: 'Career Roadmap', page: 'career-roadmap', color: 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100' },
+  { icon: <BarChart2 className="w-3.5 h-3.5" />, label: 'Skill Gap Analysis', page: 'skill-gap-analysis', color: 'text-violet-700 bg-violet-50 border-violet-200 hover:bg-violet-100' },
+  { icon: <Star className="w-3.5 h-3.5" />, label: 'Skill Assessment', page: 'skill-assessment', color: 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' },
+  { icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Job Recommendations', page: 'job-listings', color: 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' },
 ];
 
 function renderContent(text: string) {
@@ -261,7 +265,7 @@ function buildWelcomeMessage(ctx: Record<string, unknown>, firstName: string): s
   return lines.join('\n');
 }
 
-const SYSTEM_PROMPT = `You are ZyncJobs AI Career Mentor — a personalized expert career advisor. The candidate's full profile (name, current role, target role, skills, ATS score, missing skills, experience) is included in every message. You MUST use this profile data to give specific, personalized answers. NEVER respond with generic feature descriptions. NEVER say "use Skill Gap Analysis" or "visit Career Roadmap" as the answer — instead, PERFORM the analysis yourself and give the actual answer. For skill gaps: list the candidate's current skills vs missing skills. For career paths: generate actual step-by-step roadmap with timelines. For salary: give specific advice based on their role and skills. For resume: analyze their actual ATS score and give specific improvements. NEVER mention other job sites. Be direct, data-driven, and mentor-like. Use bullet points. Max 3-4 paragraphs.`;
+const SYSTEM_PROMPT = `You are ZyncJobs AI Career Mentor — a personalized expert career advisor. The candidate's full profile (name, current role, target role, skills, ATS score, missing skills, experience) is included in every message. You MUST use this profile data to give specific, personalized answers. NEVER respond with generic feature descriptions. NEVER say "use Skill Gap Analysis" or "visit Career Roadmap" as the answer — instead, PERFORM the analysis yourself and give the actual answer. If the user asks to switch careers without specifying a target role, ask them which target role they want to pursue before generating a career switch plan. For skill gaps: list the candidate's current skills vs missing skills. For career paths with a confirmed target role: generate actual step-by-step roadmap with timelines. For salary: give specific advice based on their role and skills. For resume: analyze their actual ATS score and give specific improvements. NEVER mention other job sites. Be direct, data-driven, and mentor-like. Use bullet points. Max 3-4 paragraphs.`;
 
 function groupSessionsByDate(sessions: Session[]): { label: string; items: Session[] }[] {
   const now = new Date();
@@ -329,11 +333,15 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [speakerEnabled, setSpeakerEnabled] = useState(false);
+  const [, setIsSpeaking] = useState(false);
+  const [speakerEnabled, _setSpeakerEnabled] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [showLeftSidebar, setShowLeftSidebar] = useState(false);
   const [userCtx, setUserCtx] = useState<Record<string, unknown>>(() => buildUserContext());
+  const [confirmedTargetRole, setConfirmedTargetRole] = useState<string | null>(() => {
+    const saved = loadSessions();
+    return saved[0]?.confirmedTargetRole || null;
+  });
   const chatRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -375,11 +383,12 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
         ...updated[idx],
         messages,
         title,
+        confirmedTargetRole,
       };
       saveSessions(updated);
       return updated;
     });
-  }, [messages]);
+  }, [messages, confirmedTargetRole]);
 
   const resetChat = () => {
     abortRef.current?.abort();
@@ -394,6 +403,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     setActiveId(s.id);
     activeIdRef.current = s.id;
     setMessages(welcome);
+    setConfirmedTargetRole(null);
     setInput('');
     setUploadedFile(null);
   };
@@ -403,6 +413,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     setActiveId(s.id);
     activeIdRef.current = s.id;
     setMessages(s.messages);
+    setConfirmedTargetRole(s.confirmedTargetRole || null);
   };
 
   const togglePin = (id: string, e: React.MouseEvent) => {
@@ -453,7 +464,11 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     setUploadedFile(null);
     setLoading(true);
 
-    const activeCtx = ctxOverride || pendingCtxRef.current || userCtx;
+    const baseCtx = ctxOverride || pendingCtxRef.current || userCtx;
+    const activeCtx = {
+      ...baseCtx,
+      ...(confirmedTargetRole ? { confirmed_target_role: confirmedTargetRole } : {}),
+    };
     pendingCtxRef.current = null;
 
     let promptForLLM = trimmed;
@@ -466,7 +481,13 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       promptForLLM = `${trimmed}\n\n[Attached File: ${attachment.name}]`;
     }
 
-    const key = cacheKey('career-mentor', promptForLLM, JSON.stringify(activeCtx).slice(0, 100));
+    const key = cacheKey(
+      'career-mentor',
+      promptForLLM,
+      confirmedTargetRole || '',
+      String(messages.length),
+      JSON.stringify(activeCtx).slice(0, 100)
+    );
     const cached = getCached<string>(key);
     if (cached) {
       setMessages(prev => [...prev, { role: 'assistant', content: cached }]);
@@ -475,8 +496,8 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
       return;
     }
 
+    let full = '';
     try {
-      let full = '';
       const apiMessages = updated.map((m, idx) => {
         if (idx === updated.length - 1 && m.role === 'user') {
           return { role: m.role, content: promptForLLM };
@@ -484,7 +505,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
         return { role: m.role, content: m.content || '[Attached File]' };
       });
 
-      await sendAIMessageStream(apiMessages, SYSTEM_PROMPT, (chunk) => {
+      const streamResult = await sendAIMessageStream(apiMessages, SYSTEM_PROMPT, (chunk) => {
         full += chunk;
         setMessages(prev => {
           const last = prev[prev.length - 1];
@@ -497,24 +518,57 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
         });
       }, abortRef.current.signal, activeCtx);
 
-      if (full) { setCached(key, full); speakText(full); }
+      if (streamResult?.targetRoleStatus === 'confirmed' && streamResult.targetRole) {
+        setConfirmedTargetRole(streamResult.targetRole);
+      } else if (streamResult?.needsClarification) {
+        setConfirmedTargetRole(null);
+      }
+
+      if (streamResult?.truncated) {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            const u = [...prev];
+            u[u.length - 1] = { ...last, incomplete: true, originalPrompt: trimmed || promptForLLM };
+            return u;
+          }
+          return prev;
+        });
+      } else if (full) {
+        setCached(key, full);
+        speakText(full);
+      }
     } catch (e: any) {
-      if (e?.name === 'AbortError') return;
+      if (e?.name === 'AbortError') {
+        if (full) {
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              const u = [...prev];
+              u[u.length - 1] = { ...last, incomplete: true, originalPrompt: trimmed || promptForLLM };
+              return u;
+            }
+            return prev;
+          });
+        }
+        return;
+      }
+      console.warn('[CareerCoach] Live AI request failed; showing offline guidance:', e);
       const fallback = getFallback(promptForLLM || 'resume', activeCtx);
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant' && !last.content) {
           const u = [...prev];
-          u[u.length - 1] = { role: 'assistant', content: fallback };
+          u[u.length - 1] = { role: 'assistant', content: fallback, incomplete: true, error: true, originalPrompt: trimmed || promptForLLM };
           return u;
         }
-        return [...prev, { role: 'assistant', content: fallback }];
+        return [...prev, { role: 'assistant', content: fallback, incomplete: true, error: true, originalPrompt: trimmed || promptForLLM }];
       });
       speakText(fallback);
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, userCtx, speakerEnabled, uploadedFile]);
+  }, [messages, loading, userCtx, confirmedTargetRole, speakerEnabled, uploadedFile]);
 
   const handleSend = () => {
     sendMessage(input);
@@ -641,29 +695,11 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     }
   };
 
-  const toggleVoice = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert('Voice not supported in this browser.'); return; }
-    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
-    const rec = new SR();
-    rec.lang = 'en-US';
-    rec.interimResults = false;
-    rec.onresult = (e: any) => {
-      const t = e.results[0][0].transcript;
-      setInput(prev => prev + (prev ? ' ' : '') + t);
-    };
-    rec.onend = () => setIsListening(false);
-    rec.onerror = () => setIsListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setIsListening(true);
-  };
-
   const skills = (userCtx.skills as string[]) || [];
   const missingSkills = (userCtx.missing_skills as string[]) || [];
   const atsScore = userCtx.ats_score ? Number(userCtx.ats_score) : null;
   const currentRole = userCtx.current_role ? String(userCtx.current_role) : '';
-  const targetRole = userCtx.target_role ? String(userCtx.target_role) : '';
+  const targetRole = confirmedTargetRole || (userCtx.target_role ? String(userCtx.target_role) : '');
 
   return (
     <RoleGuard
@@ -859,7 +895,24 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
 
                           {msg.content ? renderContent(msg.content) : null}
                         </div>
-                        {msg.role === 'assistant' && i === messages.length - 1 && msg.content && !loading && (
+                        {msg.role === 'assistant' && (msg.incomplete || msg.error) && !loading && (
+                          <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                            <span>
+                              {msg.error
+                                ? 'Live AI service was unavailable; showing offline guidance.'
+                                : 'Response was cut off before completion.'}
+                            </span>
+                            {msg.originalPrompt && (
+                              <button
+                                onClick={() => sendMessage(msg.originalPrompt!)}
+                                className="ml-auto font-semibold text-[#2563eb] hover:underline flex items-center gap-1 flex-shrink-0"
+                              >
+                                <RefreshCw className="w-3 h-3" /> Retry
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {msg.role === 'assistant' && i === messages.length - 1 && msg.content && !loading && !msg.incomplete && !msg.error && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {FOLLOWUP_ACTIONS.slice(0, 3).map((a, fi) => (
                               <button key={fi} onClick={() => sendMessage(a.msg)}
@@ -1122,6 +1175,11 @@ function getFallback(q: string, ctx: Record<string, unknown>): string {
   }
 
   if (t.includes('career') || t.includes('path') || t.includes('roadmap') || t.includes('plan') || t.includes('switch')) {
+    const confirmedOrProfileTarget = (ctx.confirmed_target_role as string) || (ctx.target_role as string) || '';
+    if (t.includes('switch') && !confirmedOrProfileTarget) {
+      const skillNote = skills.length > 0 ? `With your skills in **${skills.slice(0, 4).join(', ')}**, I can tailor a transition plan once you pick a direction.\n\n` : '';
+      return `${skillNote}Which specific target role or career field would you like to switch to? Please share the role you want to pursue, and I'll build your career switch plan.`;
+    }
     const step1Skills = missing.slice(0, 2).join(', ') || 'advanced skills for your target role';
     return `**Career Roadmap: ${role} → ${target}**\n\n**Phase 1: Skill Building (0-3 months)**\n• You already have: ${skills.slice(0, 3).join(', ') || 'foundational skills'}\n• Add: ${step1Skills}\n• Complete 1 certification relevant to ${target}\n\n**Phase 2: Portfolio & Visibility (3-6 months)**\n• Build 2-3 projects showcasing ${target} skills\n• Contribute to open source or write 2-3 technical articles\n• Update your resume and LinkedIn with new skills\n\n**Phase 3: Active Job Search (6-9 months)**\n• Apply to ${target} roles — target 5-10 applications/week\n• Prepare for technical + system design interviews\n• Negotiate salary based on your new skill set\n\n💡 Estimated timeline: 6-9 months with consistent effort.`;
   }

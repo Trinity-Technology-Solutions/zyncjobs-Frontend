@@ -36,11 +36,22 @@ async function getToken(role = 'candidate'): Promise<string> {
 export async function executeAI(
   query: string,
   context?: Record<string, unknown>,
-  userRole = 'candidate'
+  userRole = 'candidate',
+  externalSignal?: AbortSignal
 ): Promise<Record<string, unknown>> {
+  if (externalSignal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
   const token = await getToken(userRole === 'recruiter' ? 'employer' : userRole);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60000); // 60s — Ollama needs time
+  let timedOut = false;
+  const onExternalAbort = () => controller.abort();
+  externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+  const timeoutMs = Number(import.meta.env.VITE_AI_TIMEOUT_MS) || 120000;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const res = await fetch(`${AI_BASE}/ai/execute`, {
       method: 'POST',
@@ -53,8 +64,14 @@ export async function executeAI(
     });
     if (!res.ok) throw new Error(`AI execute error: ${res.status}`);
     return res.json();
+  } catch (err: any) {
+    if (timedOut && err?.name === 'AbortError') {
+      throw new Error('AI request timed out');
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', onExternalAbort);
   }
 }
 
@@ -122,7 +139,7 @@ Skills: ${Array.isArray(s.skills_to_learn) ? s.skills_to_learn.join(', ') : ''}`
 export async function sendAIMessage(
   messages: ChatMessage[],
   systemPrompt: string,
-  signal?: AbortSignal,
+  _signal?: AbortSignal,
   maxTokens = 800
 ): Promise<string> {
   const userMsg = messages.find(m => m.role === 'user')?.content || '';
@@ -140,6 +157,14 @@ export async function sendAIMessage(
   }
 }
 
+export interface StreamResult {
+  truncated: boolean;
+  finishReason?: string;
+  targetRole?: string | null;
+  targetRoleStatus?: string;
+  needsClarification?: boolean;
+}
+
 // Streaming — for chat (CareerCoach, Recruiter, ChatWidget)
 export async function sendAIMessageStream(
   messages: ChatMessage[],
@@ -147,7 +172,7 @@ export async function sendAIMessageStream(
   onChunk: (text: string) => void,
   signal?: AbortSignal,
   userContext?: Record<string, unknown>
-): Promise<void> {
+): Promise<StreamResult> {
   const userMsg = messages[messages.length - 1]?.content || '';
   const history = messages.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
   const isCareerCoach = systemPrompt.toLowerCase().includes('career') || systemPrompt.toLowerCase().includes('mentor');
@@ -217,16 +242,37 @@ export async function sendAIMessageStream(
       history,
     },
   };
-  const data = await executeAI(enrichedQuery, context, isRecruiter ? 'recruiter' : isCareerCoach ? 'candidate' : 'candidate');
+  const data = await executeAI(
+    enrichedQuery,
+    context,
+    isRecruiter ? 'recruiter' : isCareerCoach ? 'candidate' : 'candidate',
+    signal
+  );
+  if ((data as any)?.success === false) {
+    throw new Error(String((data as any)?.error || 'AI generation failed'));
+  }
   const reply = extractReply(data);
   if (!reply) throw new Error('Empty AI response');
+  const truncated = Boolean(
+    (data as any)?.result?.truncated ||
+    (data as any)?.metadata?.truncated ||
+    (data as any)?.result?.incomplete ||
+    (data as any)?.metadata?.incomplete
+  );
+  const finishReason = ((data as any)?.result?.finish_reason || (data as any)?.metadata?.finish_reason) as string | undefined;
+  const targetRole = ((data as any)?.result?.target_role ?? (data as any)?.metadata?.target_role ?? null) as string | null;
+  const targetRoleStatus = ((data as any)?.result?.target_role_status || (data as any)?.metadata?.target_role_status) as string | undefined;
+  const needsClarification = Boolean((data as any)?.result?.needs_clarification ?? (data as any)?.metadata?.needs_clarification);
   // Simulate streaming word by word
   const words = reply.split(' ');
   for (let i = 0; i < words.length; i++) {
-    if (signal?.aborted) break;
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
     await new Promise(r => setTimeout(r, 25));
   }
+  return { truncated, finishReason, targetRole, targetRoleStatus, needsClarification };
 }
 
 // Assessment questions — calls AI agent (Ollama via /recruitment-ai/ai/execute)
